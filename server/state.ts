@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { ARM_LEAD_MS } from '../shared/protocol.ts'
+import { knownModule, moduleFor, sanitizeOptions } from './modes/index.ts'
 import type {
   HostAction, PlayerId, ScoreKey, State,
 } from '../shared/protocol.ts'
@@ -103,6 +104,34 @@ export function applyHostAction(state: State, action: HostAction): void {
       // Handled by the hub, which owns the snapshot stack.
       return
 
+    case 'setGame': {
+      // Modes are fixed per session; switching is a fresh game, refused mid-question.
+      if (round.phase !== 'IDLE') return
+      if (!knownModule(action.id)) {
+        console.warn(`[state] unknown game "${action.id}" — dropped`)
+        return
+      }
+      const mod = moduleFor(action.id)
+      const options = sanitizeOptions(mod.options, action.options)
+      if (action.id === state.game.id) {
+        // Re-saving the current mode's options is not a switch: scores survive.
+        state.game.options = options
+        return
+      }
+      state.game = { id: mod.id, options, moduleState: mod.init(options) }
+      state.scores = {}
+      state.items = {}
+      state.effects = []
+      round.armedAt = 0
+      round.order = []
+      round.total = 0
+      round.lockedOut = []
+      delete round.award
+      delete round.fragments
+      delete round.answer
+      return
+    }
+
     case 'setValue':
       round.value = action.value
       return
@@ -189,6 +218,17 @@ export function loadState(path: string): State {
 
   try {
     const loaded = JSON.parse(raw) as State
+    // Snapshots from before game modes — or naming a module this build does
+    // not register — must still boot.
+    loaded.items ??= {}
+    loaded.effects ??= []
+    loaded.game ??= { id: 'trivia', options: {}, moduleState: {} }
+    if (!knownModule(loaded.game.id)) {
+      console.error(
+        `[state] game "${loaded.game.id}" is not registered — falling back to trivia`,
+      )
+      loaded.game = { id: 'trivia', options: {}, moduleState: {} }
+    }
     // Nobody is connected yet; sockets re-establish that on their own.
     for (const p of loaded.players) p.connected = false
     // A round mid-flight can't survive a restart: no timer, no pending buzzes.
@@ -196,6 +236,8 @@ export function loadState(path: string): State {
     loaded.round.order = []
     loaded.round.total = 0
     delete loaded.round.award
+    delete loaded.round.fragments
+    delete loaded.round.answer
     return loaded
   } catch (err) {
     console.error('[state] snapshot unreadable, starting fresh:', err)
