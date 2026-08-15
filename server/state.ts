@@ -13,6 +13,12 @@ export function newState(): State {
     players: [],
     teams: [],
     scores: {},
+    // The default mode is trivia, which has no options and an empty module
+    // state; written as a literal so newState never touches the registry.
+    game: { id: 'trivia', options: {}, moduleState: {} },
+    items: {},
+    effects: [],
+    games: [],
     round: {
       value: 100,
       phase: 'IDLE',

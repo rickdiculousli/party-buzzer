@@ -61,6 +61,38 @@ export type Round = {
    * needs to outlive the button press that caused it.
    */
   award?: { name: string; points: number }
+  /** Question text revealed so far, in order. Stripped from player views. */
+  fragments?: string[]
+  /** Revealed after scoring, if a question pack supplied one. Stripped from player views. */
+  answer?: string
+}
+
+/** The active game mode. `id` names a registered module; the rest is its data. */
+export type GameState = {
+  id: string
+  /** Values for the module's declared option schema, defaults filled. */
+  options: Record<string, unknown>
+  /** Opaque to the framework; the module owns and interprets it. */
+  moduleState: unknown
+}
+
+/** A mode option, declared as data so the host settings form needs no per-mode code. */
+export type OptionSpec =
+  | { kind: 'int'; key: string; label: string; default: number; min: number; max: number }
+  | { kind: 'bool'; key: string; label: string; default: boolean }
+  | { kind: 'choice'; key: string; label: string; default: string; choices: string[] }
+
+/** One registered mode, for the host's settings form. Ships in the state payload. */
+export type GameInfo = { id: string; name: string; options: OptionSpec[] }
+
+/**
+ * A live item effect. Stamped with the arm it belongs to when the question
+ * opens; swept on the next arm, so nothing leaks across questions.
+ */
+export type ActiveEffect = {
+  kind: 'frozen' | 'steal'
+  playerId: PlayerId
+  roundArmedAt?: number
 }
 
 export type State = {
@@ -69,6 +101,12 @@ export type State = {
   teams: Team[]
   scores: Record<ScoreKey, number>
   round: Round
+  game: GameState
+  /** Item ids per player; duplicates mean a count. */
+  items: Record<PlayerId, string[]>
+  effects: ActiveEffect[]
+  /** Static module catalog. The hub refreshes it at startup; snapshots keep a stale copy harmlessly. */
+  games: GameInfo[]
 }
 
 export type HostAction =
@@ -85,12 +123,15 @@ export type HostAction =
   | { a: 'setMode'; mode: Mode }
   | { a: 'addTeam'; name: string; color: string }
   | { a: 'assign'; playerId: PlayerId; teamId?: TeamId }
+  | { a: 'setGame'; id: string; options: Record<string, unknown> }
 
 export type ClientMsg =
   | { t: 'hello'; role: Role; playerId?: PlayerId; name?: string }
   | { t: 'ping'; t0: number }
   | { t: 'buzz'; at: number }
   | { t: 'host'; action: HostAction }
+  /** Module and item actions. Dispatched by the hub; unknown acts are dropped. */
+  | { t: 'act'; act: string; data?: unknown }
 
 export type ServerMsg =
   | { t: 'welcome'; playerId: PlayerId; serverTime: number }
