@@ -8,13 +8,18 @@
  * three other names. Tuning against the void is how you land a value that looks
  * wrong the moment it ships.
  *
+ * Every scenario renders in two phases, and `render(lead)` is how it says what
+ * each one holds. The lead-up frame is the board an instant before the moment
+ * happens: everything that was already there, sitting still, with only the new
+ * thing missing. Then the new thing arrives. That is the actual shape of these
+ * moments — an award lands on a stage that already has the name and the
+ * timeline on it — and it is the only frame against which an entrance can be
+ * judged.
+ *
  * The dials name custom properties from the `anim:tunables` block in style.css.
  * Nothing here restates a duration or a colour: the harness sets those
  * properties on a wrapper and the real rules pick them up, so a scenario cannot
  * drift from what the board actually does.
- *
- * Adding one is markup plus the dials you want to reach. There is no
- * registration step beyond this array.
  */
 import { COLLECT_MS } from '../../shared/protocol.ts'
 
@@ -27,8 +32,22 @@ export type Scenario = {
   label: string
   /** One line on what the moment is, shown above the stage. */
   note: string
+  /**
+   * What this scenario is actually about, as a selector.
+   *
+   * Everything else is context and is held still: on a scenario change the
+   * whole scene mounts at once, and the harness cancels any animation outside
+   * this selector so the context settles instead of going off together. Within
+   * a take it mostly looks after itself — the context is never remounted, so it
+   * has nothing to fire.
+   *
+   * Matching the subject itself or anything inside it counts, so naming
+   * `.timeline__mark` also keeps its pin and its name.
+   */
+  subject: string
   dials: Dial[]
-  render: () => preact.JSX.Element
+  /** `lead` is the frame before the moment: everything but the new thing. */
+  render: (lead: boolean) => preact.JSX.Element
 }
 
 // --- shared dial groups ------------------------------------------------------
@@ -53,13 +72,19 @@ const BLOOM: Dial[] = [
 
 /** Four buzzes with the spread a real question produces. */
 const MARKS = [
-  { name: 'Ada', ms: 0, lane: 0, id: 'var(--id-1)' },
-  { name: 'Bo', ms: 180, lane: 0, id: 'var(--id-3)' },
-  { name: 'Cy', ms: 430, lane: 0, id: 'var(--id-6)' },
-  { name: 'Dee', ms: 720, lane: 0, id: 'var(--id-4)' },
+  { name: 'Ada', ms: 0, id: 'var(--id-1)' },
+  { name: 'Bo', ms: 180, id: 'var(--id-3)' },
+  { name: 'Cy', ms: 430, id: 'var(--id-6)' },
+  { name: 'Dee', ms: 720, id: 'var(--id-4)' },
 ]
 
-function Timeline() {
+/**
+ * `held` marks are left out. Keyed by name, so the ones already on screen keep
+ * their DOM when the last one appears and therefore do not re-stamp — the same
+ * reason the board only animates the mark that just arrived.
+ */
+function Timeline({ held = 0 }: { held?: number }) {
+  const shown = MARKS.slice(0, MARKS.length - held)
   return (
     <div class="timeline">
       <div class="timeline__scale">
@@ -68,15 +93,11 @@ function Timeline() {
       </div>
       <div class="timeline__rail" />
       <ol class="timeline__marks" style={{ '--lanes': 1 }}>
-        {MARKS.map((m) => (
+        {shown.map((m) => (
           <li
             key={m.name}
             class="timeline__mark"
-            style={{
-              '--at': `${(m.ms / COLLECT_MS) * 100}%`,
-              '--lane': m.lane,
-              '--id': m.id,
-            }}
+            style={{ '--at': `${(m.ms / COLLECT_MS) * 100}%`, '--lane': 0, '--id': m.id }}
           >
             <span class="timeline__pin" />
             <span class="timeline__name">{m.name}</span>
@@ -95,7 +116,7 @@ function Stage({
   below,
 }: {
   above?: preact.JSX.Element | false
-  mid: preact.JSX.Element
+  mid?: preact.JSX.Element | false
   below?: preact.JSX.Element | false
 }) {
   return (
@@ -111,14 +132,18 @@ export const SCENARIOS: Scenario[] = [
   {
     id: 'mark',
     label: 'A mark lands',
-    note: 'Four marks mount at once here. On the board they arrive one at a time as packets land, so watch a single pin — the stagger is real, the simultaneity is not.',
+    note: 'Three marks are already down. The fourth arrives — which is what the board does all through the collection window, one packet at a time.',
+    subject: '.timeline__mark',
     dials: [...STAMP, ...BLOOM],
-    render: () => <Stage mid={<p class="board__hero">Ada</p>} below={<Timeline />} />,
+    render: (lead) => (
+      <Stage mid={<p class="board__hero">Ada</p>} below={<Timeline held={lead ? 1 : 0} />} />
+    ),
   },
   {
     id: 'leader',
     label: "The leader's name",
-    note: 'Mounts when the round resolves, with its timeline assembling underneath.',
+    note: 'The round resolves onto a stage whose timeline is already filling in.',
+    subject: '.board__hero',
     dials: [
       { var: '--slam-dur', label: 'Slam', min: 60, max: 800, step: 10, unit: 'ms' },
       { var: '--slam-scale', label: 'From scale', min: 1, max: 2, step: 0.05, unit: '' },
@@ -128,20 +153,30 @@ export const SCENARIOS: Scenario[] = [
       { var: '--flare-body', label: 'Body', min: 0, max: 200, step: 4, unit: 'px' },
       { var: '--flare-throw', label: 'Throw', min: 0, max: 400, step: 5, unit: 'px' },
     ],
-    render: () => <Stage mid={<p class="board__hero">Alexander</p>} below={<Timeline />} />,
+    // The ghost keeps the middle band open while the name is held back. An
+    // empty band collapses, and the timeline underneath would step up and back
+    // down on every take — motion the board does not have, in the exact place
+    // you are trying to judge some.
+    render: (lead) => (
+      <Stage
+        mid={lead ? <div class="harness__ghost" /> : <p class="board__hero">Alexander</p>}
+        below={<Timeline />}
+      />
+    ),
   },
   {
     id: 'award',
     label: 'The award',
-    note: 'The only moment the score actually changes, so it carries the heaviest stamp.',
+    note: 'The host scores it. The name and the timeline have been up for a while; only the points are new.',
+    subject: '.board__award',
     dials: [
       { var: '--strike-dur', label: 'Strike', min: 80, max: 900, step: 10, unit: 'ms' },
       { var: '--strike-scale', label: 'From scale', min: 1, max: 3, step: 0.05, unit: '' },
       { var: '--strike-recoil', label: 'Recoil', min: 0.7, max: 1.1, step: 0.01, unit: '' },
     ],
-    render: () => (
+    render: (lead) => (
       <Stage
-        above={<p class="board__award">+400</p>}
+        above={!lead && <p class="board__award">+400</p>}
         mid={<p class="board__hero">Ada</p>}
         below={<Timeline />}
       />
@@ -150,18 +185,19 @@ export const SCENARIOS: Scenario[] = [
   {
     id: 'open',
     label: 'The buzzers open',
-    note: 'The loudest instant of the round, and the only one every surface shares. The filament is held hot here rather than warming up.',
+    note: 'Standing by, then live. The same element changes class here exactly as it does on the board, so the punch fires off the class and not a remount.',
+    subject: '.board__call',
     dials: [
       { var: '--punch-dur', label: 'Punch', min: 30, max: 500, step: 10, unit: 'ms' },
       { var: '--punch-scale', label: 'From scale', min: 1, max: 1.6, step: 0.02, unit: '' },
     ],
-    render: () => (
+    render: (lead) => (
       <Stage
-        mid={<p class="board__call">Buzz</p>}
+        mid={lead ? <p class="board__idle">Stand by</p> : <p class="board__call">Buzz</p>}
         below={
           <>
             <div class="board__lead-in">
-              <div class="filament is-hot" />
+              <div class={lead ? 'filament' : 'filament is-hot'} style={{ '--lead': '900ms' }} />
             </div>
             <p class="board__value">400</p>
           </>
@@ -172,9 +208,10 @@ export const SCENARIOS: Scenario[] = [
   {
     id: 'press',
     label: 'Your press registers',
-    note: 'On the phone, in the second between the press and the result.',
+    note: 'The buzzer is open under your thumb, then the press lands. A class change on the same button, as on the phone.',
+    subject: '.buzzer',
     dials: [{ var: '--land-dur', label: 'Land', min: 60, max: 900, step: 10, unit: 'ms' }],
-    render: () => (
+    render: (lead) => (
       <main class="player" style={{ height: '30rem', maxWidth: '22rem', margin: '0 auto' }}>
         <div class="player__bar">
           <span class="player__name" style={{ '--id': 'var(--id-1)' }}>Ada</span>
@@ -185,9 +222,9 @@ export const SCENARIOS: Scenario[] = [
           <span class="player__score readout">400</span>
         </div>
         <div class="player__lead-in" />
-        <button class="buzzer is-placed">
-          In
-          <span class="buzzer__sub">Counting the rest of the field</span>
+        <button class={lead ? 'buzzer is-open' : 'buzzer is-placed'}>
+          {lead ? 'Buzz' : 'In'}
+          {!lead && <span class="buzzer__sub">Counting the rest of the field</span>}
         </button>
       </main>
     ),

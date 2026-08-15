@@ -76,9 +76,58 @@
 }
 /* The value is data, not a label — it does not take the label's uppercase. */
 .harness__value { color: var(--cyan); text-transform: none; letter-spacing: 0; }
+/* Moved off its original reads as live, not as measurement. */
+.harness__value.is-moved { color: var(--tungsten); }
+
+.harness__track {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  /* Room for the origin notch beneath the track. */
+  padding-bottom: 7px;
+}
 .harness__dial input[type='range'] {
   width: 100%;
+  margin: 0;
   accent-color: var(--tungsten);
+}
+/* Where this dial started. A notch under the track rather than a line across
+   it: an overlay would sit either behind the input's own track, where it is
+   invisible, or on top of the thumb, where it reads as part of the handle. */
+.harness__origin {
+  position: absolute;
+  bottom: 0;
+  width: 1px;
+  height: 5px;
+  margin-left: -0.5px;
+  background: var(--dim);
+  pointer-events: none;
+}
+
+/* The original's value, and the way back to it. A button because it is one. */
+.harness__was {
+  align-self: start;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: var(--t-xs);
+  color: var(--dim);
+  cursor: pointer;
+  text-align: left;
+}
+.harness__was:hover { color: var(--chalk); }
+
+.harness__origin-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: var(--t-xs);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--tungsten);
+  cursor: pointer;
 }
 
 .harness__saved {
@@ -97,6 +146,18 @@
   overflow-x: auto;
   margin: 0;
 }
+
+/*
+ * Holds a band open while its subject is being held back.
+ *
+ * The board never has this gap — its middle band always contains either a name
+ * or the go cue, and `.board__mid--cue` reserves a hero line for the latter. It
+ * exists only because a lead-up frame deliberately removes something the real
+ * stage would never be without, and without it that band collapses and drags
+ * the timeline up with it. Harness scaffolding, so it lives here rather than in
+ * style.css.
+ */
+.harness__ghost { height: calc(var(--t-hero) * 0.86); }
 
 /* The preview side. Stage colour and nothing else, so what you are looking at
    is the component and its real container. */

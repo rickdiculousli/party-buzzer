@@ -21,8 +21,19 @@
  * without it.
  */
 import { render } from 'preact'
-import { useEffect, useRef, useState } from 'preact/hooks'
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { SCENARIOS, type Dial } from './scenarios.tsx'
+
+/**
+ * How long the lead-up frame is held before the moment happens.
+ *
+ * Not a blank screen: the board an instant earlier, with everything that was
+ * already there sitting still and only the new thing missing. An entrance can
+ * only be judged against the frame it actually interrupts, and on this board
+ * that frame is never empty — the award lands on a stage that already has the
+ * name and the timeline on it.
+ */
+const LEAD_MS = 500
 
 /** Split "700ms" into 700, or "cubic-bezier(...)" into itself. */
 const num = (v: string) => parseFloat(v)
@@ -41,39 +52,105 @@ function Harness() {
   const [values, setValues] = useState<Record<string, string>>(() =>
     readDefaults(scenario.dials),
   )
-  // Bumping this remounts the preview subtree, which is exactly how the board
-  // fires these: a fresh element, a fresh animation. Nothing here reaches into
-  // the Web Animations API to restart anything.
-  const [take, setTake] = useState(0)
+  /**
+   * Where each dial started, so a slider can show you how far you have moved it
+   * and Reset has something to go back to. "Started" means what is in
+   * style.css, so a successful save re-captures it: once a value is committed
+   * to the file it *is* the original, and a marker still pointing at the number
+   * you replaced would be showing you history rather than a baseline.
+   */
+  const [origin, setOrigin] = useState<Record<string, string>>(() =>
+    readDefaults(scenario.dials),
+  )
+  /**
+   * `lead` is the frame before the moment; clearing it is the moment.
+   *
+   * The scene is never remounted to fire a take — that is the whole trick. The
+   * context stays mounted across the change, so it has nothing to animate, and
+   * only the newly rendered subject does. Which is exactly how the board
+   * behaves: a mark stamps because it is new, and the three beside it do not
+   * because they are not.
+   */
+  const [lead, setLead] = useState(true)
   const [speed, setSpeed] = useState(1)
   const [looping, setLooping] = useState(false)
   const [every, setEvery] = useState(2000)
   const [saved, setSaved] = useState('')
   const stage = useRef<HTMLDivElement>(null)
 
+  /**
+   * Back to the lead-up frame, hold it, then let the moment happen.
+   *
+   * The timer is owned here rather than by an effect watching `lead`. That
+   * version wedged: the effect only re-runs when `lead` changes, so any path
+   * that left it true without a re-run — a trigger arriving while it was
+   * already true, an effect flush that did not happen — left no timer pending
+   * and the harness sat in the lead-up frame forever, with nothing to fire and
+   * no way back. Setting it imperatively means every trigger schedules its own
+   * way out, whatever state it found.
+   */
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const trigger = () => {
+    clearTimeout(timer.current)
+    setLead(true)
+    timer.current = setTimeout(() => setLead(false), LEAD_MS)
+  }
+  useEffect(() => () => clearTimeout(timer.current), [])
+
   // A new scenario brings its own dials, so re-read their defaults from the
   // stylesheet rather than carrying the previous scenario's numbers across.
   useEffect(() => {
-    setValues(readDefaults(scenario.dials))
-    setTake((t) => t + 1)
+    const fresh = readDefaults(scenario.dials)
+    setValues(fresh)
+    setOrigin(fresh)
+    trigger()
   }, [id])
 
   useEffect(() => {
     if (!looping) return
-    const t = setInterval(() => setTake((n) => n + 1), Math.max(200, every))
+    const t = setInterval(trigger, Math.max(LEAD_MS + 300, every))
     return () => clearInterval(t)
   }, [looping, every])
 
-  // Slow motion. The animations are already running by the time this fires, so
-  // rewind each one to the start before rescaling it — otherwise the first
-  // frames play at full speed and the slow part begins mid-gesture.
-  useEffect(() => {
+  /**
+   * Animations this effect has already dealt with.
+   *
+   * Rewinding is only ever right for an animation that has just been created.
+   * Doing it to one already in flight restarts it, which at 0.1x — where a
+   * 700ms bloom runs for seven seconds — silently re-fired the settled marks
+   * every time the effect ran and made the context look like it was animating
+   * along with the subject.
+   */
+  const handled = useRef(new WeakSet<Animation>())
+
+  // Runs before paint, so the context never shows a frame of movement on its
+  // way to being held still.
+  useLayoutEffect(() => {
     if (!stage.current) return
     for (const a of stage.current.getAnimations({ subtree: true })) {
+      if (handled.current.has(a)) {
+        // Already placed. A speed change still applies, but from where it is.
+        a.playbackRate = speed
+        continue
+      }
+      handled.current.add(a)
+
+      const el = a.effect && 'target' in a.effect ? (a.effect.target as Element | null) : null
+      // Only matters when the whole scene mounts at once — switching scenario,
+      // or the first paint. Within a take the context is not remounted and has
+      // nothing to fire. Cancelling leaves it settled, which is where the board
+      // would have it by the time this moment happens anyway.
+      if (!el || !(el.matches(scenario.subject) || el.closest(scenario.subject))) {
+        a.cancel()
+        continue
+      }
+      // Slow motion. A new animation is already running by the time this sees
+      // it, so rewind before rescaling — otherwise the opening frames play at
+      // full speed and the slow part starts mid-gesture.
       a.currentTime = 0
       a.playbackRate = speed
     }
-  }, [take, speed, id])
+  }, [lead, speed, id])
 
   const css =
     ':root {\n' +
@@ -91,6 +168,8 @@ function Harness() {
         body: JSON.stringify(values),
       })
       const body = await res.json()
+      // Saved values are the new baseline — see the note on `origin`.
+      if (res.ok) setOrigin({ ...values })
       setSaved(res.ok ? `saved ${body.written} to style.css` : `failed: ${body.error}`)
     } catch (err) {
       setSaved(`failed: ${(err as Error).message}`)
@@ -117,7 +196,7 @@ function Harness() {
 
         <p class="eyebrow">Trigger</p>
         <div class="harness__row">
-          <button class="btn btn--go" onClick={() => setTake((t) => t + 1)}>
+          <button class="btn btn--go" onClick={trigger}>
             Retrigger
           </button>
           <label class="harness__check">
@@ -155,43 +234,81 @@ function Harness() {
         </div>
 
         <p class="eyebrow">{scenario.label}</p>
-        {scenario.dials.map((d) =>
-          'text' in d ? (
-            <div class="harness__dial" key={d.var}>
-              <label>{d.label}</label>
-              <input
-                class="input"
-                value={values[d.var] ?? ''}
-                onInput={(e) =>
-                  setValues((v) => ({ ...v, [d.var]: (e.target as HTMLInputElement).value }))
-                }
-              />
-            </div>
-          ) : (
+        {scenario.dials.map((d) => {
+          const was = origin[d.var] ?? ''
+          const now = values[d.var] ?? ''
+          const moved = now !== was
+          // Click the origin readout to put this one dial back, which is far
+          // less blunt than resetting the whole panel to compare one change.
+          const back = () => setValues((v) => ({ ...v, [d.var]: was }))
+
+          if ('text' in d) {
+            return (
+              <div class="harness__dial" key={d.var}>
+                <label>
+                  {d.label}
+                  {moved && (
+                    <button class="harness__origin-btn" onClick={back} title={was}>
+                      reset
+                    </button>
+                  )}
+                </label>
+                <input
+                  class="input"
+                  value={now}
+                  onInput={(e) =>
+                    setValues((v) => ({ ...v, [d.var]: (e.target as HTMLInputElement).value }))
+                  }
+                />
+                {moved && <span class="harness__was">was {was}</span>}
+              </div>
+            )
+          }
+
+          // Where the original sits along this slider, 0–1. The track inset is
+          // half a thumb at each end, so the tick is placed the same way the
+          // browser places the thumb — otherwise it drifts at the extremes and
+          // reads as a wrong number rather than a misaligned one.
+          const at = (num(was) - d.min) / (d.max - d.min)
+
+          return (
             <div class="harness__dial" key={d.var}>
               <label>
                 {d.label}
-                <span class="readout harness__value">
-                  {num(values[d.var] ?? '0')}
+                <span class={moved ? 'readout harness__value is-moved' : 'readout harness__value'}>
+                  {num(now)}
                   {d.unit}
                 </span>
               </label>
-              <input
-                type="range"
-                min={d.min}
-                max={d.max}
-                step={d.step}
-                value={num(values[d.var] ?? '0')}
-                onInput={(e) =>
-                  setValues((v) => ({
-                    ...v,
-                    [d.var]: `${(e.target as HTMLInputElement).value}${d.unit}`,
-                  }))
-                }
-              />
+              <div class="harness__track">
+                <input
+                  type="range"
+                  min={d.min}
+                  max={d.max}
+                  step={d.step}
+                  value={num(now)}
+                  onInput={(e) =>
+                    setValues((v) => ({
+                      ...v,
+                      [d.var]: `${(e.target as HTMLInputElement).value}${d.unit}`,
+                    }))
+                  }
+                />
+                <span
+                  class="harness__origin"
+                  style={{ left: `calc(0.5rem + ${at} * (100% - 1rem))` }}
+                  aria-hidden="true"
+                />
+              </div>
+              {moved && (
+                <button class="harness__was" onClick={back}>
+                  was {num(was)}
+                  {d.unit} — reset
+                </button>
+              )}
             </div>
-          ),
-        )}
+          )
+        })}
 
         <p class="eyebrow">Write back</p>
         <div class="harness__row">
@@ -200,12 +317,13 @@ function Harness() {
           </button>
           <button
             class="btn btn--ghost"
+            disabled={!scenario.dials.some((d) => values[d.var] !== origin[d.var])}
             onClick={() => {
-              setValues(readDefaults(scenario.dials))
-              setTake((t) => t + 1)
+              setValues({ ...origin })
+              trigger()
             }}
           >
-            Revert
+            Reset all
           </button>
         </div>
         {saved && <p class="harness__saved">{saved}</p>}
@@ -214,10 +332,12 @@ function Harness() {
 
       <div class="harness__stage" style={values}>
         <p class="harness__note">{scenario.note}</p>
-        {/* The key is the trigger: a new key is a new element, which is the
-            same thing that happens on the board when a mark or a name mounts. */}
-        <div class="harness__preview" key={take} ref={stage}>
-          {scenario.render()}
+        {/* Keyed on the scenario, not on the take: a take must not remount
+            this, or the context would animate alongside the subject and the
+            whole point would be lost. Only the scenario's own markup changes
+            between the lead-up frame and the moment. */}
+        <div class="harness__preview" key={id} ref={stage}>
+          {scenario.render(lead)}
         </div>
       </div>
     </main>
