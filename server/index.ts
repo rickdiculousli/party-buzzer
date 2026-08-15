@@ -17,6 +17,8 @@ const TYPES: Record<string, string> = {
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml',
+  '.wav': 'audio/wav',
+  '.ogg': 'audio/ogg',
   '.png': 'image/png',
   '.webmanifest': 'application/manifest+json',
 }
@@ -39,7 +41,14 @@ async function serveStatic(req: IncomingMessage, res: ServerResponse): Promise<v
     const body = await readFile(full)
     res.writeHead(200, {
       'content-type': TYPES[extname(full)] ?? 'application/octet-stream',
-      'cache-control': file === 'index.html' ? 'no-cache' : 'max-age=3600',
+      // Only the hashed bundles may be cached, because only they change name
+      // when they change content. Everything else in dist/ — fonts, the QR, the
+      // sounds — keeps a stable filename, so a cached copy is a copy that never
+      // updates: replacing a sound left every open board playing the old one
+      // for an hour, which reads as a change that silently did nothing.
+      'cache-control': full.includes('/assets/')
+        ? 'max-age=31536000, immutable'
+        : 'no-cache',
     })
     res.end(body)
   } catch {

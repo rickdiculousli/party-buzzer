@@ -23,6 +23,7 @@
 import { render } from 'preact'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { SCENARIOS, type Dial } from './scenarios.tsx'
+import { play, prime, unlock } from '../sound.ts'
 
 /**
  * How long the lead-up frame is held before the moment happens.
@@ -76,6 +77,16 @@ function Harness() {
   const [looping, setLooping] = useState(false)
   const [every, setEvery] = useState(2000)
   const [saved, setSaved] = useState('')
+  const [muted, setMuted] = useState(false)
+  /**
+   * Whether the sample slows with the picture.
+   *
+   * On by default, because alignment is the thing you came here to judge and at
+   * 1× an attack and a stamp are the same instant to the ear. Off when you want
+   * to hear the sound as the room will actually hear it — at 0.1× a slowed
+   * sample is a subsonic groan and tells you nothing about how it sounds.
+   */
+  const [follow, setFollow] = useState(true)
   const stage = useRef<HTMLDivElement>(null)
 
   /**
@@ -152,6 +163,29 @@ function Harness() {
     }
   }, [lead, speed, id])
 
+  /**
+   * The cue, on the same edge as the animation.
+   *
+   * Scoped to the stage so it reads the dialled values rather than the ones
+   * committed to style.css — the harness sets its properties on that wrapper,
+   * and a sound tuned against the file while you watch the slider would be
+   * tuning nothing.
+   */
+  useEffect(() => {
+    if (lead || muted || !scenario.sound) return
+    for (const cue of [scenario.sound].flat())
+      play(cue, {
+        scope: stage.current ?? undefined,
+        rateScale: follow ? speed : 1,
+      })
+  }, [lead])
+
+  // Decode before the first take rather than during it, so the opening trigger
+  // of a scenario is not the one that plays silently.
+  useEffect(() => {
+    if (scenario.sound && !muted) prime(...[scenario.sound].flat())
+  }, [id, muted])
+
   const css =
     ':root {\n' +
     Object.entries(values)
@@ -196,7 +230,16 @@ function Harness() {
 
         <p class="eyebrow">Trigger</p>
         <div class="harness__row">
-          <button class="btn btn--go" onClick={trigger}>
+          {/* A real click, which is the only thing that can bring the audio
+              context up. Every later trigger — including the loop's — rides on
+              this one having happened. */}
+          <button
+            class="btn btn--go"
+            onClick={() => {
+              unlock()
+              trigger()
+            }}
+          >
             Retrigger
           </button>
           <label class="harness__check">
@@ -217,6 +260,28 @@ function Harness() {
           />
           <span class="harness__unit">ms</span>
         </div>
+
+        {scenario.sound && (
+          <div class="harness__row">
+            <label class="harness__check">
+              <input
+                type="checkbox"
+                checked={!muted}
+                onChange={(e) => setMuted(!(e.target as HTMLInputElement).checked)}
+              />
+              Sound
+            </label>
+            <label class="harness__check">
+              <input
+                type="checkbox"
+                checked={follow}
+                disabled={muted}
+                onChange={(e) => setFollow((e.target as HTMLInputElement).checked)}
+              />
+              Follow speed
+            </label>
+          </div>
+        )}
 
         <div class="harness__dial">
           <label>

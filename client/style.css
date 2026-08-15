@@ -736,6 +736,10 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   --bloom-halo-spread: 16px;
   --bloom-name-core: 16px;
   --bloom-name-halo: 52px;
+  /* Gap between marks that arrive in the same broadcast. Drives the picture and
+     the sound from one place — two staggers would drift apart on the first
+     tweak, and a run you can see but not hear is worse than neither. */
+  --mark-stagger: 100ms;
 
   /* The award */
   --strike-dur: 260ms;
@@ -755,6 +759,45 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   --punch-dur: 90ms;
   --punch-scale: 1.12;
   --land-dur: 240ms;
+
+  /* Sound. Read by client/sound.ts, never by CSS — they live here because
+     aligning a sound to a movement is the same act as tuning the movement, and
+     because the harness already knows how to dial and write this block.
+     `head` skips dead air before the sample's attack, which is the half of
+     alignment no amount of `delay` can fix. `cut: 0` plays the whole file.
+
+     These sit at neutral because what was dialled in here has been baked into
+     the files themselves — see client/public/sounds/CREDITS.md for the exact
+     ffmpeg pass each one carries. The dials still work; they now start from a
+     sample that already sounds the way it should. */
+  --stamp-snd-delay: 0ms;
+  --stamp-snd-head: 0ms;
+  --stamp-snd-cut: 0ms;
+  --stamp-snd-rate: 1;
+  --stamp-snd-gain: 0.8;
+
+  --leader-snd-delay: 0ms;
+  --leader-snd-head: 0ms;
+  --leader-snd-cut: 0ms;
+  --leader-snd-rate: 1;
+  --leader-snd-gain: 0.8;
+
+  /* A second layer on the same moment, with its own everything — one sample
+     carries the drop and the other the buzzer, and stacking them is the only
+     way to move one against the other. */
+  --leader2-snd-delay: 0ms;
+  --leader2-snd-head: 0ms;
+  --leader2-snd-cut: 0ms;
+  --leader2-snd-rate: 1;
+  --leader2-snd-gain: 0.8;
+
+  /* The welcome bed loops, so `head` and `cut` are its loop points rather than
+     a trim: set them to the good bars and the tail never plays twice. */
+  --welcome-snd-delay: 0ms;
+  --welcome-snd-head: 0ms;
+  --welcome-snd-cut: 0ms;
+  --welcome-snd-rate: 1;
+  --welcome-snd-gain: 0.35;
 }
 /* /anim:tunables */
 
@@ -764,7 +807,20 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
    assembles itself in front of the room at the speed people actually
    pressed. Overscaled and hard-landed — it is a stamp coming down, and
    the pin carries the aftershock so the label does not wobble with it. */
-.timeline__mark { animation: stamp var(--stamp-dur) var(--slam); }
+/*
+ * A batch of marks lands in a run, not a pile.
+ *
+ * Landing four marks on one frame throws the whole staircase down as a single
+ * event and loses the count — four names appear and the room reads "several".
+ * `--enter` is how long this mark waits its turn, scheduled by the board so no
+ * two ever land closer than `--mark-stagger`, whether they arrived in one
+ * broadcast or four. The rail still plots each buzz at its true millisecond;
+ * only the telling is queued.
+ *
+ * `backwards` matters: without it a delayed mark sits fully drawn until its
+ * turn, which is worse than no stagger at all.
+ */
+.timeline__mark { animation: stamp var(--stamp-dur) var(--slam) var(--enter, 0ms) backwards; }
 @keyframes stamp {
   from { opacity: 0; transform: translateX(-50%) scale(var(--stamp-scale)); }
   to { opacity: 1; transform: translateX(-50%) scale(1); }
@@ -793,7 +849,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
  * opacities: the rise becomes one element's duration, the decay the other's
  * delay, and both become dials.
  */
-.timeline__pin { animation: aftershock var(--bloom-dur) var(--ease); }
+.timeline__pin { animation: aftershock var(--bloom-dur) var(--ease) var(--enter, 0ms) backwards; }
 @keyframes aftershock {
   0% {
     box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent;
@@ -807,7 +863,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; }
 }
 /* The name blooms with its pin, in the player's own colour. */
-.timeline__name { animation: bloom var(--bloom-dur) var(--ease); }
+.timeline__name { animation: bloom var(--bloom-dur) var(--ease) var(--enter, 0ms) backwards; }
 @keyframes bloom {
   0% {
     text-shadow: 0 0 0 transparent, 0 0 0 transparent;

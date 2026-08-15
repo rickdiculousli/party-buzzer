@@ -22,6 +22,7 @@
  * drift from what the board actually does.
  */
 import { COLLECT_MS } from '../../shared/protocol.ts'
+import type { Cue } from '../sound.ts'
 
 export type Dial =
   | { var: string; label: string; min: number; max: number; step: number; unit: string }
@@ -46,9 +47,30 @@ export type Scenario = {
    */
   subject: string
   dials: Dial[]
+  /**
+   * The sample this moment fires, if it has one. It plays on the same trigger
+   * as the animation, which is the only way to judge whether the two are one
+   * event or two. Several are layers of one moment, fired together.
+   */
+  sound?: Cue | Cue[]
   /** `lead` is the frame before the moment: everything but the new thing. */
   render: (lead: boolean) => preact.JSX.Element
 }
+
+/**
+ * The five dials every cue has. `head` and `delay` are the two halves of
+ * alignment: one moves the trigger, the other moves the attack inside the file.
+ */
+const soundDials = (cue: Cue, name = 'Snd'): Dial[] => [
+  { var: `--${cue}-snd-delay`, label: `${name} delay`, min: 0, max: 600, step: 5, unit: 'ms' },
+  { var: `--${cue}-snd-head`, label: `${name} head`, min: 0, max: 1000, step: 5, unit: 'ms' },
+  { var: `--${cue}-snd-cut`, label: `${name} cut (0 = whole)`, min: 0, max: 4000, step: 20, unit: 'ms' },
+  // Rate is pitch as well — it is one resampling knob, not two. Weighted well
+  // past 1: these are one-shots on a board, and the useful move is almost
+  // always shortening and brightening a sample rather than dragging it out.
+  { var: `--${cue}-snd-rate`, label: `${name} rate / pitch`, min: 0.25, max: 6, step: 0.05, unit: '' },
+  { var: `--${cue}-snd-gain`, label: `${name} gain`, min: 0, max: 1.5, step: 0.05, unit: '' },
+]
 
 // --- shared dial groups ------------------------------------------------------
 
@@ -134,7 +156,8 @@ export const SCENARIOS: Scenario[] = [
     label: 'A mark lands',
     note: 'Three marks are already down. The fourth arrives — which is what the board does all through the collection window, one packet at a time.',
     subject: '.timeline__mark',
-    dials: [...STAMP, ...BLOOM],
+    dials: [...STAMP, ...BLOOM, ...soundDials('stamp')],
+    sound: 'stamp',
     render: (lead) => (
       <Stage mid={<p class="board__hero">Ada</p>} below={<Timeline held={lead ? 1 : 0} />} />
     ),
@@ -152,7 +175,10 @@ export const SCENARIOS: Scenario[] = [
       { var: '--flare-core', label: 'Core', min: 0, max: 100, step: 2, unit: 'px' },
       { var: '--flare-body', label: 'Body', min: 0, max: 200, step: 4, unit: 'px' },
       { var: '--flare-throw', label: 'Throw', min: 0, max: 400, step: 5, unit: 'px' },
+      ...soundDials('leader'),
+      ...soundDials('leader2', 'Buzzer'),
     ],
+    sound: ['leader', 'leader2'],
     // The ghost keeps the middle band open while the name is held back. An
     // empty band collapses, and the timeline underneath would step up and back
     // down on every take — motion the board does not have, in the exact place
@@ -174,6 +200,9 @@ export const SCENARIOS: Scenario[] = [
       { var: '--strike-scale', label: 'From scale', min: 1, max: 3, step: 0.05, unit: '' },
       { var: '--strike-recoil', label: 'Recoil', min: 0.7, max: 1.1, step: 0.01, unit: '' },
     ],
+    // No cue. The award is silent until there is a sample that belongs to it —
+    // the third file turned out to be the welcome bed, which is music that runs
+    // rather than a sound that fires, and has no business on a moment.
     render: (lead) => (
       <Stage
         above={!lead && <p class="board__award">+400</p>}
