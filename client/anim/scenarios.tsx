@@ -23,7 +23,7 @@
  */
 import { COLLECT_MS } from '../../shared/protocol.ts'
 import type { Cue } from '../sound.ts'
-import { RECIPES } from '../cues.ts'
+import { NUMERIC, RECIPES, type NumericField } from '../cues.ts'
 import type { Layer } from '../synth.ts'
 
 /**
@@ -73,13 +73,20 @@ export type Scenario = {
 }
 
 /**
- * The five dials every cue has. `head` and `delay` are the two halves of
- * alignment: one moves the trigger, the other moves the attack inside the file.
+ * The dials every cue has. `head` and `delay` are the two halves of alignment:
+ * one moves the trigger, the other moves the attack inside the file — which is
+ * why a cue that is a recipe gets neither `head` nor `cut`. There is no file to
+ * trim: `play()` ignores both on the recipe branch, and a slider that moves and
+ * changes nothing is worse than no slider.
  */
 const soundDials = (cue: Cue, name = 'Snd'): Dial[] => [
   { var: `--${cue}-snd-delay`, label: `${name} delay`, min: 0, max: 600, step: 5, unit: 'ms' },
-  { var: `--${cue}-snd-head`, label: `${name} head`, min: 0, max: 1000, step: 5, unit: 'ms' },
-  { var: `--${cue}-snd-cut`, label: `${name} cut (0 = whole)`, min: 0, max: 4000, step: 20, unit: 'ms' },
+  ...(cue in RECIPES
+    ? []
+    : [
+        { var: `--${cue}-snd-head`, label: `${name} head`, min: 0, max: 1000, step: 5, unit: 'ms' },
+        { var: `--${cue}-snd-cut`, label: `${name} cut (0 = whole)`, min: 0, max: 4000, step: 20, unit: 'ms' },
+      ]),
   // Rate is pitch as well — it is one resampling knob, not two. Weighted well
   // past 1: these are one-shots on a board, and the useful move is almost
   // always shortening and brightening a sample rather than dragging it out.
@@ -87,8 +94,12 @@ const soundDials = (cue: Cue, name = 'Snd'): Dial[] => [
   { var: `--${cue}-snd-gain`, label: `${name} gain`, min: 0, max: 1.5, step: 0.05, unit: '' },
 ]
 
-/** Range and step per recipe field. One table, so every layer dials alike. */
-const FIELD: Record<string, { max: number; step: number; unit: string }> = {
+/**
+ * Range and step per recipe field. One table, so every layer dials alike, and
+ * keyed off `NUMERIC` so the fields the canvas may write are exactly the ones
+ * the panel can show.
+ */
+const FIELD: Record<NumericField, { max: number; step: number; unit: string }> = {
   freq: { max: 4000, step: 10, unit: 'Hz' },
   freqTo: { max: 4000, step: 10, unit: 'Hz' },
   attack: { max: 400, step: 1, unit: 'ms' },
@@ -111,8 +122,7 @@ const FIELD: Record<string, { max: number; step: number; unit: string }> = {
 export function recipeDials(cue: string): Dial[] {
   const recipe = (RECIPES as Record<string, Layer[]>)[cue] ?? []
   return recipe.flatMap((layer, i) =>
-    Object.keys(FIELD)
-      .filter((f) => typeof layer[f as keyof Layer] === 'number')
+    NUMERIC.filter((f) => typeof layer[f] === 'number')
       .map((f) => ({
         recipe: `${cue}.${i}.${f}`,
         label: `${cue} L${i + 1} ${f}`,

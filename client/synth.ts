@@ -11,6 +11,15 @@
 export type Source =
   | 'sine' | 'square' | 'sawtooth' | 'triangle'
   | 'noise'
+  /**
+   * A decoded file, keyed by the URL `primeFile` fetched it under.
+   *
+   * ponytail: a file layer is still gated by the envelope like any other, so
+   * one written with no stages at all stops the instant it starts and is
+   * silent. Give it a `decay` at least. Defaulting an envelope-less layer to
+   * the buffer's own length would need the buffer, which `schedule` does not
+   * have — pass its duration in if a recipe ever wants that.
+   */
   | { file: string }
 
 export type Layer = {
@@ -48,6 +57,8 @@ export type Voice = {
   stop: number
   /** Seconds into the file. File sources only; zero for everything else. */
   head: number
+  /** The resampling rate, carried out so a file source can play at it too. */
+  rate: number
   freq: Step[]
   gain: Step[]
   filter?: { type: BiquadFilterType; q: number; freq: Step[] }
@@ -96,9 +107,12 @@ export function schedule(recipe: Recipe, rate = 1): Voice[] {
 
     const freq: Step[] = []
     if (l.freq !== undefined) {
-      freq.push({ t: start, value: l.freq * r, curve: 'set' })
+      const exp = l.freqTo !== undefined && l.glide === 'exp'
+      // An exponential ramp throws on a zero *source* as readily as on a zero
+      // target, and a dial can reach `freq: 0`. Floor the value it starts from.
+      freq.push({ t: start, value: exp ? Math.max(l.freq * r, GAIN_FLOOR) : l.freq * r, curve: 'set' })
       if (l.freqTo !== undefined)
-        freq.push({ t: stop, value: l.freqTo * r, curve: l.glide === 'exp' ? 'exp' : 'lin' })
+        freq.push({ t: stop, value: l.freqTo * r, curve: exp ? 'exp' : 'lin' })
     }
 
     const f = l.filter
@@ -106,14 +120,19 @@ export function schedule(recipe: Recipe, rate = 1): Voice[] {
       type: f.type,
       q: f.q ?? 1,
       freq: [
-        { t: start, value: f.freq * r, curve: 'set' as const },
+        // Floored for the same reason as the oscillator's: the sweep that
+        // follows is exponential, and it cannot start from zero.
+        { t: start, value: Math.max(f.freq * r, GAIN_FLOOR), curve: 'set' as const },
         ...(f.freqTo === undefined
           ? []
           : [{ t: stop, value: f.freqTo * r, curve: 'exp' as const }]),
       ],
     }
 
-    return { source: l.source, start, stop, head: ms(l.head, r), freq, gain, filter }
+    // `head` is an offset into the buffer, which is buffer-domain seconds and
+    // has nothing to do with the rate the buffer is then played at — unlike
+    // every other time here, so it does not go through `ms()`.
+    return { source: l.source, start, stop, head: (l.head ?? 0) / 1000, rate: r, freq, gain, filter }
   })
 }
 
@@ -185,6 +204,9 @@ export function render(
       if (!buf) continue
       const src = ctx.createBufferSource()
       src.buffer = buf
+      // Resampled like everything else, so the harness's slow motion slows a
+      // file layer along with the oscillators beside it in the same cue.
+      src.playbackRate.value = v.rate
       node = src
     } else if (v.source === 'noise') {
       const src = ctx.createBufferSource()

@@ -1,4 +1,4 @@
-import { createReadStream } from 'node:fs'
+import { createReadStream, existsSync } from 'node:fs'
 import { readFile, readdir, stat, writeFile, appendFile } from 'node:fs/promises'
 import { basename, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -71,24 +71,29 @@ function animSave(): Plugin {
           const unknown = Object.keys(values).filter((k) => !block.includes(`${k}:`))
           if (unknown.length) return reply(400, { error: `not in the block: ${unknown.join(', ')}` })
 
+          // Everything that can refuse the save is checked before either file is
+          // touched — half a save is worse than none, and the cue markers are
+          // the one thing that could still fail after the CSS had landed.
+          const rec = recipes && typeof recipes === 'object' ? recipes : null
+          const src = rec ? await readFile(CUES, 'utf8') : ''
+          const rs = src.indexOf(R_OPEN)
+          const re = src.indexOf(R_CLOSE)
+          if (rec && (rs === -1 || re === -1)) return reply(500, { error: 'cue markers missing' })
+
           await writeFile(STYLE, css.slice(0, start) + patched + css.slice(end))
 
           let cues = 0
-          if (recipes && typeof recipes === 'object') {
-            const src = await readFile(CUES, 'utf8')
-            const rs = src.indexOf(R_OPEN)
-            const re = src.indexOf(R_CLOSE)
-            if (rs === -1 || re === -1) return reply(500, { error: 'cue markers missing' })
+          if (rec) {
             // Regenerated wholesale rather than line-matched: a recipe is a
             // tree, and there is no per-line identity to match against. Quoted
             // keys are valid TypeScript and the repo has no formatter to fight.
             const head = src.slice(0, rs)
             const marker = src.slice(rs, src.indexOf('*/', rs) + 2)
             const body =
-              `\nexport const RECIPES = ${JSON.stringify(recipes, null, 2)}` +
+              `\nexport const RECIPES = ${JSON.stringify(rec, null, 2)}` +
               ` satisfies Record<string, Recipe>\n`
             await writeFile(CUES, head + marker + body + src.slice(re))
-            cues = Object.keys(recipes).length
+            cues = Object.keys(rec).length
           }
           reply(200, { written, cues })
         } catch (err) {
@@ -130,7 +135,13 @@ function sndLibrary(): Plugin {
       })
 
       server.middlewares.use('/__snd/raw', (req, res) => {
-        const full = safeRaw(RAW, decodeURIComponent((req.url ?? '').split('?')[0].slice(1)))
+        // A malformed escape throws out of decodeURIComponent; a bad name is a
+        // bad name however it got that way.
+        let name = ''
+        try {
+          name = decodeURIComponent((req.url ?? '').split('?')[0].slice(1))
+        } catch {}
+        const full = safeRaw(RAW, name)
         if (!full) {
           res.statusCode = 400
           return res.end('bad name')
@@ -159,6 +170,11 @@ function sndLibrary(): Plugin {
           const out = safeOut(String(b.out ?? ''))
           if (!input) return reply(400, { error: 'no such raw file' })
           if (!out) return reply(400, { error: 'output must match [a-z0-9-]+.(wav|ogg)' })
+          // `ffmpeg -y` overwrites, and the default placeholder in the panel is
+          // the name of a shipped file. Adopting is not the moment to discover
+          // you replaced one.
+          if (!b.replace && existsSync(resolve(OUT, out)))
+            return reply(409, { error: `${out} already exists — pick another name or delete it` })
 
           const args = ffmpegArgs({
             preset: b.preset === 'bed' ? 'bed' : 'one-shot',
@@ -168,7 +184,9 @@ function sndLibrary(): Plugin {
             cutMs: Number(b.cutMs) || 0,
             rate: Number(b.rate) || 1,
           })
-          await run('ffmpeg', args)
+          // A pathological input otherwise hangs the request with nothing in
+          // the panel to say so.
+          await run('ffmpeg', args, { timeout: 60_000 })
 
           const command = `ffmpeg ${args.join(' ')}`
           await appendFile(

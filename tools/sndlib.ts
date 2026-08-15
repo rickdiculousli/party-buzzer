@@ -30,7 +30,11 @@ export type AdoptOpts = {
   preset: 'one-shot' | 'bed'
   input: string
   output: string
-  /** The dialled trim, in ms. `cutMs: 0` means the whole file. */
+  /**
+   * The dialled trim, in ms. `headMs` is where in the input to start; `cutMs`
+   * is how long the *output* runs from there, the same meaning `play()` and the
+   * harness's audition give it. `cutMs: 0` means the whole file.
+   */
   headMs: number
   cutMs: number
   rate: number
@@ -62,13 +66,18 @@ export function ffmpegArgs(o: AdoptOpts): string[] {
   const head = o.headMs / 1000
   const cut = o.cutMs / 1000
   const rate = Math.max(0.05, o.rate)
-  const chain = [cut > head ? `atrim=${head}:${cut}` : `atrim=${head}`, 'asetpts=N/SR/TB']
+  // `cut` is output length, so the span of input it takes is `cut * rate`:
+  // asetrate plays the trimmed span faster, and atrim's second argument is an
+  // absolute timestamp in the input rather than a duration.
+  const end = Number((head + cut * rate).toFixed(6))
+  const chain = [cut > 0 ? `atrim=${head}:${end}` : `atrim=${head}`, 'asetpts=N/SR/TB']
   if (rate !== 1) chain.push(`asetrate=${Math.round(44100 * rate)}`, 'aresample=44100')
   // Only a known end can be faded against; `cut: 0` is the whole file, whose
   // length this function does not know and should not go and read.
-  if (cut > head) {
-    const out = (cut - head) / rate
-    chain.push(`afade=t=out:st=${Number((out - FADE_S).toFixed(4))}:d=${FADE_S}`)
+  if (cut > 0) {
+    // `cut` seconds of output by construction, whatever the rate did to the input.
+    const st = Math.max(0, cut - FADE_S)
+    chain.push(`afade=t=out:st=${Number(st.toFixed(4))}:d=${FADE_S}`)
   }
   return ['-y', '-i', o.input, '-af', chain.join(','), '-ac', '1', '-ar', '44100', o.output]
 }

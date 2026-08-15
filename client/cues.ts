@@ -71,12 +71,24 @@ export function getPath(
   return typeof v === 'number' ? v : undefined
 }
 
+/** Every numeric field a dial may address. A path naming anything else is junk. */
+export const NUMERIC = [
+  'freq', 'freqTo', 'attack', 'decay', 'sustain', 'hold', 'release', 'gain', 'delay', 'head',
+] as const satisfies readonly (keyof Layer)[]
+
+export type NumericField = (typeof NUMERIC)[number]
+
+const FIELDS: ReadonlySet<string> = new Set(NUMERIC)
+
 /**
  * The table with the harness's dialled values laid over it.
  *
- * A path naming a layer or field that does not exist is dropped rather than
- * created: a stale dial must not be able to invent a layer, for the same reason
- * the CSS endpoint refuses an unknown property instead of appending it.
+ * A path naming a layer that does not exist is dropped rather than created: a
+ * stale dial must not be able to invent a layer, for the same reason the CSS
+ * endpoint refuses an unknown property instead of appending it. A *field* the
+ * layer simply omits is allowed through, because the envelope canvas draws all
+ * four handles whatever the recipe declares, and a hold drag on a layer with no
+ * hold has to be able to give it one.
  */
 export function withOverrides(
   recipes: Record<string, Recipe>,
@@ -86,7 +98,7 @@ export function withOverrides(
   for (const [path, raw] of Object.entries(values)) {
     const [cue, index, field] = path.split('.')
     const layer = out[cue]?.[Number(index)]
-    if (!layer || !field || getPath(recipes, path) === undefined) continue
+    if (!layer || !FIELDS.has(field)) continue
     const n = parseFloat(raw)
     if (Number.isFinite(n)) (layer as Record<string, unknown>)[field] = n
   }

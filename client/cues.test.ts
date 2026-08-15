@@ -21,8 +21,17 @@ test('overrides produce a new table and leave the original alone', () => {
 })
 
 test('an override that names nothing real is ignored rather than thrown', () => {
-  const out = withOverrides(SAMPLE, { 'stamp.9.freq': '100', 'junk': '1' })
+  const out = withOverrides(SAMPLE, { 'stamp.9.freq': '100', 'junk': '1', 'stamp.0.nope': '3' })
   assert.deepEqual(out, SAMPLE)
+})
+
+// The envelope canvas always draws four handles, whatever the committed recipe
+// happens to declare, so a drag has to be able to introduce the field.
+test('a field the recipe omits can still be dialled in', () => {
+  const out = withOverrides(SAMPLE, { 'stamp.0.hold': '120', 'stamp.0.sustain': '0.4' })
+  assert.equal(out.stamp[0].hold, 120)
+  assert.equal(out.stamp[0].sustain, 0.4)
+  assert.equal(SAMPLE.stamp[0].hold, undefined, 'the source table was mutated')
 })
 
 test('every shipped recipe is non-empty', () => {

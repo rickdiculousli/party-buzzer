@@ -23,7 +23,7 @@
 import { render } from 'preact'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { SCENARIOS, dialKey, type Dial } from './scenarios.tsx'
-import { play, prime, primeFile, unlock } from '../sound.ts'
+import { parseTune, play, prime, primeFile, unlock } from '../sound.ts'
 import { RECIPES, getPath, withOverrides } from '../cues.ts'
 import { Envelope } from './Envelope.tsx'
 
@@ -262,6 +262,14 @@ function Harness() {
    */
   const [auditioning, setAuditioning] = useState('')
   const [selected, setSelected] = useState('')
+  /**
+   * A dialled tunable, in ms (or as-is for the unitless ones).
+   *
+   * `parseTune` rather than `parseFloat` for the reason sound.ts spells out: a
+   * value that reads `1s` is a thousand milliseconds, and a bare parseFloat
+   * makes it one.
+   */
+  const tune = (key: string, fallback: number) => parseTune(values[key] ?? '', fallback)
   const audition = async (name: string) => {
     setSelected(name)
     setAuditioning(name)
@@ -271,18 +279,22 @@ function Harness() {
     )
     const src = ac.createBufferSource()
     src.buffer = buf
-    src.playbackRate.value = Math.max(0.05, num(values['--audition-rate'] ?? '1'))
+    src.playbackRate.value = Math.max(0.05, tune('--audition-rate', 1))
     src.connect(ac.destination)
-    const head = num(values['--audition-head'] ?? '0') / 1000
-    src.start(0, head)
+    const head = tune('--audition-head', 0) / 1000
+    // Both ends against the same instant on the context clock. `stop` takes an
+    // absolute time, so a bare `stop(cut)` is always in the past by the time
+    // anyone clicks ▶ — which stops the source immediately, i.e. silence.
+    const t0 = ac.currentTime
+    src.start(t0, head)
     // `cut` is wall-clock output length, same convention as play()'s `cut` —
     // see the comment at sound.ts:165 — not a length of the file, so a rate
     // change does not change how long the audition runs.
-    const cut = num(values['--audition-cut'] ?? '0') / 1000
+    const cut = tune('--audition-cut', 0) / 1000
     if (cut > 0)
       // ponytail: no release ramp here, unlike play()'s RELEASE_MS fade — this is
       // a preview, not a baked file, and a hard stop is fine to judge a trim by.
-      src.stop(cut)
+      src.stop(t0 + cut)
     src.onended = () => setAuditioning('')
   }
 
@@ -301,9 +313,9 @@ function Harness() {
           out: outName,
           role,
           preset,
-          headMs: num(values['--audition-head'] ?? '0'),
-          cutMs: num(values['--audition-cut'] ?? '0'),
-          rate: num(values['--audition-rate'] ?? '1'),
+          headMs: tune('--audition-head', 0),
+          cutMs: tune('--audition-cut', 0),
+          rate: tune('--audition-rate', 1),
         }),
       })
       const body = await res.json()

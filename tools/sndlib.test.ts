@@ -34,6 +34,8 @@ test('an output name must be lowercase, hyphenated, and audio', () => {
 
 // The one-shot preset is the pass CREDITS.md has been describing by hand: trim,
 // then the same 40ms release play() would have applied, mono, 44.1k, PCM.
+// `cut` is output length from `head`, the same meaning play() and the audition
+// give it — so a clip dialled to 3.14s is 3.14s of sound wherever it starts.
 test('the one-shot preset trims, fades, and stays uncompressed', () => {
   const args = ffmpegArgs({
     preset: 'one-shot',
@@ -48,7 +50,7 @@ test('the one-shot preset trims, fades, and stays uncompressed', () => {
     '-i',
     '/raw/in.wav',
     '-af',
-    'atrim=0.1:3.14,asetpts=N/SR/TB,afade=t=out:st=3:d=0.04',
+    'atrim=0.1:3.24,asetpts=N/SR/TB,afade=t=out:st=3.1:d=0.04',
     '-ac',
     '1',
     '-ar',
@@ -69,8 +71,37 @@ test('a rate other than 1 moves speed and pitch together, and the fade with them
   const af = args[args.indexOf('-af') + 1]
   assert.ok(af.includes('asetrate=88200'), af)
   assert.ok(af.includes('aresample=44100'), af)
-  // 4s at 2x is 2s out, so the 40ms fade starts at 1.96 rather than 3.96.
-  assert.ok(af.includes('afade=t=out:st=1.96:d=0.04'), af)
+  // 4s of output at 2x eats 8s of input, and the fade sits against the output.
+  assert.ok(af.startsWith('atrim=0:8,'), af)
+  assert.ok(af.includes('afade=t=out:st=3.96:d=0.04'), af)
+})
+
+// The case that was wrong: a head *and* a rate, where the input span consumed
+// is neither the cut nor the cut plus the head.
+test('cut is output length however the head and rate move the input span', () => {
+  const af = ffmpegArgs({
+    preset: 'one-shot',
+    input: '/raw/in.wav',
+    output: '/out/x.wav',
+    headMs: 200,
+    cutMs: 500,
+    rate: 2,
+  })[4]
+  // 0.5s out at 2x is 1s of input, starting 0.2s in.
+  assert.ok(af.startsWith('atrim=0.2:1.2,'), af)
+  assert.ok(af.includes('afade=t=out:st=0.46:d=0.04'), af)
+})
+
+test('a cut shorter than the fade never fades from before the start', () => {
+  const af = ffmpegArgs({
+    preset: 'one-shot',
+    input: '/raw/in.wav',
+    output: '/out/x.wav',
+    headMs: 0,
+    cutMs: 20,
+    rate: 1,
+  })[4]
+  assert.ok(af.includes('afade=t=out:st=0:d=0.04'), af)
 })
 
 test('cut 0 means the whole file and produces no atrim end', () => {
