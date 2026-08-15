@@ -1,8 +1,9 @@
 import type { GameInfo, OptionSpec } from '../../shared/protocol.ts'
 import type { GameModule } from '../../shared/modes/types.ts'
 import { trivia } from './trivia.ts'
+import { quizbowl } from './quizbowl.ts'
 
-const MODULES: GameModule[] = [trivia]
+const MODULES: GameModule[] = [trivia, quizbowl]
 
 /** The module behind a game id. Unknown ids fall back to trivia, so a snapshot written by another build still boots. */
 export function moduleFor(id: string): GameModule {

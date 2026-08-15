@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { ARM_LEAD_MS } from '../shared/protocol.ts'
 import { knownModule, moduleFor, sanitizeOptions } from './modes/index.ts'
+import { executeGrants } from './items.ts'
 import type {
   HostAction, PlayerId, ScoreKey, State,
 } from '../shared/protocol.ts'
@@ -102,6 +103,7 @@ export function applyHostAction(state: State, action: HostAction): void {
       }
       round.phase = 'IDLE'
       round.lockedOut = []
+      if (mod.grants) executeGrants(state, mod.grants(state))
       return
     }
 
