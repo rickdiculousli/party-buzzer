@@ -169,7 +169,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .row__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row__score { font-variant-numeric: tabular-nums; font-weight: 600; }
 .row.is-lead { background: #241d0c; border-left-color: var(--brass); }
-.row.is-late { opacity: 0.55; }
 
 .stack { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--s1); }
 
@@ -280,18 +279,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   padding: 0 0.3rem;
 }
 
-/* Recorded after the window shut: on the board, never in the running. */
-.timeline__mark.is-late .timeline__name { color: var(--dim); font-weight: 500; }
-.timeline__mark.is-late .timeline__ms {
-  color: var(--dim);
-  font-size: var(--t-xs);
-  letter-spacing: var(--track-label);
-  text-transform: uppercase;
-}
-.timeline__mark.is-late .timeline__pin {
-  background: repeating-linear-gradient(to bottom, var(--id) 0 3px, transparent 3px 7px);
-  opacity: 0.6;
-}
 .timeline__scale {
   display: flex;
   justify-content: space-between;
@@ -529,7 +516,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .buzzer.is-first { background: var(--brass); border-color: var(--brass); color: #201a03; }
 .buzzer.is-placed { background: var(--raise); border-color: var(--tungsten); color: var(--tungsten); }
 .buzzer.is-barred { background: #1c1210; border-color: #3a221e; color: #9c6a5c; }
-.buzzer.is-missed { background: var(--panel); border-color: var(--rule); color: var(--dim); }
 
 /* The phone gets the filament too, so the go cue is felt before it is read. */
 .player__filament { width: 100%; }

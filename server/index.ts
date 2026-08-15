@@ -50,14 +50,16 @@ async function serveStatic(req: IncomingMessage, res: ServerResponse): Promise<v
 export async function startServer(opts: {
   port?: number
   statePath?: string
-  windowMs?: number
+  revealMs?: number
+  collectMs?: number
 } = {}) {
   const port = opts.port ?? Number(process.env.PORT ?? 8080)
   const statePath = opts.statePath ?? join(ROOT, 'state.json')
 
   const state = loadState(statePath)
   const hub = new Hub(state, {
-    windowMs: opts.windowMs,
+    revealMs: opts.revealMs,
+    collectMs: opts.collectMs,
     onChange: (s) => saveState(statePath, s),
   })
 

@@ -57,8 +57,6 @@ export function Player() {
 
   const round = state?.round
   const mine = round?.order.find((b) => b.playerId === playerId)
-  // Redacted to this player, same as `order`.
-  const mineLate = round?.late.find((b) => b.playerId === playerId)
   // This phone has pressed for this arm. Local, because the room learns nothing
   // for a full second and a buzzer that looks unchanged after a press feels
   // broken. Keyed on the arm so it clears itself for the next question.
@@ -136,9 +134,6 @@ export function Player() {
   // The award keeps the result on screen after the host scores it, the same way
   // the board does.
   const settled = round?.phase === 'LOCKED' || !!round?.award
-  // `youMissed` comes back the instant the packet lands; `late` only arrives
-  // when the round publishes. Either one means the same thing to this player.
-  const missed = !!mineLate || !!round?.youMissed
 
   let label = 'Wait'
   let sub = 'The host has not armed yet'
@@ -147,19 +142,17 @@ export function Player() {
     label = 'Out'
     sub = 'Wrong answer — you sit out the rest of this question'
     mood = 'is-barred'
-  } else if (missed) {
-    label = 'Missed'
-    sub = settled
-      ? 'Too late for the buzz — but you made the board'
-      : 'Too late for the buzz'
-    mood = 'is-missed'
   } else if (mine && settled) {
     label = won ? 'You’re up' : `+${mine.deltaMs} ms`
     sub = won ? 'Answer it' : 'Someone beat you to it'
     mood = won ? 'is-first' : 'is-placed'
   } else if (pressed) {
     label = 'In'
-    sub = 'Counting the rest of the field'
+    // The round closed without this buzz in the order: it landed after the
+    // window shut. Say so instead of counting a field that no longer exists.
+    sub = settled
+      ? 'Too late — the round closed first'
+      : 'Counting the rest of the field'
     mood = 'is-placed'
   } else if (open) {
     label = 'Buzz'

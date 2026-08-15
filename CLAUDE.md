@@ -22,7 +22,7 @@ Run a single test file or case:
 
 ```bash
 node --test server/resolve.test.ts
-node --test --test-name-pattern="late buzz" 'server/*.test.ts'
+node --test --test-name-pattern="slow packet" 'server/*.test.ts'
 ```
 
 `node --test server/` (a bare directory) does not work on Node 26 — the npm
@@ -50,7 +50,7 @@ script globs `'server/*.test.ts'` for a reason.
 ## Architecture
 
 `shared/protocol.ts` is the contract — every message type, the `State` shape,
-and the two timing constants (`ARM_LEAD_MS`, `LATE_MS`) that both sides count
+and the two timing constants (`ARM_LEAD_MS`, `COLLECT_MS`) that both sides count
 against. Read it first; it explains more than any other single file.
 
 State flows one way. Clients send `ClientMsg`, the server mutates, then
@@ -83,17 +83,15 @@ surface counts down to that instant on its own synced clock, so all phones open
 together however late their packet landed. Buzzes arriving before `armedAt` are
 dropped outright — arrival time is server truth, so this needs no tolerance.
 
-**Two windows, not one.** The contest is decided in the first 150ms after the
-first buzz. Collection keeps running for `LATE_MS` (1s), and **nothing is
-published to the room until that second is up** — the phase stays `COLLECTING`
-throughout. Contenders land in `round.order`; everyone else lands in
-`round.late`, shown on the board and never scored. Late entries are resolved
-separately and re-based on the winner, floored at zero, so a slow phone carrying
-an early press stamp can never appear ahead of the player who actually won.
+**One window, revealed early.** The first buzz opens a `COLLECT_MS` (1s)
+collection window; every buzz inside it is a contender, ordered by clamped press
+time alone. 150ms in, the hub publishes the provisional order — the phase stays
+`COLLECTING` while the timeline keeps filling, and the lead can still change
+hands when a slow packet carries an earlier stamp. At the end of the second the
+round locks.
 
-**Redaction.** `Hub.viewFor(conn)` gives players only their own entry in `order`
-and `late`, plus a `youMissed` flag that reaches them the instant their packet
-lands. Anything a player must not see early belongs behind that method.
+**Redaction.** `Hub.viewFor(conn)` gives players only their own entry in
+`order`. Anything a player must not see early belongs behind that method.
 
 **Undo is server-side**, a stack of `structuredClone(state)` in the hub, restored
 with `Object.assign` so the `state` object identity survives for the persistence

@@ -21,11 +21,12 @@ with `HOST_IP=192.168.1.42 npm start`. Change the port with `PORT=9000`.
 ## How a question runs
 
 1. **Arm** — buzzers go live on every phone.
-2. Players buzz. The first press starts a 150ms window; everyone who buzzes
-   inside it is ranked by when they actually pressed, not when their packet
-   arrived. Buzzes keep being recorded for a full second so the board shows the
-   whole room, but only that first 150ms can win. Nothing appears on the big
-   screen until the second is up, and phones only ever see their own placement.
+2. Players buzz. The first press starts a one-second collection window;
+   everyone who buzzes inside it is ranked by when they actually pressed, not
+   when their packet arrived. The provisional leader appears on the big screen
+   150ms in and the timeline keeps filling as the room lands — a slow packet
+   carrying an earlier press can still take the lead. Phones only ever see
+   their own placement.
 3. **Correct** awards the round value. **Wrong** applies a neg, locks that
    player (or team) out, and reopens the buzzers for everyone else.
 4. **Next question** clears the lockouts.

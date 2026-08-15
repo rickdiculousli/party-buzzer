@@ -38,13 +38,12 @@ export type BuzzEntry = {
 }
 
 /**
- * How long buzzes keep being recorded after the contest is already decided.
- * The competitive window is short on purpose, but shutting the door at 150ms
- * means most of the room never appears on the board at all. So collection runs
- * on for a second: these buzzes are shown and never scored, and their sender is
- * told plainly that they missed.
+ * How long buzzes are collected after the first one lands, before the order
+ * is published. One window, one second: inputs coalesce within it and the
+ * clamped press time alone decides the order, so a slow phone carrying an
+ * early stamp still wins. Nothing is revealed to the room until it closes.
  */
-export const LATE_MS = 1000
+export const COLLECT_MS = 1000
 
 export type Round = {
   value: number
@@ -52,18 +51,6 @@ export type Round = {
   armedAt: number
   /** Full list for host/board. Redacted to the recipient's own entry for players. */
   order: BuzzEntry[]
-  /**
-   * Buzzes that landed after the window shut. Shown on the board, never scored,
-   * never eligible to lead. Kept apart from `order` rather than flagged inside
-   * it so nothing downstream can mistake one for a contender.
-   */
-  late: BuzzEntry[]
-  /**
-   * Player views only: this phone's buzz landed after the competitive window.
-   * Sent as soon as the packet arrives, so a player learns they missed straight
-   * away even though the room sees nothing until collection ends.
-   */
-  youMissed?: boolean
   /** How many buzzed in total, so a redacted player still sees "2 of 5". */
   total: number
   /** Score keys barred from this round after a wrong answer. */

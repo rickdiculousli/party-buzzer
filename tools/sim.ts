@@ -157,9 +157,9 @@ function attempt(bots: Bot[], armedAt: number, difficulty: number, barred: Set<s
     if (confidence <= 0) continue
 
     // Sure of the answer means a thumb already moving; unsure means a beat of
-    // hesitation. The spread runs well past the 150ms window on purpose: the
-    // hesitant ones land in late collection, which is exactly the population the
-    // board is now able to show.
+    // hesitation. The spread runs well past the first 150ms on purpose: the
+    // hesitant ones are the trickle the timeline shows filling in after the
+    // provisional leader appears.
     const reaction = bot.reflex + (1 - Math.min(1, confidence)) * 380 + gauss() * bot.jitter
     const pressAt = armedAt + Math.max(30, reaction)
 
@@ -234,11 +234,6 @@ async function main() {
           .map((b, i) => `${pad(b.name, 6)}${i === 0 ? '  first' : `+${b.deltaMs}ms`}`)
           .join('  ·  ')}`,
       )
-
-      const late = locked.round.late
-      if (late.length) {
-        log(`     late: ${late.map((b) => `${b.name} +${b.deltaMs}ms`).join('  ·  ')}`)
-      }
 
       // Hold here — this is the moment the timeline is on the wall and the
       // whole reason the simulation exists.

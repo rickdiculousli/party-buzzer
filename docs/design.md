@@ -329,11 +329,10 @@ own name — and the names carry an opaque background so a connector passing
 behind one breaks around it instead of striking through. That background is the
 entire reason the labels have one.
 
-**Latecomers are shown, never scored.** Anything that arrived after the 150 ms
-competitive window appears dimmed, with a dotted connector and the word `late`
-where its millisecond count would be. It can never lead: late entries resolve
-separately and are re-based on the winner, floored at zero, because a slow phone
-can carry a press stamp that genuinely predates the winner's.
+**One window, ordered by press time.** Collection runs for a full second after
+the first buzz, and every buzz inside it is a contender: the clamped press stamp
+alone decides the order, so a slow phone carrying an early stamp still takes the
+lead — even after a faster packet has already been shown in front.
 
 Shown only when two or more people buzzed — a timeline with one mark is noise.
 
@@ -355,11 +354,11 @@ States, in priority order:
 3. **Standing by** — "Stand by", filament warming, question value.
 4. **Idle** — "Ready", dim.
 
-**Nothing is published mid-race.** The board shows no result at all until the
-full second of collection is up. Revealing the winner at the competitive
-cut-off, 150 ms in, announced the result while people were still arriving — the
-opposite of watching a race finish. Collection ends, and the whole field lands
-at once.
+**The leader shows early, the field fills in.** A beat after the first buzz
+(150 ms — long enough for the true photo finish to land) the board lights up
+with the provisional leader, and the timeline keeps filling for the rest of the
+second as the room trickles in. The lead can still change hands on a slow packet
+carrying an earlier stamp; that is the race, watched live.
 
 **The result outlives the button that caused it.** Scoring a question sets an
 award and leaves the order on screen; only arming the next question clears it.
@@ -408,16 +407,15 @@ explanation is the worst thing this app can do:
 | Lead-in | Wait | Any moment |
 | Open | Buzz | — |
 | Pressed, still collecting | In | Counting the rest of the field |
-| Missed the window | Missed | Too late for the buzz |
+| Buzz missed the window | In | Too late — the round closed first |
 | Won | You're up | Answer it |
 | Placed | +20 ms | Someone beat you to it |
 | Locked out | Out | Wrong answer — you sit out the rest of this question |
 
-Two of those states are the phone knowing things the room does not. "In" is
-purely local — the room learns nothing for a full second, and a buzzer that
-looks unchanged after a press feels broken. "Missed" arrives from the server the
-instant the packet lands, carried in that player's redacted view alone, so a
-player finds out immediately while the field is still filling in.
+"In" is the phone knowing something the room does not. It is purely local — the
+room sees nothing for the first 150 ms, and a buzzer that looks unchanged after
+a press feels broken. The placing appears when the round locks, even though the
+board has been filling in live.
 
 Feedback is layered, since a phone may be face-down on a knee:
 
@@ -476,10 +474,10 @@ You can join from a phone mid-run and play against them.
 
 **What it revealed:** with collection ending at 150 ms, the board almost always
 showed a single mark — everyone slower than the winner's first 150 ms was
-dropped before the room ever saw them. That is what led to splitting the
-competitive window from the collection window: the contest is still decided in
-150 ms, but recording runs for a full second so the board shows the room instead
-of the one fastest thumb.
+dropped before the room ever saw them. Collection now runs a full second so the
+board shows the room instead of the one fastest thumb, and the provisional
+leader appears 150 ms in so the room is not staring at a dead stage while it
+fills.
 
 ---
 

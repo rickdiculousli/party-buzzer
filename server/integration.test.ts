@@ -6,12 +6,13 @@ import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { startServer } from './index.ts'
 import { ARM_LEAD_MS } from './state.ts'
-import { LATE_MS } from '../shared/protocol.ts'
 import type { ClientMsg, Role, ServerMsg, State } from '../shared/protocol.ts'
 
-const WINDOW = 150
+/** Short timers so the suite runs fast; production uses 150ms / 1s. */
+const REVEAL = 120
+const COLLECT = 400
 /** Long enough for collection to close and the round to publish. */
-const SETTLE = LATE_MS + 200
+const SETTLE = COLLECT + 150
 
 /** A fake participant: real socket, real JSON frames, optional injected lag. */
 class FakeClient {
@@ -76,7 +77,8 @@ async function withServer(fn: (url: string) => Promise<void>): Promise<void> {
   const server = await startServer({
     port: 0,
     statePath: join(dir, 'state.json'),
-    windowMs: WINDOW,
+    revealMs: REVEAL,
+    collectMs: COLLECT,
   })
   try {
     await fn(`http://127.0.0.1:${server.port}`)
@@ -126,7 +128,7 @@ test('the player who pressed first wins despite arriving last', async () => {
   })
 })
 
-test('a late buzz reaches the board but can never win', async () => {
+test('the leader shows early, and a slow packet with an early stamp takes the lead', async () => {
   await withServer(async (url) => {
     const host = new FakeClient(url, 'host')
     const amy = new FakeClient(url, 'player')
@@ -141,35 +143,48 @@ test('a late buzz reaches the board but can never win', async () => {
     await sleep(ARM_LEAD_MS + 20)
 
     amy.send({ t: 'buzz', at: performance.now() + amy.offset })
-    // Well past the 150ms competitive window but inside the second of
-    // collection. The stamp claims a press before Amy's — the worst case, and
-    // the one that must not put a non-contender out in front of the winner.
-    await sleep(WINDOW + 250)
-    bea.send({ t: 'buzz', at: performance.now() + bea.offset - 5000 })
 
-    // Nothing is published to the room until collection closes.
-    await sleep(50)
-    assert.equal(host.last.round.order.length, 0, 'the room waits for the field')
+    // Nothing is published to the room until the reveal delay has passed.
+    await sleep(60)
+    assert.equal(host.last.round.order.length, 0, 'the room waits a beat')
     assert.equal(host.last.round.phase, 'COLLECTING')
-    // Bea, though, already knows she missed.
-    assert.equal(bea.last.round.youMissed, true, 'the straggler is told at once')
-    assert.equal(amy.last.round.youMissed, false, 'the winner is not')
+
+    // Past the reveal: Amy shows as the provisional leader while the window
+    // is still open.
+    await sleep(REVEAL)
+    assert.equal(host.last.round.phase, 'COLLECTING', 'the window is still open')
+    assert.equal(host.last.round.order[0]?.name, 'Amy', 'the leader shows early')
+
+    // Bea's packet lands mid-window carrying a genuinely earlier press stamp.
+    // Collection is one window ordered by press time, so the lead changes hands.
+    bea.send({ t: 'buzz', at: performance.now() + bea.offset - 400 })
+    await sleep(80)
+    assert.equal(host.last.round.phase, 'COLLECTING')
+    assert.equal(host.last.round.order[0]?.name, 'Bea', 'the trickle can take the lead')
+
+    // The winner is visible, but judging waits for the window: scoring now
+    // would strand every buzz still in the air.
+    host.send({ t: 'host', action: { a: 'correct' } })
+    await sleep(60)
+    assert.equal(host.last.round.phase, 'COLLECTING', 'mid-window judging is refused')
+    assert.equal(host.last.round.award, undefined)
+    assert.equal(host.last.scores[bea.playerId] ?? 0, 0)
 
     await sleep(SETTLE)
     const round = host.last.round
-    assert.equal(round.order.length, 1, 'only Amy was in the running')
-    assert.equal(round.order[0].name, 'Amy')
-    assert.equal(round.late.length, 1, 'Bea still reaches the board')
-    assert.equal(round.late[0].name, 'Bea')
-    assert.ok(round.late[0].deltaMs >= 0, 'a latecomer is never shown ahead of the winner')
+    assert.equal(round.phase, 'LOCKED')
+    assert.deepEqual(
+      round.order.map((b) => b.name),
+      ['Bea', 'Amy'],
+    )
 
     host.send({ t: 'host', action: { a: 'correct' } })
     await sleep(50)
-    assert.equal(host.last.scores[amy.playerId], 100)
-    assert.equal(host.last.scores[bea.playerId], 0, 'late buzzes score nothing')
+    assert.equal(host.last.scores[bea.playerId], 100)
+    assert.equal(host.last.scores[amy.playerId], 0, 'only the winner scores')
     // The result outlives the button press, so the room can read it.
-    assert.deepEqual(host.last.round.award, { name: 'Amy', points: 100 })
-    assert.equal(host.last.round.order.length, 1, 'the order stays up after scoring')
+    assert.deepEqual(host.last.round.award, { name: 'Bea', points: 100 })
+    assert.equal(host.last.round.order.length, 2, 'the order stays up after scoring')
 
     for (const c of [host, amy, bea]) c.close()
   })

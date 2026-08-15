@@ -18,7 +18,6 @@ export function newState(): State {
       phase: 'IDLE',
       armedAt: 0,
       order: [],
-      late: [],
       total: 0,
       lockedOut: [],
     },
@@ -53,13 +52,15 @@ export function applyHostAction(state: State, action: HostAction): void {
       round.phase = 'ARMED'
       round.armedAt = Date.now() + ARM_LEAD_MS
       round.order = []
-      round.late = []
       round.total = 0
       delete round.award
       return
 
     case 'correct':
-      if (!leader) return
+      // Judging waits for the window: a provisional leader is on the board
+      // from 150ms in, but scoring during COLLECTING would strand every buzz
+      // still in the air and cut the timeline the room is watching.
+      if (!leader || round.phase !== 'LOCKED') return
       bump(state, scoreKey(state, leader.playerId), round.value)
       // The order stays up. Clearing it here is what made the result vanish at
       // the exact moment the room looked at it; `arm` and `next` clear it.
@@ -69,7 +70,7 @@ export function applyHostAction(state: State, action: HostAction): void {
       return
 
     case 'wrong': {
-      if (!leader) return
+      if (!leader || round.phase !== 'LOCKED') return
       const key = scoreKey(state, leader.playerId)
       if (action.neg) bump(state, key, -action.neg)
       if (!round.lockedOut.includes(key)) round.lockedOut.push(key)
@@ -77,7 +78,6 @@ export function applyHostAction(state: State, action: HostAction): void {
       round.phase = 'ARMED'
       round.armedAt = Date.now() + ARM_LEAD_MS
       round.order = []
-      round.late = []
       round.total = 0
       delete round.award
       return
@@ -88,7 +88,6 @@ export function applyHostAction(state: State, action: HostAction): void {
       round.phase = 'IDLE'
       round.armedAt = 0
       round.order = []
-      round.late = []
       round.total = 0
       round.lockedOut = []
       delete round.award
@@ -189,7 +188,6 @@ export function loadState(path: string): State {
     // A round mid-flight can't survive a restart: no timer, no pending buzzes.
     loaded.round.phase = 'IDLE'
     loaded.round.order = []
-    loaded.round.late = []
     loaded.round.total = 0
     delete loaded.round.award
     return loaded

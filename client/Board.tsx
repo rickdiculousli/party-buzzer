@@ -1,8 +1,8 @@
 import { useOpen, useSocket } from './useSocket.ts'
 import { colorForPlayer, lockedNames, standings } from './ui.ts'
-import { LATE_MS, type BuzzEntry, type State } from '../shared/protocol.ts'
+import { COLLECT_MS, type BuzzEntry, type State } from '../shared/protocol.ts'
 
-type Mark = BuzzEntry & { late: boolean; lane: number }
+type Mark = BuzzEntry & { lane: number }
 
 /**
  * How much rail a mark's labels need, as a percentage of the rail.
@@ -21,31 +21,27 @@ function labelWidth(name: string): number {
  * collide with whatever is already sitting beside it, so a cluster becomes a
  * staircase instead of a pile of overlapping names.
  */
-function lay(entries: { e: BuzzEntry; late: boolean }[], width: number): Mark[] {
+function lay(entries: BuzzEntry[], width: number): Mark[] {
   const rowEnd: number[] = []
   return entries
     .slice()
-    .sort((a, b) => a.e.deltaMs - b.e.deltaMs)
-    .map(({ e, late }) => {
+    .sort((a, b) => a.deltaMs - b.deltaMs)
+    .map((e) => {
       const at = (e.deltaMs / width) * 100
       const half = labelWidth(e.name) / 2
       let lane = rowEnd.findIndex((end) => at - half >= end)
       if (lane === -1) lane = rowEnd.length
       rowEnd[lane] = at + half + 1.5
-      return { ...e, late, lane }
+      return { ...e, lane }
     })
 }
 
 function Timeline({ state, round }: { state: State; round: State['round'] }) {
-  const all = [
-    ...round.order.map((e) => ({ e, late: false })),
-    ...round.late.map((e) => ({ e, late: true })),
-  ]
   // Fixed scale, not autoranged. Collection always runs exactly one second, so
   // the rail always means the same thing: a tight finish reads as a tight
   // finish instead of being stretched across the wall, and two questions can be
   // compared by eye.
-  const marks = lay(all, LATE_MS)
+  const marks = lay(round.order, COLLECT_MS)
   const lanes = Math.max(...marks.map((m) => m.lane)) + 1
 
   return (
@@ -55,16 +51,16 @@ function Timeline({ state, round }: { state: State; round: State['round'] }) {
           repeats its number. */}
       <div class="timeline__scale">
         <span>0 ms</span>
-        <span>{LATE_MS} ms</span>
+        <span>{COLLECT_MS} ms</span>
       </div>
       <div class="timeline__rail" />
       <ol class="timeline__marks" style={{ '--lanes': lanes }}>
         {marks.map((b) => (
           <li
             key={b.playerId}
-            class={b.late ? 'timeline__mark is-late' : 'timeline__mark'}
+            class="timeline__mark"
             style={{
-              '--at': `${Math.min(100, (b.deltaMs / LATE_MS) * 100)}%`,
+              '--at': `${Math.min(100, (b.deltaMs / COLLECT_MS) * 100)}%`,
               '--lane': b.lane,
               '--id': colorForPlayer(state, b.playerId),
             }}
@@ -74,7 +70,7 @@ function Timeline({ state, round }: { state: State; round: State['round'] }) {
             {/* First place is the datum the others are measured from; the axis
                 already says 0, so "+0" would only add noise. */}
             <span class="timeline__ms readout">
-              {b.late ? 'late' : b.deltaMs === 0 ? '' : `+${b.deltaMs}`}
+              {b.deltaMs === 0 ? '' : `+${b.deltaMs}`}
             </span>
           </li>
         ))}
@@ -117,7 +113,7 @@ export function Board() {
                 before. */}
             {round.award && <p class="board__award">+{round.award.points}</p>}
             <p class="board__hero">{leader.name}</p>
-            {round.order.length + round.late.length > 1 && (
+            {round.order.length > 1 && (
               <Timeline state={state} round={round} />
             )}
           </>
