@@ -14,9 +14,12 @@
  * watched the dialled ones.
  */
 
+import { recipeFor } from './cues.ts'
+import { onset, render, schedule, type Recipe } from './synth.ts'
+
 export type Cue = 'stamp' | 'leader' | 'leader2' | 'welcome'
 
-const FILES: Record<Cue, string> = {
+const FILES: Partial<Record<Cue, string>> = {
   stamp: '/sounds/stamp.wav',
   leader: '/sounds/leader.wav',
   leader2: '/sounds/leader2.wav',
@@ -54,7 +57,9 @@ export function unlock(): AudioContext {
 function load(cue: Cue): Promise<AudioBuffer> {
   const held = loading.get(cue)
   if (held) return held
-  const job = fetch(FILES[cue])
+  const url = FILES[cue]
+  if (!url) return Promise.reject(new Error(`${cue} has no file`))
+  const job = fetch(url)
     .then((r) => r.arrayBuffer())
     .then((b) => unlock().decodeAudioData(b))
     .then((buf) => {
@@ -98,6 +103,8 @@ export type PlayOpts = {
   rateScale?: number
   /** Pushed on top of the tuned delay, for spacing one cue out of a cluster. */
   offsetMs?: number
+  /** The harness's dialled recipe, standing in for the committed one. */
+  recipe?: Recipe
 }
 
 /**
@@ -105,7 +112,25 @@ export type PlayOpts = {
  * has landed — a missed sound is never worth a thrown exception on the one
  * screen the whole room is watching.
  */
-export function play(cue: Cue, { scope, rateScale = 1, offsetMs = 0 }: PlayOpts = {}): void {
+export function play(
+  cue: Cue,
+  { scope, rateScale = 1, offsetMs = 0, recipe }: PlayOpts = {},
+): void {
+  const r = recipe ?? recipeFor(cue)
+  if (r) {
+    const ac = unlock()
+    const at = scope ?? document.documentElement
+    const delay = tune(at, cue, 'delay', 0)
+    const rate = tune(at, cue, 'rate', 1) * rateScale
+    const gain = tune(at, cue, 'gain', 1)
+    // A recipe's length is its envelopes, so `head` and `cut` stay sample-only.
+    // Clamped to now for the same reason the sample path is: a start in the
+    // past is played immediately, which is late but never silent.
+    const t0 = Math.max(ac.currentTime, ac.currentTime + (delay + offsetMs) / 1000)
+    render(ac, schedule(r, Math.max(0.05, rate)), t0, gain)
+    return
+  }
+
   const buf = buffers.get(cue)
   if (!buf) {
     void load(cue).catch(() => {})
@@ -134,7 +159,7 @@ export function play(cue: Cue, { scope, rateScale = 1, offsetMs = 0 }: PlayOpts 
   amp.gain.value = gain
   src.connect(amp).connect(ac.destination)
 
-  const t0 = ac.currentTime + (delay + offsetMs) / 1000
+  const t0 = Math.max(ac.currentTime, ac.currentTime + (delay + offsetMs) / 1000)
   src.start(t0, Math.max(0, head / 1000))
 
   // `cut` is wall-clock output, not a length of the file, so it means the same

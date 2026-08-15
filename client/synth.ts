@@ -131,3 +131,94 @@ export function schedule(recipe: Recipe, rate = 1): Voice[] {
 export function onset(r: Recipe): number {
   return r.length ? Math.min(...r.map((l) => (l.delay ?? 0) + (l.attack ?? 0))) : 0
 }
+
+/* --- the WebAudio half ---------------------------------------------------
+   Nothing below is tested in Node, and nothing below decides anything: it
+   walks the steps `schedule` already worked out. Any logic that creeps in
+   here belongs above the line instead. */
+
+let noise: AudioBuffer | null = null
+
+/**
+ * One second of white noise, made once and shared.
+ *
+ * ponytail: white only. Pink and brown are a filter away if a recipe wants
+ * them.
+ */
+function noiseBuffer(ctx: AudioContext): AudioBuffer {
+  if (noise?.sampleRate === ctx.sampleRate) return noise
+  const buf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate)
+  const data = buf.getChannelData(0)
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
+  noise = buf
+  return buf
+}
+
+function apply(param: AudioParam, steps: Step[], t0: number): void {
+  for (const s of steps) {
+    const t = t0 + s.t
+    if (s.curve === 'set') param.setValueAtTime(s.value, t)
+    else if (s.curve === 'lin') param.linearRampToValueAtTime(s.value, t)
+    else param.exponentialRampToValueAtTime(Math.max(s.value, GAIN_FLOOR), t)
+  }
+}
+
+/**
+ * Play what `schedule` planned, starting at `t0` on the context's clock.
+ *
+ * `buffers` supplies the decoded audio for `{ file }` sources; a file source
+ * with nothing decoded for it is skipped rather than thrown, on the same
+ * principle as `play()` — a missed sound is never worth an exception on the one
+ * screen the whole room is watching.
+ */
+export function render(
+  ctx: AudioContext,
+  voices: Voice[],
+  t0: number,
+  gain: number,
+  buffers?: Map<string, AudioBuffer>,
+): void {
+  for (const v of voices) {
+    let node: OscillatorNode | AudioBufferSourceNode
+    if (typeof v.source === 'object') {
+      const buf = buffers?.get(v.source.file)
+      if (!buf) continue
+      const src = ctx.createBufferSource()
+      src.buffer = buf
+      node = src
+    } else if (v.source === 'noise') {
+      const src = ctx.createBufferSource()
+      src.buffer = noiseBuffer(ctx)
+      src.loop = true
+      node = src
+    } else {
+      const osc = ctx.createOscillator()
+      osc.type = v.source
+      apply(osc.frequency, v.freq, t0)
+      node = osc
+    }
+
+    const amp = ctx.createGain()
+    amp.gain.setValueAtTime(GAIN_FLOOR, t0 + v.start)
+    apply(amp.gain, v.gain, t0)
+
+    let tail: AudioNode = amp
+    if (v.filter) {
+      const biq = ctx.createBiquadFilter()
+      biq.type = v.filter.type
+      biq.Q.value = v.filter.q
+      apply(biq.frequency, v.filter.freq, t0)
+      amp.connect(biq)
+      tail = biq
+    }
+
+    const out = ctx.createGain()
+    out.gain.value = gain
+    node.connect(amp)
+    tail.connect(out).connect(ctx.destination)
+
+    if (node instanceof AudioBufferSourceNode) node.start(t0 + v.start, v.head)
+    else node.start(t0 + v.start)
+    node.stop(t0 + v.stop)
+  }
+}
