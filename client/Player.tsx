@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
-import { useSocket } from './useSocket.ts'
+import { useOpen, useSocket } from './useSocket.ts'
 
 /** A short square-wave blip. Cheaper and more reliable than shipping an audio file. */
-function blip(ctx: AudioContext) {
+function blip(ctx: AudioContext, hz = 660) {
   const osc = ctx.createOscillator()
   const gain = ctx.createGain()
   osc.type = 'square'
-  osc.frequency.value = 660
+  osc.frequency.value = hz
   gain.gain.setValueAtTime(0.25, ctx.currentTime)
   gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15)
   osc.connect(gain).connect(ctx.destination)
@@ -42,6 +42,23 @@ export function Player() {
     }
   }, [ready])
 
+  const round = state?.round
+  const mine = round?.order.find((b) => b.playerId === playerId)
+  const key =
+    state?.mode === 'teams'
+      ? state.players.find((p) => p.id === playerId)?.teamId ?? playerId
+      : playerId
+  const barred = !!key && !!round?.lockedOut.includes(key)
+  const score = key ? state?.scores[key] ?? 0 : 0
+
+  // The go cue. Lower than the buzz blip so the two never get confused, and
+  // skipped for players who are locked out and cannot act on it.
+  const open = useOpen(round, now, () => {
+    if (barred) return
+    navigator.vibrate?.([40, 40, 40])
+    if (audio.current) blip(audio.current, 440)
+  })
+
   // The join tap doubles as the gesture that unlocks audio on iOS.
   const join = () => {
     const trimmed = name.trim()
@@ -71,16 +88,6 @@ export function Player() {
       </main>
     )
   }
-
-  const round = state?.round
-  const open = round?.phase === 'ARMED' || round?.phase === 'COLLECTING'
-  const mine = round?.order.find((b) => b.playerId === playerId)
-  const key =
-    state?.mode === 'teams'
-      ? state.players.find((p) => p.id === playerId)?.teamId ?? playerId
-      : playerId
-  const barred = !!key && !!round?.lockedOut.includes(key)
-  const score = key ? state?.scores[key] ?? 0 : 0
 
   const buzz = () => {
     if (!open || barred || mine) return

@@ -1,4 +1,4 @@
-import { useSocket } from './useSocket.ts'
+import { useOpen, useSocket } from './useSocket.ts'
 import type { State } from '../shared/protocol.ts'
 
 function standings(state: State) {
@@ -12,12 +12,14 @@ function standings(state: State) {
 }
 
 export function Board() {
-  const { state } = useSocket('board')
+  const { state, now } = useSocket('board')
+  // The big screen is what the room watches, so it must not light up before
+  // the phones do. Same countdown to armedAt as every other surface.
+  const open = useOpen(state?.round, now)
   if (!state) return <main class="board"><p>Connecting…</p></main>
 
   const { round } = state
   const leader = round.order[0]
-  const open = round.phase === 'ARMED' || round.phase === 'COLLECTING'
 
   return (
     <main class="board">

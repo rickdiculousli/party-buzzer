@@ -40,6 +40,13 @@ function bump(state: State, key: ScoreKey, delta: number): void {
   state.scores[key] = (state.scores[key] ?? 0) + delta
 }
 
+/**
+ * Arming is scheduled this far ahead instead of taking effect on arrival, so
+ * every phone opens at the same real instant however late its packet lands.
+ * Long enough to cover LAN jitter, short enough that the host never waits.
+ */
+export const ARM_LEAD_MS = 300
+
 export function applyHostAction(state: State, action: HostAction): void {
   const round = state.round
   const leader = round.order[0]
@@ -47,7 +54,7 @@ export function applyHostAction(state: State, action: HostAction): void {
   switch (action.a) {
     case 'arm':
       round.phase = 'ARMED'
-      round.armedAt = Date.now()
+      round.armedAt = Date.now() + ARM_LEAD_MS
       round.order = []
       round.total = 0
       return
@@ -67,7 +74,7 @@ export function applyHostAction(state: State, action: HostAction): void {
       if (!round.lockedOut.includes(key)) round.lockedOut.push(key)
       // Rebound: reopen the buzzers for everyone not locked out.
       round.phase = 'ARMED'
-      round.armedAt = Date.now()
+      round.armedAt = Date.now() + ARM_LEAD_MS
       round.order = []
       round.total = 0
       return

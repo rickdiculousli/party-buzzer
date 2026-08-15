@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { startServer } from './index.ts'
+import { ARM_LEAD_MS } from './state.ts'
 import type { ClientMsg, Role, ServerMsg, State } from '../shared/protocol.ts'
 
 const WINDOW = 150
@@ -96,6 +97,11 @@ test('the player who pressed first wins despite arriving last', async () => {
 
     host.send({ t: 'host', action: { a: 'arm' } })
     await sleep(30)
+
+    // Amy jumps the gun during the lead-in. If the pre-fire guard broke, this
+    // buzz would be kept and she would take first below.
+    amy.send({ t: 'buzz', at: performance.now() + amy.offset })
+    await sleep(ARM_LEAD_MS)
 
     // Bea physically presses 20ms before Amy.
     bea.send({ t: 'buzz', at: performance.now() + bea.offset })

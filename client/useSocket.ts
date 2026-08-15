@@ -19,6 +19,38 @@ function medianOffset(samples: { rtt: number; offset: number }[]): number {
   return best[Math.floor(best.length / 2)]
 }
 
+/**
+ * The buzzers open at `round.armedAt`, which the server sets a beat in the
+ * future. Every surface counts down to that instant on its own synced clock,
+ * so a phone whose arm packet arrived late still opens with everyone else.
+ * Re-renders at the transition and fires `onOpen` there — that is the cue.
+ */
+export function useOpen(
+  round: State['round'] | undefined,
+  now: () => number,
+  onOpen?: () => void,
+): boolean {
+  const [, tick] = useState(0)
+  const armed = round?.phase === 'ARMED' || round?.phase === 'COLLECTING'
+  const armedAt = round?.armedAt ?? 0
+  const fire = useRef(onOpen)
+  fire.current = onOpen
+
+  useEffect(() => {
+    if (!armed) return
+    const wait = armedAt - now()
+    // Already past it: this client heard late. Open now rather than never.
+    if (wait <= 0) return void fire.current?.()
+    const id = setTimeout(() => {
+      fire.current?.()
+      tick((n) => n + 1)
+    }, wait)
+    return () => clearTimeout(id)
+  }, [armed, armedAt])
+
+  return armed && now() >= armedAt
+}
+
 export function useSocket(role: Role) {
   const [state, setState] = useState<State | null>(null)
   const [playerId, setPlayerId] = useState<string | null>(

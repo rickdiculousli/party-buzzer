@@ -1,4 +1,4 @@
-import { useSocket } from './useSocket.ts'
+import { useOpen, useSocket } from './useSocket.ts'
 import type { HostAction, ScoreKey, State } from '../shared/protocol.ts'
 
 function rows(state: State): { key: ScoreKey; label: string; score: number }[] {
@@ -17,14 +17,14 @@ function rows(state: State): { key: ScoreKey; label: string; score: number }[] {
 }
 
 export function Host() {
-  const { state, connected, send } = useSocket('host')
+  const { state, connected, send, now } = useSocket('host')
   const act = (action: HostAction) => send({ t: 'host', action })
+  const open = useOpen(state?.round, now)
 
   if (!state) return <main class="host"><p>Connecting…</p></main>
 
   const { round } = state
   const leader = round.order[0]
-  const open = round.phase === 'ARMED' || round.phase === 'COLLECTING'
 
   return (
     <main class="host">
