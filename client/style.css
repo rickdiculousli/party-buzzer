@@ -437,6 +437,26 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   color: #201a03;
   border-radius: var(--r-sm);
 }
+/* The question assembling on the wall, spoken fragment by spoken fragment. */
+.board__question {
+  font-family: var(--display);
+  font-size: var(--t-xl);
+  font-weight: 500;
+  line-height: 1.25;
+  margin: 0;
+  padding: 0 var(--s6);
+  max-width: 64rem;
+  text-align: center;
+  color: var(--tungsten);
+}
+/* The answer, named once the points are on the board. */
+.board__answer {
+  font-family: var(--display);
+  font-size: var(--t-lg);
+  font-weight: 700;
+  margin: var(--s3) 0 0;
+  color: var(--brass);
+}
 
 .board__side {
   background: var(--panel);

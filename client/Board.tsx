@@ -224,11 +224,16 @@ export function Board() {
           {/* The payoff. Stays up until the next question is armed, because the
               room looks at the board after the host scores it, not before. */}
           {leader && round.award && <p class="board__award">+{round.award.points}</p>}
+          {round.award && round.answer && <p class="board__answer">{round.answer}</p>}
         </div>
 
         <div class={leader ? 'board__mid' : 'board__mid board__mid--cue'}>
           {leader ? (
             <p class="board__hero">{leader.name}</p>
+          ) : round.fragments?.length ? (
+            // The question, assembling as the reader speaks it. Once someone
+            // is answering, the stage belongs to them instead.
+            <p class="board__question">{round.fragments.join(' ')}</p>
           ) : (
             <p class={open ? 'board__call' : 'board__idle'}>
               {open ? 'Buzz' : armed ? 'Stand by' : 'Ready'}
