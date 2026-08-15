@@ -33,3 +33,25 @@ body {
 .buzzer.placed { background: #46468a; }
 .buzzer.barred { background: #3a2a2a; color: #8a6a6a; }
 .buzzer:disabled { opacity: 1; }
+
+.host { max-width: 60rem; margin: 0 auto; padding: 1.5rem; display: grid; gap: 1.5rem; }
+.host header { display: flex; align-items: center; gap: 1rem; }
+.host h1 { margin: 0; font-size: 1.25rem; }
+.host h2 { margin: 0 0 .5rem; font-size: .875rem; text-transform: uppercase; letter-spacing: .08em; color: #9a9aa8; }
+.host label { display: flex; align-items: center; gap: .375rem; font-size: .875rem; color: #9a9aa8; }
+.host input, .host select { background: #1e1e28; border: 1px solid #33333f; border-radius: .375rem; color: inherit; padding: .375rem .5rem; font: inherit; }
+.host input[type=number] { width: 6rem; }
+.controls { display: flex; flex-wrap: wrap; gap: .75rem; }
+.controls button { font-size: 1rem; font-weight: 600; padding: .75rem 1.25rem; border: 0; border-radius: .5rem; background: #2a2a36; color: inherit; }
+.controls button:disabled { opacity: .35; }
+.controls .arm { background: #6e56cf; color: white; }
+.controls .ok { background: #30a46c; color: white; }
+.controls .no { background: #e5484d; color: white; }
+.buzzes ol { list-style: none; padding: 0; margin: 0; display: grid; gap: .25rem; }
+.buzzes li { display: flex; justify-content: space-between; padding: .5rem .75rem; background: #1e1e28; border-radius: .375rem; }
+.buzzes li.lead { background: #30a46c; color: white; font-weight: 700; }
+.delta { font-variant-numeric: tabular-nums; opacity: .8; }
+.muted { color: #9a9aa8; font-size: .875rem; }
+.host table { width: 100%; border-collapse: collapse; }
+.host td { padding: .25rem 0; }
+.host button { background: #2a2a36; color: inherit; border: 0; border-radius: .375rem; padding: .375rem .75rem; }
