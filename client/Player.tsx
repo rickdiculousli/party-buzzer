@@ -57,6 +57,12 @@ export function Player() {
 
   const round = state?.round
   const mine = round?.order.find((b) => b.playerId === playerId)
+  // Redacted to this player, same as `order`.
+  const mineLate = round?.late.find((b) => b.playerId === playerId)
+  // This phone has pressed for this arm. Local, because the room learns nothing
+  // for a full second and a buzzer that looks unchanged after a press feels
+  // broken. Keyed on the arm so it clears itself for the next question.
+  const [pressedFor, setPressedFor] = useState(0)
   const key =
     state?.mode === 'teams'
       ? state.players.find((p) => p.id === playerId)?.teamId ?? playerId
@@ -64,6 +70,7 @@ export function Player() {
   const barred = !!key && !!round?.lockedOut.includes(key)
   const score = key ? state?.scores[key] ?? 0 : 0
   const armed = round?.phase === 'ARMED' || round?.phase === 'COLLECTING'
+  const pressed = !!round && pressedFor === round.armedAt && round.armedAt > 0
 
   // The go cue. Lower than the buzz blip so the two never get confused, and
   // skipped for players who are locked out and cannot act on it.
@@ -116,16 +123,22 @@ export function Player() {
   }
 
   const buzz = () => {
-    if (!open || barred || mine) return
+    if (!open || barred || pressed) return
     // Stamp before anything else so render work never inflates the time.
     send({ t: 'buzz', at: now() })
+    setPressedFor(round?.armedAt ?? 0)
     navigator.vibrate?.(60)
     blip(audio.current)
   }
 
   // deltaMs is computed before redaction, so 0 means first across the whole field.
   const won = !!mine && mine.deltaMs === 0
-  const locked = round?.phase === 'LOCKED'
+  // The award keeps the result on screen after the host scores it, the same way
+  // the board does.
+  const settled = round?.phase === 'LOCKED' || !!round?.award
+  // `youMissed` comes back the instant the packet lands; `late` only arrives
+  // when the round publishes. Either one means the same thing to this player.
+  const missed = !!mineLate || !!round?.youMissed
 
   let label = 'Wait'
   let sub = 'The host has not armed yet'
@@ -134,11 +147,17 @@ export function Player() {
     label = 'Out'
     sub = 'Wrong answer — you sit out the rest of this question'
     mood = 'is-barred'
-  } else if (mine && locked) {
+  } else if (missed) {
+    label = 'Missed'
+    sub = settled
+      ? 'Too late for the buzz — but you made the board'
+      : 'Too late for the buzz'
+    mood = 'is-missed'
+  } else if (mine && settled) {
     label = won ? 'You’re up' : `+${mine.deltaMs} ms`
     sub = won ? 'Answer it' : 'Someone beat you to it'
     mood = won ? 'is-first' : 'is-placed'
-  } else if (mine) {
+  } else if (pressed) {
     label = 'In'
     sub = 'Counting the rest of the field'
     mood = 'is-placed'
@@ -177,7 +196,7 @@ export function Player() {
       <button
         class={`buzzer ${mood}`}
         onPointerDown={buzz}
-        disabled={!open || barred || !!mine}
+        disabled={!open || barred || pressed}
       >
         {label}
         {sub && <span class="buzzer__sub">{sub}</span>}

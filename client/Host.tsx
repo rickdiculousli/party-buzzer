@@ -20,9 +20,11 @@ export function Host() {
   const act = (action: HostAction) => send({ t: 'host', action })
   const { open } = useOpen(state?.round, now)
 
-  // The handler is bound once but needs the live round value for "wrong".
+  // The handler is bound once but needs the live round to judge against.
   const value = useRef(0)
   value.current = state?.round.value ?? 0
+  const judgeable = useRef(false)
+  judgeable.current = !!state?.round.order[0] && !state?.round.award
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -34,11 +36,14 @@ export function Host() {
       const key = e.key.toLowerCase()
       if (key === 'w') {
         e.preventDefault()
-        return act({ a: 'wrong', neg: value.current })
+        if (judgeable.current) act({ a: 'wrong', neg: value.current })
+        return
       }
       const hit = KEYS[key]
       if (!hit) return
       e.preventDefault()
+      // Same guard the buttons carry: a scored question cannot be scored again.
+      if (hit.a === 'correct' && !judgeable.current) return
       act(hit)
     }
     window.addEventListener('keydown', onKey)
@@ -49,6 +54,10 @@ export function Host() {
 
   const { round } = state
   const leader = round.order[0]
+  // The order stays up after scoring so the room can read it, which means the
+  // buttons have to be the thing that goes dead — otherwise a second press
+  // awards the same question twice.
+  const scored = !!round.award
 
   return (
     <main class="host">
@@ -96,19 +105,19 @@ export function Host() {
           <button class="btn btn--major btn--primary" onClick={() => act({ a: 'arm' })} disabled={open}>
             {open ? 'Buzzers open' : 'Arm'}<span class="key">Space</span>
           </button>
-          <button class="btn btn--major btn--go" onClick={() => act({ a: 'correct' })} disabled={!leader}>
+          <button class="btn btn--major btn--go" onClick={() => act({ a: 'correct' })} disabled={!leader || scored}>
             Correct +{round.value}<span class="key">C</span>
           </button>
           <button
             class="btn btn--major btn--no"
             onClick={() => act({ a: 'wrong', neg: round.value })}
-            disabled={!leader}
+            disabled={!leader || scored}
           >
             Wrong −{round.value}<span class="key">W</span>
           </button>
         </div>
         <div class="host__minor" style={{ marginTop: 'var(--s3)' }}>
-          <button class="btn" onClick={() => act({ a: 'wrong', neg: 0 })} disabled={!leader}>
+          <button class="btn" onClick={() => act({ a: 'wrong', neg: 0 })} disabled={!leader || scored}>
             Wrong, no penalty
           </button>
           <button class="btn" onClick={() => act({ a: 'next' })}>
@@ -136,6 +145,16 @@ export function Host() {
                 ) : (
                   <span class="readout readout--ms">+{b.deltaMs} ms</span>
                 )}
+              </li>
+            ))}
+            {round.late.map((b) => (
+              <li
+                key={b.playerId}
+                class="row is-late"
+                style={{ borderLeftColor: colorForPlayer(state, b.playerId) }}
+              >
+                <span class="row__label">{b.name}</span>
+                <span class="muted">late · +{b.deltaMs} ms</span>
               </li>
             ))}
           </ol>

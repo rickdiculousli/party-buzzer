@@ -169,6 +169,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .row__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row__score { font-variant-numeric: tabular-nums; font-weight: 600; }
 .row.is-lead { background: #241d0c; border-left-color: var(--brass); }
+.row.is-late { opacity: 0.55; }
 
 .stack { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--s1); }
 
@@ -236,7 +237,13 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   height: 5px;
   background: repeating-linear-gradient(to right, #2a4a4f 0 1px, transparent 1px 10%);
 }
-.timeline__marks { list-style: none; margin: 0; padding: 0; position: relative; height: 5.5rem; }
+.timeline__marks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: relative;
+  height: calc(4rem + var(--lanes, 1) * 2.6rem);
+}
 .timeline__mark {
   position: absolute;
   top: 0;
@@ -244,20 +251,47 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   transform: translateX(-50%);
   display: grid;
   justify-items: center;
-  gap: var(--s1);
   text-align: center;
+  /* Shallow marks paint over deep ones, so a label near the rail occludes the
+     long pins reaching past it to the rows below. */
+  z-index: calc(10 - var(--lane, 0));
 }
-/* Alternate depth so neighbouring marks never collide. */
-.timeline__mark:nth-child(even) { top: 2.5rem; }
-.timeline__pin { width: 2px; height: var(--s4); background: var(--id); }
+/* The connector runs the whole way from the rail to the name it belongs to, so
+   a mark three rows down is still unambiguously tied to its point on the scale.
+   The name's own background is what breaks the line around it. */
+.timeline__pin {
+  width: 2px;
+  height: calc(1.5rem + var(--lane, 0) * 2.6rem);
+  background: var(--id);
+}
 .timeline__name {
   font-family: var(--display);
   font-size: var(--t-lg);
   font-weight: 700;
-  line-height: 1;
+  line-height: 1.1;
   color: var(--chalk);
 }
 .timeline__ms { font-size: var(--t-sm); color: var(--cyan); font-variant-numeric: tabular-nums; }
+/* Opaque, so a pin passing behind a name breaks around it instead of striking
+   through. This is why the labels carry a background at all. */
+.timeline__name,
+.timeline__ms {
+  background: var(--stage);
+  padding: 0 0.3rem;
+}
+
+/* Recorded after the window shut: on the board, never in the running. */
+.timeline__mark.is-late .timeline__name { color: var(--dim); font-weight: 500; }
+.timeline__mark.is-late .timeline__ms {
+  color: var(--dim);
+  font-size: var(--t-xs);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+}
+.timeline__mark.is-late .timeline__pin {
+  background: repeating-linear-gradient(to bottom, var(--id) 0 3px, transparent 3px 7px);
+  opacity: 0.6;
+}
 .timeline__scale {
   display: flex;
   justify-content: space-between;
@@ -332,6 +366,18 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   color: var(--tungsten);
 }
 .board__barred { display: flex; flex-wrap: wrap; gap: var(--s2); justify-content: center; }
+/* Stamped, not printed: the moment the points are actually awarded. */
+.board__award {
+  font-family: var(--display);
+  font-size: var(--t-xl);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  margin: 0;
+  padding: 0.15em 0.6em;
+  background: var(--brass);
+  color: #201a03;
+  border-radius: var(--r-sm);
+}
 
 .board__side {
   background: var(--panel);
@@ -483,6 +529,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .buzzer.is-first { background: var(--brass); border-color: var(--brass); color: #201a03; }
 .buzzer.is-placed { background: var(--raise); border-color: var(--tungsten); color: var(--tungsten); }
 .buzzer.is-barred { background: #1c1210; border-color: #3a221e; color: #9c6a5c; }
+.buzzer.is-missed { background: var(--panel); border-color: var(--rule); color: var(--dim); }
 
 /* The phone gets the filament too, so the go cue is felt before it is read. */
 .player__filament { width: 100%; }

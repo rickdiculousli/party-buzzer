@@ -37,16 +37,43 @@ export type BuzzEntry = {
   deltaMs: number
 }
 
+/**
+ * How long buzzes keep being recorded after the contest is already decided.
+ * The competitive window is short on purpose, but shutting the door at 150ms
+ * means most of the room never appears on the board at all. So collection runs
+ * on for a second: these buzzes are shown and never scored, and their sender is
+ * told plainly that they missed.
+ */
+export const LATE_MS = 1000
+
 export type Round = {
   value: number
   phase: Phase
   armedAt: number
   /** Full list for host/board. Redacted to the recipient's own entry for players. */
   order: BuzzEntry[]
+  /**
+   * Buzzes that landed after the window shut. Shown on the board, never scored,
+   * never eligible to lead. Kept apart from `order` rather than flagged inside
+   * it so nothing downstream can mistake one for a contender.
+   */
+  late: BuzzEntry[]
+  /**
+   * Player views only: this phone's buzz landed after the competitive window.
+   * Sent as soon as the packet arrives, so a player learns they missed straight
+   * away even though the room sees nothing until collection ends.
+   */
+  youMissed?: boolean
   /** How many buzzed in total, so a redacted player still sees "2 of 5". */
   total: number
   /** Score keys barred from this round after a wrong answer. */
   lockedOut: ScoreKey[]
+  /**
+   * Set when a question has been scored, and cleared when the next one starts.
+   * The board keeps the result up for as long as this is here — the payoff
+   * needs to outlive the button press that caused it.
+   */
+  award?: { name: string; points: number }
 }
 
 export type State = {

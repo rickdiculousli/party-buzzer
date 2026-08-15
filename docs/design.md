@@ -317,10 +317,25 @@ warm hero name above it is the drama.
 </div>
 ```
 
-The scale floors at 40 ms so a photo finish reads as a photo finish rather than
-stretching three milliseconds across the wall. Marks alternate depth so
-neighbours never collide. Shown only when two or more people buzzed — a timeline
-with one mark is noise.
+**The scale is fixed at 0–1000 ms**, never autoranged. Collection always runs
+exactly one second, so the rail always means the same thing: a photo finish
+reads as a photo finish instead of being stretched across the wall, and two
+questions can be compared by eye.
+
+**Marks stack into rows.** A mark drops to the next row down whenever its labels
+would collide with what is already beside it, so a cluster becomes a staircase
+rather than a pile. Its connector then runs the whole way from the rail to its
+own name — and the names carry an opaque background so a connector passing
+behind one breaks around it instead of striking through. That background is the
+entire reason the labels have one.
+
+**Latecomers are shown, never scored.** Anything that arrived after the 150 ms
+competitive window appears dimmed, with a dotted connector and the word `late`
+where its millisecond count would be. It can never lead: late entries resolve
+separately and are re-based on the winner, floored at zero, because a slow phone
+can carry a press stamp that genuinely predates the winner's.
+
+Shown only when two or more people buzzed — a timeline with one mark is noise.
 
 ---
 
@@ -334,10 +349,24 @@ centre stays clear for the moment that matters.
 
 States, in priority order:
 
-1. **Someone buzzed** — hero name in brass, timeline beneath.
+1. **Result** — hero name in brass, timeline beneath, and the brass award stamp
+   once the host has scored it.
 2. **Buzzers open** — "Buzz" in tally, filament at full.
 3. **Standing by** — "Stand by", filament warming, question value.
 4. **Idle** — "Ready", dim.
+
+**Nothing is published mid-race.** The board shows no result at all until the
+full second of collection is up. Revealing the winner at the competitive
+cut-off, 150 ms in, announced the result while people were still arriving — the
+opposite of watching a race finish. Collection ends, and the whole field lands
+at once.
+
+**The result outlives the button that caused it.** Scoring a question sets an
+award and leaves the order on screen; only arming the next question clears it.
+The room looks at the board *after* the host scores, not before, so the payoff
+has to still be there. That is also why the host's Correct and Wrong go dead
+once a question is scored — the order is still up, so the buttons have to be
+the thing that stops.
 
 The QR is full size until the first player joins, then shrinks to a corner.
 Between questions it is still there for latecomers, just not eating the wall.
@@ -378,10 +407,17 @@ explanation is the worst thing this app can do:
 | Idle | Wait | The host has not armed yet |
 | Lead-in | Wait | Any moment |
 | Open | Buzz | — |
-| Buzzed, collecting | In | Counting the rest of the field |
+| Pressed, still collecting | In | Counting the rest of the field |
+| Missed the window | Missed | Too late for the buzz |
 | Won | You're up | Answer it |
 | Placed | +20 ms | Someone beat you to it |
 | Locked out | Out | Wrong answer — you sit out the rest of this question |
+
+Two of those states are the phone knowing things the room does not. "In" is
+purely local — the room learns nothing for a full second, and a buzzer that
+looks unchanged after a press feels broken. "Missed" arrives from the server the
+instant the packet lands, carried in that player's redacted view alone, so a
+player finds out immediately while the field is still filling in.
 
 Feedback is layered, since a phone may be face-down on a knee:
 
@@ -438,10 +474,12 @@ rebounds and lockouts. Ctrl-C removes the bots.
 
 You can join from a phone mid-run and play against them.
 
-**What it revealed:** the 150 ms collection window bounds the timeline. Anyone
-slower than 150 ms behind the first buzz never enters the order at all, so the
-scale in practice never exceeds that. The timeline is a photo-finish instrument
-by construction — design it for tight fields, not wide ones.
+**What it revealed:** with collection ending at 150 ms, the board almost always
+showed a single mark — everyone slower than the winner's first 150 ms was
+dropped before the room ever saw them. That is what led to splitting the
+competitive window from the collection window: the contest is still decided in
+150 ms, but recording runs for a full second so the board shows the room instead
+of the one fastest thumb.
 
 ---
 
