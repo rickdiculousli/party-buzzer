@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { applyHostAction, loadState, newState } from './state.ts'
+import { applyHostAction, buzzBlockReason, loadState, newState } from './state.ts'
 import type { State } from '../shared/protocol.ts'
 
 function withPlayer(state: State): string {
@@ -11,6 +11,52 @@ function withPlayer(state: State): string {
   state.scores.p1 = 300
   return 'p1'
 }
+
+test('arm sweeps last question\'s effects and stamps the live ones', () => {
+  const state = newState()
+  state.effects = [
+    { kind: 'frozen', playerId: 'old', roundArmedAt: 123 },
+    { kind: 'frozen', playerId: 'fresh' },
+  ]
+  applyHostAction(state, { a: 'arm' })
+  assert.deepEqual(
+    state.effects,
+    [{ kind: 'frozen', playerId: 'fresh', roundArmedAt: state.round.armedAt }],
+  )
+})
+
+test('a wrong rebound re-stamps effects to the new arm instead of sweeping them', () => {
+  const state = newState()
+  withPlayer(state)
+  state.effects = [{ kind: 'frozen', playerId: 'p1', roundArmedAt: state.round.armedAt }]
+  state.round.phase = 'LOCKED'
+  state.round.order = [{ playerId: 'p1', name: 'Ada', at: 1, deltaMs: 0 }]
+  applyHostAction(state, { a: 'wrong', neg: 0 })
+  assert.equal(state.round.phase, 'ARMED')
+  assert.equal(state.effects.length, 1)
+  assert.equal(state.effects[0].roundArmedAt, state.round.armedAt)
+})
+
+test('buzzBlockReason bars a frozen player for exactly the stamped round', () => {
+  const state = newState()
+  state.round.phase = 'ARMED'
+  state.round.armedAt = 999
+  state.effects = [{ kind: 'frozen', playerId: 'p1', roundArmedAt: 999 }]
+  assert.equal(buzzBlockReason(state, 'p1'), 'frozen')
+  assert.equal(buzzBlockReason(state, 'p2'), null)
+  state.effects[0].roundArmedAt = 888
+  assert.equal(buzzBlockReason(state, 'p1'), null, 'a freeze from another round is inert')
+})
+
+test('correct and wrong keep today\'s scoring when the module defines no hooks', () => {
+  const state = newState()
+  withPlayer(state)
+  state.round.phase = 'LOCKED'
+  state.round.order = [{ playerId: 'p1', name: 'Ada', at: 1, deltaMs: 0 }]
+  applyHostAction(state, { a: 'correct' })
+  assert.equal(state.scores.p1, 400, '300 + the round value of 100')
+  assert.deepEqual(state.round.award, { name: 'Ada', points: 100 })
+})
 
 test('setGame with the current id updates options and keeps scores', () => {
   const state = newState()

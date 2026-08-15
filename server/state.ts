@@ -46,7 +46,22 @@ export function lockedPlayerIds(state: State): PlayerId[] {
     .map((p) => p.id)
 }
 
-function bump(state: State, key: ScoreKey, delta: number): void {
+/**
+ * Why a player may not buzz right now, or null. Framework effects first — a
+ * frozen player is frozen in every mode — then the module's own rules.
+ */
+export function buzzBlockReason(state: State, playerId: PlayerId): string | null {
+  const frozen = state.effects.some(
+    (e) =>
+      e.kind === 'frozen' &&
+      e.playerId === playerId &&
+      e.roundArmedAt === state.round.armedAt,
+  )
+  if (frozen) return 'frozen'
+  return moduleFor(state.game.id).canBuzz?.(state, playerId) ?? null
+}
+
+export function bump(state: State, key: ScoreKey, delta: number): void {
   state.scores[key] = (state.scores[key] ?? 0) + delta
 }
 
@@ -55,38 +70,59 @@ export function applyHostAction(state: State, action: HostAction): void {
   const leader = round.order[0]
 
   switch (action.a) {
-    case 'arm':
+    case 'arm': {
       round.phase = 'ARMED'
       round.armedAt = Date.now() + ARM_LEAD_MS
       round.order = []
       round.total = 0
       delete round.award
+      delete round.fragments
+      delete round.answer
+      // A fresh question: sweep effects stamped to the last one, stamp the
+      // live ones (a freeze fired between questions lands here).
+      state.effects = state.effects.filter((e) => e.roundArmedAt === undefined)
+      for (const e of state.effects) e.roundArmedAt = round.armedAt
+      moduleFor(state.game.id).onArm?.(state)
       return
+    }
 
-    case 'correct':
+    case 'correct': {
       // Judging waits for the window: a provisional leader is on the board
       // from 150ms in, but scoring during COLLECTING would strand every buzz
       // still in the air and cut the timeline the room is watching.
       if (!leader || round.phase !== 'LOCKED') return
-      bump(state, scoreKey(state, leader.playerId), round.value)
-      // The order stays up. Clearing it here is what made the result vanish at
-      // the exact moment the room looked at it; `arm` and `next` clear it.
+      const mod = moduleFor(state.game.id)
+      if (mod.onCorrect) {
+        mod.onCorrect(state)
+      } else {
+        bump(state, scoreKey(state, leader.playerId), round.value)
+        // The order stays up. Clearing it here is what made the result vanish
+        // at the exact moment the room looked at it; `arm` and `next` clear it.
+        round.award = { name: leader.name, points: round.value }
+      }
       round.phase = 'IDLE'
       round.lockedOut = []
-      round.award = { name: leader.name, points: round.value }
       return
+    }
 
     case 'wrong': {
       if (!leader || round.phase !== 'LOCKED') return
       const key = scoreKey(state, leader.playerId)
-      if (action.neg) bump(state, key, -action.neg)
-      if (!round.lockedOut.includes(key)) round.lockedOut.push(key)
-      // Rebound: reopen the buzzers for everyone not locked out.
+      const mod = moduleFor(state.game.id)
+      if (mod.onWrong) {
+        mod.onWrong(state, action.neg)
+      } else {
+        if (action.neg) bump(state, key, -action.neg)
+        if (!round.lockedOut.includes(key)) round.lockedOut.push(key)
+      }
+      // Rebound: reopen the buzzers for everyone not locked out. The question
+      // is still live, so effects ride along under the new arm instant.
       round.phase = 'ARMED'
       round.armedAt = Date.now() + ARM_LEAD_MS
       round.order = []
       round.total = 0
       delete round.award
+      for (const e of state.effects) e.roundArmedAt = round.armedAt
       return
     }
 
@@ -98,6 +134,8 @@ export function applyHostAction(state: State, action: HostAction): void {
       round.total = 0
       round.lockedOut = []
       delete round.award
+      delete round.fragments
+      delete round.answer
       return
 
     case 'undo':
