@@ -1,0 +1,132 @@
+/*
+ * Chrome for the harness only. Nothing here is allowed to describe how the
+ * anchors look or move — that lives in style.css, which this page loads
+ * unmodified. If a rule in this file starts affecting the preview, it is a bug:
+ * you would be tuning against something the board does not have.
+ */
+
+.harness {
+  display: grid;
+  grid-template-columns: 20rem 1fr;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.harness__panel {
+  background: var(--panel);
+  border-right: 1px solid var(--rule);
+  padding: var(--s4);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.harness__title {
+  font-family: var(--display);
+  font-size: var(--t-lg);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: var(--s2);
+}
+
+.harness__scenarios {
+  display: grid;
+  gap: var(--s1);
+  margin-bottom: var(--s3);
+}
+.harness__scenarios .btn { text-align: left; }
+
+.harness__row {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex-wrap: wrap;
+  margin-bottom: var(--s2);
+}
+.harness__check {
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+  font-size: var(--t-xs);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.harness__unit {
+  font-size: var(--t-xs);
+  color: var(--dim);
+}
+
+.harness__dial {
+  display: grid;
+  gap: var(--s1);
+  margin-bottom: var(--s2);
+}
+.harness__dial label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s2);
+  font-size: var(--t-xs);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--dim);
+}
+/* The value is data, not a label — it does not take the label's uppercase. */
+.harness__value { color: var(--cyan); text-transform: none; letter-spacing: 0; }
+.harness__dial input[type='range'] {
+  width: 100%;
+  accent-color: var(--tungsten);
+}
+
+.harness__saved {
+  margin: 0;
+  font-size: var(--t-xs);
+  color: var(--brass);
+}
+
+.harness__css {
+  background: var(--stage);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  padding: var(--s2);
+  font-size: var(--t-xs);
+  color: var(--dim);
+  overflow-x: auto;
+  margin: 0;
+}
+
+/* The preview side. Stage colour and nothing else, so what you are looking at
+   is the component and its real container. */
+.harness__stage {
+  position: relative;
+  background: var(--stage);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.harness__note {
+  position: absolute;
+  top: var(--s3);
+  left: var(--s5);
+  right: var(--s5);
+  margin: 0;
+  font-size: var(--t-xs);
+  color: var(--dim);
+  z-index: 20;
+  pointer-events: none;
+}
+.harness__preview {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.harness__preview > .board__stage { flex: 1; }
+
+@media (max-width: 52rem) {
+  .harness { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; }
+}

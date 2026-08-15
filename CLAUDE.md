@@ -17,6 +17,7 @@ npm test           # node:test
 npm run typecheck
 npm run sim        # synthetic self-play against a running server
 npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@140 correct   # one scripted round
+npm run motion     # the animation harness at /anim.html (dev only)
 npm run fakes -- add [n] / remove   # fake players with fake scores (ids fake-01..fake-99)
 ```
 
@@ -138,5 +139,25 @@ npm run anim     # every anchor animation, on a loop, until Ctrl-C
 anyone it does mint gets a `probe-` id, which is the only thing `clear` kicks.
 Probe and the sim share `tools/conn.ts` — real sockets, real clock sync, no
 shortcut through the HTTP layer.
+
+`npm run motion` opens the animation harness — the only one of the three that
+needs no server at all, because it is tuning CSS rather than exercising the
+game. Pick an anchor, retrigger it or loop it, and drop the speed to 0.1× to
+actually see where the light sits relative to the movement; a 110ms stamp is
+eleven frames at full speed and there is nothing to judge in that.
+
+Its numbers are the `anim:tunables` block in `client/style.css`, and **Save**
+rewrites that block in place through a dev-only Vite middleware, so a value you
+dialled in cannot change on its way home. The scenarios live in
+`client/anim/scenarios.tsx` and render each component inside a copy of its real
+container — bloom against an empty void reads nothing like bloom beside a cyan
+rail and three other names. The harness is dev-only by construction:
+`anim.html` is left out of `build.rollupOptions.input`, so `npm run build`
+never emits it.
+
+Two rules for it. Never restate a value in a scenario — a scenario that carries
+its own duration is tuning a copy of the CSS rather than the CSS. And never
+inline a number into an anchor keyframe: one the harness cannot reach is one
+nobody will tune.
 
 Before a real game night, walk `docs/manual-checklist.md`.

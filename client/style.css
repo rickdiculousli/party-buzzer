@@ -715,7 +715,47 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
  *
  * These are anchors, not decoration. Add one only for a moment the room
  * would otherwise miss.
+ *
+ * The numbers live in the block below rather than in the rules, so the
+ * harness at /anim.html can drive these exact rules instead of a copy of
+ * them and write the result back here. Do not inline a value into a
+ * keyframe — a number the harness cannot reach is one nobody will tune.
  * =================================================================== */
+
+/* anim:tunables — rewritten in place by the harness. Edit freely; keep the
+   markers and one `--name: value;` per line. */
+:root {
+  /* A mark landing on the timeline */
+  --stamp-dur: 110ms;
+  --stamp-scale: 1.45;
+  --bloom-dur: 700ms;
+  --bloom-rise: cubic-bezier(0.85, 0, 1, 0.35);
+  --bloom-core: 18px;
+  --bloom-core-spread: 5px;
+  --bloom-halo: 54px;
+  --bloom-halo-spread: 16px;
+  --bloom-name-core: 16px;
+  --bloom-name-halo: 52px;
+
+  /* The award */
+  --strike-dur: 260ms;
+  --strike-scale: 1.8;
+  --strike-recoil: 0.94;
+
+  /* The leader's name */
+  --slam-dur: 220ms;
+  --slam-scale: 1.25;
+  --flare-dur: 940ms;
+  --flare-core: 28px;
+  --flare-body: 80px;
+  --flare-throw: 180px;
+
+  /* The buzzers opening, and your press registering */
+  --punch-dur: 90ms;
+  --punch-scale: 1.12;
+  --land-dur: 240ms;
+}
+/* /anim:tunables */
 
 /* --- 1. A mark lands on the timeline ---------------------------------
    Marks mount one at a time as packets arrive through the collection
@@ -723,39 +763,100 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
    assembles itself in front of the room at the speed people actually
    pressed. Overscaled and hard-landed — it is a stamp coming down, and
    the pin carries the aftershock so the label does not wobble with it. */
-.timeline__mark { animation: stamp 110ms var(--slam); }
+.timeline__mark { animation: stamp var(--stamp-dur) var(--slam); }
 @keyframes stamp {
-  from { opacity: 0; transform: translateX(-50%) scale(1.45); }
+  from { opacity: 0; transform: translateX(-50%) scale(var(--stamp-scale)); }
   to { opacity: 1; transform: translateX(-50%) scale(1); }
 }
-.timeline__pin { animation: aftershock 500ms var(--ease); }
+/*
+ * The bloom and the stamp are one gesture, so they run as one: no delay, no
+ * separate start. Two earlier attempts got this wrong in opposite directions —
+ * a glow already burning during the travel washed the movement out, and a glow
+ * that switched on at full power after it read as a second, unrelated event.
+ * A hard edge anywhere in the light is what makes it feel bolted on.
+ *
+ * The current shape is a rise: the light starts at nothing, is held near
+ * nothing through the fall by an ease-in steep enough to stay dark, then climbs
+ * to full power around the frame the mark touches down — 16% of 700ms, the
+ * stamp's own 110ms — and decays from there. This is still being dialled in;
+ * these numbers are a position, not a conclusion. Use the harness.
+ *
+ * Two layers, a tight core inside a wide halo: a single ring reads as a border
+ * switching on rather than light spilling.
+ *
+ * ponytail: the 16% peak is a literal because a keyframe offset cannot be a
+ * custom property — CSS has no var() in a selector position. So the peak's
+ * absolute time is 16% of --bloom-dur, and --bloom-rise is what actually moves
+ * where the light reads as arriving. If that coupling ever gets in the way, the
+ * upgrade is to split the glow across two nested elements and multiply their
+ * opacities: the rise becomes one element's duration, the decay the other's
+ * delay, and both become dials.
+ */
+.timeline__pin { animation: aftershock var(--bloom-dur) var(--ease); }
 @keyframes aftershock {
-  from { box-shadow: 0 0 14px 3px var(--id); }
-  to { box-shadow: 0 0 0 0 transparent; }
+  0% {
+    box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent;
+    animation-timing-function: var(--bloom-rise);
+  }
+  16% {
+    box-shadow:
+      0 0 var(--bloom-core) var(--bloom-core-spread) var(--id),
+      0 0 var(--bloom-halo) var(--bloom-halo-spread) var(--id);
+  }
+  100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; }
+}
+/* The name blooms with its pin, in the player's own colour. */
+.timeline__name { animation: bloom var(--bloom-dur) var(--ease); }
+@keyframes bloom {
+  0% {
+    text-shadow: 0 0 0 transparent, 0 0 0 transparent;
+    animation-timing-function: var(--bloom-rise);
+  }
+  16% {
+    text-shadow:
+      0 0 var(--bloom-name-core) var(--id),
+      0 0 var(--bloom-name-halo) var(--id);
+  }
+  100% { text-shadow: 0 0 0 transparent, 0 0 0 transparent; }
 }
 
 /* --- 2. The award ------------------------------------------------------
    The heaviest stamp on any surface, because it is the only moment where
    the score actually changes. Past the mark and back: the recoil is what
    makes it read as struck rather than faded up. */
-.board__award { animation: strike 260ms var(--slam); }
+.board__award { animation: strike var(--strike-dur) var(--slam); }
 @keyframes strike {
-  from { opacity: 0; transform: scale(1.8); }
-  55% { opacity: 1; transform: scale(0.94); }
+  from { opacity: 0; transform: scale(var(--strike-scale)); }
+  55% { opacity: 1; transform: scale(var(--strike-recoil)); }
   to { transform: scale(1); }
 }
 
 /* --- 3. The leader's name ---------------------------------------------
    Mounts when the round resolves. Slower and larger than a mark — it owns
    the stage — with one brass flare that decays and leaves the name lit. */
-.board__hero { animation: slam 220ms var(--slam), flare 700ms var(--ease); }
+/* Same rise as the marks, scaled up: dark through the fall, full power at 23%
+   of 940ms — the slam's own 220ms — then the long cool. */
+.board__hero { animation: slam var(--slam-dur) var(--slam), flare var(--flare-dur) var(--ease); }
 @keyframes slam {
-  from { opacity: 0; transform: scale(1.25); }
+  from { opacity: 0; transform: scale(var(--slam-scale)); }
   to { opacity: 1; transform: scale(1); }
 }
+/* Three layers, because a lamp coming up to power does not glow evenly: a
+   white-hot core inside a brass body inside a wide throw that reaches well past
+   the letters. The long tail is the filament cooling, which is the slowest and
+   most visible part of it from across the room. */
 @keyframes flare {
-  from { text-shadow: 0 0 40px var(--brass); }
-  to { text-shadow: 0 0 0 transparent; }
+  0% {
+    text-shadow: 0 0 0 transparent, 0 0 0 transparent, 0 0 0 transparent;
+    animation-timing-function: var(--bloom-rise);
+  }
+  23% {
+    text-shadow:
+      0 0 var(--flare-core) var(--hot),
+      0 0 var(--flare-body) var(--brass),
+      0 0 var(--flare-throw) var(--brass);
+  }
+  100% { text-shadow: 0 0 0 transparent, 0 0 0 transparent, 0 0 0 transparent; }
 }
 
 /* --- 4. The buzzers open ----------------------------------------------
@@ -763,9 +864,9 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
    Short and hard on purpose: a slow open would undersell a moment the
    filament has spent 300ms building to. */
 .board__call,
-.buzzer.is-open { animation: punch 90ms var(--slam); }
+.buzzer.is-open { animation: punch var(--punch-dur) var(--slam); }
 @keyframes punch {
-  from { transform: scale(1.12); }
+  from { transform: scale(var(--punch-scale)); }
   to { transform: scale(1); }
 }
 
@@ -774,7 +875,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
    receipt for it: the button flashes white-hot and settles into whichever
    mood the press earned, so the wait is never dead air. */
 .buzzer.is-placed,
-.buzzer.is-first { animation: land 240ms var(--ease); }
+.buzzer.is-first { animation: land var(--land-dur) var(--ease); }
 @keyframes land {
   /* No `to` — the resting frame is the mood class's own colours, whatever
      they turn out to be, so this stays correct if those change. */
