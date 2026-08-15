@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { useOpen, useSocket } from './useSocket.ts'
 import { colorForPlayer, lockedNames, standings } from './ui.ts'
-import { markGap, playSpaced, startBed, stopBed, unlock } from './sound.ts'
+import { markGap, playSpaced, prime, startBed, stopBed, unlock } from './sound.ts'
 import { COLLECT_MS, type BuzzEntry, type State } from '../shared/protocol.ts'
 
 type Mark = BuzzEntry & { lane: number }
@@ -108,11 +108,14 @@ export function Board() {
    * with no explanation is the kind of thing you discover mid-game.
    */
   const [audible, setAudible] = useState(false)
-  // Nothing to prime: all three anchor cues are recipes now, synthesized on the
-  // spot, and the welcome bed decodes itself when the lobby asks for it.
+  // The anchor cues are recipes, but recipes over real files, so their bytes
+  // still have to be decoded — on the click, because that is the first moment
+  // there is a context to decode into. The welcome bed decodes itself when the
+  // lobby asks for it.
   useEffect(() => {
     const go = () => {
       unlock()
+      prime('stamp', 'leader', 'leader2')
       setAudible(true)
     }
     document.addEventListener('pointerdown', go, { once: true })

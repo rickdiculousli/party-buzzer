@@ -70,9 +70,24 @@ function load(cue: Cue): Promise<AudioBuffer> {
   return job
 }
 
-/** Decode ahead of time, so the first play is not late by a decode. */
+/**
+ * Decode ahead of time, so the first play is not late by a decode.
+ *
+ * A cue that is a recipe needs the bytes each of its `{ file }` layers names,
+ * keyed by URL, because that is the map `render` looks in — priming the sample
+ * buffer for such a cue fills the wrong map and the cue plays silently. A cue
+ * that is still a sample needs its own buffer as before. Callers pass cue names
+ * either way and never have to know which kind they got.
+ */
 export function prime(...cues: Cue[]): void {
-  for (const c of cues) void load(c).catch(() => {})
+  for (const c of cues) {
+    const r = recipeFor(c)
+    if (!r) {
+      void load(c).catch(() => {})
+      continue
+    }
+    for (const l of r) if (typeof l.source === 'object') void primeFile(l.source.file)
+  }
 }
 
 /** Decoded raw/adopted files, keyed by the path a `{ file }` layer names. */
@@ -141,6 +156,11 @@ export function play(
     // past is played immediately, which is late but never silent.
     const t0 = Math.max(ac.currentTime, ac.currentTime + (delay + offsetMs) / 1000)
     render(ac, schedule(r, Math.max(0.05, rate)), t0, gain, files)
+    // The same self-heal the sample path below has: `render` skips a file layer
+    // with nothing decoded for it, so start the decode and let the next trigger
+    // have it. One silent cue, not a silent night.
+    for (const l of r)
+      if (typeof l.source === 'object' && !files.has(l.source.file)) void primeFile(l.source.file)
     return
   }
 

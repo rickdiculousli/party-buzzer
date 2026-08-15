@@ -203,9 +203,10 @@ function Harness() {
     if (scenario.sound && !muted) prime(...[scenario.sound].flat())
   }, [id, muted])
 
-  // File-source layers need their bytes decoded before the first trigger, same
-  // as the sample cues above — otherwise the opening take of a recipe that
-  // leans on an adopted sample is the silent one.
+  // `prime` above covers the *committed* recipe's files; this covers the live
+  // one, which is what the harness actually plays. Adopting a sound onto a
+  // layer changes the URL without changing the cue, so the decode has to follow
+  // the dialled values or the first take after an adopt is the silent one.
   useEffect(() => {
     for (const cue of [scenario.sound ?? []].flat())
       for (const l of live[cue] ?? [])

@@ -1,9 +1,21 @@
 /**
- * The cues that are synthesized rather than found.
+ * The cues that are recipes rather than bare samples.
  *
  * A cue named here is rendered by `synth.ts`; a cue that is not falls through
  * to the sample path in `sound.ts`, unchanged. Both kinds coexist on purpose —
  * ninety-three seconds of marimba will never be a recipe.
+ *
+ * All three anchor cues are the hand-tuned WAVs, each wrapped in a single
+ * `{ file }` layer. That buys the envelope canvas and room for a second layer
+ * without changing a sample of what plays today, because the envelope is
+ * deliberately a no-op: no attack and no decay means `schedule`'s first two
+ * steps land on the same instant, so gain is at full from the file's first
+ * sample; `sustain: 1` keeps the sustain level *at* full rather than at
+ * `GAIN_FLOOR`, which is what an omitted sustain would mean and would be
+ * silence; `hold` is the file's own length in ms, so the gate never closes
+ * early; and the 40ms release runs entirely past the end of the buffer, where
+ * there is nothing left to fade. Change `hold` if you re-cut a file — a layer
+ * whose stages are shorter than its file is a truncated cue.
  *
  * The block between the markers is machine-written: the harness rewrites it
  * through `POST /__anim/save`, the same way it already rewrites the CSS
@@ -18,44 +30,32 @@ import type { Layer, Recipe } from './synth.ts'
 export const RECIPES = {
   "stamp": [
     {
-      "source": "noise",
-      "attack": 1,
-      "decay": 55,
-      "gain": 0.5,
-      "filter": { "type": "bandpass", "freq": 2600, "freqTo": 1200, "q": 6 }
-    },
-    {
-      "source": "square",
-      "freq": 1400,
-      "freqTo": 600,
-      "glide": "exp",
-      "attack": 1,
-      "decay": 40,
-      "gain": 0.35
+      "source": {
+        "file": "/sounds/stamp.wav"
+      },
+      "sustain": 1,
+      "hold": 216,
+      "release": 40
     }
   ],
   "leader": [
     {
-      "source": "sine",
-      "freq": 320,
-      "freqTo": 55,
-      "glide": "exp",
-      "attack": 8,
-      "decay": 620,
-      "gain": 0.9
+      "source": {
+        "file": "/sounds/leader.wav"
+      },
+      "sustain": 1,
+      "hold": 841,
+      "release": 40
     }
   ],
   "leader2": [
     {
-      "source": "sawtooth",
-      "freq": 180,
-      "attack": 6,
-      "decay": 120,
-      "sustain": 0.7,
-      "hold": 2600,
-      "release": 280,
-      "gain": 0.4,
-      "filter": { "type": "bandpass", "freq": 900, "q": 4 }
+      "source": {
+        "file": "/sounds/leader2.wav"
+      },
+      "sustain": 1,
+      "hold": 3040,
+      "release": 40
     }
   ]
 } satisfies Record<string, Recipe>
