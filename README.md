@@ -23,7 +23,9 @@ with `HOST_IP=192.168.1.42 npm start`. Change the port with `PORT=9000`.
 1. **Arm** — buzzers go live on every phone.
 2. Players buzz. The first press starts a 150ms window; everyone who buzzes
    inside it is ranked by when they actually pressed, not when their packet
-   arrived. Phones only ever see their own placement.
+   arrived. Buzzes keep being recorded for a full second so the board shows the
+   whole room, but only that first 150ms can win. Nothing appears on the big
+   screen until the second is up, and phones only ever see their own placement.
 3. **Correct** awards the round value. **Wrong** applies a neg, locks that
    player (or team) out, and reopens the buzzers for everyone else.
 4. **Next question** clears the lockouts.
@@ -41,7 +43,12 @@ makes both a badly synced clock and a hand-edited timestamp harmless.
 npm run dev        # Vite with HMR; run `npm start` alongside it for the API
 npm test           # node:test
 npm run typecheck
+npm run sim        # fill the room with bots and play real rounds
 ```
+
+`npm run sim` is the quickest way to see the board in motion. `PACE=2` slows it
+down, `ROUNDS=5` bounds it, Ctrl-C removes the bots. You can join from a phone
+and play against them.
 
 Server code is native TypeScript — Node strips the types, there is no build
 step. Relative imports therefore carry `.ts` extensions.
