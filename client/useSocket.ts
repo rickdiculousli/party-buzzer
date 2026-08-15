@@ -30,25 +30,29 @@ export function useOpen(
   now: () => number,
   onOpen?: () => void,
 ): boolean {
-  const [, tick] = useState(0)
   const armed = round?.phase === 'ARMED' || round?.phase === 'COLLECTING'
   const armedAt = round?.armedAt ?? 0
+  // Which arm we have opened for. The timer is the authority — re-reading the
+  // clock here would leave us shut whenever setTimeout fires a hair early, with
+  // no second render coming to correct it.
+  const [openedFor, setOpenedFor] = useState(0)
   const fire = useRef(onOpen)
   fire.current = onOpen
 
   useEffect(() => {
     if (!armed) return
+    const go = () => {
+      setOpenedFor(armedAt)
+      fire.current?.()
+    }
     const wait = armedAt - now()
     // Already past it: this client heard late. Open now rather than never.
-    if (wait <= 0) return void fire.current?.()
-    const id = setTimeout(() => {
-      fire.current?.()
-      tick((n) => n + 1)
-    }, wait)
+    if (wait <= 0) return go()
+    const id = setTimeout(go, wait)
     return () => clearTimeout(id)
   }, [armed, armedAt])
 
-  return armed && now() >= armedAt
+  return armed && openedFor === armedAt
 }
 
 export function useSocket(role: Role) {
