@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { resolveBuzzes, type RawBuzz, type Resolved } from './resolve.ts'
-import { applyHostAction, lockedPlayerIds } from './state.ts'
-import { catalog } from './modes/index.ts'
+import { applyHostAction, buzzBlockReason, lockedPlayerIds } from './state.ts'
+import { catalog, moduleFor } from './modes/index.ts'
+import { useItem } from './items.ts'
 import { COLLECT_MS } from '../shared/protocol.ts'
 import type {
   ClientMsg, PlayerId, Role, ServerMsg, State,
@@ -109,7 +110,47 @@ export class Hub {
         if (RESETS.has(msg.action.a) && !refused) this.clearWindow()
         this.changed()
         return
+
+      case 'act':
+        this.act(conn, msg.act, msg.data)
+        return
     }
+  }
+
+  /** Unknown acts, so each is logged once rather than per packet. */
+  private unknownActs = new Set<string>()
+
+  /**
+   * Module and item actions. Items belong to players; everything else is
+   * host-scoped — the reader tool connects as host, and a phone must not be
+   * able to reveal a fragment early or close the power window for itself.
+   */
+  private act(conn: Conn, name: string, data: unknown): void {
+    if (name === 'useItem') {
+      if (!conn.playerId) return
+      if (useItem(this.state, conn.playerId, data)) {
+        if (this.revealed) this.publish()
+        this.changed()
+      }
+      return
+    }
+    if (conn.role !== 'host') return
+    const round = this.state.round
+    if (name === 'fragment' && typeof data === 'string') {
+      round.fragments = [...(round.fragments ?? []), data]
+    } else if (name === 'revealAnswer' && typeof data === 'string') {
+      round.answer = data
+    } else {
+      const handled = moduleFor(this.state.game.id).onAct?.(this.state, name, data) ?? false
+      if (!handled) {
+        if (!this.unknownActs.has(name)) {
+          this.unknownActs.add(name)
+          console.warn(`[hub] unknown act "${name}" — dropped`)
+        }
+        return
+      }
+    }
+    this.changed()
   }
 
   private join(conn: Conn, playerId: PlayerId | undefined, name?: string): void {
@@ -147,6 +188,10 @@ export class Hub {
     // a packet that landed before the arm instant was sent before it.
     if (arrivedAt < round.armedAt) return
 
+    // Framework effects (freeze) and the module's own rules both live behind
+    // this one question.
+    if (buzzBlockReason(this.state, conn.playerId)) return
+
     this.pending.push({ playerId: conn.playerId, at, arrivedAt })
 
     if (round.phase === 'ARMED') {
@@ -175,11 +220,27 @@ export class Hub {
   /** Resolve what has arrived so far into the published order. */
   private publish(): void {
     const round = this.state.round
-    round.order = resolveBuzzes(
-      this.pending,
-      round.armedAt,
-      lockedPlayerIds(this.state),
-    ).map((b) => this.entry(b))
+    const excluded = lockedPlayerIds(this.state)
+    const frozen = new Set(
+      this.state.effects
+        .filter((e) => e.kind === 'frozen' && e.roundArmedAt === round.armedAt)
+        .map((e) => e.playerId),
+    )
+    round.order = resolveBuzzes(this.pending, round.armedAt, [...excluded, ...frozen]).map(
+      (b) => this.entry(b),
+    )
+    // A steal jumps the window: first place, measured from the arm instant.
+    const steal = this.state.effects.find(
+      (e) => e.kind === 'steal' && e.roundArmedAt === round.armedAt,
+    )
+    if (steal && !frozen.has(steal.playerId) && !excluded.includes(steal.playerId)) {
+      const name =
+        this.state.players.find((p) => p.id === steal.playerId)?.name ?? '?'
+      round.order = [
+        { playerId: steal.playerId, name, at: round.armedAt, deltaMs: 0 },
+        ...round.order.filter((b) => b.playerId !== steal.playerId),
+      ].map((b) => ({ ...b, deltaMs: Math.round(b.at - round.armedAt) }))
+    }
     round.total = round.order.length
   }
 
@@ -228,17 +289,30 @@ export class Hub {
   }
 
   /**
-   * Phones get the round redacted to their own buzz, so nobody can peek at
-   * where they placed relative to the field before the host reveals it.
+   * Phones get the round redacted to their own buzz, question text and answer
+   * stripped (the room reads the board; a phone must not leak the next
+   * fragment before the voice reaches it), and module state only through the
+   * module's own viewModuleState — a module without one exposes nothing.
    */
   viewFor(conn: Conn): State {
-    if (conn.role !== 'player') return this.state
+    const mod = moduleFor(this.state.game.id)
+    let game = this.state.game
+    if (mod.viewModuleState) {
+      const viewer = conn.role === 'player' ? (conn.playerId ?? '') : conn.role
+      game = { ...game, moduleState: mod.viewModuleState(this.state, viewer) }
+    } else if (conn.role === 'player') {
+      game = { ...game, moduleState: undefined }
+    }
+    if (conn.role !== 'player') return { ...this.state, game }
     const round = this.state.round
     return {
       ...this.state,
+      game,
       round: {
         ...round,
         order: round.order.filter((b) => b.playerId === conn.playerId),
+        fragments: undefined,
+        answer: undefined,
       },
     }
   }
