@@ -417,7 +417,35 @@ player exactly what happened and when it ends.
 
 ---
 
-## 9. Adding something new
+## 9. Seeing it move
+
+Static screens lie about a design that only exists over time. `npm run sim`
+fills the room with bots that buzz like people — uneven skill, uneven reflexes,
+uneven wifi — and plays real questions against a running server, so you can
+watch the board and a phone across a game instead of guessing.
+
+```
+npm run sim                 # against http://localhost:8080
+PACE=2 npm run sim          # half speed, for looking closely
+ROUNDS=5 npm run sim        # stop after five questions
+```
+
+It is an ordinary client: real sockets, real protocol, real clock sync, no
+test-only hooks in the server. Question difficulty varies, so you get gimmes
+(six marks inside 100 ms) and stumpers (one mark, or nobody) in the same run —
+which is the only way to know the timeline works. Wrong answers trigger real
+rebounds and lockouts. Ctrl-C removes the bots.
+
+You can join from a phone mid-run and play against them.
+
+**What it revealed:** the 150 ms collection window bounds the timeline. Anyone
+slower than 150 ms behind the first buzz never enters the order at all, so the
+scale in practice never exceeds that. The timeline is a photo-finish instrument
+by construction — design it for tight fields, not wide ones.
+
+---
+
+## 10. Adding something new
 
 1. Can an existing component do it? Use it.
 2. Is it drama or measurement? That answers the colour and the typeface.

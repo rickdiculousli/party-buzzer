@@ -16,6 +16,13 @@ function Timeline({ state, order }: { state: State; order: BuzzEntry[] }) {
   const width = span(order)
   return (
     <div class="timeline">
+      {/* Scale above the rail, marks below it. The last mark always lands at
+          full scale, so a scale printed underneath collides with it and repeats
+          its number. */}
+      <div class="timeline__scale">
+        <span>0 ms</span>
+        <span>{width} ms</span>
+      </div>
       <div class="timeline__rail" />
       <ol class="timeline__marks">
         {order.map((b) => (
@@ -35,10 +42,6 @@ function Timeline({ state, order }: { state: State; order: BuzzEntry[] }) {
           </li>
         ))}
       </ol>
-      <div class="timeline__scale">
-        <span>0 ms</span>
-        <span>{width} ms</span>
-      </div>
     </div>
   )
 }

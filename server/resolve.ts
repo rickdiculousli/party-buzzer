@@ -46,5 +46,9 @@ export function resolveBuzzes(
   )
 
   const first = sorted[0]?.at ?? 0
-  return sorted.map((b) => ({ ...b, deltaMs: b.at - first }))
+  // Rounded because this is a number people read. Clients stamp with
+  // performance.now(), which carries a fractional part that would render as
+  // "+57.53271484375ms" — precision the clock sync cannot back up anyway.
+  // Ordering above still uses the full-precision stamp.
+  return sorted.map((b) => ({ ...b, deltaMs: Math.round(b.at - first) }))
 }
