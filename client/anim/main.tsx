@@ -22,8 +22,9 @@
  */
 import { render } from 'preact'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
-import { SCENARIOS, type Dial } from './scenarios.tsx'
+import { SCENARIOS, dialKey, type Dial } from './scenarios.tsx'
 import { play, prime, unlock } from '../sound.ts'
+import { RECIPES, getPath, withOverrides } from '../cues.ts'
 
 /**
  * How long the lead-up frame is held before the moment happens.
@@ -39,10 +40,17 @@ const LEAD_MS = 500
 /** Split "700ms" into 700, or "cubic-bezier(...)" into itself. */
 const num = (v: string) => parseFloat(v)
 
+/**
+ * Where each dial starts. CSS dials read the stylesheet, recipe dials read the
+ * committed table — both are "what is in the file", which is what an origin
+ * marker has to mean for Reset to be honest.
+ */
 function readDefaults(dials: Dial[]): Record<string, string> {
   const root = getComputedStyle(document.documentElement)
   const out: Record<string, string> = {}
-  for (const d of dials) out[d.var] = root.getPropertyValue(d.var).trim()
+  for (const d of dials)
+    out[dialKey(d)] =
+      'var' in d ? root.getPropertyValue(d.var).trim() : String(getPath(RECIPES, d.recipe) ?? 0)
   return out
 }
 
@@ -173,10 +181,12 @@ function Harness() {
    */
   useEffect(() => {
     if (lead || muted || !scenario.sound) return
+    const live = withOverrides(RECIPES, values)
     for (const cue of [scenario.sound].flat())
       play(cue, {
         scope: stage.current ?? undefined,
         rateScale: follow ? speed : 1,
+        recipe: live[cue],
       })
   }, [lead])
 
@@ -186,9 +196,16 @@ function Harness() {
     if (scenario.sound && !muted) prime(...[scenario.sound].flat())
   }, [id, muted])
 
+  // The stage's inline style must never receive a recipe field — Preact would
+  // try to set `stamp.0.decay` as a CSS property. Both the stage and the
+  // preview stick to the CSS half for the same reason.
+  const cssValues = Object.fromEntries(
+    Object.entries(values).filter(([k]) => k.startsWith('--')),
+  )
+
   const css =
     ':root {\n' +
-    Object.entries(values)
+    Object.entries(cssValues)
       .map(([k, v]) => `  ${k}: ${v};`)
       .join('\n') +
     '\n}'
@@ -196,15 +213,16 @@ function Harness() {
   const save = async () => {
     setSaved('saving')
     try {
+      const css = Object.fromEntries(Object.entries(values).filter(([k]) => k.startsWith('--')))
       const res = await fetch('/__anim/save', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(values),
+        body: JSON.stringify({ css, recipes: withOverrides(RECIPES, values) }),
       })
       const body = await res.json()
       // Saved values are the new baseline — see the note on `origin`.
       if (res.ok) setOrigin({ ...values })
-      setSaved(res.ok ? `saved ${body.written} to style.css` : `failed: ${body.error}`)
+      setSaved(res.ok ? `saved ${body.written} to style.css, ${body.cues} cues` : `failed: ${body.error}`)
     } catch (err) {
       setSaved(`failed: ${(err as Error).message}`)
     }
@@ -300,16 +318,17 @@ function Harness() {
 
         <p class="eyebrow">{scenario.label}</p>
         {scenario.dials.map((d) => {
-          const was = origin[d.var] ?? ''
-          const now = values[d.var] ?? ''
+          const k = dialKey(d)
+          const was = origin[k] ?? ''
+          const now = values[k] ?? ''
           const moved = now !== was
           // Click the origin readout to put this one dial back, which is far
           // less blunt than resetting the whole panel to compare one change.
-          const back = () => setValues((v) => ({ ...v, [d.var]: was }))
+          const back = () => setValues((v) => ({ ...v, [k]: was }))
 
           if ('text' in d) {
             return (
-              <div class="harness__dial" key={d.var}>
+              <div class="harness__dial" key={k}>
                 <label>
                   {d.label}
                   {moved && (
@@ -322,7 +341,7 @@ function Harness() {
                   class="input"
                   value={now}
                   onInput={(e) =>
-                    setValues((v) => ({ ...v, [d.var]: (e.target as HTMLInputElement).value }))
+                    setValues((v) => ({ ...v, [k]: (e.target as HTMLInputElement).value }))
                   }
                 />
                 {moved && <span class="harness__was">was {was}</span>}
@@ -337,7 +356,7 @@ function Harness() {
           const at = (num(was) - d.min) / (d.max - d.min)
 
           return (
-            <div class="harness__dial" key={d.var}>
+            <div class="harness__dial" key={k}>
               <label>
                 {d.label}
                 <span class={moved ? 'readout harness__value is-moved' : 'readout harness__value'}>
@@ -355,7 +374,10 @@ function Harness() {
                   onInput={(e) =>
                     setValues((v) => ({
                       ...v,
-                      [d.var]: `${(e.target as HTMLInputElement).value}${d.unit}`,
+                      [k]:
+                        'var' in d
+                          ? `${(e.target as HTMLInputElement).value}${d.unit}`
+                          : (e.target as HTMLInputElement).value,
                     }))
                   }
                 />
@@ -382,7 +404,7 @@ function Harness() {
           </button>
           <button
             class="btn btn--ghost"
-            disabled={!scenario.dials.some((d) => values[d.var] !== origin[d.var])}
+            disabled={!scenario.dials.some((d) => values[dialKey(d)] !== origin[dialKey(d)])}
             onClick={() => {
               setValues({ ...origin })
               trigger()
@@ -395,7 +417,7 @@ function Harness() {
         <pre class="harness__css">{css}</pre>
       </aside>
 
-      <div class="harness__stage" style={values}>
+      <div class="harness__stage" style={cssValues}>
         <p class="harness__note">{scenario.note}</p>
         {/* Keyed on the scenario, not on the take: a take must not remount
             this, or the context would animate alongside the subject and the

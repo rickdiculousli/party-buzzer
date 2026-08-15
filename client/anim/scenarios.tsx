@@ -23,10 +23,25 @@
  */
 import { COLLECT_MS } from '../../shared/protocol.ts'
 import type { Cue } from '../sound.ts'
+import { RECIPES } from '../cues.ts'
+import type { Layer } from '../synth.ts'
 
+/**
+ * A number the harness can move.
+ *
+ * Two kinds, told apart by which one they address: `var` is a CSS custom
+ * property in the `anim:tunables` block, `recipe` is a field in a cue's recipe
+ * written as `cue.layer.field`. Everything downstream — the slider, the origin
+ * marker, the dirty state, Save — works the same on both, which is the point of
+ * giving them one type.
+ */
 export type Dial =
   | { var: string; label: string; min: number; max: number; step: number; unit: string }
   | { var: string; label: string; text: true }
+  | { recipe: string; label: string; min: number; max: number; step: number; unit: string }
+
+/** What a dial is stored under. The two kinds never collide: one has dashes. */
+export const dialKey = (d: Dial) => ('var' in d ? d.var : d.recipe)
 
 export type Scenario = {
   id: string
@@ -71,6 +86,41 @@ const soundDials = (cue: Cue, name = 'Snd'): Dial[] => [
   { var: `--${cue}-snd-rate`, label: `${name} rate / pitch`, min: 0.25, max: 6, step: 0.05, unit: '' },
   { var: `--${cue}-snd-gain`, label: `${name} gain`, min: 0, max: 1.5, step: 0.05, unit: '' },
 ]
+
+/** Range and step per recipe field. One table, so every layer dials alike. */
+const FIELD: Record<string, { max: number; step: number; unit: string }> = {
+  freq: { max: 4000, step: 10, unit: 'Hz' },
+  freqTo: { max: 4000, step: 10, unit: 'Hz' },
+  attack: { max: 400, step: 1, unit: 'ms' },
+  decay: { max: 2000, step: 5, unit: 'ms' },
+  sustain: { max: 1, step: 0.05, unit: '' },
+  hold: { max: 4000, step: 20, unit: 'ms' },
+  release: { max: 2000, step: 5, unit: 'ms' },
+  gain: { max: 1.5, step: 0.05, unit: '' },
+  delay: { max: 600, step: 5, unit: 'ms' },
+  head: { max: 1000, step: 5, unit: 'ms' },
+}
+
+/**
+ * Every numeric field actually present in a cue's recipe, as dials.
+ *
+ * Driven off the recipe rather than off a written-out list, so adding a layer
+ * to `cues.ts` gives you its dials without touching this file — and so a
+ * scenario can never restate a value the recipe already carries.
+ */
+export function recipeDials(cue: string): Dial[] {
+  const recipe = (RECIPES as Record<string, Layer[]>)[cue] ?? []
+  return recipe.flatMap((layer, i) =>
+    Object.keys(FIELD)
+      .filter((f) => typeof layer[f as keyof Layer] === 'number')
+      .map((f) => ({
+        recipe: `${cue}.${i}.${f}`,
+        label: `${cue} L${i + 1} ${f}`,
+        min: 0,
+        ...FIELD[f],
+      })),
+  )
+}
 
 // --- shared dial groups ------------------------------------------------------
 
@@ -156,7 +206,7 @@ export const SCENARIOS: Scenario[] = [
     label: 'A mark lands',
     note: 'Three marks are already down. The fourth arrives — which is what the board does all through the collection window, one packet at a time.',
     subject: '.timeline__mark',
-    dials: [...STAMP, ...BLOOM, ...soundDials('stamp')],
+    dials: [...STAMP, ...BLOOM, ...soundDials('stamp'), ...recipeDials('stamp')],
     sound: 'stamp',
     render: (lead) => (
       <Stage mid={<p class="board__hero">Ada</p>} below={<Timeline held={lead ? 1 : 0} />} />
@@ -176,7 +226,9 @@ export const SCENARIOS: Scenario[] = [
       { var: '--flare-body', label: 'Body', min: 0, max: 200, step: 4, unit: 'px' },
       { var: '--flare-throw', label: 'Throw', min: 0, max: 400, step: 5, unit: 'px' },
       ...soundDials('leader'),
+      ...recipeDials('leader'),
       ...soundDials('leader2', 'Buzzer'),
+      ...recipeDials('leader2'),
     ],
     sound: ['leader', 'leader2'],
     // The ghost keeps the middle band open while the name is held back. An

@@ -7,6 +7,10 @@ const STYLE = fileURLToPath(new URL('./client/style.css', import.meta.url))
 const OPEN = '/* anim:tunables'
 const CLOSE = '/* /anim:tunables */'
 
+const CUES = fileURLToPath(new URL('./client/cues.ts', import.meta.url))
+const R_OPEN = '/* cue:recipes'
+const R_CLOSE = '/* /cue:recipes */'
+
 /**
  * Lets the motion harness write its dialled-in values back into style.css.
  *
@@ -32,7 +36,9 @@ function animSave(): Plugin {
         try {
           const chunks: Buffer[] = []
           for await (const c of req) chunks.push(c as Buffer)
-          const values = JSON.parse(Buffer.concat(chunks).toString()) as Record<string, string>
+          const { css: values = {}, recipes } = JSON.parse(
+            Buffer.concat(chunks).toString(),
+          ) as { css?: Record<string, string>; recipes?: unknown }
 
           const css = await readFile(STYLE, 'utf8')
           const start = css.indexOf(OPEN)
@@ -55,7 +61,25 @@ function animSave(): Plugin {
           if (unknown.length) return reply(400, { error: `not in the block: ${unknown.join(', ')}` })
 
           await writeFile(STYLE, css.slice(0, start) + patched + css.slice(end))
-          reply(200, { written })
+
+          let cues = 0
+          if (recipes && typeof recipes === 'object') {
+            const src = await readFile(CUES, 'utf8')
+            const rs = src.indexOf(R_OPEN)
+            const re = src.indexOf(R_CLOSE)
+            if (rs === -1 || re === -1) return reply(500, { error: 'cue markers missing' })
+            // Regenerated wholesale rather than line-matched: a recipe is a
+            // tree, and there is no per-line identity to match against. Quoted
+            // keys are valid TypeScript and the repo has no formatter to fight.
+            const head = src.slice(0, rs)
+            const marker = src.slice(rs, src.indexOf('*/', rs) + 2)
+            const body =
+              `\nexport const RECIPES = ${JSON.stringify(recipes, null, 2)}` +
+              ` satisfies Record<string, Recipe>\n`
+            await writeFile(CUES, head + marker + body + src.slice(re))
+            cues = Object.keys(recipes).length
+          }
+          reply(200, { written, cues })
         } catch (err) {
           reply(500, { error: (err as Error).message })
         }
