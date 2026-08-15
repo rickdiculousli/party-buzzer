@@ -198,6 +198,33 @@ export function markGap(scope?: Element): number {
 let nextFree = 0
 
 /**
+ * Where each cue of one moment starts, in ms from now.
+ *
+ * Slots are spaced by when a cue is *heard*, not when it starts, because the
+ * ear times a sound by its attack. A cue with a 120ms onset therefore starts
+ * 120ms before its slot so that its attack lands on it. `delay` is untouched by
+ * any of this and keeps its full power to reorder: `delay` is an offset you
+ * asked for, `onset` is latency you did not.
+ *
+ * Pure so it can be checked without a browser — the audio clock is the caller's
+ * problem.
+ */
+export function spacedPlan(
+  now: number,
+  free: number,
+  gap: number,
+  onsets: number[],
+): { free: number; offsets: number[] } {
+  const heard = Math.max(now, free)
+  return {
+    free: heard + gap,
+    // A cue whose onset is longer than the lead available cannot start in the
+    // past, so it is late instead. Which is what it would have been anyway.
+    offsets: onsets.map((o) => Math.max(0, heard - o - now)),
+  }
+}
+
+/**
  * Fire a cue, never sooner than a gap after the last one.
  *
  * Several cues given together are one moment, not several: they share the slot
@@ -209,10 +236,16 @@ let nextFree = 0
  */
 export function playSpaced(cue: Cue | Cue[], scope?: Element): void {
   const ac = unlock()
-  const at = Math.max(ac.currentTime, nextFree)
-  nextFree = at + markGap(scope) / 1000
-  const offsetMs = (at - ac.currentTime) * 1000
-  for (const c of [cue].flat()) play(c, { scope, offsetMs })
+  const cues = [cue].flat()
+  const now = ac.currentTime * 1000
+  const plan = spacedPlan(
+    now,
+    nextFree * 1000,
+    markGap(scope),
+    cues.map((c) => onset(recipeFor(c) ?? [])),
+  )
+  nextFree = plan.free / 1000
+  cues.forEach((c, i) => play(c, { scope, offsetMs: plan.offsets[i] }))
 }
 
 /* --- the bed -----------------------------------------------------------
