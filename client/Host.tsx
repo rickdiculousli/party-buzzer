@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'preact/hooks'
 import { useOpen, useSocket } from './useSocket.ts'
 import { colorForPlayer, standings } from './ui.ts'
+import { GameSettings } from './GameSettings.tsx'
 import type { HostAction, ScoreKey } from '../shared/protocol.ts'
 
 /**
@@ -68,6 +69,18 @@ export function Host() {
           {connected ? 'Connected' : 'Disconnected'}
         </span>
         <span class="chip">{round.phase}</span>
+
+        {state.game.id === 'quizbowl' &&
+          Number(state.game.options.powerAfterFragment ?? 0) > 0 &&
+          (() => {
+            const ms = state.game.moduleState as { powerEndsAt?: number } | undefined
+            const ended = ms?.powerEndsAt !== undefined
+            return (
+              <span class={ended ? 'chip chip--barred' : 'chip chip--data'}>
+                {ended ? 'Power ended' : 'Power open'}
+              </span>
+            )
+          })()}
 
         <label class="field">
           Value
@@ -199,6 +212,8 @@ export function Host() {
       {/* Setup, not play. Folded away so the controls above stay the whole screen. */}
       <details class="host__manage">
         <summary>Players and teams · {state.players.length} joined</summary>
+
+        <GameSettings state={state} act={act} />
 
         <label class="field" style={{ margin: 'var(--s3) 0' }}>
           Teams mode
