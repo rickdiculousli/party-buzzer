@@ -113,6 +113,10 @@ export async function startServer(opts: {
     close: async () => {
       for (const client of wss.clients) client.terminate()
       wss.close()
+      // http.close() only stops new connections and waits for existing ones to
+      // go idle, which an upgraded socket mid-teardown never does — shutdown
+      // hangs instead of finishing. Drop them outright; the game is over.
+      http.closeAllConnections()
       await new Promise<void>((resolve) => http.close(() => resolve()))
       await flushSave()
     },

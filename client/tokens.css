@@ -1,0 +1,117 @@
+/*
+ * Party Buzzer design tokens. Every value in the UI comes from here, so
+ * docs/design.md and the stylesheet cannot drift apart.
+ *
+ * The world is a television studio floor: tungsten lamps, a tally light, brass
+ * fittings, black staging. Warm colours carry drama (armed, live, won). One
+ * cold colour carries measurement (milliseconds, ticks, scales). Nothing is
+ * both.
+ */
+
+@font-face {
+  font-family: 'Big Shoulders';
+  src: url('/fonts/big-shoulders-display.woff2') format('woff2');
+  font-weight: 400 900;
+  font-display: block; /* No FOUT on the big screen; the file is local and instant. */
+}
+@font-face {
+  font-family: 'Plex Mono';
+  src: url('/fonts/plex-mono-400.woff2') format('woff2');
+  font-weight: 400;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Plex Mono';
+  src: url('/fonts/plex-mono-600.woff2') format('woff2');
+  font-weight: 600;
+  font-display: block;
+}
+
+:root {
+  color-scheme: dark;
+
+  /* --- Surface: the unlit studio ------------------------------------- */
+  --stage: #0b0a08;   /* the room itself; board and phone backgrounds */
+  --panel: #16130f;   /* a lit surface sitting on the stage */
+  --raise: #211c16;   /* a row or input on that surface */
+  --rule: #2c2620;    /* hairlines and borders */
+
+  /* --- Ink ------------------------------------------------------------ */
+  --chalk: #f5f0e6;   /* primary text, warm white so it sits in the set */
+  --dim: #8a8073;     /* labels, secondary text, anything not being read now */
+
+  /* --- Signal: warm is drama ------------------------------------------ */
+  --tungsten: #ffb454; /* armed, charging, the primary action */
+  --tally: #ff3b2f;    /* live, buzz, wrong, destructive */
+  --brass: #c9a227;    /* first place, correct, awarded */
+  --ember: #7a3b10;    /* a lamp with no current in it yet */
+  --hot: #fff6e8;      /* white-hot filament at full power */
+
+  /* --- Signal: cold is measurement ------------------------------------ */
+  --cyan: #4dd8e6;     /* milliseconds, ticks, scales. Never used for state. */
+
+  /*
+   * Identity ramp. The one place outside the core palette: players and teams
+   * need hues that stay apart from ten feet away, which a warm-only set cannot
+   * give. Assigned by index, never by meaning.
+   *
+   * None of these may equal a signal colour. A player rendered in --cyan would
+   * read as a measurement, and one in --tungsten would read as armed.
+   */
+  --id-1: #ff8a3d;
+  --id-2: #e5484d;
+  --id-3: #8ea6ff;
+  --id-4: #d9c15a;
+  --id-5: #e86a92;
+  --id-6: #8ed081;
+
+  /* --- Type ------------------------------------------------------------ */
+  --display: 'Big Shoulders', 'Haettenschweiler', 'Arial Narrow', sans-serif;
+  --mono: 'Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /*
+   * Two scales. Board type is viewport-relative because it is read across a
+   * room; host and phone type is fixed because it is read at arm's length.
+   */
+  --t-hero: clamp(4rem, 15vw, 14rem);
+  --t-mega: clamp(2.5rem, 7vw, 6rem);
+  --t-xl: clamp(1.75rem, 3.4vw, 3rem);
+  --t-lg: 1.5rem;
+  --t-md: 1rem;
+  --t-sm: 0.8125rem;
+  --t-xs: 0.6875rem;
+
+  --track-label: 0.14em; /* eyebrows and chips only */
+  --track-hero: -0.01em;
+
+  /* --- Space: 4px base -------------------------------------------------- */
+  --s1: 0.25rem;
+  --s2: 0.5rem;
+  --s3: 0.75rem;
+  --s4: 1rem;
+  --s5: 1.5rem;
+  --s6: 2rem;
+  --s7: 3rem;
+  --s8: 4rem;
+
+  /* --- Form ------------------------------------------------------------- */
+  /* Tight radii read as equipment. Only the buzzer, which is a physical
+   * object in the hand, gets a generous one. */
+  --r-sm: 2px;
+  --r-md: 4px;
+  --r-lg: 10px;
+  --r-buzzer: 1.75rem;
+
+  /* --- Motion ----------------------------------------------------------- */
+  --fast: 80ms;
+  --base: 160ms;
+  --ease: cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}

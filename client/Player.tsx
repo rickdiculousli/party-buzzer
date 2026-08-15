@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { useOpen, useSocket } from './useSocket.ts'
+import { colorForPlayer } from './ui.ts'
 
 /**
  * A short square-wave blip. Cheaper and more reliable than shipping an audio
  * file. Resumes first: iOS suspends the context whenever the phone locks.
  */
-function blip(ctx: AudioContext | null, hz = 660) {
+function blip(ctx: AudioContext | null, hz = 660, ms = 150) {
   if (!ctx) return
   if (ctx.state === 'suspended') void ctx.resume()
   const osc = ctx.createOscillator()
@@ -13,10 +14,10 @@ function blip(ctx: AudioContext | null, hz = 660) {
   osc.type = 'square'
   osc.frequency.value = hz
   gain.gain.setValueAtTime(0.25, ctx.currentTime)
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15)
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + ms / 1000)
   osc.connect(gain).connect(ctx.destination)
   osc.start()
-  osc.stop(ctx.currentTime + 0.15)
+  osc.stop(ctx.currentTime + ms / 1000)
 }
 
 export function Player() {
@@ -62,14 +63,23 @@ export function Player() {
       : playerId
   const barred = !!key && !!round?.lockedOut.includes(key)
   const score = key ? state?.scores[key] ?? 0 : 0
+  const armed = round?.phase === 'ARMED' || round?.phase === 'COLLECTING'
 
   // The go cue. Lower than the buzz blip so the two never get confused, and
   // skipped for players who are locked out and cannot act on it.
-  const open = useOpen(round, now, () => {
+  const { open, lead } = useOpen(round, now, () => {
     if (barred) return
     navigator.vibrate?.([40, 40, 40])
     blip(audio.current, 440)
   })
+
+  // A distinct low double-thud when you are shut out, so the phone tells you
+  // why nothing happened instead of leaving you mashing a dead button.
+  useEffect(() => {
+    if (!ready || !barred) return
+    navigator.vibrate?.([120, 60, 120])
+    blip(audio.current, 180, 260)
+  }, [barred, ready])
 
   // The join tap doubles as the gesture that unlocks audio on iOS.
   const join = () => {
@@ -85,20 +95,20 @@ export function Player() {
   if (!ready) {
     return (
       <main class="join">
-        <h1>Party Buzzer</h1>
+        <h1 class="join__mark">Party<br />Buzzer</h1>
         <input
-          class="name"
+          class="input"
           placeholder="Your name"
           value={name}
           maxLength={20}
           onInput={(e) => setName((e.target as HTMLInputElement).value)}
         />
-        <button class="big" onClick={join} disabled={!name.trim()}>
-          {returning && name.trim() ? `Tap to play as ${name.trim()}` : 'Tap to join'}
+        <button class="btn btn--primary join__go" onClick={join} disabled={!name.trim()}>
+          {returning && name.trim() ? `Play as ${name.trim()}` : 'Join the game'}
         </button>
-        <p class="hint">
+        <p class="join__hint">
           {returning
-            ? 'Your score is safe. Tapping turns the buzzer sound back on.'
+            ? 'Your score is waiting. Tapping turns the buzzer sound back on.'
             : 'Tapping also turns on the buzzer sound.'}
         </p>
       </main>
@@ -115,28 +125,62 @@ export function Player() {
 
   // deltaMs is computed before redaction, so 0 means first across the whole field.
   const won = !!mine && mine.deltaMs === 0
-  let label = 'WAIT'
-  let mood = 'idle'
-  if (barred) { label = 'LOCKED OUT'; mood = 'barred' }
-  else if (mine && round?.phase === 'LOCKED') {
-    label = won ? "YOU'RE UP" : `+${mine.deltaMs}ms`
-    mood = won ? 'first' : 'placed'
-  } else if (mine) { label = 'BUZZED'; mood = 'placed' }
-  else if (open) { label = 'BUZZ'; mood = 'open' }
+  const locked = round?.phase === 'LOCKED'
+
+  let label = 'Wait'
+  let sub = 'The host has not armed yet'
+  let mood = ''
+  if (barred) {
+    label = 'Out'
+    sub = 'Wrong answer — you sit out the rest of this question'
+    mood = 'is-barred'
+  } else if (mine && locked) {
+    label = won ? 'You’re up' : `+${mine.deltaMs} ms`
+    sub = won ? 'Answer it' : 'Someone beat you to it'
+    mood = won ? 'is-first' : 'is-placed'
+  } else if (mine) {
+    label = 'In'
+    sub = 'Counting the rest of the field'
+    mood = 'is-placed'
+  } else if (open) {
+    label = 'Buzz'
+    sub = ''
+    mood = 'is-open'
+  } else if (armed) {
+    label = 'Wait'
+    sub = 'Any moment'
+  }
+
+  const me = state?.players.find((p) => p.id === playerId)
 
   return (
     <main class="player">
-      <header>
-        <span>{state?.players.find((p) => p.id === playerId)?.name}</span>
-        <span class={connected ? 'dot on' : 'dot off'} />
-        <span class="score">{score}</span>
-      </header>
+      <div class="player__bar">
+        <span
+          class="player__name"
+          style={{ '--id': state && playerId ? colorForPlayer(state, playerId) : undefined }}
+        >
+          {me?.name}
+        </span>
+        <span class={connected ? 'lamp-dot is-on' : 'lamp-dot is-off'} />
+        <span class="player__score readout">{score}</span>
+      </div>
+
+      {armed && !barred && (
+        <div
+          key={round?.armedAt}
+          class={open ? 'filament is-hot player__filament' : 'filament player__filament'}
+          style={{ '--lead': `${lead}ms` }}
+        />
+      )}
+
       <button
         class={`buzzer ${mood}`}
         onPointerDown={buzz}
         disabled={!open || barred || !!mine}
       >
         {label}
+        {sub && <span class="buzzer__sub">{sub}</span>}
       </button>
     </main>
   )

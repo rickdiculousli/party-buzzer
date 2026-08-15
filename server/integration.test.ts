@@ -123,6 +123,39 @@ test('the player who pressed first wins despite arriving last', async () => {
   })
 })
 
+test('undo takes back an award, including the one before it', async () => {
+  await withServer(async (url) => {
+    const host = new FakeClient(url, 'host')
+    const amy = new FakeClient(url, 'player')
+    await host.open()
+    await amy.open('Amy')
+
+    const award = async () => {
+      host.send({ t: 'host', action: { a: 'arm' } })
+      await sleep(ARM_LEAD_MS + 20)
+      amy.send({ t: 'buzz', at: performance.now() + amy.offset })
+      await sleep(WINDOW + 150)
+      host.send({ t: 'host', action: { a: 'correct' } })
+      await sleep(50)
+    }
+
+    await award()
+    await award()
+    assert.equal(host.last.scores[amy.playerId], 200, 'two correct answers at 100')
+
+    // The mistake a host actually makes: awarding, then noticing one question
+    // later. Both steps have to come back, in order.
+    host.send({ t: 'host', action: { a: 'undo' } })
+    await sleep(50)
+    assert.equal(host.last.scores[amy.playerId], 100)
+    host.send({ t: 'host', action: { a: 'undo' } })
+    await sleep(50)
+    assert.equal(host.last.scores[amy.playerId], 100, 'undoing the arm keeps the score')
+
+    for (const c of [host, amy]) c.close()
+  })
+})
+
 test('a player reconnects with the same identity and score', async () => {
   await withServer(async (url) => {
     const host = new FakeClient(url, 'host')

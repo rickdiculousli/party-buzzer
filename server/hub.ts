@@ -12,6 +12,13 @@ export type Conn = {
   send: (msg: ServerMsg) => void
 }
 
+/**
+ * How many host actions can be taken back. Awarding points to the wrong player
+ * is the mistake a host actually makes, and it is unrecoverable without this.
+ * A snapshot is a few KB, so depth is free.
+ */
+const UNDO_DEPTH = 20
+
 export type HubOpts = {
   /** Grace window in ms between the first buzz and locking the order. */
   windowMs?: number
@@ -22,6 +29,7 @@ export class Hub {
   readonly state: State
   private conns = new Set<Conn>()
   private pending: RawBuzz[] = []
+  private history: State[] = []
   private timer: NodeJS.Timeout | undefined
   private windowMs: number
   private onChange: (state: State) => void
@@ -62,8 +70,15 @@ export class Hub {
       case 'host':
         // Only the host panel may mutate the game.
         if (conn.role !== 'host') return
-        applyHostAction(this.state, msg.action)
-        if (msg.action.a === 'arm' || msg.action.a === 'wrong') this.clearWindow()
+        if (msg.action.a === 'undo') this.undo()
+        else {
+          this.history.push(structuredClone(this.state))
+          if (this.history.length > UNDO_DEPTH) this.history.shift()
+          applyHostAction(this.state, msg.action)
+        }
+        if (msg.action.a === 'arm' || msg.action.a === 'wrong' || msg.action.a === 'undo') {
+          this.clearWindow()
+        }
         this.changed()
         return
     }
@@ -137,6 +152,17 @@ export class Hub {
     this.pending = []
     this.timer = undefined
     this.changed()
+  }
+
+  /**
+   * Restore the previous snapshot in place. `state` is handed out by reference
+   * to the persistence layer, so the object identity has to survive; only its
+   * top-level keys are swapped.
+   */
+  private undo(): void {
+    const prev = this.history.pop()
+    if (!prev) return
+    Object.assign(this.state, prev)
   }
 
   private clearWindow(): void {

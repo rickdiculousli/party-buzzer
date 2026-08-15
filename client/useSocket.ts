@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
+import { ARM_LEAD_MS } from '../shared/protocol.ts'
 import type { ClientMsg, Role, ServerMsg, State } from '../shared/protocol.ts'
 
 const SAMPLES = 7
@@ -29,9 +30,16 @@ export function useOpen(
   round: State['round'] | undefined,
   now: () => number,
   onOpen?: () => void,
-): boolean {
+): { open: boolean; lead: number } {
   const armed = round?.phase === 'ARMED' || round?.phase === 'COLLECTING'
   const armedAt = round?.armedAt ?? 0
+  /**
+   * The countdown can never exceed the lead the server actually schedules, so
+   * clamp to it. Without this a client whose clock is behind — including one
+   * that armed before its first sync landed — computes a wait of roughly the
+   * current unix time and simply never opens.
+   */
+  const lead = Math.min(ARM_LEAD_MS, Math.max(0, armedAt - now()))
   // Which arm we have opened for. The timer is the authority — re-reading the
   // clock here would leave us shut whenever setTimeout fires a hair early, with
   // no second render coming to correct it.
@@ -45,14 +53,14 @@ export function useOpen(
       setOpenedFor(armedAt)
       fire.current?.()
     }
-    const wait = armedAt - now()
+    const wait = Math.min(ARM_LEAD_MS, Math.max(0, armedAt - now()))
     // Already past it: this client heard late. Open now rather than never.
     if (wait <= 0) return go()
     const id = setTimeout(go, wait)
     return () => clearTimeout(id)
   }, [armed, armedAt])
 
-  return armed && openedFor === armedAt
+  return { open: armed && openedFor === armedAt, lead }
 }
 
 export function useSocket(role: Role) {
@@ -63,7 +71,10 @@ export function useSocket(role: Role) {
   const [connected, setConnected] = useState(false)
 
   const socket = useRef<WebSocket | null>(null)
-  const offset = useRef(0)
+  // Seeded from this device's own wall clock so `now()` is in the server's
+  // domain from the first render, not only once sync lands. Sync then refines
+  // it from device accuracy to millisecond accuracy.
+  const offset = useRef(Date.now() - performance.now())
   const samples = useRef<{ rtt: number; offset: number }[]>([])
 
   const send = (msg: ClientMsg) => {

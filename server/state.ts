@@ -1,8 +1,11 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
+import { ARM_LEAD_MS } from '../shared/protocol.ts'
 import type {
   HostAction, PlayerId, ScoreKey, State,
 } from '../shared/protocol.ts'
+
+export { ARM_LEAD_MS }
 
 export function newState(): State {
   return {
@@ -39,13 +42,6 @@ export function lockedPlayerIds(state: State): PlayerId[] {
 function bump(state: State, key: ScoreKey, delta: number): void {
   state.scores[key] = (state.scores[key] ?? 0) + delta
 }
-
-/**
- * Arming is scheduled this far ahead instead of taking effect on arrival, so
- * every phone opens at the same real instant however late its packet lands.
- * Long enough to cover LAN jitter, short enough that the host never waits.
- */
-export const ARM_LEAD_MS = 300
 
 export function applyHostAction(state: State, action: HostAction): void {
   const round = state.round
@@ -87,6 +83,10 @@ export function applyHostAction(state: State, action: HostAction): void {
       round.order = []
       round.total = 0
       round.lockedOut = []
+      return
+
+    case 'undo':
+      // Handled by the hub, which owns the snapshot stack.
       return
 
     case 'setValue':
@@ -133,27 +133,36 @@ export function applyHostAction(state: State, action: HostAction): void {
 // KB and writes are rare, so this stays well under a millisecond. Switch to an
 // append-only log only if a game ever grows large enough to stutter.
 let pending: NodeJS.Timeout | undefined
-let inFlight: Promise<void> = Promise.resolve()
+let queued: { path: string; snapshot: string } | undefined
 
-export function saveState(path: string, state: State): void {
-  clearTimeout(pending)
-  const snapshot = JSON.stringify(state)
-  inFlight = new Promise((resolve) => {
-    pending = setTimeout(() => {
-      try {
-        writeFileSync(path, snapshot)
-      } catch (err) {
-        // A failed snapshot must never take the game down mid-question.
-        console.error('[state] snapshot failed:', err)
-      }
-      resolve()
-    }, 100)
-    pending.unref?.()
-  })
+function write(): void {
+  pending = undefined
+  if (!queued) return
+  try {
+    writeFileSync(queued.path, queued.snapshot)
+  } catch (err) {
+    // A failed snapshot must never take the game down mid-question.
+    console.error('[state] snapshot failed:', err)
+  }
+  queued = undefined
 }
 
-export function flushSave(): Promise<void> {
-  return inFlight
+/**
+ * Coalescing write. The first change schedules the flush and later ones only
+ * replace what gets written, so a burst costs one write and never pushes the
+ * deadline back — a game that keeps changing still gets saved.
+ */
+export function saveState(path: string, state: State): void {
+  queued = { path, snapshot: JSON.stringify(state) }
+  if (pending) return
+  pending = setTimeout(write, 100)
+  pending.unref?.()
+}
+
+/** Write anything outstanding right now. Sync, so shutdown cannot wait on it. */
+export function flushSave(): void {
+  clearTimeout(pending)
+  write()
 }
 
 export function loadState(path: string): State {

@@ -3,6 +3,15 @@ export type TeamId = string
 /** Scores key on team id in teams mode, player id in solo mode. */
 export type ScoreKey = string
 
+/**
+ * Arming is scheduled this far ahead instead of taking effect on arrival, so
+ * every surface opens at the same real instant however late its packet lands.
+ * Long enough to cover LAN jitter, short enough that the host never waits.
+ * Part of the wire contract: clients count down to `round.armedAt` and use this
+ * as the ceiling on how long that countdown can possibly be.
+ */
+export const ARM_LEAD_MS = 300
+
 export type Role = 'player' | 'host' | 'board'
 export type Mode = 'solo' | 'teams'
 export type Phase = 'IDLE' | 'ARMED' | 'COLLECTING' | 'LOCKED'
@@ -54,6 +63,7 @@ export type HostAction =
   | { a: 'wrong'; neg: number }
   | { a: 'next' }
   | { a: 'resetRound' }
+  | { a: 'undo' }
   | { a: 'setValue'; value: number }
   | { a: 'setScore'; key: ScoreKey; score: number }
   | { a: 'rename'; playerId: PlayerId; name: string }
