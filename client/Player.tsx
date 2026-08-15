@@ -3,6 +3,14 @@ import { useOpen, useSocket } from './useSocket.ts'
 import { colorForPlayer, standings } from './ui.ts'
 import type { State } from '../shared/protocol.ts'
 
+// Mirror of server/items.ts — ids, display names, targeting. The wire carries
+// only ids, and three items do not justify a catalog channel.
+const ITEM_INFO: Record<string, { name: string; opponent: boolean; passive?: boolean }> = {
+  freeze: { name: 'Freeze', opponent: true },
+  shield: { name: 'Shield', opponent: false, passive: true },
+  steal: { name: 'Steal', opponent: false },
+}
+
 /**
  * A short square-wave blip. Cheaper and more reliable than shipping an audio
  * file. Resumes first: iOS suspends the context whenever the phone locks.
@@ -96,6 +104,19 @@ export function Player() {
       ? state.players.find((p) => p.id === playerId)?.teamId ?? playerId
       : playerId
   const barred = !!key && !!round?.lockedOut.includes(key)
+  const frozen =
+    !!state &&
+    !!playerId &&
+    state.effects.some(
+      (e) =>
+        e.kind === 'frozen' &&
+        e.playerId === playerId &&
+        e.roundArmedAt === state.round.armedAt,
+    )
+  const myItems = state && playerId ? (state.items[playerId] ?? []) : []
+  const itemCounts = [...myItems.reduce((m, id) => m.set(id, (m.get(id) ?? 0) + 1), new Map<string, number>())]
+  const opponents = state?.players.filter((p) => p.id !== playerId && p.connected) ?? []
+  const [targetFor, setTargetFor] = useState<string | null>(null)
   const score = key ? state?.scores[key] ?? 0 : 0
   const armed = round?.phase === 'ARMED' || round?.phase === 'COLLECTING'
   const pressed = !!round && pressedFor === round.armedAt && round.armedAt > 0
@@ -103,7 +124,7 @@ export function Player() {
   // The go cue. Lower than the buzz blip so the two never get confused, and
   // skipped for players who are locked out and cannot act on it.
   const { open, lead } = useOpen(round, now, () => {
-    if (barred) return
+    if (barred || frozen) return
     navigator.vibrate?.([40, 40, 40])
     blip(audio.current, 440)
   })
@@ -151,12 +172,17 @@ export function Player() {
   }
 
   const buzz = () => {
-    if (!open || barred || pressed) return
+    if (!open || barred || pressed || frozen) return
     // Stamp before anything else so render work never inflates the time.
     send({ t: 'buzz', at: now() })
     setPressedFor(round?.armedAt ?? 0)
     navigator.vibrate?.(60)
     blip(audio.current)
+  }
+
+  const fireItem = (itemId: string, targetId?: string) => {
+    send({ t: 'act', act: 'useItem', data: { itemId, targetId } })
+    setTargetFor(null)
   }
 
   // deltaMs is computed before redaction, so 0 means first across the whole field.
@@ -168,7 +194,11 @@ export function Player() {
   let label = 'Wait'
   let sub = 'The host has not armed yet'
   let mood = ''
-  if (barred) {
+  if (frozen) {
+    label = 'Frozen'
+    sub = 'A freeze item shut you out of this question'
+    mood = 'is-barred'
+  } else if (barred) {
     label = 'Out'
     sub = 'Wrong answer — you sit out the rest of this question'
     mood = 'is-barred'
@@ -226,11 +256,46 @@ export function Player() {
       <button
         class={`buzzer ${mood}`}
         onPointerDown={buzz}
-        disabled={!open || barred || pressed}
+        disabled={!open || barred || pressed || frozen}
       >
         {label}
         {sub && <span class="buzzer__sub">{sub}</span>}
       </button>
+
+      {itemCounts.length > 0 && (
+        <div class="player__items">
+          {targetFor ? (
+            <>
+              <span class="muted">Pick a target</span>
+              {opponents.map((p) => (
+                <button key={p.id} class="btn" onPointerDown={() => fireItem(targetFor, p.id)}>
+                  {p.name}
+                </button>
+              ))}
+              <button class="btn btn--ghost" onPointerDown={() => setTargetFor(null)}>
+                Cancel
+              </button>
+            </>
+          ) : (
+            itemCounts.map(([id, n]) => {
+              const info = ITEM_INFO[id]
+              if (!info) return null
+              const count = n > 1 ? ` ×${n}` : ''
+              // Passive items (shield) show as chips: held, never fired by hand.
+              if (info.passive) return <span key={id} class="chip chip--data">{info.name}{count}</span>
+              return (
+                <button
+                  key={id}
+                  class="btn"
+                  onPointerDown={() => (info.opponent ? setTargetFor(id) : fireItem(id))}
+                >
+                  {info.name}{count}
+                </button>
+              )
+            })
+          )}
+        </div>
+      )}
 
       {state && <StandingsDial state={state} />}
     </main>

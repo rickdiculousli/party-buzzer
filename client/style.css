@@ -614,6 +614,15 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .player__filament { width: 100%; }
 .player__lead-in { height: 6px; flex: none; }
 
+.player__items {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  margin-top: var(--s4);
+}
+
 /* --- Dial: the standings on the phone, behind glass -------------------- */
 /* Three rows through a clear window, the rest of the field a scroll away.
    Rows tilt around a shared horizontal axis as they leave the centre (JS
