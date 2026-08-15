@@ -1,3 +1,6 @@
 node_modules/
 dist/
 state.json
+# Downloads waiting to be auditioned. Deliberately messy and deliberately not
+# in the repo — what survives gets adopted into client/public/sounds.
+sounds/raw/

@@ -22,8 +22,10 @@
  */
 import { render } from 'preact'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
-import { SCENARIOS, type Dial } from './scenarios.tsx'
-import { play, prime, unlock } from '../sound.ts'
+import { SCENARIOS, dialKey, type Dial } from './scenarios.tsx'
+import { parseTune, play, prime, primeFile, unlock } from '../sound.ts'
+import { RECIPES, getPath, withOverrides } from '../cues.ts'
+import { Envelope } from './Envelope.tsx'
 
 /**
  * How long the lead-up frame is held before the moment happens.
@@ -39,10 +41,17 @@ const LEAD_MS = 500
 /** Split "700ms" into 700, or "cubic-bezier(...)" into itself. */
 const num = (v: string) => parseFloat(v)
 
+/**
+ * Where each dial starts. CSS dials read the stylesheet, recipe dials read the
+ * committed table — both are "what is in the file", which is what an origin
+ * marker has to mean for Reset to be honest.
+ */
 function readDefaults(dials: Dial[]): Record<string, string> {
   const root = getComputedStyle(document.documentElement)
   const out: Record<string, string> = {}
-  for (const d of dials) out[d.var] = root.getPropertyValue(d.var).trim()
+  for (const d of dials)
+    out[dialKey(d)] =
+      'var' in d ? root.getPropertyValue(d.var).trim() : String(getPath(RECIPES, d.recipe) ?? 0)
   return out
 }
 
@@ -163,6 +172,13 @@ function Harness() {
     }
   }, [lead, speed, id])
 
+  // The dialled recipes, not the ones committed to style.css — the harness
+  // sets its properties on the stage wrapper, and a sound tuned against the
+  // file while you watch the slider would be tuning nothing. Hoisted out of
+  // the trigger effect below so the envelope canvas reads the same object the
+  // sound plays from.
+  const live = withOverrides(RECIPES, values)
+
   /**
    * The cue, on the same edge as the animation.
    *
@@ -177,6 +193,7 @@ function Harness() {
       play(cue, {
         scope: stage.current ?? undefined,
         rateScale: follow ? speed : 1,
+        recipe: live[cue],
       })
   }, [lead])
 
@@ -186,9 +203,26 @@ function Harness() {
     if (scenario.sound && !muted) prime(...[scenario.sound].flat())
   }, [id, muted])
 
+  // `prime` above covers the *committed* recipe's files; this covers the live
+  // one, which is what the harness actually plays. Adopting a sound onto a
+  // layer changes the URL without changing the cue, so the decode has to follow
+  // the dialled values or the first take after an adopt is the silent one.
+  useEffect(() => {
+    for (const cue of [scenario.sound ?? []].flat())
+      for (const l of live[cue] ?? [])
+        if (typeof l.source === 'object') void primeFile(l.source.file)
+  }, [id, values])
+
+  // The stage's inline style must never receive a recipe field — Preact would
+  // try to set `stamp.0.decay` as a CSS property. Both the stage and the
+  // preview stick to the CSS half for the same reason.
+  const cssValues = Object.fromEntries(
+    Object.entries(values).filter(([k]) => k.startsWith('--')),
+  )
+
   const css =
     ':root {\n' +
-    Object.entries(values)
+    Object.entries(cssValues)
       .map(([k, v]) => `  ${k}: ${v};`)
       .join('\n') +
     '\n}'
@@ -196,19 +230,109 @@ function Harness() {
   const save = async () => {
     setSaved('saving')
     try {
+      const css = Object.fromEntries(Object.entries(values).filter(([k]) => k.startsWith('--')))
       const res = await fetch('/__anim/save', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(values),
+        body: JSON.stringify({ css, recipes: withOverrides(RECIPES, values) }),
       })
       const body = await res.json()
       // Saved values are the new baseline — see the note on `origin`.
       if (res.ok) setOrigin({ ...values })
-      setSaved(res.ok ? `saved ${body.written} to style.css` : `failed: ${body.error}`)
+      setSaved(res.ok ? `saved ${body.written} to style.css, ${body.cues} cues` : `failed: ${body.error}`)
     } catch (err) {
       setSaved(`failed: ${(err as Error).message}`)
     }
     setTimeout(() => setSaved(''), 4000)
+  }
+
+  const [library, setLibrary] = useState<{ name: string; size: number }[]>([])
+  useEffect(() => {
+    fetch('/__snd/library')
+      .then((r) => r.json())
+      .then((b) => setLibrary(b.files))
+      .catch(() => {})
+  }, [])
+
+  /**
+   * Audition a raw download through whatever is dialled in right now.
+   *
+   * Through the dials, not raw: the question you are asking a download is "does
+   * this work trimmed and pitched the way I need it", and a raw preview answers a
+   * different question.
+   */
+  const [auditioning, setAuditioning] = useState('')
+  const [selected, setSelected] = useState('')
+  /**
+   * A dialled tunable, in ms (or as-is for the unitless ones).
+   *
+   * `parseTune` rather than `parseFloat` for the reason sound.ts spells out: a
+   * value that reads `1s` is a thousand milliseconds, and a bare parseFloat
+   * makes it one.
+   */
+  const tune = (key: string, fallback: number) => parseTune(values[key] ?? '', fallback)
+  const audition = async (name: string) => {
+    setSelected(name)
+    setAuditioning(name)
+    const ac = unlock()
+    const buf = await ac.decodeAudioData(
+      await (await fetch(`/__snd/raw/${encodeURIComponent(name)}`)).arrayBuffer(),
+    )
+    const src = ac.createBufferSource()
+    src.buffer = buf
+    src.playbackRate.value = Math.max(0.05, tune('--audition-rate', 1))
+    src.connect(ac.destination)
+    const head = tune('--audition-head', 0) / 1000
+    // Both ends against the same instant on the context clock. `stop` takes an
+    // absolute time, so a bare `stop(cut)` is always in the past by the time
+    // anyone clicks ▶ — which stops the source immediately, i.e. silence.
+    const t0 = ac.currentTime
+    src.start(t0, head)
+    // `cut` is wall-clock output length, same convention as play()'s `cut` —
+    // see the comment at sound.ts:165 — not a length of the file, so a rate
+    // change does not change how long the audition runs.
+    const cut = tune('--audition-cut', 0) / 1000
+    if (cut > 0)
+      // ponytail: no release ramp here, unlike play()'s RELEASE_MS fade — this is
+      // a preview, not a baked file, and a hard stop is fine to judge a trim by.
+      src.stop(t0 + cut)
+    src.onended = () => setAuditioning('')
+  }
+
+  const [adopting, setAdopting] = useState('')
+  const [outName, setOutName] = useState('')
+  const [role, setRole] = useState('')
+
+  const adopt = async (name: string, preset: 'one-shot' | 'bed') => {
+    setAdopting('running ffmpeg…')
+    try {
+      const res = await fetch('/__snd/adopt', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          out: outName,
+          role,
+          preset,
+          headMs: tune('--audition-head', 0),
+          cutMs: tune('--audition-cut', 0),
+          rate: tune('--audition-rate', 1),
+        }),
+      })
+      const body = await res.json()
+      setAdopting(res.ok ? body.command : `failed: ${body.error}`)
+      // The dials reset because what was dialled in is now baked into the file —
+      // the convention CREDITS.md already states.
+      if (res.ok)
+        setValues((v) => ({
+          ...v,
+          '--audition-head': '0ms',
+          '--audition-cut': '0ms',
+          '--audition-rate': '1',
+        }))
+    } catch (err) {
+      setAdopting(`failed: ${(err as Error).message}`)
+    }
   }
 
   return (
@@ -299,17 +423,29 @@ function Harness() {
         </div>
 
         <p class="eyebrow">{scenario.label}</p>
+        {[scenario.sound ?? []].flat().map((cue) =>
+          (live[cue] ?? []).map((layer, i) => (
+            <Envelope
+              key={`${cue}.${i}`}
+              layer={layer}
+              onChange={(field, value) =>
+                setValues((v) => ({ ...v, [`${cue}.${i}.${field}`]: String(value) }))
+              }
+            />
+          )),
+        )}
         {scenario.dials.map((d) => {
-          const was = origin[d.var] ?? ''
-          const now = values[d.var] ?? ''
+          const k = dialKey(d)
+          const was = origin[k] ?? ''
+          const now = values[k] ?? ''
           const moved = now !== was
           // Click the origin readout to put this one dial back, which is far
           // less blunt than resetting the whole panel to compare one change.
-          const back = () => setValues((v) => ({ ...v, [d.var]: was }))
+          const back = () => setValues((v) => ({ ...v, [k]: was }))
 
           if ('text' in d) {
             return (
-              <div class="harness__dial" key={d.var}>
+              <div class="harness__dial" key={k}>
                 <label>
                   {d.label}
                   {moved && (
@@ -322,7 +458,7 @@ function Harness() {
                   class="input"
                   value={now}
                   onInput={(e) =>
-                    setValues((v) => ({ ...v, [d.var]: (e.target as HTMLInputElement).value }))
+                    setValues((v) => ({ ...v, [k]: (e.target as HTMLInputElement).value }))
                   }
                 />
                 {moved && <span class="harness__was">was {was}</span>}
@@ -337,7 +473,7 @@ function Harness() {
           const at = (num(was) - d.min) / (d.max - d.min)
 
           return (
-            <div class="harness__dial" key={d.var}>
+            <div class="harness__dial" key={k}>
               <label>
                 {d.label}
                 <span class={moved ? 'readout harness__value is-moved' : 'readout harness__value'}>
@@ -355,7 +491,10 @@ function Harness() {
                   onInput={(e) =>
                     setValues((v) => ({
                       ...v,
-                      [d.var]: `${(e.target as HTMLInputElement).value}${d.unit}`,
+                      [k]:
+                        'var' in d
+                          ? `${(e.target as HTMLInputElement).value}${d.unit}`
+                          : (e.target as HTMLInputElement).value,
                     }))
                   }
                 />
@@ -382,7 +521,7 @@ function Harness() {
           </button>
           <button
             class="btn btn--ghost"
-            disabled={!scenario.dials.some((d) => values[d.var] !== origin[d.var])}
+            disabled={!scenario.dials.some((d) => values[dialKey(d)] !== origin[dialKey(d)])}
             onClick={() => {
               setValues({ ...origin })
               trigger()
@@ -393,9 +532,48 @@ function Harness() {
         </div>
         {saved && <p class="harness__saved">{saved}</p>}
         <pre class="harness__css">{css}</pre>
+
+        <p class="eyebrow">Library</p>
+        {library.length === 0 && <p class="harness__note">Nothing in sounds/raw/ yet.</p>}
+        {library.map((f) => (
+          <div class="harness__row" key={f.name}>
+            <button
+              class={auditioning === f.name ? 'btn btn--go' : 'btn'}
+              onClick={() => audition(f.name)}
+            >
+              ▶
+            </button>
+            <span class="harness__unit">{f.name}</span>
+            <span class="readout">{Math.round(f.size / 1024)}k</span>
+          </div>
+        ))}
+        <div class="harness__row">
+          <input
+            class="input"
+            placeholder="stamp.wav"
+            value={outName}
+            onInput={(e) => setOutName((e.target as HTMLInputElement).value)}
+          />
+          <input
+            class="input"
+            placeholder="what it is for"
+            value={role}
+            onInput={(e) => setRole((e.target as HTMLInputElement).value)}
+          />
+        </div>
+        <div class="harness__row">
+          <button class="btn" disabled={!selected || !outName} onClick={() => adopt(selected, 'one-shot')}>
+            Adopt as one-shot
+          </button>
+          <button class="btn" disabled={!selected || !outName} onClick={() => adopt(selected, 'bed')}>
+            Adopt as bed
+          </button>
+        </div>
+        {selected && <p class="harness__note">Adopting {selected}</p>}
+        {adopting && <pre class="harness__css">{adopting}</pre>}
       </aside>
 
-      <div class="harness__stage" style={values}>
+      <div class="harness__stage" style={cssValues}>
         <p class="harness__note">{scenario.note}</p>
         {/* Keyed on the scenario, not on the take: a take must not remount
             this, or the context would animate alongside the subject and the
