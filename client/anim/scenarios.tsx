@@ -122,6 +122,18 @@ export function recipeDials(cue: string): Dial[] {
   )
 }
 
+/**
+ * The library's own dials, appended to every sound scenario so a raw download
+ * auditions through the same rate/head/cut a real cue would apply — the
+ * question worth asking a candidate file is whether it works trimmed and
+ * pitched the way it will actually be used, not how it sounds raw.
+ */
+export const AUDITION: Dial[] = [
+  { var: '--audition-head', label: 'Audition head', min: 0, max: 4000, step: 10, unit: 'ms' },
+  { var: '--audition-cut', label: 'Audition cut (0 = whole)', min: 0, max: 20000, step: 100, unit: 'ms' },
+  { var: '--audition-rate', label: 'Audition rate / pitch', min: 0.25, max: 4, step: 0.05, unit: '' },
+]
+
 // --- shared dial groups ------------------------------------------------------
 
 const STAMP: Dial[] = [
@@ -206,7 +218,7 @@ export const SCENARIOS: Scenario[] = [
     label: 'A mark lands',
     note: 'Three marks are already down. The fourth arrives — which is what the board does all through the collection window, one packet at a time.',
     subject: '.timeline__mark',
-    dials: [...STAMP, ...BLOOM, ...soundDials('stamp'), ...recipeDials('stamp')],
+    dials: [...STAMP, ...BLOOM, ...soundDials('stamp'), ...recipeDials('stamp'), ...AUDITION],
     sound: 'stamp',
     render: (lead) => (
       <Stage mid={<p class="board__hero">Ada</p>} below={<Timeline held={lead ? 1 : 0} />} />
@@ -229,6 +241,7 @@ export const SCENARIOS: Scenario[] = [
       ...recipeDials('leader'),
       ...soundDials('leader2', 'Buzzer'),
       ...recipeDials('leader2'),
+      ...AUDITION,
     ],
     sound: ['leader', 'leader2'],
     // The ghost keeps the middle band open while the name is held back. An

@@ -1,7 +1,10 @@
-import { readFile, writeFile } from 'node:fs/promises'
+import { createReadStream } from 'node:fs'
+import { readFile, readdir, stat, writeFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig, type Plugin } from 'vite'
 import preact from '@preact/preset-vite'
+import { safeRaw } from './tools/sndlib.ts'
 
 const STYLE = fileURLToPath(new URL('./client/style.css', import.meta.url))
 const OPEN = '/* anim:tunables'
@@ -10,6 +13,8 @@ const CLOSE = '/* /anim:tunables */'
 const CUES = fileURLToPath(new URL('./client/cues.ts', import.meta.url))
 const R_OPEN = '/* cue:recipes'
 const R_CLOSE = '/* /cue:recipes */'
+
+const RAW = fileURLToPath(new URL('./sounds/raw', import.meta.url))
 
 /**
  * Lets the motion harness write its dialled-in values back into style.css.
@@ -88,9 +93,56 @@ function animSave(): Plugin {
   }
 }
 
+/**
+ * Serves the holding ground to the harness.
+ *
+ * `apply: 'serve'` for the same reason `animSave` has it: there is no built
+ * artefact in which any of this exists, so no production path reads a file off
+ * the developer's disk by name.
+ */
+function sndLibrary(): Plugin {
+  return {
+    name: 'snd-library',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use('/__snd/library', async (_req, res) => {
+        res.setHeader('content-type', 'application/json')
+        try {
+          const names = await readdir(RAW)
+          const files = []
+          for (const name of names) {
+            if (!safeRaw(RAW, name)) continue
+            const s = await stat(resolve(RAW, name))
+            files.push({ name, size: s.size, mtime: s.mtimeMs })
+          }
+          files.sort((a, b) => b.mtime - a.mtime)
+          res.end(JSON.stringify({ files }))
+        } catch {
+          // No holding ground yet is an empty library, not an error.
+          res.end(JSON.stringify({ files: [] }))
+        }
+      })
+
+      server.middlewares.use('/__snd/raw', (req, res) => {
+        const full = safeRaw(RAW, decodeURIComponent((req.url ?? '').split('?')[0].slice(1)))
+        if (!full) {
+          res.statusCode = 400
+          return res.end('bad name')
+        }
+        createReadStream(full)
+          .on('error', () => {
+            res.statusCode = 404
+            res.end('not found')
+          })
+          .pipe(res)
+      })
+    },
+  }
+}
+
 export default defineConfig({
   root: 'client',
-  plugins: [preact(), animSave()],
+  plugins: [preact(), animSave(), sndLibrary()],
   build: {
     outDir: '../dist',
     emptyOutDir: true,

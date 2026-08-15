@@ -236,6 +236,36 @@ function Harness() {
     setTimeout(() => setSaved(''), 4000)
   }
 
+  const [library, setLibrary] = useState<{ name: string; size: number }[]>([])
+  useEffect(() => {
+    fetch('/__snd/library')
+      .then((r) => r.json())
+      .then((b) => setLibrary(b.files))
+      .catch(() => {})
+  }, [])
+
+  /**
+   * Audition a raw download through whatever is dialled in right now.
+   *
+   * Through the dials, not raw: the question you are asking a download is "does
+   * this work trimmed and pitched the way I need it", and a raw preview answers a
+   * different question.
+   */
+  const [auditioning, setAuditioning] = useState('')
+  const audition = async (name: string) => {
+    setAuditioning(name)
+    const ac = unlock()
+    const buf = await ac.decodeAudioData(
+      await (await fetch(`/__snd/raw/${encodeURIComponent(name)}`)).arrayBuffer(),
+    )
+    const src = ac.createBufferSource()
+    src.buffer = buf
+    src.playbackRate.value = Math.max(0.05, num(values['--audition-rate'] ?? '1'))
+    src.connect(ac.destination)
+    src.start(0, num(values['--audition-head'] ?? '0') / 1000)
+    src.onended = () => setAuditioning('')
+  }
+
   return (
     <main class="harness">
       <aside class="harness__panel">
@@ -433,6 +463,21 @@ function Harness() {
         </div>
         {saved && <p class="harness__saved">{saved}</p>}
         <pre class="harness__css">{css}</pre>
+
+        <p class="eyebrow">Library</p>
+        {library.length === 0 && <p class="harness__note">Nothing in sounds/raw/ yet.</p>}
+        {library.map((f) => (
+          <div class="harness__row" key={f.name}>
+            <button
+              class={auditioning === f.name ? 'btn btn--go' : 'btn'}
+              onClick={() => audition(f.name)}
+            >
+              ▶
+            </button>
+            <span class="harness__unit">{f.name}</span>
+            <span class="readout">{Math.round(f.size / 1024)}k</span>
+          </div>
+        ))}
       </aside>
 
       <div class="harness__stage" style={cssValues}>
