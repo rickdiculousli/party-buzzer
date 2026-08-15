@@ -34,6 +34,8 @@ type GameState = {
 // State gains:  game: GameState
 // State gains:  items: Record<PlayerId, string[]>   (item ids, duplicates = count)
 // State gains:  effects: ActiveEffect[]             // e.g. { kind: 'frozen'; playerId; roundId }
+// Round gains:  fragments?: string[]   (question text revealed so far, in order)
+// Round gains:  answer?: string        (revealed with the award, if the pack has one)
 ```
 
 Because all of this lives inside `State`, undo (the hub's `structuredClone`
@@ -42,6 +44,12 @@ untouched. That is the entire reason for putting it here.
 
 Effects are stamped with the round they apply to and swept on `arm`, so nothing
 leaks across questions.
+
+Fragments and answer are round-level and mode-agnostic — anything that reads
+questions aloud (quizbowl today, a scripted trivia night or the future
+showdown) reveals text through the same field. `viewFor` strips both from
+player views: the room reads the board, and a phone must not leak the next
+fragment before the voice reaches it.
 
 ### Module definition
 
@@ -136,11 +144,36 @@ Options: `powerAfterFragment` (int, 0 = powers off), `powerBonus` (int),
   signal arrives as a host-scoped act (`act: 'powerEnds'`); until any reader
   fires it, power stays open the whole question, which degrades gracefully to
   "everything is a power" and is host-visible.
-- **Reader**: new `npm run read` tool, a sibling of probe/sim over
-  `tools/conn.ts`. It splits the question into fragments, speaks each via
-  macOS `say`, and fires `powerEnds` after the configured fragment. A later
+- **Reader**: new `npm run read -- pack.txt` tool, a sibling of probe/sim over
+  `tools/conn.ts`. It owns the question pack (the server never sees question
+  content), speaks each fragment via macOS `say`, pushes the fragment text as
+  a host-scoped act (`act: 'fragment'` → appended to `round.fragments`) in
+  time with the speech, and fires `powerEnds` after the configured fragment.
+  After the round is scored it fires `act: 'revealAnswer'`. A later
   Host-screen `speechSynthesis` reader uses the identical wire contract; the
   module never learns which reader drove it. (Out of scope for this spec.)
+- **Board**: renders `round.fragments` joined, text appearing as it is spoken,
+  and shows `round.answer` once `round.award` is set. This is a default-Board
+  feature, not a module override — any mode gets it when a reader is driving.
+
+### Question pack format
+
+Plain text, hand-authorable, parsed by the reader tool (~20-line parser,
+`node:test`-covered). Blank line separates questions; ` / ` splits fragments:
+
+```
+V: 200
+The first fragment of the question, spoken first. / The second fragment, which
+ends the power window. / The giveaway fragment.
+A: The answer the host accepts
+
+This question has no declared value and two fragments. / Second fragment.
+A: Another answer
+```
+
+`V:` optional (falls back to the round value the host set); `A:` required so
+the host can judge. Continuation lines (a fragment line that doesn't start a
+new field) join the current fragment.
 - **Neg**: `wrong` applies the configured neg; lockout behaves as today.
 - **Bouncebacks**: on `wrong` in teams mode, the rebound round is restricted
   to teams not locked out — one flag, one filter in `canBuzz`. (This is very
@@ -171,14 +204,18 @@ Options: `powerAfterFragment` (int, 0 = powers off), `powerBonus` (int),
   failed validation consumes nothing and is silent to the room.
 - Snapshot load whose `game.id` is no longer registered: fall back to `trivia`
   with defaults, log loudly.
-- A reader disconnecting mid-question harms nothing; power stays open.
+- A reader disconnecting mid-question harms nothing; power stays open and
+  already-revealed fragments stay on the board.
+- Pack parse errors name the line and skip that question; a pack with zero
+  valid questions refuses to start.
 
 ## Testing
 
 - `resolve.ts` stays pure and untouched.
 - New `node:test` coverage: quizbowl-lite scoring (power/neg/bounceback
   matrix), item validation and effect sweep on `arm`, `viewModuleState`
-  redaction, `setGame` gating.
+  redaction, `setGame` gating, fragment stripping from player views, and the
+  pack parser (fragments, continuations, optional `V:`, malformed lines).
 - One integration test driving a full quizbowl round over real sockets via
   `tools/conn.ts`, mirroring `server/integration.test.ts`.
 - Sim gains a `--game quizbowl` flag rather than a new tool; probe gains
