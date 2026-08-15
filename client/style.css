@@ -55,3 +55,17 @@ body {
 .host table { width: 100%; border-collapse: collapse; }
 .host td { padding: .25rem 0; }
 .host button { background: #2a2a36; color: inherit; border: 0; border-radius: .375rem; padding: .375rem .75rem; }
+
+.board { display: grid; grid-template-columns: 1fr 22rem; height: 100dvh; }
+.stage { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; padding: 2rem; text-align: center; }
+.stage .who { font-size: clamp(3rem, 11vw, 9rem); font-weight: 900; margin: 0; color: #30a46c; line-height: 1; }
+.stage .armed { font-size: clamp(3rem, 12vw, 10rem); font-weight: 900; margin: 0; color: #e5484d; }
+.stage .idle { font-size: clamp(2rem, 6vw, 4rem); margin: 0; color: #55556a; }
+.rest { list-style: none; padding: 0; margin: 0; display: flex; gap: 1.5rem; font-size: 1.5rem; color: #9a9aa8; }
+.side { background: #1a1a22; padding: 1.5rem; display: flex; flex-direction: column; gap: 1.5rem; }
+.standings { list-style: none; padding: 0; margin: 0; display: grid; gap: .5rem; flex: 1; align-content: start; }
+.standings li { display: flex; justify-content: space-between; font-size: 1.5rem; padding: .5rem .75rem; border-left: .375rem solid; background: #22222c; border-radius: .375rem; }
+.standings .score { font-variant-numeric: tabular-nums; font-weight: 800; }
+.join-qr { text-align: center; }
+.join-qr img { width: 100%; max-width: 12rem; background: white; padding: .5rem; border-radius: .5rem; }
+.join-qr p { color: #9a9aa8; margin: .5rem 0 0; }
