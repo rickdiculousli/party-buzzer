@@ -16,6 +16,7 @@ npm run build      # vite build -> dist/  (npm start serves this, not client/)
 npm test           # node:test
 npm run typecheck
 npm run sim        # synthetic self-play against a running server
+npm run fakes -- add [n] / remove   # fake players with fake scores (ids fake-01..fake-99)
 ```
 
 Run a single test file or case:
@@ -112,8 +113,8 @@ layer holding the reference.
 
 `npm run sim` is the fastest way to see a change in motion — it drives real
 rounds with uneven bots, so timeline clustering, late arrivals, lockouts and
-rebounds all show up without hand-driving a phone. `PACE=2` slows it down,
-`ROUNDS=n` bounds it, Ctrl-C removes the bots. You can join from a phone
+rebounds all show up without hand-driving a phone. `npm run sim -- 5 2` runs five
+questions at half speed, Ctrl-C removes the bots. You can join from a phone
 mid-run; the sim treats a human leader as always correct, so don't read the
 standings as a fairness signal when one is playing.
 

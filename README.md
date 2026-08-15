@@ -47,8 +47,8 @@ npm run typecheck
 npm run sim        # fill the room with bots and play real rounds
 ```
 
-`npm run sim` is the quickest way to see the board in motion. `PACE=2` slows it
-down, `ROUNDS=5` bounds it, Ctrl-C removes the bots. You can join from a phone
+`npm run sim` is the quickest way to see the board in motion. `npm run sim -- 5 2`
+runs five questions at half speed, Ctrl-C removes the bots. You can join from a phone
 and play against them.
 
 Server code is native TypeScript — Node strips the types, there is no build

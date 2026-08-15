@@ -63,7 +63,10 @@ export function Host() {
     <main class="host">
       <div class="host__bar">
         <span class="host__title">Host</span>
-        <span class={connected ? 'lamp-dot is-on' : 'lamp-dot is-off'} />
+        <span class="lamp">
+          <span class={connected ? 'lamp-dot is-on' : 'lamp-dot is-off'} />
+          {connected ? 'Connected' : 'Disconnected'}
+        </span>
         <span class="chip">{round.phase}</span>
 
         <label class="field">

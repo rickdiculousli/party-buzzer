@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { useOpen, useSocket } from './useSocket.ts'
-import { colorForPlayer } from './ui.ts'
+import { colorForPlayer, standings } from './ui.ts'
+import type { State } from '../shared/protocol.ts'
 
 /**
  * A short square-wave blip. Cheaper and more reliable than shipping an audio
@@ -18,6 +19,35 @@ function blip(ctx: AudioContext | null, hz = 660, ms = 150) {
   osc.connect(gain).connect(ctx.destination)
   osc.start()
   osc.stop(ctx.currentTime + ms / 1000)
+}
+
+
+/**
+ * The standings as a picker dial: three rows through a clear window, the rest
+ * of the field a scroll away under frosted edges. Rows tilt around a shared
+ * cylinder axis by their distance from the middle, like the old time pickers.
+ */
+function StandingsDial({ state }: { state: State }) {
+  const rows = standings(state)
+  const ordinal = (i: number) =>
+    i === 0 ? '1st' : i === 1 ? '2nd' : i === 2 ? '3rd' : `${i + 1}th`
+
+  return (
+    <div class="dial" aria-label="Standings">
+      <ol class="dial__list">
+        {rows.map((r, i) => (
+          <li key={r.key} class="dial__row" style={{ '--id': r.color }}>
+            <span class={i < 3 ? `dial__rank rank rank--${i + 1}` : 'dial__rank rank'}>
+              {ordinal(i)}
+            </span>
+            <span class="dial__name">{r.label}</span>
+            <span class="dial__score readout">{r.score}</span>
+          </li>
+        ))}
+      </ol>
+      <div class="dial__glass" aria-hidden="true" />
+    </div>
+  )
 }
 
 export function Player() {
@@ -174,7 +204,10 @@ export function Player() {
         >
           {me?.name}
         </span>
-        <span class={connected ? 'lamp-dot is-on' : 'lamp-dot is-off'} />
+        <span class="lamp">
+          <span class={connected ? 'lamp-dot is-on' : 'lamp-dot is-off'} />
+          {connected ? 'Connected' : 'Disconnected'}
+        </span>
         <span class="player__score readout">{score}</span>
       </div>
 
@@ -194,6 +227,8 @@ export function Player() {
         {label}
         {sub && <span class="buzzer__sub">{sub}</span>}
       </button>
+
+      {state && <StandingsDial state={state} />}
     </main>
   )
 }

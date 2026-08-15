@@ -44,6 +44,8 @@
   --tungsten: #ffb454; /* armed, charging, the primary action */
   --tally: #ff3b2f;    /* live, buzz, wrong, destructive */
   --brass: #c9a227;    /* first place, correct, awarded */
+  --silver: #b8bcc4;   /* second place, in the standings dial */
+  --bronze: #b0793f;   /* third place, in the standings dial */
   --ember: #7a3b10;    /* a lamp with no current in it yet */
   --hot: #fff6e8;      /* white-hot filament at full power */
 

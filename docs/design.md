@@ -60,6 +60,8 @@ at a party. Keeping both, and keeping them visually separate, is the design.
 | `--tungsten` | `#ffb454` | Armed, charging, the primary action, the question's value. |
 | `--tally` | `#ff3b2f` | Live. The buzzers are open, or something is destructive. |
 | `--brass` | `#c9a227` | First place, correct, awarded, connected. |
+| `--silver` | `#b8bcc4` | Second place, in the standings dial. |
+| `--bronze` | `#b0793f` | Third place, in the standings dial. |
 | `--ember` | `#7a3b10` | A lamp with no current in it yet. Filament only. |
 | `--hot` | `#fff6e8` | White-hot filament at full power. Filament and open buzzer only. |
 
@@ -181,15 +183,20 @@ A small piece of state. Never a control, never clickable.
 If it does something when you press it, it is a `.btn`, not a chip. There is no
 hover state on a chip, and that is how you tell.
 
-### Lamp dot — `.lamp-dot`
+### Lamp — `.lamp`
 
-Connection, at a glance.
+Connection, at a glance. The dot carries the state and the word says it out
+loud — a dot alone is ambiguous from across the room.
 
 ```html
-<span class="lamp-dot is-on" />   <!-- brass, glowing -->
-<span class="lamp-dot is-off" />  <!-- dead red -->
-<span class="lamp-dot" />         <!-- unknown -->
+<span class="lamp">
+  <span class="lamp-dot is-on" /> Connected
+</span>
+<span class="lamp"><span class="lamp-dot is-off" /> Disconnected</span>
 ```
+
+A bare `.lamp-dot` (no word) is only for repeating rows, like the per-player
+list on the host panel, where a word on every line would be noise.
 
 ### Readout — `.readout`
 
@@ -268,6 +275,36 @@ place identity colour appears in a list.
 
 `.row.is-lead` for first place: brass border, warm fill. Wrap rows in `.stack`,
 which handles the list reset and gaps.
+
+### Standings dial — `.dial`
+
+Phone only. The standings through a window five rows tall; the rest of the
+field is a scroll away. The window is a well, not a panel: sunk below the
+stage under a hard inner shadow that wraps all four sides, so the list reads
+as sitting behind glass set into the surface. The shadow rides an overlay
+above the rows — as an inset on the element it would paint under them, and
+unshaded identity rails running to the edge are what read as flat. A masked blur frosts the outer 15% at each edge, and a
+hairline divider sits between rows, held in to the middle three-quarters so
+it reads as etched rather than as a box edge.
+
+```html
+<div class="dial">
+  <ol class="dial__list">
+    <li class="dial__row" style="--id: var(--id-3)">
+      <span class="dial__name">Bea</span>
+      <span class="dial__score readout">1400</span>
+    </li>
+  </ol>
+  <div class="dial__glass" />
+</div>
+```
+
+Identity colour is the left border, same rule as `.row`, and scores are
+`.readout` but never `--ms`. Each row leads with its ordinal — 1st, 2nd, 3rd
+in brass, silver, and bronze, the rest in `--dim`. Ties share a score but not
+an ordinal; the dial is a ranking, not a photo finish. The tilt angle comes from scroll position in JS;
+`scroll-snap-type: y proximity` settles a row into the band without trapping
+the flick.
 
 ---
 
@@ -369,6 +406,10 @@ the thing that stops.
 
 The QR is full size until the first player joins, then shrinks to a corner.
 Between questions it is still there for latecomers, just not eating the wall.
+Connection state sits at the bottom of the sidebar as a `.lamp` — the room
+never needs it, but the host glancing at the wall does. The standings mark
+the podium with `.rank` medals (1st/2nd/3rd in brass, silver, bronze); below
+third there is no number, because the order already says it.
 
 ### Host — a control desk driven by the keyboard
 
@@ -397,6 +438,9 @@ not play. During a game the controls own the screen.
 
 The buzzer fills everything below a single status bar. The player's name is
 rendered in their identity colour, so you can tell whose phone you picked up.
+Below the buzzer, the standings sit behind glass as a dial (see `.dial`):
+five rows through a clear window, the rest of the field a scroll away under
+frosted edges.
 
 Every buzzer state carries a subtitle saying *why*, because a dead button with no
 explanation is the worst thing this app can do:
@@ -460,8 +504,8 @@ watch the board and a phone across a game instead of guessing.
 
 ```
 npm run sim                 # against http://localhost:8080
-PACE=2 npm run sim          # half speed, for looking closely
-ROUNDS=5 npm run sim        # stop after five questions
+npm run sim -- 5            # stop after five questions
+npm run sim -- 5 2          # five questions, half speed, for looking closely
 ```
 
 It is an ordinary client: real sockets, real protocol, real clock sync, no

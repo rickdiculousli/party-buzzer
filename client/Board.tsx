@@ -80,7 +80,7 @@ function Timeline({ state, round }: { state: State; round: State['round'] }) {
 }
 
 export function Board() {
-  const { state, now } = useSocket('board')
+  const { state, now, connected } = useSocket('board')
   // The big screen is what the room watches, so it must not light up before
   // the phones do. Same countdown to armedAt as every other surface.
   const { open, lead } = useOpen(state?.round, now)
@@ -148,8 +148,13 @@ export function Board() {
         <div class="board__standings">
           <p class="eyebrow">Standings</p>
           <ol class="stack">
-            {standings(state).map((r) => (
+            {standings(state).map((r, i) => (
               <li key={r.key} class="row" style={{ borderLeftColor: r.color }}>
+                {/* Medals for the podium only, but the space is kept either
+                    way so every name lines up. */}
+                <span class={i < 3 ? `rank rank--${i + 1}` : 'rank'}>
+                  {i < 3 ? ['1st', '2nd', '3rd'][i] : ''}
+                </span>
                 <span class="row__label">{r.label}</span>
                 <span class="row__score readout">{r.score}</span>
               </li>
@@ -162,6 +167,12 @@ export function Board() {
           <img src="/qr.svg" alt="Scan to join" />
           <p>Scan to join</p>
         </div>
+
+        {/* The room never needs this, but the host glancing at the wall does. */}
+        <span class="lamp">
+          <span class={connected ? 'lamp-dot is-on' : 'lamp-dot is-off'} />
+          {connected ? 'Connected' : 'Disconnected'}
+        </span>
       </aside>
     </main>
   )

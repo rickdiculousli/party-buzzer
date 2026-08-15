@@ -8,19 +8,21 @@
  * server has no idea these aren't people, so what you see on the board is what
  * a real room would produce.
  *
- *   npm run sim                 against http://localhost:8080
- *   PACE=2 npm run sim          half speed, for watching
- *   ROUNDS=5 npm run sim        stop after five questions
- *   URL=http://box:8080 npm run sim
+ *   npm run sim                          against http://localhost:8080
+ *   npm run sim -- 5                     stop after five questions
+ *   npm run sim -- 5 2                   five questions, half speed, for watching
+ *   npm run sim -- 5 1 http://box:8080   against another host
  *
+ * The env vars (ROUNDS, PACE, URL) still work; positional args win.
  * Ctrl-C removes the bots on the way out, so your real game is left clean.
  */
 import { setTimeout as sleep } from 'node:timers/promises'
 import type { ClientMsg, ServerMsg, State } from '../shared/protocol.ts'
 
-const URL = process.env.URL ?? 'http://localhost:8080'
-const PACE = Number(process.env.PACE ?? 1)
-const ROUNDS = Number(process.env.ROUNDS ?? Infinity)
+const [argRounds, argPace, argUrl] = process.argv.slice(2)
+const ROUNDS = Number(argRounds ?? process.env.ROUNDS ?? Infinity)
+const PACE = Number(argPace ?? process.env.PACE ?? 1)
+const URL = argUrl ?? process.env.URL ?? 'http://localhost:8080'
 
 /** Everything the eye needs time for is scaled by PACE; the buzzing is not. */
 const beat = (ms: number) => sleep(ms * PACE)

@@ -9,7 +9,8 @@
     "build": "vite build",
     "sim": "node tools/sim.ts",
     "test": "node --test 'server/*.test.ts'",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "fakes": "node tools/fakes.ts"
   },
   "dependencies": {
     "qrcode": "^1.5.4",
