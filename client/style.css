@@ -241,7 +241,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 
 /* Padded so the marks at 0% and 100%, which are centred on the rail ends, have
    somewhere to hang without clipping. */
-.timeline { width: min(64rem, 92%); margin-top: var(--s6); padding: 0 var(--s7); }
+.timeline { width: min(64rem, 92%); padding: 0 var(--s7); }
 .timeline__rail {
   position: relative;
   height: 2px;
@@ -318,16 +318,60 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   overflow: hidden;
 }
 
+/*
+ * Three bands. The middle row is sized to its content and the two 1fr rows
+ * around it are equal by construction, which pins whatever is in the middle to
+ * the exact centre of the stage — permanently, whatever mounts above or below
+ * it. The award, the timeline growing a lane, the lockout chips: all of them
+ * used to re-centre the name they belong to. Both outer rows are minmax(0,1fr)
+ * so a tall timeline overflows into the padding rather than shoving the row
+ * above it.
+ */
 .board__stage {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--s5);
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto minmax(0, 1fr);
+  justify-items: center;
   padding: var(--s6);
   text-align: center;
   min-width: 0;
+}
+/*
+ * The cue escalates through three sizes — "Ready" and "Stand by" at --t-mega,
+ * "Buzz" at --t-hero — and the middle band is auto-height, so growing into the
+ * big one used to push the filament and the value down the screen at the exact
+ * moment the room is watching them. Reserve one hero line for all three and the
+ * cue changes size inside a box that does not.
+ */
+.board__mid--cue {
+  min-height: calc(var(--t-hero) * 0.86); /* 0.86 is the hero's line-height. */
+  display: grid;
+  place-content: center;
+}
+
+/* Each band grows away from the middle: the one above stacks upward from its
+   bottom edge, the one below downward from its top. */
+.board__above {
+  align-self: end;
+  padding-bottom: var(--s5);
+}
+.board__below {
+  align-self: start;
+  padding-top: var(--s5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s5);
+  width: 100%;
+  min-width: 0;
+}
+/* Reserved whether or not the filament is in it, so arming does not nudge the
+   value down a line. */
+.board__lead-in {
+  height: 6px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
 }
 .board__status {
   position: absolute;
@@ -371,7 +415,16 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   font-weight: 700;
   color: var(--tungsten);
 }
-.board__barred { display: flex; flex-wrap: wrap; gap: var(--s2); justify-content: center; }
+.board__barred {
+  position: absolute;
+  bottom: var(--s5);
+  left: var(--s6);
+  right: var(--s6);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  justify-content: center;
+}
 /* Stamped, not printed: the moment the points are actually awarded. */
 .board__award {
   font-family: var(--display);
@@ -539,6 +592,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 
 /* The phone gets the filament too, so the go cue is felt before it is read. */
 .player__filament { width: 100%; }
+.player__lead-in { height: 6px; flex: none; }
 
 /* --- Dial: the standings on the phone, behind glass -------------------- */
 /* Three rows through a clear window, the rest of the field a scroll away.
@@ -650,6 +704,81 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   -webkit-backdrop-filter: blur(2px) saturate(0.8);
   mask-image: linear-gradient(to bottom, #000, transparent 15%, transparent 85%, #000);
   -webkit-mask-image: linear-gradient(to bottom, #000, transparent 15%, transparent 85%, #000);
+}
+
+/* ===================================================================
+ * MOTION — the five moments worth watching land
+ * Everything here is a one-shot on an event the round already produces:
+ * an element mounting, or a class arriving on one that was already there.
+ * Both fire a CSS animation on their own, which is why none of this needs
+ * a timer, a key, or a line of JS. Reduced motion is handled in tokens.css.
+ *
+ * These are anchors, not decoration. Add one only for a moment the room
+ * would otherwise miss.
+ * =================================================================== */
+
+/* --- 1. A mark lands on the timeline ---------------------------------
+   Marks mount one at a time as packets arrive through the collection
+   window, so this fires per player rather than per round: the staircase
+   assembles itself in front of the room at the speed people actually
+   pressed. Overscaled and hard-landed — it is a stamp coming down, and
+   the pin carries the aftershock so the label does not wobble with it. */
+.timeline__mark { animation: stamp 110ms var(--slam); }
+@keyframes stamp {
+  from { opacity: 0; transform: translateX(-50%) scale(1.45); }
+  to { opacity: 1; transform: translateX(-50%) scale(1); }
+}
+.timeline__pin { animation: aftershock 500ms var(--ease); }
+@keyframes aftershock {
+  from { box-shadow: 0 0 14px 3px var(--id); }
+  to { box-shadow: 0 0 0 0 transparent; }
+}
+
+/* --- 2. The award ------------------------------------------------------
+   The heaviest stamp on any surface, because it is the only moment where
+   the score actually changes. Past the mark and back: the recoil is what
+   makes it read as struck rather than faded up. */
+.board__award { animation: strike 260ms var(--slam); }
+@keyframes strike {
+  from { opacity: 0; transform: scale(1.8); }
+  55% { opacity: 1; transform: scale(0.94); }
+  to { transform: scale(1); }
+}
+
+/* --- 3. The leader's name ---------------------------------------------
+   Mounts when the round resolves. Slower and larger than a mark — it owns
+   the stage — with one brass flare that decays and leaves the name lit. */
+.board__hero { animation: slam 220ms var(--slam), flare 700ms var(--ease); }
+@keyframes slam {
+  from { opacity: 0; transform: scale(1.25); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes flare {
+  from { text-shadow: 0 0 40px var(--brass); }
+  to { text-shadow: 0 0 0 transparent; }
+}
+
+/* --- 4. The buzzers open ----------------------------------------------
+   The loudest instant of the round, and the only one every surface shares.
+   Short and hard on purpose: a slow open would undersell a moment the
+   filament has spent 300ms building to. */
+.board__call,
+.buzzer.is-open { animation: punch 90ms var(--slam); }
+@keyframes punch {
+  from { transform: scale(1.12); }
+  to { transform: scale(1); }
+}
+
+/* --- 5. Your press registers ------------------------------------------
+   A full second passes between the press and the result. This is the
+   receipt for it: the button flashes white-hot and settles into whichever
+   mood the press earned, so the wait is never dead air. */
+.buzzer.is-placed,
+.buzzer.is-first { animation: land 240ms var(--ease); }
+@keyframes land {
+  /* No `to` — the resting frame is the mood class's own colours, whatever
+     they turn out to be, so this stays correct if those change. */
+  from { background: var(--hot); color: var(--stage); }
 }
 
 @media (max-width: 40rem) {

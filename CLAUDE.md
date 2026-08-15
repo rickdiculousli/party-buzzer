@@ -16,6 +16,7 @@ npm run build      # vite build -> dist/  (npm start serves this, not client/)
 npm test           # node:test
 npm run typecheck
 npm run sim        # synthetic self-play against a running server
+npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@140 correct   # one scripted round
 npm run fakes -- add [n] / remove   # fake players with fake scores (ids fake-01..fake-99)
 ```
 
@@ -117,5 +118,25 @@ rebounds all show up without hand-driving a phone. `npm run sim -- 5 2` runs fiv
 questions at half speed, Ctrl-C removes the bots. You can join from a phone
 mid-run; the sim treats a human leader as always correct, so don't read the
 standings as a fairness signal when one is playing.
+
+`npm run probe` is the other half, for when you need one exact moment rather
+than a believable game. You name the buzzes and their offsets and it happens on
+the spot, the same way every time, so a photo finish or a four-mark staircase is
+a command instead of a wait on dice. It is one-shot: the steps run, the process
+exits, and the board stays on the frame the last step produced — the screen is
+server state, so nothing has to stay running to hold it there. `clear` puts the
+room back.
+
+```bash
+npm run probe -- value:400 join:Ada,Bo,Cy arm buzz:Ada@0,Bo@140,Cy@390
+npm run probe -- clear
+npm run anim     # every anchor animation, on a loop, until Ctrl-C
+```
+
+`join:Name` borrows a player of that name if one is already in the room (a
+`fakes` entry, a real phone) rather than putting a second Ada on the board;
+anyone it does mint gets a `probe-` id, which is the only thing `clear` kicks.
+Probe and the sim share `tools/conn.ts` — real sockets, real clock sync, no
+shortcut through the HTTP layer.
 
 Before a real game night, walk `docs/manual-checklist.md`.

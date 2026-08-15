@@ -145,9 +145,19 @@ exception is `--r-buzzer` (28px), because the buzzer is a physical object in
 someone's hand.
 
 **Motion** is `--fast` (80ms) for anything under a finger, `--base` (160ms) for
-layout, both on `--ease`. The filament is the only long animation, and its
-duration is data, not taste. `prefers-reduced-motion` is honoured globally in
-`tokens.css` — you don't have to handle it per component.
+layout, both on `--ease`. The filament is the only animation whose duration is
+data rather than taste — it runs for whatever time is left before the buzzers
+open. `prefers-reduced-motion` is honoured globally in `tokens.css` — you don't
+have to handle it per component.
+
+Beyond that there are exactly five **anchors**: a mark landing on the timeline,
+the award, the leader's name, the buzzers opening, and your own press
+registering. They share `--slam`, an ease that spends nearly all its distance in
+the first few frames, because each one is a thing arriving rather than a thing
+moving. They live together under `MOTION` in `style.css`, all one-shot, all
+fired by an element mounting or a class arriving — no timers, no JS. Add a sixth
+only for a moment the room would otherwise miss; anything animated because it
+could be is what turns a studio floor into a screensaver.
 
 ---
 

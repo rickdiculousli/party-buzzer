@@ -106,35 +106,55 @@ export function Board() {
           {leader && <span class="chip chip--armed">{round.value}</span>}
         </div>
 
-        {leader ? (
-          <>
-            {/* The payoff. Stays up until the next question is armed, because
-                the room looks at the board after the host scores it, not
-                before. */}
-            {round.award && <p class="board__award">+{round.award.points}</p>}
+        {/*
+          Three bands, not a stack. The middle one holds whatever the room is
+          actually reading and sits at the exact centre of the stage no matter
+          what is in the other two, so the award arriving above it and the
+          timeline filling in below it never move it. A name that drifted up the
+          screen as its own timeline assembled would undo the point of stamping
+          the marks down in the first place.
+        */}
+        <div class="board__above">
+          {/* The payoff. Stays up until the next question is armed, because the
+              room looks at the board after the host scores it, not before. */}
+          {leader && round.award && <p class="board__award">+{round.award.points}</p>}
+        </div>
+
+        <div class={leader ? 'board__mid' : 'board__mid board__mid--cue'}>
+          {leader ? (
             <p class="board__hero">{leader.name}</p>
-            {round.order.length > 1 && (
-              <Timeline state={state} round={round} />
-            )}
-          </>
-        ) : (
-          <>
+          ) : (
             <p class={open ? 'board__call' : 'board__idle'}>
               {open ? 'Buzz' : armed ? 'Stand by' : 'Ready'}
             </p>
-            {armed && (
-              // Keyed on the arm instant so the warm-up restarts once per arm
-              // and not on every unrelated broadcast.
-              <div
-                key={round.armedAt}
-                class={open ? 'filament is-hot' : 'filament'}
-                style={{ '--lead': `${lead}ms` }}
-              />
-            )}
-            <p class="board__value">{round.value}</p>
-          </>
-        )}
+          )}
+        </div>
 
+        <div class="board__below">
+          {leader ? (
+            round.order.length > 1 && <Timeline state={state} round={round} />
+          ) : (
+            <>
+              {/* The slot is always here so the filament arriving does not
+                  shove the value down a line. */}
+              <div class="board__lead-in">
+                {armed && (
+                  // Keyed on the arm instant so the warm-up restarts once per
+                  // arm and not on every unrelated broadcast.
+                  <div
+                    key={round.armedAt}
+                    class={open ? 'filament is-hot' : 'filament'}
+                    style={{ '--lead': `${lead}ms` }}
+                  />
+                )}
+              </div>
+              <p class="board__value">{round.value}</p>
+            </>
+          )}
+        </div>
+
+        {/* Status, not stage content — parked at the foot of the stage so a
+            rebound's lockout chips never move the timeline above them. */}
         {barred.length > 0 && (
           <div class="board__barred">
             {barred.map((n) => (

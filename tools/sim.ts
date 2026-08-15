@@ -17,7 +17,8 @@
  * Ctrl-C removes the bots on the way out, so your real game is left clean.
  */
 import { setTimeout as sleep } from 'node:timers/promises'
-import type { ClientMsg, ServerMsg, State } from '../shared/protocol.ts'
+import { connect, type Conn } from './conn.ts'
+import type { State } from '../shared/protocol.ts'
 
 const [argRounds, argPace, argUrl] = process.argv.slice(2)
 const ROUNDS = Number(argRounds ?? process.env.ROUNDS ?? Infinity)
@@ -63,79 +64,6 @@ const gauss = () => {
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * Math.random())
 }
 
-type Conn = {
-  send: (msg: ClientMsg) => void
-  state: () => State | null
-  /** Server time, synced the way the browser hook does it. */
-  now: () => number
-  playerId: string
-  waitFor: (pred: (s: State) => boolean, timeoutMs?: number) => Promise<State>
-  close: () => void
-}
-
-async function connect(role: 'host' | 'player', name?: string): Promise<Conn> {
-  const ws = new WebSocket(`${URL.replace(/^http/, 'ws')}/ws`)
-  await new Promise<void>((resolve, reject) => {
-    ws.onopen = () => resolve()
-    ws.onerror = () => reject(new Error(`no server at ${URL} — is it running?`))
-  })
-
-  let state: State | null = null
-  let offset = 0
-  let best = Infinity
-  let playerId = ''
-  const waiters: { pred: (s: State) => boolean; resolve: (s: State) => void }[] = []
-
-  ws.onmessage = (ev) => {
-    const msg = JSON.parse(ev.data as string) as ServerMsg
-    if (msg.t === 'welcome') playerId = msg.playerId
-    else if (msg.t === 'pong') {
-      const t1 = performance.now()
-      const rtt = t1 - msg.t0
-      // Keep the least-distorted sample rather than averaging in the bad ones.
-      if (rtt < best) {
-        best = rtt
-        offset = msg.serverTime - (msg.t0 + t1) / 2
-      }
-    } else if (msg.t === 'state') {
-      state = msg.state
-      for (let i = waiters.length - 1; i >= 0; i--) {
-        if (waiters[i].pred(msg.state)) waiters.splice(i, 1)[0].resolve(msg.state)
-      }
-    }
-  }
-
-  const send = (msg: ClientMsg) => ws.send(JSON.stringify(msg))
-  send({ t: 'hello', role, name })
-  for (let i = 0; i < 5; i++) {
-    send({ t: 'ping', t0: performance.now() })
-    await sleep(15)
-  }
-
-  return {
-    send,
-    state: () => state,
-    now: () => performance.now() + offset,
-    get playerId() {
-      return playerId
-    },
-    waitFor: (pred, timeoutMs = 5000) =>
-      new Promise<State>((resolve, reject) => {
-        if (state && pred(state)) return resolve(state)
-        const w = { pred, resolve }
-        waiters.push(w)
-        setTimeout(() => {
-          const i = waiters.indexOf(w)
-          if (i >= 0) {
-            waiters.splice(i, 1)
-            reject(new Error('timed out waiting for the server'))
-          }
-        }, timeoutMs)
-      }),
-    close: () => ws.close(),
-  } as Conn
-}
-
 // --- the game ---------------------------------------------------------------
 
 const log = (s = '') => console.log(s)
@@ -176,11 +104,11 @@ async function main() {
   log(`\n  Party Buzzer — synthetic self-play against ${URL}`)
   log(`  pace ×${PACE}${ROUNDS === Infinity ? '' : `, ${ROUNDS} rounds`}  ·  Ctrl-C to stop\n`)
 
-  const host = await connect('host')
+  const host = await connect(URL, 'host')
   const bots: Bot[] = []
   for (const spec of ROSTER) {
     const bot = { ...spec }
-    bot.conn = await connect('player', bot.name)
+    bot.conn = await connect(URL, 'player', bot.name)
     bots.push(bot)
     await sleep(40)
   }

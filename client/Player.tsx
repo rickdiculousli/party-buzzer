@@ -211,13 +211,17 @@ export function Player() {
         <span class="player__score readout">{score}</span>
       </div>
 
-      {armed && !barred && (
-        <div
-          key={round?.armedAt}
-          class={open ? 'filament is-hot player__filament' : 'filament player__filament'}
-          style={{ '--lead': `${lead}ms` }}
-        />
-      )}
+      {/* Reserved whether or not the filament is in it. Otherwise arming
+          shrinks the buzzer under the thumb that is about to press it. */}
+      <div class="player__lead-in">
+        {armed && !barred && (
+          <div
+            key={round?.armedAt}
+            class={open ? 'filament is-hot player__filament' : 'filament player__filament'}
+            style={{ '--lead': `${lead}ms` }}
+          />
+        )}
+      </div>
 
       <button
         class={`buzzer ${mood}`}

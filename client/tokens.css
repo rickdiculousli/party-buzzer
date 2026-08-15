@@ -108,6 +108,9 @@
   --fast: 80ms;
   --base: 160ms;
   --ease: cubic-bezier(0.2, 0.8, 0.3, 1);
+  /* For things that land rather than move: almost all the distance is covered
+     in the first few frames, so the eye reads an impact, not a slide. */
+  --slam: cubic-bezier(0.1, 0.9, 0.2, 1);
 }
 
 @media (prefers-reduced-motion: reduce) {
