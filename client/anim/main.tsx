@@ -25,6 +25,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { SCENARIOS, dialKey, type Dial } from './scenarios.tsx'
 import { play, prime, unlock } from '../sound.ts'
 import { RECIPES, getPath, withOverrides } from '../cues.ts'
+import { Envelope } from './Envelope.tsx'
 
 /**
  * How long the lead-up frame is held before the moment happens.
@@ -171,6 +172,13 @@ function Harness() {
     }
   }, [lead, speed, id])
 
+  // The dialled recipes, not the ones committed to style.css — the harness
+  // sets its properties on the stage wrapper, and a sound tuned against the
+  // file while you watch the slider would be tuning nothing. Hoisted out of
+  // the trigger effect below so the envelope canvas reads the same object the
+  // sound plays from.
+  const live = withOverrides(RECIPES, values)
+
   /**
    * The cue, on the same edge as the animation.
    *
@@ -181,7 +189,6 @@ function Harness() {
    */
   useEffect(() => {
     if (lead || muted || !scenario.sound) return
-    const live = withOverrides(RECIPES, values)
     for (const cue of [scenario.sound].flat())
       play(cue, {
         scope: stage.current ?? undefined,
@@ -317,6 +324,17 @@ function Harness() {
         </div>
 
         <p class="eyebrow">{scenario.label}</p>
+        {[scenario.sound ?? []].flat().map((cue) =>
+          (live[cue] ?? []).map((layer, i) => (
+            <Envelope
+              key={`${cue}.${i}`}
+              layer={layer}
+              onChange={(field, value) =>
+                setValues((v) => ({ ...v, [`${cue}.${i}.${field}`]: String(value) }))
+              }
+            />
+          )),
+        )}
         {scenario.dials.map((d) => {
           const k = dialKey(d)
           const was = origin[k] ?? ''

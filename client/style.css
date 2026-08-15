@@ -942,3 +942,24 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   .board__side { flex-direction: row; align-items: center; border-left: 0; border-top: 1px solid var(--rule); }
   .board__qr { max-width: 7rem; }
 }
+
+/* --- the harness envelope canvas ------------------------------------- */
+.envelope {
+  width: 100%;
+  height: auto;
+  background: var(--surface-2, #0e1116);
+  border-radius: 6px;
+  touch-action: none;
+}
+.envelope__line {
+  fill: none;
+  stroke: var(--accent, #4dd6e8);
+  stroke-width: 2;
+}
+.envelope__handle {
+  fill: var(--accent, #4dd6e8);
+  cursor: ew-resize;
+}
+.envelope__handle:hover {
+  fill: #fff;
+}
