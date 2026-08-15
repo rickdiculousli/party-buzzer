@@ -148,7 +148,7 @@ export const SCENARIOS: Scenario[] = [
       { var: '--slam-dur', label: 'Slam', min: 60, max: 800, step: 10, unit: 'ms' },
       { var: '--slam-scale', label: 'From scale', min: 1, max: 2, step: 0.05, unit: '' },
       { var: '--flare-dur', label: 'Flare', min: 200, max: 3000, step: 20, unit: 'ms' },
-      { var: '--bloom-rise', label: 'Rise ease', text: true },
+      { var: '--flare-fall', label: 'Cool ease', text: true },
       { var: '--flare-core', label: 'Core', min: 0, max: 100, step: 2, unit: 'px' },
       { var: '--flare-body', label: 'Body', min: 0, max: 200, step: 4, unit: 'px' },
       { var: '--flare-throw', label: 'Throw', min: 0, max: 400, step: 5, unit: 'px' },

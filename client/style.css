@@ -746,9 +746,10 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   --slam-dur: 220ms;
   --slam-scale: 1.25;
   --flare-dur: 940ms;
-  --flare-core: 28px;
-  --flare-body: 80px;
-  --flare-throw: 180px;
+  --flare-fall: cubic-bezier(0.2, 0.75, 0.35, 1);
+  --flare-core: 10px;
+  --flare-body: 36px;
+  --flare-throw: 50px;
 
   /* The buzzers opening, and your press registering */
   --punch-dur: 90ms;
@@ -834,9 +835,11 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 /* --- 3. The leader's name ---------------------------------------------
    Mounts when the round resolves. Slower and larger than a mark — it owns
    the stage — with one brass flare that decays and leaves the name lit. */
-/* Same rise as the marks, scaled up: dark through the fall, full power at 23%
-   of 940ms — the slam's own 220ms — then the long cool. */
-.board__hero { animation: slam var(--slam-dur) var(--slam), flare var(--flare-dur) var(--ease); }
+/* Lit at frame one and cooling from there, so the flare is the appearance
+   rather than something that happens to the name shortly after it. A glow that
+   ramps up reads as a second event however tight the timing; one already at
+   full power when the letters land reads as the same event. */
+.board__hero { animation: slam var(--slam-dur) var(--slam), flare var(--flare-dur) var(--flare-fall); }
 @keyframes slam {
   from { opacity: 0; transform: scale(var(--slam-scale)); }
   to { opacity: 1; transform: scale(1); }
@@ -846,17 +849,13 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
    the letters. The long tail is the filament cooling, which is the slowest and
    most visible part of it from across the room. */
 @keyframes flare {
-  0% {
-    text-shadow: 0 0 0 transparent, 0 0 0 transparent, 0 0 0 transparent;
-    animation-timing-function: var(--bloom-rise);
-  }
-  23% {
+  from {
     text-shadow:
       0 0 var(--flare-core) var(--hot),
       0 0 var(--flare-body) var(--brass),
       0 0 var(--flare-throw) var(--brass);
   }
-  100% { text-shadow: 0 0 0 transparent, 0 0 0 transparent, 0 0 0 transparent; }
+  to { text-shadow: 0 0 0 transparent, 0 0 0 transparent, 0 0 0 transparent; }
 }
 
 /* --- 4. The buzzers open ----------------------------------------------
