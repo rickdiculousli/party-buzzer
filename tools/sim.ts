@@ -12,15 +12,21 @@
  *   npm run sim -- 5                     stop after five questions
  *   npm run sim -- 5 2                   five questions, half speed, for watching
  *   npm run sim -- 5 1 http://box:8080   against another host
+ *   npm run sim -- 5 1 --game quizbowl   switch the room's mode first
  *
- * The env vars (ROUNDS, PACE, URL) still work; positional args win.
+ * The env vars (ROUNDS, PACE, URL, GAME) still work; positional args win.
  * Ctrl-C removes the bots on the way out, so your real game is left clean.
  */
 import { setTimeout as sleep } from 'node:timers/promises'
 import { connect, type Conn } from './conn.ts'
 import type { State } from '../shared/protocol.ts'
 
-const [argRounds, argPace, argUrl] = process.argv.slice(2)
+const argv = process.argv.slice(2)
+// `--game quizbowl` switches the room's mode before the bots play.
+const gi = argv.indexOf('--game')
+const GAME = gi >= 0 ? argv[gi + 1] : process.env.GAME
+const positional = argv.filter((a, i) => a !== '--game' && i !== gi + 1)
+const [argRounds, argPace, argUrl] = positional
 const ROUNDS = Number(argRounds ?? process.env.ROUNDS ?? Infinity)
 const PACE = Number(argPace ?? process.env.PACE ?? 1)
 const URL = argUrl ?? process.env.URL ?? 'http://localhost:8080'
@@ -105,6 +111,11 @@ async function main() {
   log(`  pace ×${PACE}${ROUNDS === Infinity ? '' : `, ${ROUNDS} rounds`}  ·  Ctrl-C to stop\n`)
 
   const host = await connect(URL, 'host')
+  if (GAME) {
+    host.send({ t: 'host', action: { a: 'setGame', id: GAME, options: {} } })
+    await host.waitFor((s) => s.game.id === GAME)
+    log(`  game mode: ${GAME}`)
+  }
   const bots: Bot[] = []
   for (const spec of ROSTER) {
     const bot = { ...spec }

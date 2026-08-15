@@ -31,6 +31,7 @@
  *   wrong[:200]      dock the leader and lock them out, re-arming for a rebound
  *   next             clear the round
  *   reset | undo     reset the round / undo the last host action
+ *   act:name[:data]  host-scoped act (fragment / powerEnds / revealAnswer)
  *   wait:1200        hold, in ms — the only step that exists for your eyes
  *   clear            kick probe's players and reset the round
  *   loop             repeat the whole script until Ctrl-C
@@ -56,7 +57,7 @@ async function main() {
     // The header comment is the manual; printing a second copy is a second
     // thing to keep true.
     log('\n  usage: npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@120 correct')
-    log('  steps: loop join value arm buzz correct wrong next reset undo wait clear\n')
+    log('  steps: loop join value arm buzz correct wrong next reset undo act wait clear\n')
     return
   }
 
@@ -167,6 +168,15 @@ async function main() {
         case 'undo':
           host.send({ t: 'host', action: { a: 'undo' } })
           break
+
+        case 'act': {
+          // Host-scoped acts, the reader's channel: act:fragment:Some text,
+          // act:powerEnds, act:revealAnswer:The answer. Item uses go through
+          // unit tests; probe's players have no inventory of their own.
+          const [name, ...rest] = arg.split(':')
+          host.send({ t: 'act', act: name, data: rest.join(':') || undefined })
+          break
+        }
 
         case 'wait':
           await sleep(Number(arg))
