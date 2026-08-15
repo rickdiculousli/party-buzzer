@@ -70,9 +70,10 @@ export class Hub {
   }
 
   private join(conn: Conn, playerId: PlayerId | undefined, name?: string): void {
-    let player = playerId
-      ? this.state.players.find((p) => p.id === playerId)
-      : undefined
+    // Fall back to whoever this connection already is, so a second hello on a
+    // live socket renames that player instead of minting a duplicate.
+    const id = playerId ?? conn.playerId
+    let player = id ? this.state.players.find((p) => p.id === id) : undefined
 
     if (!player) {
       player = {

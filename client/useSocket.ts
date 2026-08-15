@@ -88,12 +88,17 @@ export function useSocket(role: Role) {
       ws.onopen = () => {
         retry = 500
         setConnected(true)
-        send({
-          t: 'hello',
-          role,
-          playerId: localStorage.getItem('playerId') ?? undefined,
-          name: localStorage.getItem('playerName') ?? undefined,
-        })
+        const stored = localStorage.getItem('playerId')
+        // A player we have never seen has no name yet, and saying hello would
+        // mint an unnamed ghost. Their join tap sends the first hello instead.
+        if (role !== 'player' || stored) {
+          send({
+            t: 'hello',
+            role,
+            playerId: stored ?? undefined,
+            name: localStorage.getItem('playerName') ?? undefined,
+          })
+        }
         ping()
         resync = setInterval(ping, RESYNC_MS)
       }

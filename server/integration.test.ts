@@ -130,6 +130,12 @@ test('a player reconnects with the same identity and score', async () => {
     await host.open()
     await amy.open('Amy')
 
+    // A second hello on a live socket — what the page does when a returning
+    // phone auto-greets and then taps to play — must not mint a second player.
+    amy.send({ t: 'hello', role: 'player', name: 'Amy' })
+    await sleep(50)
+    assert.equal(host.last.players.length, 1, 'a re-hello must not duplicate')
+
     host.send({ t: 'host', action: { a: 'setScore', key: amy.playerId, score: 700 } })
     await sleep(50)
     amy.close()

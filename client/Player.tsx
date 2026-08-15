@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { useOpen, useSocket } from './useSocket.ts'
 
-/** A short square-wave blip. Cheaper and more reliable than shipping an audio file. */
-function blip(ctx: AudioContext, hz = 660) {
+/**
+ * A short square-wave blip. Cheaper and more reliable than shipping an audio
+ * file. Resumes first: iOS suspends the context whenever the phone locks.
+ */
+function blip(ctx: AudioContext | null, hz = 660) {
+  if (!ctx) return
+  if (ctx.state === 'suspended') void ctx.resume()
   const osc = ctx.createOscillator()
   const gain = ctx.createGain()
   osc.type = 'square'
@@ -17,7 +22,10 @@ function blip(ctx: AudioContext, hz = 660) {
 export function Player() {
   const { state, playerId, connected, now, send } = useSocket('player')
   const [name, setName] = useState(() => localStorage.getItem('playerName') ?? '')
-  const [ready, setReady] = useState(() => !!localStorage.getItem('playerId'))
+  // Always start behind the tap, even for a phone we recognise. Audio only
+  // unlocks inside a user gesture, so skipping the tap means silence all game.
+  const [ready, setReady] = useState(false)
+  const returning = !!localStorage.getItem('playerId')
   const audio = useRef<AudioContext | null>(null)
   const wakeLock = useRef<WakeLockSentinel | null>(null)
 
@@ -33,7 +41,11 @@ export function Player() {
     }
     void acquire()
     const onVisible = () => {
-      if (document.visibilityState === 'visible') void acquire()
+      if (document.visibilityState !== 'visible') return
+      void acquire()
+      // A screen lock suspends the audio context. Coming back is a resume
+      // opportunity, so take it rather than waiting for the next gesture.
+      void audio.current?.resume()
     }
     document.addEventListener('visibilitychange', onVisible)
     return () => {
@@ -56,7 +68,7 @@ export function Player() {
   const open = useOpen(round, now, () => {
     if (barred) return
     navigator.vibrate?.([40, 40, 40])
-    if (audio.current) blip(audio.current, 440)
+    blip(audio.current, 440)
   })
 
   // The join tap doubles as the gesture that unlocks audio on iOS.
@@ -82,9 +94,13 @@ export function Player() {
           onInput={(e) => setName((e.target as HTMLInputElement).value)}
         />
         <button class="big" onClick={join} disabled={!name.trim()}>
-          Tap to join
+          {returning && name.trim() ? `Tap to play as ${name.trim()}` : 'Tap to join'}
         </button>
-        <p class="hint">Tapping also turns on the buzzer sound.</p>
+        <p class="hint">
+          {returning
+            ? 'Your score is safe. Tapping turns the buzzer sound back on.'
+            : 'Tapping also turns on the buzzer sound.'}
+        </p>
       </main>
     )
   }
@@ -94,7 +110,7 @@ export function Player() {
     // Stamp before anything else so render work never inflates the time.
     send({ t: 'buzz', at: now() })
     navigator.vibrate?.(60)
-    if (audio.current) blip(audio.current)
+    blip(audio.current)
   }
 
   // deltaMs is computed before redaction, so 0 means first across the whole field.
