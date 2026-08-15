@@ -31,6 +31,26 @@ with `HOST_IP=192.168.1.42 npm start`. Change the port with `PORT=9000`.
    player (or team) out, and reopens the buzzers for everyone else.
 4. **Next question** clears the lockouts.
 
+## Game modes
+
+The host screen folds a Game section into "Players and teams": pick the mode
+and its options there. The default is plain trivia — the game described above.
+
+**Quizbowl-lite** adds powers (a faster buzz is worth more, while the power
+mark is still up), negs, bouncebacks after a wrong answer, and item drops —
+the winner's phone can hold a freeze, shield, or steal for a later round. A
+mode is set per session; switching resets scores and the board.
+
+Powers and fragments are driven by the reader speaking a question pack:
+
+```bash
+npm run read -- tools/sample-pack.txt
+```
+
+Pack format, four lines: `V: 200` sets the value (optional), the question text
+uses ` / ` to mark where a fragment lands on the board, `A:` gives the answer,
+and a blank line ends the question. See `tools/sample-pack.txt`.
+
 ## Fairness
 
 Phones sync a clock offset with the server on connect and stamp the buzz at the

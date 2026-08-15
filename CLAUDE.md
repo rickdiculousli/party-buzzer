@@ -17,6 +17,7 @@ npm test           # node:test
 npm run typecheck
 npm run sim        # synthetic self-play against a running server
 npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@140 correct   # one scripted round
+npm run read -- pack.txt   # speak a question pack; drives fragments, power, answer
 npm run motion     # the animation harness at /anim.html (dev only)
 npm run fakes -- add [n] / remove   # fake players with fake scores (ids fake-01..fake-99)
 ```
@@ -65,6 +66,11 @@ no partial update.
 - `server/state.ts` — `applyHostAction` (the round state machine) and the
   debounced snapshot to `state.json`.
 - `server/resolve.ts` — pure. Turns raw buzzes into a ranked order.
+- `server/modes/` — game modules. `GameModule` hooks (scoring, power, item
+  grants) are all optional; `trivia` defines none and is today's game.
+  Modes are fixed per session; `setGame` switches and resets.
+- `server/items.ts` — framework-level boons/sabotage (freeze, shield, steal),
+  fired by players over the `act` channel and validated before they apply.
 - `server/index.ts` — HTTP + WebSocket, serves `dist/`, routes `/`, `/host`,
   `/board` to the same SPA shell.
 - `client/useSocket.ts` — the socket, the clock sync, and `useOpen`. Every
@@ -95,6 +101,12 @@ round locks.
 
 **Redaction.** `Hub.viewFor(conn)` gives players only their own entry in
 `order`. Anything a player must not see early belongs behind that method.
+
+**Modes and items live inside `State`.** `game.moduleState`, `items`, and
+`effects` ride the same snapshot/undo/broadcast path as everything else —
+that is why the framework adds no new persistence or timing code. Effects are
+stamped with the arm they belong to and swept on the next, so nothing leaks
+across questions.
 
 **Undo is server-side**, a stack of `structuredClone(state)` in the hub, restored
 with `Object.assign` so the `state` object identity survives for the persistence
