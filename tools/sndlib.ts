@@ -25,3 +25,60 @@ export function safeRaw(root: string, name: string): string | null {
   const full = resolve(root, base)
   return full.startsWith(resolve(root) + '/') ? full : null
 }
+
+export type AdoptOpts = {
+  preset: 'one-shot' | 'bed'
+  input: string
+  output: string
+  /** The dialled trim, in ms. `cutMs: 0` means the whole file. */
+  headMs: number
+  cutMs: number
+  rate: number
+}
+
+/** How long the cut takes to fall silent, matching `RELEASE_MS` in sound.ts. */
+const FADE_S = 0.04
+
+/** An adopted file's name. Narrow on purpose: this becomes a path we write. */
+export function safeOut(name: string): string | null {
+  return /^[a-z0-9-]+\.(wav|ogg)$/.test(name) ? name : null
+}
+
+/**
+ * The exact argument list, so the credits row can quote what actually ran.
+ *
+ * One-shot bakes the dialled trim and rate into PCM. Rate is `asetrate` plus
+ * `aresample` rather than `atempo`, because speed and pitch are one knob at
+ * runtime and the baked file has to match what you heard while dialling it.
+ *
+ * ponytail: one input file. Muxing several is not built — layers already mix at
+ * play time, and a baked mix would be an OfflineAudioContext render rather than
+ * an ffmpeg graph.
+ */
+export function ffmpegArgs(o: AdoptOpts): string[] {
+  if (o.preset === 'bed')
+    return ['-y', '-i', o.input, '-c:a', 'libopus', '-b:a', '64k', '-ac', '1', o.output]
+
+  const head = o.headMs / 1000
+  const cut = o.cutMs / 1000
+  const rate = Math.max(0.05, o.rate)
+  const chain = [cut > head ? `atrim=${head}:${cut}` : `atrim=${head}`, 'asetpts=N/SR/TB']
+  if (rate !== 1) chain.push(`asetrate=${Math.round(44100 * rate)}`, 'aresample=44100')
+  // Only a known end can be faded against; `cut: 0` is the whole file, whose
+  // length this function does not know and should not go and read.
+  if (cut > head) {
+    const out = (cut - head) / rate
+    chain.push(`afade=t=out:st=${Number((out - FADE_S).toFixed(4))}:d=${FADE_S}`)
+  }
+  return ['-y', '-i', o.input, '-af', chain.join(','), '-ac', '1', '-ar', '44100', o.output]
+}
+
+/** One row of CREDITS.md, trailing newline included. */
+export function creditsRow(o: {
+  out: string
+  role: string
+  source: string
+  command: string
+}): string {
+  return `| \`${o.out}\` | ${o.role} | From \`${o.source}\` via \`${o.command}\` |\n`
+}

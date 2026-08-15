@@ -75,6 +75,19 @@ export function prime(...cues: Cue[]): void {
   for (const c of cues) void load(c).catch(() => {})
 }
 
+/** Decoded raw/adopted files, keyed by the path a `{ file }` layer names. */
+const files = new Map<string, AudioBuffer>()
+
+/** Decode a file so a `{ file }` layer can use it. Idempotent. */
+export function primeFile(url: string): Promise<void> {
+  if (files.has(url)) return Promise.resolve()
+  return fetch(url)
+    .then((r) => r.arrayBuffer())
+    .then((b) => unlock().decodeAudioData(b))
+    .then((buf) => void files.set(url, buf))
+    .catch(() => {})
+}
+
 /**
  * One tunable, read from wherever the caller says the properties live.
  *
@@ -127,7 +140,7 @@ export function play(
     // Clamped to now for the same reason the sample path is: a start in the
     // past is played immediately, which is late but never silent.
     const t0 = Math.max(ac.currentTime, ac.currentTime + (delay + offsetMs) / 1000)
-    render(ac, schedule(r, Math.max(0.05, rate)), t0, gain)
+    render(ac, schedule(r, Math.max(0.05, rate)), t0, gain, files)
     return
   }
 

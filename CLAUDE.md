@@ -49,6 +49,9 @@ script globs `'server/*.test.ts'` for a reason.
 - Tests use `node:test` and `node:assert/strict` only.
 - Deliberate simplifications that cut a real corner carry a `ponytail:` comment
   naming the ceiling and the upgrade path.
+- A number an anchor needs is either a CSS custom property in `anim:tunables`
+  or a field in a recipe in `cue:recipes` — never inlined into either a
+  keyframe or a scenario.
 
 ## Architecture
 
@@ -159,5 +162,19 @@ Two rules for it. Never restate a value in a scenario — a scenario that carrie
 its own duration is tuning a copy of the CSS rather than the CSS. And never
 inline a number into an anchor keyframe: one the harness cannot reach is one
 nobody will tune.
+
+The same page has a **Sound** panel. Cues named in `client/cues.ts` are
+synthesized rather than found: a recipe is a list of layers, each one source
+with an envelope, and its dials write back into the `cue:recipes` block through
+the same Save that writes the CSS. Drag the envelope canvas rather than
+inferring the shape from four sliders.
+
+Sounds that must stay found live in `sounds/raw/`, which is gitignored — drop a
+download in and it appears in the panel's Library, auditionable through the
+current trim so you hear what you are about to bake in. **Adopt** runs one of
+two `ffmpeg` presets, writes the result into `client/public/sounds/`, and
+appends the row to `CREDITS.md` with the exact command. `ffmpeg` is a machine
+binary invoked through `child_process`; it is not and must not become an npm
+dependency.
 
 Before a real game night, walk `docs/manual-checklist.md`.

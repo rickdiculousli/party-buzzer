@@ -1,10 +1,14 @@
 import { createReadStream } from 'node:fs'
-import { readFile, readdir, stat, writeFile } from 'node:fs/promises'
-import { resolve } from 'node:path'
+import { readFile, readdir, stat, writeFile, appendFile } from 'node:fs/promises'
+import { basename, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
 import { defineConfig, type Plugin } from 'vite'
 import preact from '@preact/preset-vite'
-import { safeRaw } from './tools/sndlib.ts'
+import { ffmpegArgs, creditsRow, safeOut, safeRaw } from './tools/sndlib.ts'
+
+const run = promisify(execFile)
 
 const STYLE = fileURLToPath(new URL('./client/style.css', import.meta.url))
 const OPEN = '/* anim:tunables'
@@ -15,6 +19,8 @@ const R_OPEN = '/* cue:recipes'
 const R_CLOSE = '/* /cue:recipes */'
 
 const RAW = fileURLToPath(new URL('./sounds/raw', import.meta.url))
+const OUT = fileURLToPath(new URL('./client/public/sounds', import.meta.url))
+const CREDITS = fileURLToPath(new URL('./client/public/sounds/CREDITS.md', import.meta.url))
 
 /**
  * Lets the motion harness write its dialled-in values back into style.css.
@@ -135,6 +141,52 @@ function sndLibrary(): Plugin {
             res.end('not found')
           })
           .pipe(res)
+      })
+
+      server.middlewares.use('/__snd/adopt', async (req, res) => {
+        const reply = (code: number, body: unknown) => {
+          res.statusCode = code
+          res.setHeader('content-type', 'application/json')
+          res.end(JSON.stringify(body))
+        }
+        if (req.method !== 'POST') return reply(405, { error: 'POST only' })
+        try {
+          const chunks: Buffer[] = []
+          for await (const c of req) chunks.push(c as Buffer)
+          const b = JSON.parse(Buffer.concat(chunks).toString())
+
+          const input = safeRaw(RAW, String(b.name ?? ''))
+          const out = safeOut(String(b.out ?? ''))
+          if (!input) return reply(400, { error: 'no such raw file' })
+          if (!out) return reply(400, { error: 'output must match [a-z0-9-]+.(wav|ogg)' })
+
+          const args = ffmpegArgs({
+            preset: b.preset === 'bed' ? 'bed' : 'one-shot',
+            input,
+            output: resolve(OUT, out),
+            headMs: Number(b.headMs) || 0,
+            cutMs: Number(b.cutMs) || 0,
+            rate: Number(b.rate) || 1,
+          })
+          await run('ffmpeg', args)
+
+          const command = `ffmpeg ${args.join(' ')}`
+          await appendFile(
+            CREDITS,
+            creditsRow({
+              out,
+              role: String(b.role ?? 'TODO — say what this is for'),
+              source: basename(input),
+              command,
+            }),
+          )
+          reply(200, { command, out })
+        } catch (err) {
+          const msg = (err as NodeJS.ErrnoException).code === 'ENOENT'
+            ? 'ffmpeg is not on PATH'
+            : (err as Error).message
+          reply(500, { error: msg })
+        }
       })
     },
   }

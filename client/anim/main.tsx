@@ -23,7 +23,7 @@
 import { render } from 'preact'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { SCENARIOS, dialKey, type Dial } from './scenarios.tsx'
-import { play, prime, unlock } from '../sound.ts'
+import { play, prime, primeFile, unlock } from '../sound.ts'
 import { RECIPES, getPath, withOverrides } from '../cues.ts'
 import { Envelope } from './Envelope.tsx'
 
@@ -203,6 +203,15 @@ function Harness() {
     if (scenario.sound && !muted) prime(...[scenario.sound].flat())
   }, [id, muted])
 
+  // File-source layers need their bytes decoded before the first trigger, same
+  // as the sample cues above — otherwise the opening take of a recipe that
+  // leans on an adopted sample is the silent one.
+  useEffect(() => {
+    for (const cue of [scenario.sound ?? []].flat())
+      for (const l of live[cue] ?? [])
+        if (typeof l.source === 'object') void primeFile(l.source.file)
+  }, [id, values])
+
   // The stage's inline style must never receive a recipe field — Preact would
   // try to set `stamp.0.decay` as a CSS property. Both the stage and the
   // preview stick to the CSS half for the same reason.
@@ -252,7 +261,9 @@ function Harness() {
    * different question.
    */
   const [auditioning, setAuditioning] = useState('')
+  const [selected, setSelected] = useState('')
   const audition = async (name: string) => {
+    setSelected(name)
     setAuditioning(name)
     const ac = unlock()
     const buf = await ac.decodeAudioData(
@@ -262,8 +273,53 @@ function Harness() {
     src.buffer = buf
     src.playbackRate.value = Math.max(0.05, num(values['--audition-rate'] ?? '1'))
     src.connect(ac.destination)
-    src.start(0, num(values['--audition-head'] ?? '0') / 1000)
+    const head = num(values['--audition-head'] ?? '0') / 1000
+    src.start(0, head)
+    // `cut` is wall-clock output length, same convention as play()'s `cut` —
+    // see the comment at sound.ts:165 — not a length of the file, so a rate
+    // change does not change how long the audition runs.
+    const cut = num(values['--audition-cut'] ?? '0') / 1000
+    if (cut > 0)
+      // ponytail: no release ramp here, unlike play()'s RELEASE_MS fade — this is
+      // a preview, not a baked file, and a hard stop is fine to judge a trim by.
+      src.stop(cut)
     src.onended = () => setAuditioning('')
+  }
+
+  const [adopting, setAdopting] = useState('')
+  const [outName, setOutName] = useState('')
+  const [role, setRole] = useState('')
+
+  const adopt = async (name: string, preset: 'one-shot' | 'bed') => {
+    setAdopting('running ffmpeg…')
+    try {
+      const res = await fetch('/__snd/adopt', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          out: outName,
+          role,
+          preset,
+          headMs: num(values['--audition-head'] ?? '0'),
+          cutMs: num(values['--audition-cut'] ?? '0'),
+          rate: num(values['--audition-rate'] ?? '1'),
+        }),
+      })
+      const body = await res.json()
+      setAdopting(res.ok ? body.command : `failed: ${body.error}`)
+      // The dials reset because what was dialled in is now baked into the file —
+      // the convention CREDITS.md already states.
+      if (res.ok)
+        setValues((v) => ({
+          ...v,
+          '--audition-head': '0ms',
+          '--audition-cut': '0ms',
+          '--audition-rate': '1',
+        }))
+    } catch (err) {
+      setAdopting(`failed: ${(err as Error).message}`)
+    }
   }
 
   return (
@@ -478,6 +534,30 @@ function Harness() {
             <span class="readout">{Math.round(f.size / 1024)}k</span>
           </div>
         ))}
+        <div class="harness__row">
+          <input
+            class="input"
+            placeholder="stamp.wav"
+            value={outName}
+            onInput={(e) => setOutName((e.target as HTMLInputElement).value)}
+          />
+          <input
+            class="input"
+            placeholder="what it is for"
+            value={role}
+            onInput={(e) => setRole((e.target as HTMLInputElement).value)}
+          />
+        </div>
+        <div class="harness__row">
+          <button class="btn" disabled={!selected || !outName} onClick={() => adopt(selected, 'one-shot')}>
+            Adopt as one-shot
+          </button>
+          <button class="btn" disabled={!selected || !outName} onClick={() => adopt(selected, 'bed')}>
+            Adopt as bed
+          </button>
+        </div>
+        {selected && <p class="harness__note">Adopting {selected}</p>}
+        {adopting && <pre class="harness__css">{adopting}</pre>}
       </aside>
 
       <div class="harness__stage" style={cssValues}>
