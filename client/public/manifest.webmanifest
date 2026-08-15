@@ -1,0 +1,8 @@
+{
+  "name": "Party Buzzer",
+  "short_name": "Buzzer",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#14141b",
+  "theme_color": "#14141b"
+}
