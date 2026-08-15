@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { resolveBuzzes, type RawBuzz, type Resolved } from './resolve.ts'
 import { applyHostAction, lockedPlayerIds } from './state.ts'
+import { catalog } from './modes/index.ts'
 import { COLLECT_MS } from '../shared/protocol.ts'
 import type {
   ClientMsg, PlayerId, Role, ServerMsg, State,
@@ -54,6 +55,9 @@ export class Hub {
 
   constructor(state: State, opts: HubOpts = {}) {
     this.state = state
+    // The catalog rides the state payload so the host form needs no fetch of
+    // its own. Refresh on boot: a snapshot's copy may come from an older build.
+    this.state.games = catalog()
     this.revealMs = opts.revealMs ?? REVEAL_MS
     this.collectMs = opts.collectMs ?? COLLECT_MS
     this.onChange = opts.onChange ?? (() => {})
