@@ -21,6 +21,7 @@ export function newState(): State {
     items: {},
     effects: [],
     games: [],
+    duelRules: [],
     packs: [],
     mirrorFragments: false,
     round: {
@@ -268,6 +269,10 @@ export function loadState(path: string): State {
     // not register — must still boot.
     loaded.items ??= {}
     loaded.effects ??= []
+    loaded.duelRules ??= []
+    // A duel mid-setup can't survive a restart: the pool was voted under a
+    // room that may not be back. Fresh boot, no duel.
+    delete loaded.duel
     if (!Array.isArray(loaded.packs)) loaded.packs = []
     if (typeof loaded.mirrorFragments !== 'boolean') loaded.mirrorFragments = false
     loaded.game ??= { id: 'trivia', options: {}, moduleState: {} }

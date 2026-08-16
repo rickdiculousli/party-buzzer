@@ -55,6 +55,8 @@ export type Round = {
   total: number
   /** Score keys barred from this round after a wrong answer. */
   lockedOut: ScoreKey[]
+  /** The only players who may buzz this round. Set by a duel; absent = open. */
+  candidates?: PlayerId[]
   /**
    * Set when a question has been scored, and cleared when the next one starts.
    * The board keeps the result up for as long as this is here — the payoff
@@ -84,6 +86,35 @@ export type OptionSpec =
 
 /** One registered mode, for the host's settings form. Ships in the state payload. */
 export type GameInfo = { id: string; name: string; options: OptionSpec[] }
+
+/** A nomination pool entry. `votes` holds voter ids, not a count — one vote per player falls out of the shape. */
+export type DuelPoolEntry = {
+  playerId: PlayerId
+  votes: PlayerId[]
+  /** Volunteered and not backed off. */
+  in: boolean
+}
+
+/** A duel being set up or played. Rides State, so snapshot/undo/broadcast come free. */
+export type DuelState = {
+  /** Id into the duelRules catalog. */
+  rule: string
+  pool: DuelPoolEntry[]
+  /** The two finalists, once the host closes the window (or an instant rule resolves). */
+  seated?: [PlayerId, PlayerId]
+  /** Finalists who answered wrong this question — drives the exclusive rebound. */
+  missed: PlayerId[]
+}
+
+/** One selection rule, declared as data so the host rule picker needs no per-rule code. */
+export type DuelRuleInfo = {
+  id: string
+  name: string
+  /** How players enter the pool; 'none' = host-pick / random. */
+  entry: 'vote' | 'volunteer' | 'both' | 'none'
+  /** How the pool narrows to two; 'host' = the host seats explicitly. */
+  resolve: 'votes' | 'random' | 'host'
+}
 
 /**
  * A live item effect. Stamped with the arm it belongs to when the question
@@ -125,6 +156,10 @@ export type State = {
   effects: ActiveEffect[]
   /** Static module catalog. The hub refreshes it at startup; snapshots keep a stale copy harmlessly. */
   games: GameInfo[]
+  /** A duel in setup or play. Absent = today's game. */
+  duel?: DuelState
+  /** Static rule catalog. Refreshed at startup beside `games`. */
+  duelRules: DuelRuleInfo[]
   /** Pack filenames on disk. Filenames only — question content never enters State. */
   packs: string[]
   /** Whether players see round.fragments. Off for quizbowl: reading a whole
@@ -149,6 +184,10 @@ export type HostAction =
   | { a: 'assign'; playerId: PlayerId; teamId?: TeamId }
   | { a: 'setGame'; id: string; options: Record<string, unknown> }
   | { a: 'setMirror'; on: boolean }
+  | { a: 'openDuel'; rule: string }
+  /** ids = host override (and the only path for resolve:'host' rules); absent = resolve by rule. */
+  | { a: 'closeDuel'; playerIds?: [PlayerId, PlayerId] }
+  | { a: 'cancelDuel' }
 
 export type ClientMsg =
   | { t: 'hello'; role: Role; playerId?: PlayerId; name?: string }
