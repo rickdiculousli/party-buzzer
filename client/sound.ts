@@ -104,6 +104,17 @@ export function primeFile(url: string): Promise<void> {
 }
 
 /**
+ * The decoded bytes behind a `{ file }` layer, for anything that needs to look
+ * at the audio rather than play it — which today is the harness drawing a
+ * waveform. Nothing is fetched: this reads what `primeFile` already landed, and
+ * a miss means the decode has not finished, which the caller draws as an empty
+ * track rather than waiting on.
+ */
+export function bufferFor(url: string): AudioBuffer | undefined {
+  return files.get(url)
+}
+
+/**
  * One tunable, read from wherever the caller says the properties live.
  *
  * Times come back in whatever unit survived the build, which is not the unit

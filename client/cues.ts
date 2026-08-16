@@ -23,7 +23,7 @@
  * regenerated wholesale, so do not put a comment in there expecting to see it
  * again.
  */
-import type { Layer, Recipe } from './synth.ts'
+import type { Layer, Recipe, Source } from './synth.ts'
 
 /* cue:recipes — rewritten in place by the harness. Prose lives outside the
    markers; everything between them is machine-written. */
@@ -108,4 +108,78 @@ export function withOverrides(
 /** The recipe for a cue, or nothing if that cue is still a sample. */
 export function recipeFor(cue: string): Recipe | undefined {
   return (RECIPES as Record<string, Recipe>)[cue]
+}
+
+/**
+ * One field written into a copy of the tree.
+ *
+ * The replacement for `withOverrides`: the harness holds the tree itself now,
+ * so an edit is a write rather than an entry in a side map. A path naming a
+ * layer that does not exist returns the table it was given — a stale dial must
+ * not be able to invent a layer, exactly as the CSS endpoint refuses an unknown
+ * property instead of appending it. A *field* the layer omits is allowed
+ * through: the canvas draws all four handles whatever the recipe declares.
+ */
+export function setPath(
+  recipes: Record<string, Recipe>,
+  path: string,
+  value: number,
+): Record<string, Recipe> {
+  const [cue, index, field] = path.split('.')
+  if (!FIELDS.has(field) || !recipes[cue]?.[Number(index)]) return recipes
+  const out = structuredClone(recipes)
+  ;(out[cue][Number(index)] as Record<string, unknown>)[field] = value
+  return out
+}
+
+/**
+ * How wide the shared axis has to be, in ms: the last instant any layer is
+ * still sounding.
+ *
+ * One axis for the whole cue is the point of the view. Scaling each layer to
+ * its own length — which is what the old envelope canvas did — makes two layers
+ * of different lengths incomparable, and comparing them is the entire reason
+ * for combining two sounds.
+ */
+export function span(recipe: Recipe): number {
+  const ends = recipe.map(
+    (l) => (l.delay ?? 0) + (l.attack ?? 0) + (l.decay ?? 0) + (l.hold ?? 0) + (l.release ?? 0),
+  )
+  return Math.max(1, ...ends)
+}
+
+/**
+ * A dragged value, made legal.
+ *
+ * `head` is the one clamp that needs the outside world: it is an offset into a
+ * file, so its ceiling is that file's duration, which only the caller holding
+ * the buffer knows.
+ */
+export function clampField(field: NumericField, value: number, maxHead = Infinity): number {
+  if (field === 'sustain') return Math.min(1, Math.max(0, Number(value.toFixed(2))))
+  if (field === 'gain') return Math.max(0, Number(value.toFixed(2)))
+  if (field === 'head') return Math.min(Math.max(0, Math.round(value)), Math.max(0, Math.round(maxHead)))
+  return Math.max(0, Math.round(value))
+}
+
+/**
+ * A layer, with an envelope that makes it audible on arrival.
+ *
+ * A file layer is gated like any other, so one written with no stages is
+ * silent (see the `ponytail:` note on `Source`) — the whole-duration `hold` is
+ * the default that stops the front door from handing you a silent layer.
+ * `durationMs` is the decoded buffer's real length; zero when nothing is
+ * decoded yet, which is a layer you can still see and drag.
+ */
+export function addLayer(recipe: Recipe, source: Source, durationMs = 0): Recipe {
+  const layer: Layer =
+    typeof source === 'object'
+      ? { source, sustain: 1, hold: Math.round(durationMs), release: 40 }
+      : { source, freq: 440, attack: 2, decay: 160, sustain: 0, hold: 0, release: 40, gain: 0.6 }
+  return [...recipe, layer]
+}
+
+/** Drop one layer. Order carries no meaning — layers mix simultaneously. */
+export function removeLayer(recipe: Recipe, i: number): Recipe {
+  return recipe.filter((_, n) => n !== i)
 }
