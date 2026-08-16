@@ -171,6 +171,18 @@ test('random seats instantly; one team total cannot fill two seats', () => {
   assert.equal(teamed.duel, undefined, 'refused: nothing to close later')
 })
 
+test('volunteer-random waits for the window; random still seats instantly', () => {
+  const state = stateWith([['a'], ['b'], ['c']])
+  applyHostAction(state, { a: 'openDuel', rule: 'volunteer-random' })
+  assert.ok(state.duel, 'the duel opens')
+  assert.equal(state.duel!.seated, undefined, 'no volunteers yet — nothing to draw from')
+  assert.deepEqual(state.duel!.pool, [])
+
+  const randomState = stateWith([['a'], ['b'], ['c']])
+  applyHostAction(randomState, { a: 'openDuel', rule: 'random' })
+  assert.ok(randomState.duel?.seated, 'random has no entry gate — seats now')
+})
+
 test('random in teams mode draws one per team', () => {
   const state = stateWith([['a', 'ta'], ['b', 'ta'], ['c', 'tb']], 'teams')
   applyHostAction(state, { a: 'openDuel', rule: 'random' })

@@ -236,8 +236,11 @@ export function applyHostAction(state: State, action: HostAction): void {
       const rule = duelRule(action.rule)
       if (!rule) return
       state.duel = { rule: rule.id, pool: [], missed: [] }
-      // Instant rules seat now; entry rules wait for the host to close.
-      if (rule.resolve === 'random') {
+      // Instant rules (no entry gate — 'random') seat now, against everyone
+      // eligible. Entry rules wait for the host to close, however they
+      // resolve: 'volunteer-random' still needs its volunteer window open
+      // before there is anyone to draw from.
+      if (rule.entry === 'none' && rule.resolve === 'random') {
         const pair = resolveDuel(state, state.duel)
         if (pair) state.duel.seated = pair
         else delete state.duel // fewer than two eligible — nothing to close
