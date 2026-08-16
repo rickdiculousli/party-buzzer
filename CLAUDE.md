@@ -188,9 +188,19 @@ nobody will tune.
 
 The same page has a **Sound** panel. Cues named in `client/cues.ts` are
 synthesized rather than found: a recipe is a list of layers, each one source
-with an envelope, and its dials write back into the `cue:recipes` block through
-the same Save that writes the CSS. Drag the envelope canvas rather than
-inferring the shape from four sliders.
+with an envelope, and the panel shows them as a DAW would — every layer of a
+cue on one shared timeline, the audio drawn behind the envelope that gates it.
+Drag the track body to move a layer in time, drag within a few pixels of the
+clip's left edge to slide the audio inside it, drag the four handles for the
+envelope. Audio past the envelope's end is dimmed rather than cut, so the tail
+you gated off stays visible and draggable back. `+ layer` adds a source —
+an adopted file or one of five oscillators — and `×` removes one; both are
+undone by Reset, because nothing is written until Save. Save writes the whole
+`cue:recipes` block through the same endpoint that writes the CSS.
+
+A layer may only name a file in `client/public/sounds/`, never one in
+`sounds/raw/`: anything a recipe names has to be servable to the real board.
+Using a download means adopting it first.
 
 Sounds that must stay found live in `sounds/raw/`, which is gitignored — drop a
 download in and it appears in the panel's Library, auditionable through the
