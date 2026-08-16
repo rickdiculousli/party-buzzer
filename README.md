@@ -12,8 +12,9 @@ npm run build
 npm start
 ```
 
-The terminal prints a QR code and a join URL. Players scan it. Open `/host` on
-your laptop and `/board` on the TV.
+The terminal prints a QR code and a join URL. Players scan it. `/host` and
+`/board` open themselves on the machine running the server — drag the board
+window to the TV. `NO_OPEN=1 npm start` if you would rather they didn't.
 
 If several networks are detected, the server says which one it chose. Override
 with `HOST_IP=192.168.1.42 npm start`. Change the port with `PORT=9000`.

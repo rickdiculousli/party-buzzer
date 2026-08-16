@@ -32,8 +32,15 @@
  *   next             clear the round
  *   reset | undo     reset the round / undo the last host action
  *   act:name[:data]  host-scoped act (fragment / powerEnds / revealAnswer)
+ *   teams:R=A,B/S=C  teams mode, those teams, those players on them
+ *   duel:vote        open a heads-up duel under that rule id
+ *   in:A,B | out:A   volunteer / back off, from those players' own sockets
+ *   vote:A=B,C=B     A votes for B, C votes for B (`=`, not `>`: no quoting)
+ *   unvote:A         A takes their vote back — the tally counts down
+ *   seat[:A,B]       close the window: resolve by rule, or seat those two
+ *   cancel           call the duel off
  *   wait:1200        hold, in ms — the only step that exists for your eyes
- *   clear            kick probe's players and reset the round
+ *   clear            put the room back: duel off, teams undone, players gone
  *   loop             repeat the whole script until Ctrl-C
  *
  * A note on pacing a `loop` script: to sit on the open buzzer before anyone
@@ -57,7 +64,8 @@ async function main() {
     // The header comment is the manual; printing a second copy is a second
     // thing to keep true.
     log('\n  usage: npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@120 correct')
-    log('  steps: loop join value arm buzz correct wrong next reset undo act wait clear\n')
+    log('  steps: loop join value arm buzz correct wrong next reset undo act teams duel in out vote unvote seat cancel wait clear')
+    log('  walks: npm run walk-duel   npm run walk-teams\n')
     return
   }
 
@@ -84,7 +92,27 @@ async function main() {
     host.state()?.players.find((p) => p.name === name)?.id ??
     `probe-${name.toLowerCase().replace(/\W+/g, '-')}`
 
+  /** A player probe is driving, or the error that says to join them first. */
+  const player = (name: string) => {
+    const conn = players.get(name)
+    if (!conn) throw new Error(`${name} has not joined — add them to a join: step`)
+    return conn
+  }
+
+  /**
+   * Players probe put on a team, and whether probe is the one who turned teams
+   * on. Both exist so `clear` can undo exactly what this run did and nothing
+   * else: a borrowed phone gets taken off its team again, but a room the host
+   * had already set up in teams mode before probe arrived is left in it.
+   */
+  const assigned = new Set<string>()
+  let teamsAreOurs = false
+
   const clear = () => {
+    host.send({ t: 'host', action: { a: 'cancelDuel' } })
+    // Before the kick: an assign for a player who is already gone does nothing.
+    for (const playerId of assigned) host.send({ t: 'host', action: { a: 'assign', playerId } })
+    if (teamsAreOurs) host.send({ t: 'host', action: { a: 'setMode', mode: 'solo' } })
     const gone = (host.state()?.players ?? []).filter((p) => p.id.startsWith('probe-'))
     for (const p of gone) host.send({ t: 'host', action: { a: 'kick', playerId: p.id } })
     host.send({ t: 'host', action: { a: 'next' } })
@@ -131,8 +159,7 @@ async function main() {
           let last = 0
           for (const spec of arg.split(',').filter(Boolean)) {
             const [name, offset = '0'] = spec.split('@')
-            const conn = players.get(name)
-            if (!conn) throw new Error(`${name} has not joined — add them to a join: step`)
+            const conn = player(name)
             const pressAt = armedAt + Number(offset)
             last = Math.max(last, Number(offset))
             // Sent at the press instant, not scheduled ahead of it: an early
@@ -143,13 +170,23 @@ async function main() {
               conn.send({ t: 'buzz', at: pressAt }),
             )
           }
-          // Hold until the window has actually shut and the order is published.
-          // Measured from the last press, not from now: a script that opens with
-          // an idle beat before anyone buzzes would otherwise walk on to the next
-          // step mid-collection. ARM_LEAD_MS covers a not-yet-open buzzer.
-          await sleep(
-            Math.max(0, armedAt + last + COLLECT_MS + ARM_LEAD_MS - host.now()),
-          )
+          // Hold until the order is actually published.
+          //
+          // This used to count forward from `armedAt`, which is only the same
+          // instant as "now" when the buzz step follows the arm immediately. Put
+          // a `wait:` between them — as a paced walkthrough must — and the sum
+          // lands in the past, the step returns at once, and the host action
+          // after it fires mid-collection: `wrong` with no leader yet does
+          // nothing at all, silently.
+          //
+          // So watch the phase instead, and keep the arithmetic only as the
+          // ceiling for the case where nothing locks because every press was
+          // dropped — a spectator's, in a duel.
+          const settle = last + COLLECT_MS + ARM_LEAD_MS
+          await Promise.race([
+            host.waitFor((s) => s.round.phase === 'LOCKED', settle + 500).catch(() => {}),
+            sleep(settle),
+          ])
           break
         }
 
@@ -177,6 +214,100 @@ async function main() {
           host.send({ t: 'act', act: name, data: rest.join(':') || undefined })
           break
         }
+
+        // teams:Red=Ada,Bo/Blue=Cy,Dee — mode, teams and assignments in one
+        // step. A team of that name already in the room is reused rather than
+        // added twice, the same way `join` borrows a player who is already
+        // here.
+        //
+        // ponytail: the teams it does add outlive `clear`, because the protocol
+        // has no removeTeam — they go back to being invisible when the mode
+        // returns to solo, and the next run reuses them by name. Add the action
+        // if a stale team ever actually gets in the way.
+        case 'teams': {
+          // Only if it is not already on. `setMode` drops an open duel, so
+          // re-sending it to add one late player would cancel the window you
+          // were about to watch.
+          if (host.state()?.mode !== 'teams') {
+            host.send({ t: 'host', action: { a: 'setMode', mode: 'teams' } })
+            await host.waitFor((s) => s.mode === 'teams')
+            teamsAreOurs = true
+          }
+          for (const group of arg.split('/').filter(Boolean)) {
+            const [teamName, members = ''] = group.split('=')
+            if (!host.state()?.teams.some((t) => t.name === teamName)) {
+              const n = ((host.state()?.teams.length ?? 0) % 6) + 1
+              host.send({
+                t: 'host',
+                action: { a: 'addTeam', name: teamName, color: `var(--id-${n})` },
+              })
+              await host.waitFor((s) => s.teams.some((t) => t.name === teamName))
+            }
+            const teamId = host.state()!.teams.find((t) => t.name === teamName)!.id
+            for (const name of members.split(',').filter(Boolean)) {
+              const playerId = idFor(name)
+              assigned.add(playerId)
+              host.send({ t: 'host', action: { a: 'assign', playerId, teamId } })
+            }
+          }
+          break
+        }
+
+        case 'duel':
+          host.send({ t: 'host', action: { a: 'openDuel', rule: arg } })
+          break
+
+        // Entry acts ride each player's own socket, not the host's: the hub
+        // drops a `duel*` act from a connection with no playerId, which is the
+        // rule this tool exists to exercise rather than route around.
+        case 'in':
+        case 'out':
+          for (const name of arg.split(',').filter(Boolean))
+            player(name).send({
+              t: 'act',
+              act: verb === 'in' ? 'duelVolunteer' : 'duelBackOff',
+            })
+          break
+
+        case 'vote':
+          for (const pair of arg.split(',').filter(Boolean)) {
+            const [voter, target] = pair.split('=')
+            if (!target) throw new Error(`vote needs voter=target, got "${pair}"`)
+            player(voter).send({ t: 'act', act: 'duelVote', data: idFor(target) })
+            // Spaced, because a tally that jumps from nothing to three in one
+            // frame is a number rather than a room making up its mind.
+            await sleep(250)
+          }
+          break
+
+        case 'unvote':
+          for (const name of arg.split(',').filter(Boolean)) {
+            const held = host
+              .state()
+              ?.duel?.pool.find((e) => e.votes.includes(idFor(name)))
+            if (!held) throw new Error(`${name} has no vote to take back`)
+            // Withdrawing is voting again for the same name — the server reads
+            // the repeat as the undo, so probe sends exactly what a phone does.
+            player(name).send({ t: 'act', act: 'duelVote', data: held.playerId })
+            await sleep(250)
+          }
+          break
+
+        case 'seat': {
+          const ids = arg.split(',').filter(Boolean).map(idFor)
+          host.send({
+            t: 'host',
+            action:
+              ids.length === 2
+                ? { a: 'closeDuel', playerIds: [ids[0], ids[1]] }
+                : { a: 'closeDuel' },
+          })
+          break
+        }
+
+        case 'cancel':
+          host.send({ t: 'host', action: { a: 'cancelDuel' } })
+          break
 
         case 'wait':
           await sleep(Number(arg))

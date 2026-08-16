@@ -117,6 +117,26 @@ test('loadState falls back to trivia when the snapshot names an unregistered gam
   }
 })
 
+test('loadState orphans round.candidates along with the duel that explained it', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'buzzer-state-'))
+  try {
+    const path = join(dir, 'state.json')
+    const state = newState()
+    state.duel = { rule: 'host-pick', pool: [], missed: [], seated: ['a', 'b'] }
+    state.round.candidates = ['a', 'b']
+    writeFileSync(path, JSON.stringify(state))
+    const loaded = loadState(path)
+    assert.equal(loaded.duel, undefined)
+    assert.equal(
+      loaded.round.candidates,
+      undefined,
+      'a restart must not boot with two ids silently the only ones who can buzz',
+    )
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
 test('setMirror flips the phone mirror and defaults off', () => {
   const state = newState()
   assert.equal(state.mirrorFragments, false)

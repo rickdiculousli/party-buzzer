@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { readFile } from 'node:fs/promises'
 import { join, extname, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { spawn } from 'node:child_process'
 import { WebSocketServer } from 'ws'
 import { Hub, type Conn } from './hub.ts'
 import { Reader } from './reader.ts'
@@ -155,6 +156,26 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     console.log(`  Using ${server.url}. Override with HOST_IP=<addr> npm start\n`)
   }
   console.log(banner(server.url, await qrFor(server.url)))
+
+  // The two screens the host always ends up opening by hand. Localhost rather
+  // than the LAN address: these are for the machine running the server, and the
+  // QR above is what everyone else scans. NO_OPEN=1 for a headless box, or when
+  // you are restarting the server every thirty seconds and do not want two more
+  // tabs each time.
+  if (!process.env.NO_OPEN) {
+    const opener =
+      process.platform === 'darwin' ? 'open'
+      : process.platform === 'win32' ? 'start'
+      : 'xdg-open'
+    for (const path of ['/board', '/host'])
+      spawn(opener, [`http://localhost:${server.port}${path}`], {
+        stdio: 'ignore',
+        detached: true,
+        shell: process.platform === 'win32',
+      })
+        .on('error', () => {})
+        .unref()
+  }
 
   process.on('SIGINT', () => {
     void server.close().then(() => process.exit(0))

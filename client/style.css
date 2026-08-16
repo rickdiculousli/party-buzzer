@@ -98,6 +98,22 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .readout--ms { color: var(--cyan); }
 
+/* --- Votes: a tally counted in heads ---------------------------------- */
+/* One silhouette per vote, sized off whatever type it sits beside, so the
+   same component is room-scale on the board and thumb-scale on the phone.
+   The palette has no colour for "a crowd" — warm is drama, cold is
+   measurement — so rather than mint one, the glyph is pulled into the warm
+   set with a filter and reads as brass under the tungsten. The tint sits on
+   the container because the flare animation owns `filter` on the figures. */
+.votes {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.04em;
+  line-height: 1;
+  filter: grayscale(1) sepia(1) saturate(2.6) hue-rotate(-14deg) brightness(1.15);
+}
+.vote { font-size: 0.72em; }
+
 /* --- Button ----------------------------------------------------------- */
 .btn {
   font: inherit;
@@ -458,6 +474,87 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   color: var(--brass);
 }
 
+/* The face-off frame and the nomination pool: one line each, room-scale. */
+.board__faceoff {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: var(--s3);
+}
+
+/*
+ * The nomination pool, at the size the rest of the stage is read at.
+ *
+ * This was one dim line of names joined by interpuncts, which is a legible
+ * sentence on a laptop and nothing at all from the far side of a room — and
+ * this is the one screen in the game the room is supposed to be watching while
+ * they decide. It is a list now, ranked, with the standings' own row
+ * vocabulary: brass left rail on the pair that would be seated.
+ */
+.board__noms {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s3);
+  width: 100%;
+}
+.board__pool {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  width: min(100%, 32rem);
+  margin-inline: auto;
+}
+
+/* Two sides, side by side. Equal columns whatever each holds, so neither team
+   looks more considered than the other for having nominated more people. */
+/* The stage centres its bands by shrink-to-fit, which leaves a percentage
+   width with nothing to measure against: the columns collapsed onto their own
+   content, ellipsised the names, and then auto-fit decided only one track fit.
+   So the width is stated in viewport units, which do not care what the
+   containing block turned out to be. 68vw keeps it inside the stage once the
+   standings rail has taken its share. */
+.board__sides {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: var(--s5);
+  width: min(60rem, 68vw);
+}
+.board__sidepool { min-width: 0; }
+.board__sidepool .board__pool { width: 100%; }
+/* The column head carries the team's colour, so the rule beside it does too —
+   it is the only thing naming which side this column is. */
+.board__sidepool .eyebrow { font-size: var(--t-sm); }
+.board__sidepool .eyebrow::after { background: currentColor; opacity: 0.4; }
+
+@media (max-width: 60rem) {
+  .board__sides { grid-template-columns: 1fr; gap: var(--s4); }
+}
+.nom {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s2) var(--s4);
+  background: var(--panel);
+  border-left: 3px solid var(--rule);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  font-family: var(--display);
+  font-size: var(--t-xl);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  text-align: left;
+}
+.nom__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Same brass rail the standings give first place. Only ever on the pair a
+   close would actually seat — under a volunteer rule the draw has no leader,
+   so nothing is lit, which is the honest picture of a coin about to be
+   flipped. */
+.nom.is-lead { background: #241d0c; border-left-color: var(--brass); color: var(--brass); }
+
 .board__side {
   background: var(--panel);
   border-left: 1px solid var(--rule);
@@ -631,6 +728,63 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   margin-top: var(--s4);
 }
 
+/* Same vertical rhythm as the other player blocks: a flex column so the
+   eyebrow, buttons and hint stack on the design system's spacing rather
+   than a browser default <p> margin.
+
+   It is a lit panel rather than loose text because for these few seconds it
+   is the only thing on the phone that does anything — the buzzer below it
+   still says "Wait", and a floating row of buttons under a dead button is
+   easy to scroll straight past. */
+.player__duel {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--s2);
+  padding: var(--s3);
+  margin-bottom: var(--s3);
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+}
+.player__duel .eyebrow { margin-bottom: 0; }
+.player__duel .muted { margin: 0; text-align: center; }
+
+/* The seated pair, at the weight the moment deserves on a phone. */
+.player__faceoff {
+  margin: 0;
+  text-align: center;
+  font-family: var(--display);
+  font-size: var(--t-lg);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--brass);
+}
+.player__faceoff .muted { display: inline; font-size: var(--t-sm); }
+
+/* One nominee, one full-width target. Names go left, their crowd goes right,
+   so the tallies line up in a column you can compare down rather than hunt
+   through a wrapped row of pills. */
+.nom-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  width: 100%;
+  font-size: var(--t-md);
+  text-align: left;
+  /* The identity rail. An inset shadow rather than a border-left, because
+     `is-mine` recolours the border and the rail has to survive that — who
+     someone is does not change when you vote for them. */
+  box-shadow: inset 3px 0 0 var(--id, transparent);
+  padding-left: var(--s3);
+}
+.nom-btn__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Your own vote: outlined, not filled. A tungsten fill would put the crowd
+   on top of the crowd's colour, and the figures are the part that has to
+   stay countable. */
+.nom-btn.is-mine { border-color: var(--tungsten); color: var(--tungsten); background: #241703; }
+
 /* --- Dial: the standings on the phone, behind glass -------------------- */
 /* Three rows through a clear window, the rest of the field a scroll away.
    Rows tilt around a shared horizontal axis as they leave the centre (JS
@@ -797,6 +951,13 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   --punch-scale: 1.12;
   --land-dur: 240ms;
 
+  /* A vote landing in the pool */
+  --cast-dur: 220ms;
+  --cast-scale: 2.2;
+  --cast-rise: 0.5em;
+  --cast-flare-dur: 620ms;
+  --cast-glow: 14px;
+
   /* No cue's sound lives here any more. A cue's gain, offset and envelope are
      fields on its layers in client/cues.ts, and the one cue still on the sample
      path keeps its four numbers in client/sound.ts beside the code that loops
@@ -945,6 +1106,25 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   /* No `to` — the resting frame is the mood class's own colours, whatever
      they turn out to be, so this stays correct if those change. */
   from { background: var(--hot); color: var(--stage); }
+}
+
+/* --- 6. A vote lands in the pool --------------------------------------
+   The only moment on this board that nobody is being timed for, and the
+   one the room drives itself. It drops in from above rather than punching
+   out from nothing: a vote is cast, and the figure arrives where it was
+   thrown. The glow is the same cooling filament as the leader's flare,
+   scaled down to the size of one decision. */
+.vote { animation: cast var(--cast-dur) var(--slam), cast-flare var(--cast-flare-dur) var(--flare-fall); }
+@keyframes cast {
+  from { opacity: 0; transform: translateY(calc(var(--cast-rise) * -1)) scale(var(--cast-scale)); }
+  to { opacity: 1; transform: none; }
+}
+/* drop-shadow, not text-shadow: an emoji is a bitmap glyph, and text-shadow
+   paints behind a box it does not have. The tint lives on the parent so this
+   keyframe can own `filter` outright without cancelling it. */
+@keyframes cast-flare {
+  from { filter: drop-shadow(0 0 var(--cast-glow) var(--hot)); }
+  to { filter: drop-shadow(0 0 0 transparent); }
 }
 
 @media (max-width: 40rem) {

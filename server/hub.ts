@@ -3,6 +3,7 @@ import { resolveBuzzes, type RawBuzz, type Resolved } from './resolve.ts'
 import { applyHostAction, buzzBlockReason, lockedPlayerIds } from './state.ts'
 import { catalog, moduleFor } from './modes/index.ts'
 import { useItem } from './items.ts'
+import { duelAct, duelCatalog } from './duel.ts'
 import { listPacks } from './packs.ts'
 import { COLLECT_MS } from '../shared/protocol.ts'
 import type {
@@ -72,6 +73,8 @@ export class Hub {
     // The catalog rides the state payload so the host form needs no fetch of
     // its own. Refresh on boot: a snapshot's copy may come from an older build.
     this.state.games = catalog()
+    // Same reasoning as the games catalog: a snapshot's copy may be stale.
+    this.state.duelRules = duelCatalog()
     // Filenames only, refreshed on boot for the same reason the catalog is: a
     // snapshot's copy is from whenever it was written.
     this.state.packs = opts.packDir ? listPacks(opts.packDir) : []
@@ -168,6 +171,12 @@ export class Hub {
       }
       return
     }
+    // Duel entry belongs to players, like items.
+    if (name.startsWith('duel')) {
+      if (!conn.playerId) return
+      if (duelAct(this.state, conn.playerId, name, data)) this.changed()
+      return
+    }
     if (conn.role !== 'host') return
     const round = this.state.round
     if (name === 'fragment' && typeof data === 'string') {
@@ -236,6 +245,9 @@ export class Hub {
     // during. Arrival time is server truth, so this needs no clock tolerance:
     // a packet that landed before the arm instant was sent before it.
     if (arrivedAt < round.armedAt) return
+
+    // A duel narrows the field to its finalists for this arm.
+    if (round.candidates && !round.candidates.includes(conn.playerId)) return
 
     // Framework effects (freeze) and the module's own rules both live behind
     // this one question.

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { useOpen, useSocket } from './useSocket.ts'
-import { colorForPlayer, standings } from './ui.ts'
+import { colorForPlayer, eligibleForDuel, standings } from './ui.ts'
+import { Votes } from './Votes.tsx'
 import type { State } from '../shared/protocol.ts'
 
 // Mirror of server/items.ts — ids, display names, targeting. The wire carries
@@ -116,6 +117,45 @@ export function Player() {
   const myItems = state && playerId ? (state.items[playerId] ?? []) : []
   const itemCounts = [...myItems.reduce((m, id) => m.set(id, (m.get(id) ?? 0) + 1), new Map<string, number>())]
   const opponents = state?.players.filter((p) => p.id !== playerId && p.connected) ?? []
+  const duel = state?.duel
+  const duelRule = state?.duelRules.find((r) => r.id === duel?.rule)
+  const myDuelEntry = duel?.pool.find((e) => e.playerId === playerId)
+  const myVoteFor = duel?.pool.find((e) => e.votes.includes(playerId ?? ''))?.playerId
+  const inCount = duel?.pool.filter((e) => e.in).length ?? 0
+  const finalist = !!playerId && !!round?.candidates?.includes(playerId)
+  const spectator = !!round?.candidates && !finalist && !!playerId
+  // Both finalists missed: candidates is `[]`, still truthy, so the two checks
+  // above alone would call every player (finalists included) a spectator of a
+  // duel with nobody named in it. Dead is its own state.
+  const dead = round?.candidates?.length === 0
+  const nameOf = (id: string) => state?.players.find((p) => p.id === id)?.name ?? '?'
+  const finalistNames = round?.candidates?.map(nameOf)
+  const seatedNames = duel?.seated?.map(nameOf)
+
+  /**
+   * Who this phone may nominate, and whether it may nominate at all.
+   *
+   * `eligibleForDuel`, not every connected player: someone the seat can never
+   * take — a phone that joined before the host made teams, and is still on
+   * none — was being offered as a target, and a vote for them is spent on a
+   * name the close will silently pass over. The same rule decides both
+   * directions, so a player with no team is told why their card is empty
+   * rather than voting into a duel they cannot be part of.
+   *
+   * Your own side only, in teams mode. The seat takes one player from each
+   * team, so the nomination you are being asked for is your team's — picking
+   * from the other side is choosing your opponent's champion, which is either
+   * a courtesy or sabotage and never an answer to the question. The server
+   * refuses a vote across the line for the same reason; this is the roster
+   * agreeing with it rather than the rule itself.
+   */
+  const myTeam = state?.players.find((p) => p.id === playerId)?.teamId
+  const nominees = state
+    ? eligibleForDuel(state).filter(
+        (p) => p.id !== playerId && (state.mode !== 'teams' || p.teamId === myTeam),
+      )
+    : []
+  const canNominate = state?.mode !== 'teams' || !!myTeam
   const [targetFor, setTargetFor] = useState<string | null>(null)
   const score = key ? state?.scores[key] ?? 0 : 0
   const armed = round?.phase === 'ARMED' || round?.phase === 'COLLECTING'
@@ -124,7 +164,7 @@ export function Player() {
   // The go cue. Lower than the buzz blip so the two never get confused, and
   // skipped for players who are locked out and cannot act on it.
   const { open, lead } = useOpen(round, now, () => {
-    if (barred || frozen) return
+    if (barred || frozen || spectator) return
     navigator.vibrate?.([40, 40, 40])
     blip(audio.current, 440)
   })
@@ -172,7 +212,7 @@ export function Player() {
   }
 
   const buzz = () => {
-    if (!open || barred || pressed || frozen) return
+    if (!open || barred || pressed || frozen || spectator) return
     // Stamp before anything else so render work never inflates the time.
     send({ t: 'buzz', at: now() })
     setPressedFor(round?.armedAt ?? 0)
@@ -201,6 +241,14 @@ export function Player() {
   } else if (barred) {
     label = 'Out'
     sub = 'Wrong answer — you sit out the rest of this question'
+    mood = 'is-barred'
+  } else if (dead) {
+    label = 'Duel'
+    sub = 'Both missed — waiting for the host'
+    mood = 'is-barred'
+  } else if (spectator) {
+    label = 'Duel'
+    sub = `${finalistNames?.join(' vs ')} — you sit this one out`
     mood = 'is-barred'
   } else if (mine && settled) {
     label = won ? 'You’re up' : `+${mine.deltaMs} ms`
@@ -257,10 +305,82 @@ export function Player() {
         )}
       </div>
 
+      {/* Seated, not yet armed. The buzzer below still says "Wait" for everyone,
+          which is the one moment it means two different things — so say which
+          one it is here rather than letting a finalist find out by pressing. */}
+      {duel?.seated && !round?.candidates && (
+        <div class="player__duel">
+          <p class="eyebrow">Heads-up</p>
+          <p class="player__faceoff">
+            {seatedNames?.[0]} <span class="muted">vs</span> {seatedNames?.[1]}
+          </p>
+          <p class="muted">
+            {duel.seated.includes(playerId ?? '')
+              ? 'You’re one of them — your buzzer opens when the host arms'
+              : 'You sit this one out'}
+          </p>
+        </div>
+      )}
+
+      {duel && !duel.seated && duelRule && duelRule.entry !== 'none' && (
+        <div class="player__duel">
+          <p class="eyebrow">Heads-up — who plays?</p>
+          {(duelRule.entry === 'volunteer' || duelRule.entry === 'both') && (
+            <>
+              <button
+                class={myDuelEntry?.in ? 'btn btn--primary' : 'btn'}
+                onPointerDown={() =>
+                  send({ t: 'act', act: myDuelEntry?.in ? 'duelBackOff' : 'duelVolunteer' })
+                }
+              >
+                {myDuelEntry?.in ? 'Back off' : 'I’m in'}
+              </button>
+              <p class="muted">
+                {inCount} in{inCount > 2 ? ' — someone has to back off' : ''}
+              </p>
+            </>
+          )}
+          {(duelRule.entry === 'vote' || duelRule.entry === 'both') &&
+            (!canNominate ? (
+              <p class="muted">You are not on a team yet — ask the host to put you on one.</p>
+            ) : (
+              <>
+                {nominees.map((p) => {
+                  const votes = duel.pool.find((e) => e.playerId === p.id)?.votes ?? []
+                  return (
+                    <button
+                      key={p.id}
+                      class={myVoteFor === p.id ? 'btn nom-btn is-mine' : 'btn nom-btn'}
+                      // The identity rail, which in teams mode is the team's
+                      // colour — the only thing on this list that says which
+                      // side a name is on, and it matches the colour this
+                      // phone's own name carries in the bar above.
+                      style={{ '--id': state ? colorForPlayer(state, p.id) : undefined }}
+                      onPointerDown={() => send({ t: 'act', act: 'duelVote', data: p.id })}
+                    >
+                      <span class="nom-btn__name">{p.name}</span>
+                      <Votes voters={votes} />
+                    </button>
+                  )
+                })}
+                {/* The gesture is its own undo, which nobody guesses at — and a
+                    vote you cannot take back is one people hesitate to cast. */}
+                <p class="muted">
+                  {myVoteFor
+                    ? 'Tap them again to take your vote back'
+                    : state?.mode === 'teams'
+                      ? 'One vote each — your team picks its own'
+                      : 'One vote each'}
+                </p>
+              </>
+            ))}
+        </div>
+      )}
+
       <button
         class={`buzzer ${mood}`}
         onPointerDown={buzz}
-        disabled={!open || barred || pressed || frozen}
+        disabled={!open || barred || pressed || frozen || spectator}
       >
         {label}
         {sub && <span class="buzzer__sub">{sub}</span>}

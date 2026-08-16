@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { useOpen, useSocket } from './useSocket.ts'
-import { colorForPlayer, lockedNames, standings } from './ui.ts'
+import { colorForPlayer, lockedNames, standings, willSeat } from './ui.ts'
 import { markGap, playSpaced, prime, startBed, stopBed, unlock } from './sound.ts'
+import { Votes } from './Votes.tsx'
 import { COLLECT_MS, type BuzzEntry, type State } from '../shared/protocol.ts'
 
 type Mark = BuzzEntry & { lane: number }
@@ -92,6 +93,41 @@ function Timeline({
         ))}
       </ol>
     </div>
+  )
+}
+
+/**
+ * A ranked column of nominations.
+ *
+ * Ranked for display; lit by the same prediction the host desk runs, which is
+ * not the same as the top two. In teams mode a same-team runner-up gets
+ * skipped, and marking them anyway promises the room a face-off the close will
+ * not produce.
+ */
+function NomList({
+  state,
+  entries,
+  seating,
+}: {
+  state: State
+  entries: NonNullable<State['duel']>['pool']
+  seating: string[] | null
+}) {
+  return (
+    <ol class="board__pool">
+      {entries
+        .slice()
+        .sort((a, b) => b.votes.length - a.votes.length)
+        .map((e) => (
+          <li key={e.playerId} class={seating?.includes(e.playerId) ? 'nom is-lead' : 'nom'}>
+            <span class="nom__name">
+              {state.players.find((p) => p.id === e.playerId)?.name ?? '?'}
+            </span>
+            {e.in && <span class="chip chip--armed">In</span>}
+            <Votes voters={e.votes} />
+          </li>
+        ))}
+    </ol>
   )
 }
 
@@ -200,6 +236,15 @@ export function Board() {
   const armed = round.phase === 'ARMED' || round.phase === 'COLLECTING'
   const here = state.players.filter((p) => p.connected).length
   const barred = lockedNames(state)
+  // `candidates` is only stamped at the arm, so between the host seating a pair
+  // and opening the buzzers there is a gap the board used to spend saying
+  // "Ready" — the room watches the two names disappear a second after they were
+  // announced. The seated pair carries it across that gap; once the arm stamps
+  // candidates, that is the truer source, because a wrong answer narrows it.
+  const seating = willSeat(state)
+  const finalistNames = (round.candidates ?? state.duel?.seated)?.map(
+    (id) => state.players.find((p) => p.id === id)?.name ?? '?',
+  )
 
   return (
     <main class="board">
@@ -234,10 +279,52 @@ export function Board() {
         <div class={leader ? 'board__mid' : 'board__mid board__mid--cue'}>
           {leader ? (
             <p class="board__hero">{leader.name}</p>
+          ) : state.duel && !state.duel.seated ? (
+            <div class="board__noms">
+              <p class="board__idle">Who plays?</p>
+              {state.mode === 'teams' ? (
+                // A column per side, because that is the shape of the decision:
+                // two rooms picking one name each, and the seat takes the top of
+                // each column. One merged list made the close look like it was
+                // reaching past the runner-up for no reason — here the runner-up
+                // is visibly in the wrong column. An empty column stays up, so
+                // the room can see which side has not made up its mind.
+                <div class="board__sides">
+                  {state.teams.map((team) => (
+                    <div key={team.id} class="board__sidepool">
+                      <p class="eyebrow" style={{ color: team.color }}>
+                        {team.name}
+                      </p>
+                      <NomList
+                        state={state}
+                        seating={seating}
+                        entries={state.duel!.pool.filter(
+                          (e) =>
+                            state.players.find((p) => p.id === e.playerId)?.teamId === team.id,
+                        )}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <NomList state={state} seating={seating} entries={state.duel.pool} />
+              )}
+            </div>
+          ) : round.candidates?.length === 0 ? (
+            // Both finalists missed: candidates is `[]`, not absent, so the
+            // fall-through below would otherwise invite the whole room to buzz
+            // on a question nobody may answer.
+            <p class="board__idle">Both missed — waiting for the host</p>
           ) : round.fragments?.length ? (
-            // The question, assembling as the reader speaks it. Once someone
-            // is answering, the stage belongs to them instead.
             <p class="board__question">{round.fragments.join(' ')}</p>
+          ) : finalistNames?.length === 2 ? (
+            // The face-off yields the stage to the question text while the
+            // reader is speaking, and to the leader the moment someone buzzes.
+            <p class="board__faceoff">
+              <span class="board__hero">{finalistNames[0]}</span>
+              <span class="board__idle">vs</span>
+              <span class="board__hero">{finalistNames[1]}</span>
+            </p>
           ) : (
             <p class={open ? 'board__call' : 'board__idle'}>
               {open ? 'Buzz' : armed ? 'Stand by' : 'Ready'}

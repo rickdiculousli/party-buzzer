@@ -10,13 +10,15 @@ system — that document is the source of truth for anything visual, and
 ## Commands
 
 ```bash
-npm start          # serve dist/ on :8080, prints the QR and join URL
+npm start          # serve dist/ on :8080, print the QR, open /host and /board
+                   # (NO_OPEN=1 to keep the tabs shut)
 npm run dev        # Vite HMR; run `npm start` alongside it for the API
 npm run build      # vite build -> dist/  (npm start serves this, not client/)
 npm test           # node:test
 npm run typecheck
 npm run sim        # synthetic self-play against a running server
 npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@140 correct   # one scripted round
+npm run walk-duel / walk-teams      # the two paced duel walkthroughs, ~1 min each
 npm run motion     # the animation harness at /anim.html (dev only)
 npm run fakes -- add [n] / remove   # fake players with fake scores (ids fake-01..fake-99)
 npm run demo-sounds [clean]         # synthesized stand-ins so the sound library has entries
@@ -77,6 +79,11 @@ no partial update.
   Modes are fixed per session; `setGame` switches and resets.
 - `server/items.ts` — framework-level boons/sabotage (freeze, shield, steal),
   fired by players over the `act` channel and validated before they apply.
+- `server/duel.ts` — heads-up duels (two-player face-offs). Framework-level,
+  composes with any mode: selection rules are data in a catalog, entry rides
+  the `act` channel, and enforcement is one `round.candidates` check at the
+  hub's buzz gate. A wrong answer narrows candidates to the other finalist,
+  which is the whole rebound mechanic.
 - `server/index.ts` — HTTP + WebSocket, serves `dist/`, routes `/`, `/host`,
   `/board` to the same SPA shell.
 - `client/useSocket.ts` — the socket, the clock sync, and `useOpen`. Every
@@ -164,9 +171,35 @@ npm run probe -- clear
 npm run anim     # every anchor animation, on a loop, until Ctrl-C
 ```
 
+Probe also drives a whole duel — `duel:` opens one, `vote:Bo=Ada` and
+`in:`/`out:` are sent from each player's own socket (a `duel*` act from the
+host connection is dropped, which is the rule worth exercising rather than
+routing around), `unvote:` takes a vote back so you can watch a tally count
+down, and `seat`/`cancel` close the window. `teams:Red=Ada,Bo/Blue=Cy,Dee` sets
+the mode, the teams and the assignments in one step, reusing a team of that name
+if the room already has one and leaving the mode alone if it is already teams —
+`setMode` drops an open duel, so re-sending it to add one late player would
+cancel the window you were about to watch.
+
+In teams mode a vote may only name someone on the voter's own side: the seat
+takes one player per team, so nominating across the line is choosing your
+opponent's champion. `duelAct` refuses it, the phone's roster shows only your
+team, and the board splits the pool into a column per side.
+
+With `wait:` between the steps that is a paced walkthrough you can watch on a
+phone, and the two worth keeping are npm scripts rather than a paragraph to
+retype: **`npm run walk-duel`** is ten players trading a nomination lead through
+switches and withdrawals until it changes hands twice, **`npm run walk-teams`**
+is the same in teams mode, where the seat has to reach past a same-team runner-up
+and a wrong answer locks out a whole side. Both end in a `clear`.
+`docs/manual-checklist.md` says what to watch for in each.
+
 `join:Name` borrows a player of that name if one is already in the room (a
 `fakes` entry, a real phone) rather than putting a second Ada on the board;
 anyone it does mint gets a `probe-` id, which is the only thing `clear` kicks.
+`clear` also cancels any duel, takes probe's players off the teams it put them
+on, and returns the room to solo — but only if probe was the one that set teams
+up, so running it against a host's own teams game leaves that alone.
 Probe and the sim share `tools/conn.ts` — real sockets, real clock sync, no
 shortcut through the HTTP layer.
 

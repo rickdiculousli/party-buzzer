@@ -28,6 +28,79 @@ These need real hardware — run them once before a real game night.
       believable millisecond gap
 - [ ] Host laptop sleeping and waking does not lose scores
 
+## Duels
+
+Two paced walkthroughs, each one command that runs about a minute and puts the
+room back afterwards. Every `wait` in them is a beat to look at all three
+screens at once, so watch the board and the host panel with your phone in your
+hand. Both end in a `clear`; if you stop one early, run `npm run probe -- clear`
+yourself.
+
+### The room votes — `npm run walk-duel`
+
+Nine players nominate each other while you watch from a tenth phone. Join under
+any name first; nobody in the script is you, so your buzzer and your vote are
+yours to drive.
+
+```bash
+npm run walk-duel
+```
+
+The arc is three lead changes: Bo takes an early three, Fen catches him, then
+two of Bo's backers cross to Gus and Bo drops out of contention entirely. His
+last backer withdraws and he sits at zero with his name still on the board.
+Gus then overtakes Fen outright. The seat goes to Gus and Fen; a spectator
+presses and nothing happens; Fen answers wrong and Gus takes the rebound.
+
+- [ ] Votes land one at a time on both the board and your phone, never in a lump
+- [ ] The board's brass rail follows the lead as it changes hands
+- [ ] Bo's tally counts **down** as backers leave, and his name stays at zero
+      rather than vanishing
+- [ ] You can vote from your phone and take it back by tapping the same name
+- [ ] Your phone shows the seated pair, and says you sit this one out, before
+      the host arms
+- [ ] Arming opens only the finalists' buzzers — your press does nothing at
+      all, not even a timeline mark
+- [ ] A wrong answer hands the rebound to the other finalist alone, and the one
+      who missed is dead-thumbed for the rest of the question
+
+### Teams — `npm run walk-teams`
+
+Eight players, four a side. **Join from your phone as Ada first** — probe
+borrows the Ada already in the room rather than minting a second one, so your
+phone is Red's finalist and the rebound is yours to press.
+
+```bash
+npm run walk-teams
+```
+
+Each side nominates its own. Red splits two-two between Ada and Bo while Blue
+settles on Eve, so Red holds both of the top spots on votes — and the seat
+cannot take two from one team, so it reaches past Bo to Eve. That skip is the
+thing to watch, and the two columns are what make it obvious.
+
+- [ ] The standings switch to Red and Blue, and your phone shows its team colour
+- [ ] Your nomination list is **your own team only** — no Blue name is on it,
+      and the hint says your team picks its own
+- [ ] Nobody who cannot be seated is on that list: join a second phone, leave it
+      off both teams, and it appears on nobody's roster while being told it is
+      not on a team yet
+- [ ] The board is two columns, one per side, headed in the team's colour — an
+      empty column stays up, so you can see which side has not decided
+- [ ] The top of **each** column is railed brass. Bo is second in Red's column
+      and dark, which is the seat reaching past him made visible
+- [ ] `unvote:Gus` drops Eve to one, and the pair that gets seated changes with it
+- [ ] Closing seats Ada and Eve; the host panel shows the pair and a Cancel
+- [ ] Cy's press does nothing — he is Ada's teammate, not her second
+- [ ] Eve answering wrong locks out **all of Blue**, not just Eve, and narrows
+      the question to Ada alone
+- [ ] Red's score moves, not Ada's
+
+### Left over from either
+
+- [ ] Both finalists missing says so on the board rather than reading "Buzz"
+- [ ] `clear` leaves the room in solo mode with none of probe's players on it
+
 ## Reading
 
 - [ ] Pack selected and rendered before guests arrive (first render is ~30s and
