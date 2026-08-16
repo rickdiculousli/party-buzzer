@@ -11,3 +11,7 @@ sounds/raw/
 # + layer picker have something to pick from. Throwaway by construction — a
 # recipe that names one plays here and nowhere else.
 client/public/sounds/demo-*
+
+# Isolated workspaces and agent scratch. Neither belongs in the repo.
+.worktrees/
+.superpowers/
