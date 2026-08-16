@@ -255,6 +255,14 @@ export function Board() {
           <span class="chip">
             {here} {here === 1 ? 'player' : 'players'}
           </span>
+          {/* Position, not drama. The stage belongs to the question; a flow that
+              pulls the eye during a buzz has failed at its job. */}
+          {state.flow?.blocks[state.flow.at] && (
+            <span class="chip">
+              {state.flow.at + 1}/{state.flow.blocks.length} · Q{state.flow.done + 1} of{' '}
+              {state.flow.blocks[state.flow.at].count}
+            </span>
+          )}
           {/* What is at stake. The idle stage shows this large; once someone is
               answering the stage belongs to them, so it shrinks to a chip. */}
           {leader && <span class="chip chip--armed">{round.value}</span>}

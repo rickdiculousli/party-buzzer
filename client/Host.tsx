@@ -3,6 +3,7 @@ import { useOpen, useSocket } from './useSocket.ts'
 import { colorForPlayer, standings } from './ui.ts'
 import { GameSettings } from './GameSettings.tsx'
 import { DuelPanel } from './DuelPanel.tsx'
+import { FlowPanel } from './FlowPanel.tsx'
 import type { HostAction, ScoreKey } from '../shared/protocol.ts'
 
 /**
@@ -119,6 +120,33 @@ export function Host() {
       </div>
 
       <section>
+        {state.flow && (() => {
+          const at = state.flow.at
+          const block = state.flow.blocks[at]
+          const name = state.games.find((g) => g.id === block?.game)?.name
+          return (
+            <div class="host__flow">
+              {block ? (
+                <>
+                  <span class="chip chip--data">Block {at + 1} of {state.flow.blocks.length}</span>
+                  <span class="row__label">{name}</span>
+                  <span class="chip">Q{state.flow.done + 1} of {block.count}</span>
+                  {block.duel && <span class="chip chip--armed">duel</span>}
+                </>
+              ) : (
+                <span class="chip chip--data">Flow complete</span>
+              )}
+              <span class="host__spacer" />
+              <button
+                class="btn btn--ghost"
+                disabled={round.phase !== 'IDLE' || at >= state.flow.blocks.length}
+                onClick={() => act({ a: 'flowJump', at: at + 1 })}
+              >
+                Skip block
+              </button>
+            </div>
+          )
+        })()}
         <div class="host__controls">
           <button class="btn btn--major btn--primary" onClick={() => act({ a: 'arm' })} disabled={open}>
             {open ? 'Buzzers open' : 'Arm'}<span class="key">Space</span>
@@ -269,6 +297,7 @@ export function Host() {
         </summary>
 
         <GameSettings state={state} act={act} />
+        <FlowPanel state={state} act={act} fire={fire} />
 
         <label class="field" style={{ margin: 'var(--s3) 0' }}>
           Teams mode

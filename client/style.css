@@ -596,9 +596,46 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .host__spacer { flex: 1; }
 
+/* The play strip: position, above the fold, never competing with the controls. */
+.host__flow {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin-bottom: var(--s3);
+}
+
 .host__controls { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: stretch; }
 .host__controls .btn--major { flex: 1 1 12rem; }
 .host__minor { display: flex; gap: var(--s2); flex-wrap: wrap; }
+
+.flow__io {
+  display: flex;
+  gap: var(--s3);
+  margin-bottom: var(--s3);
+}
+
+.flow__block {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  padding: var(--s3);
+  border-left: 3px solid var(--rule);
+  margin-bottom: var(--s2);
+}
+
+/* Where the room actually is, in the same brass the board rails a leader with. */
+.flow__block.is-here {
+  border-left-color: var(--brass);
+  background: #241d0c;
+}
+
+.flow__n {
+  font-variant-numeric: tabular-nums;
+  color: var(--dim);
+}
+
+.flow__spacer { flex: 1; }
 
 .host__reader {
   display: flex;
