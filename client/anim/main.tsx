@@ -450,9 +450,16 @@ function Harness() {
         {dials.map((d) => {
           const k = dialKey(d)
           const recipe = 'recipe' in d
-          const was = recipe ? String(getPath(RECIPES, d.recipe) ?? 0) : origin[k] ?? ''
+          // A layer added this session has no entry in the committed RECIPES —
+          // `getPath` returns undefined rather than a real number. Treating that
+          // as 0 would give every dial on a new layer a "was 0 — reset" button,
+          // and clicking it on `hold` would zero out the whole-duration default
+          // `addLayer` set specifically to keep the layer audible. There is
+          // nothing committed to go back to, so the dial is simply not "moved".
+          const committed = recipe ? getPath(RECIPES, d.recipe) : undefined
+          const was = recipe ? (committed === undefined ? '' : String(committed)) : origin[k] ?? ''
           const now = recipe ? String(getPath(draft, d.recipe) ?? 0) : values[k] ?? ''
-          const moved = now !== was
+          const moved = recipe ? committed !== undefined && now !== was : now !== was
           const back = () =>
             recipe
               ? setDraft((t) => setPath(t, d.recipe, parseFloat(was)))
@@ -485,7 +492,7 @@ function Harness() {
           // half a thumb at each end, so the tick is placed the same way the
           // browser places the thumb — otherwise it drifts at the extremes and
           // reads as a wrong number rather than a misaligned one.
-          const at = (num(was) - d.min) / (d.max - d.min)
+          const at = was === '' ? 0 : (num(was) - d.min) / (d.max - d.min)
 
           return (
             <div class="harness__dial" key={k}>

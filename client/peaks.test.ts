@@ -26,6 +26,16 @@ test('a width larger than the sample count still fills every column', () => {
   const out = peaks(new Float32Array([1, -1]), 6)
   assert.equal(out.length, 6)
   for (const p of out) assert.ok(Number.isFinite(p.min) && Number.isFinite(p.max))
+  // Each source sample repeats across three columns at this width; the first
+  // sample (1) owns the first half, the second (-1) the second half.
+  assert.deepEqual(out, [
+    { min: 0, max: 1 },
+    { min: 0, max: 1 },
+    { min: 0, max: 1 },
+    { min: -1, max: 0 },
+    { min: -1, max: 0 },
+    { min: -1, max: 0 },
+  ])
 })
 
 test('an empty buffer is flat rather than NaN', () => {

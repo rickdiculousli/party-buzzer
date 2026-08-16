@@ -131,6 +131,13 @@ test('a new oscillator layer is an audible pluck', () => {
   assert.ok((l.freq ?? 0) > 0)
 })
 
+test('addLayer appends without disturbing what was already there', () => {
+  const src: Recipe = [{ source: 'noise', decay: 60 }]
+  const out = addLayer(src, 'sine')
+  assert.equal(out.length, 2)
+  assert.deepEqual(out[0], { source: 'noise', decay: 60 })
+})
+
 test('removeLayer drops one and copies the rest', () => {
   const src: Recipe = [{ source: 'sine' }, { source: 'noise' }]
   const out = removeLayer(src, 0)

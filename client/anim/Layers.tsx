@@ -81,7 +81,7 @@ export function Layers({
   // stops at the first (coarsest) step that satisfies the test — which for a
   // 216ms cue is `2000`, one tick. Reversed, the first hit is the finest step
   // that still fits, which is the one actually worth drawing.
-  const step = [...STEPS].reverse().find((s) => spanMs / s <= 8) ?? STEPS[0]
+  const step = [...STEPS].reverse().find((s) => spanMs / s <= 8) ?? spanMs / 8
   const ticks: number[] = []
   for (let t = 0; t <= spanMs; t += step) ticks.push(t)
 

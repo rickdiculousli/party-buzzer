@@ -148,7 +148,7 @@ function sndLibrary(): Plugin {
           const names = await readdir(OUT)
           const files = []
           for (const name of names) {
-            if (!/\.(wav|ogg)$/i.test(name)) continue
+            if (!safeOut(name)) continue
             const s = await stat(resolve(OUT, name))
             files.push({ name, size: s.size })
           }
