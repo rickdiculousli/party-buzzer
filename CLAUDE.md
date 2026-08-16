@@ -17,7 +17,6 @@ npm test           # node:test
 npm run typecheck
 npm run sim        # synthetic self-play against a running server
 npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@140 correct   # one scripted round
-npm run read -- pack.txt   # speak a question pack; drives fragments, power, answer
 npm run motion     # the animation harness at /anim.html (dev only)
 npm run fakes -- add [n] / remove   # fake players with fake scores (ids fake-01..fake-99)
 ```
@@ -78,6 +77,13 @@ no partial update.
 - `client/{Player,Host,Board}.tsx` — the three surfaces, chosen by pathname in
   `main.tsx`.
 - `tools/sim.ts` — bots that play real questions over real sockets.
+- `server/reader.ts` — the question loop. Drives the hub through a synthetic
+  host connection, so it uses the same messages a socket client would and the
+  hub grows no reader API.
+- `server/speech.ts` — `say` pre-rendered to cached clips, played by `afplay`.
+  Pause is SIGSTOP; the power boundary stays event-driven so pausing cannot
+  desynchronise it.
+- `server/packs.ts` — pack files on disk. `State` carries filenames only.
 
 ### The parts that are load-bearing
 
@@ -111,6 +117,11 @@ across questions.
 **Undo is server-side**, a stack of `structuredClone(state)` in the hub, restored
 with `Object.assign` so the `state` object identity survives for the persistence
 layer holding the reference.
+
+**The server reads, but never remembers.** Question content lives in server
+memory while a pack is loaded and never enters `State` — only fragments the room
+has already heard. That is what keeps a phone from seeing ahead, and it is why
+the mirror is safe to offer at all.
 
 ### Client gotchas
 

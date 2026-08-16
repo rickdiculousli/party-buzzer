@@ -27,3 +27,10 @@ These need real hardware — run them once before a real game night.
 - [ ] Two players buzzing near-simultaneously produce a plausible winner and a
       believable millisecond gap
 - [ ] Host laptop sleeping and waking does not lose scores
+
+## Reading
+
+- [ ] Pack selected and rendered before guests arrive (first render is ~30s and
+      caches; a re-read is instant)
+- [ ] Mirror setting matches the game: off for quizbowl, on only if the room
+      cannot see the board

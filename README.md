@@ -41,15 +41,13 @@ mark is still up), negs, bouncebacks after a wrong answer, and item drops —
 the winner's phone can hold a freeze, shield, or steal for a later round. A
 mode is set per session; switching resets scores and the board.
 
-Powers and fragments are driven by the reader speaking a question pack:
-
-```bash
-npm run read -- tools/sample-pack.txt
-```
+Powers and fragments are driven by the host reading a question pack: put
+`.txt` packs in `packs/`, pick one on the host screen, and press Read. Speech
+needs macOS (`say`, `afplay`); without it the fragments still appear, silently.
 
 Pack format, four lines: `V: 200` sets the value (optional), the question text
 uses ` / ` to mark where a fragment lands on the board, `A:` gives the answer,
-and a blank line ends the question. See `tools/sample-pack.txt`.
+and a blank line ends the question. See `packs/sample.txt`.
 
 ## Fairness
 

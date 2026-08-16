@@ -1,7 +1,7 @@
 /**
  * Quizbowl-lite: powers, negs, bouncebacks, and item drops.
  *
- * Power is a signal, not a timer. A reader (`npm run read`) fires the
+ * Power is a signal, not a timer. The reader (`server/reader.ts`) fires the
  * host-scoped `powerEnds` act when it finishes speaking the power fragment;
  * a buzz whose clamped press time beats that stamp is powered. Press times
  * are already clamped to [armedAt, arrivedAt], so no phone can backdate into
