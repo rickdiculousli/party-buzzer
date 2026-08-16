@@ -128,9 +128,9 @@ export function Player() {
   // above alone would call every player (finalists included) a spectator of a
   // duel with nobody named in it. Dead is its own state.
   const dead = round?.candidates?.length === 0
-  const finalistNames = round?.candidates?.map(
-    (id) => state?.players.find((p) => p.id === id)?.name ?? '?',
-  )
+  const nameOf = (id: string) => state?.players.find((p) => p.id === id)?.name ?? '?'
+  const finalistNames = round?.candidates?.map(nameOf)
+  const seatedNames = duel?.seated?.map(nameOf)
   const [targetFor, setTargetFor] = useState<string | null>(null)
   const score = key ? state?.scores[key] ?? 0 : 0
   const armed = round?.phase === 'ARMED' || round?.phase === 'COLLECTING'
@@ -279,6 +279,23 @@ export function Player() {
           />
         )}
       </div>
+
+      {/* Seated, not yet armed. The buzzer below still says "Wait" for everyone,
+          which is the one moment it means two different things — so say which
+          one it is here rather than letting a finalist find out by pressing. */}
+      {duel?.seated && !round?.candidates && (
+        <div class="player__duel">
+          <p class="eyebrow">Heads-up</p>
+          <p class="player__faceoff">
+            {seatedNames?.[0]} <span class="muted">vs</span> {seatedNames?.[1]}
+          </p>
+          <p class="muted">
+            {duel.seated.includes(playerId ?? '')
+              ? 'You’re one of them — your buzzer opens when the host arms'
+              : 'You sit this one out'}
+          </p>
+        </div>
+      )}
 
       {duel && !duel.seated && duelRule && duelRule.entry !== 'none' && (
         <div class="player__duel">

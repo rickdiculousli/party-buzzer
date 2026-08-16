@@ -18,6 +18,7 @@ npm test           # node:test
 npm run typecheck
 npm run sim        # synthetic self-play against a running server
 npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@140 correct   # one scripted round
+npm run walk-duel / walk-teams      # the two paced duel walkthroughs, ~1 min each
 npm run motion     # the animation harness at /anim.html (dev only)
 npm run fakes -- add [n] / remove   # fake players with fake scores (ids fake-01..fake-99)
 npm run demo-sounds [clean]         # synthesized stand-ins so the sound library has entries
@@ -174,13 +175,24 @@ Probe also drives a whole duel — `duel:` opens one, `vote:Bo=Ada` and
 `in:`/`out:` are sent from each player's own socket (a `duel*` act from the
 host connection is dropped, which is the rule worth exercising rather than
 routing around), `unvote:` takes a vote back so you can watch a tally count
-down, and `seat`/`cancel` close the window. With `wait:` between the steps
-that is a paced walkthrough you can watch on a phone; `docs/manual-checklist.md`
-carries the script.
+down, and `seat`/`cancel` close the window. `teams:Red=Ada,Bo/Blue=Cy,Dee` sets
+the mode, the teams and the assignments in one step, reusing a team of that name
+if the room already has one.
+
+With `wait:` between the steps that is a paced walkthrough you can watch on a
+phone, and the two worth keeping are npm scripts rather than a paragraph to
+retype: **`npm run walk-duel`** is ten players trading a nomination lead through
+switches and withdrawals until it changes hands twice, **`npm run walk-teams`**
+is the same in teams mode, where the seat has to reach past a same-team runner-up
+and a wrong answer locks out a whole side. Both end in a `clear`.
+`docs/manual-checklist.md` says what to watch for in each.
 
 `join:Name` borrows a player of that name if one is already in the room (a
 `fakes` entry, a real phone) rather than putting a second Ada on the board;
 anyone it does mint gets a `probe-` id, which is the only thing `clear` kicks.
+`clear` also cancels any duel, takes probe's players off the teams it put them
+on, and returns the room to solo — but only if probe was the one that set teams
+up, so running it against a host's own teams game leaves that alone.
 Probe and the sim share `tools/conn.ts` — real sockets, real clock sync, no
 shortcut through the HTTP layer.
 

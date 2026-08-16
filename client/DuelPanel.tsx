@@ -1,32 +1,9 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { DuelRuleInfo, DuelState, HostAction, PlayerId, State } from '../shared/protocol.ts'
 import { Votes } from './Votes.tsx'
+import { eligibleForDuel, willSeat as seatPrediction } from './ui.ts'
 
 const teamOf = (state: State, id: PlayerId) => state.players.find((p) => p.id === id)?.teamId
-
-/**
- * The pair that would be seated if the host closed a `votes` rule right now —
- * same ranking and one-per-team logic as `resolveDuel` in server/duel.ts,
- * duplicated here for display only. The actual seat is still decided
- * server-side when the host closes; this never mutates anything.
- */
-function predictedPair(
-  state: State,
-  duel: DuelState,
-  rule: DuelRuleInfo,
-  eligibleIds: Set<PlayerId>,
-): [PlayerId, PlayerId] | null {
-  if (rule.resolve !== 'votes') return null
-  const ranked = duel.pool
-    .filter((e) => e.votes.length > 0 && eligibleIds.has(e.playerId))
-    .sort((a, b) => b.votes.length - a.votes.length)
-    .map((e) => e.playerId)
-  const first = ranked[0]
-  if (!first) return null
-  if (state.mode !== 'teams') return ranked[1] ? [first, ranked[1]] : null
-  const second = ranked.find((id) => id !== first && teamOf(state, id) !== teamOf(state, first))
-  return second ? [first, second] : null
-}
 
 /** Why closing this window right now would resolve nothing, or null. */
 function closeBlockReason(
@@ -36,7 +13,7 @@ function closeBlockReason(
   eligibleIds: Set<PlayerId>,
 ): string | null {
   if (rule.resolve === 'votes') {
-    return predictedPair(state, duel, rule, eligibleIds)
+    return seatPrediction(state)
       ? null
       : 'No two eligible players have votes yet — closing now resolves nothing.'
   }
@@ -65,9 +42,7 @@ export function DuelPanel({ state, act }: { state: State; act: (a: HostAction) =
   const duel = state.duel
   const idle = state.round.phase === 'IDLE'
   const name = (id: PlayerId) => state.players.find((p) => p.id === id)?.name ?? '?'
-  const eligible = state.players.filter(
-    (p) => p.connected && (state.mode !== 'teams' || !!p.teamId),
-  )
+  const eligible = eligibleForDuel(state)
   const eligibleIds = new Set(eligible.map((p) => p.id))
 
   // The panel never unmounts between duels — without this a stale pair from
@@ -127,7 +102,7 @@ export function DuelPanel({ state, act }: { state: State; act: (a: HostAction) =
   const toggle = (id: PlayerId) =>
     setPick((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id].slice(-2)))
 
-  const willSeat = rule ? predictedPair(state, duel, rule, eligibleIds) : null
+  const willSeat = seatPrediction(state)
   const pool = duel.pool.slice().sort((a, b) => b.votes.length - a.votes.length)
   const closeReason = rule ? closeBlockReason(state, duel, rule, eligibleIds) : null
 

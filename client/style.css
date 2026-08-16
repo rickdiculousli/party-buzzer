@@ -724,6 +724,19 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .player__duel .eyebrow { margin-bottom: 0; }
 .player__duel .muted { margin: 0; text-align: center; }
 
+/* The seated pair, at the weight the moment deserves on a phone. */
+.player__faceoff {
+  margin: 0;
+  text-align: center;
+  font-family: var(--display);
+  font-size: var(--t-lg);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--brass);
+}
+.player__faceoff .muted { display: inline; font-size: var(--t-sm); }
+
 /* One nominee, one full-width target. Names go left, their crowd goes right,
    so the tallies line up in a column you can compare down rather than hunt
    through a wrapped row of pills. */

@@ -32,6 +32,7 @@
  *   next             clear the round
  *   reset | undo     reset the round / undo the last host action
  *   act:name[:data]  host-scoped act (fragment / powerEnds / revealAnswer)
+ *   teams:R=A,B/S=C  teams mode, those teams, those players on them
  *   duel:vote        open a heads-up duel under that rule id
  *   in:A,B | out:A   volunteer / back off, from those players' own sockets
  *   vote:A=B,C=B     A votes for B, C votes for B (`=`, not `>`: no quoting)
@@ -39,7 +40,7 @@
  *   seat[:A,B]       close the window: resolve by rule, or seat those two
  *   cancel           call the duel off
  *   wait:1200        hold, in ms — the only step that exists for your eyes
- *   clear            kick probe's players and reset the round
+ *   clear            put the room back: duel off, teams undone, players gone
  *   loop             repeat the whole script until Ctrl-C
  *
  * A note on pacing a `loop` script: to sit on the open buzzer before anyone
@@ -63,7 +64,8 @@ async function main() {
     // The header comment is the manual; printing a second copy is a second
     // thing to keep true.
     log('\n  usage: npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@120 correct')
-    log('  steps: loop join value arm buzz correct wrong next reset undo act duel in out vote unvote seat cancel wait clear\n')
+    log('  steps: loop join value arm buzz correct wrong next reset undo act teams duel in out vote unvote seat cancel wait clear')
+    log('  walks: npm run walk-duel   npm run walk-teams\n')
     return
   }
 
@@ -97,7 +99,20 @@ async function main() {
     return conn
   }
 
+  /**
+   * Players probe put on a team, and whether probe is the one who turned teams
+   * on. Both exist so `clear` can undo exactly what this run did and nothing
+   * else: a borrowed phone gets taken off its team again, but a room the host
+   * had already set up in teams mode before probe arrived is left in it.
+   */
+  const assigned = new Set<string>()
+  let teamsAreOurs = false
+
   const clear = () => {
+    host.send({ t: 'host', action: { a: 'cancelDuel' } })
+    // Before the kick: an assign for a player who is already gone does nothing.
+    for (const playerId of assigned) host.send({ t: 'host', action: { a: 'assign', playerId } })
+    if (teamsAreOurs) host.send({ t: 'host', action: { a: 'setMode', mode: 'solo' } })
     const gone = (host.state()?.players ?? []).filter((p) => p.id.startsWith('probe-'))
     for (const p of gone) host.send({ t: 'host', action: { a: 'kick', playerId: p.id } })
     host.send({ t: 'host', action: { a: 'next' } })
@@ -197,6 +212,39 @@ async function main() {
           // unit tests; probe's players have no inventory of their own.
           const [name, ...rest] = arg.split(':')
           host.send({ t: 'act', act: name, data: rest.join(':') || undefined })
+          break
+        }
+
+        // teams:Red=Ada,Bo/Blue=Cy,Dee — mode, teams and assignments in one
+        // step. A team of that name already in the room is reused rather than
+        // added twice, the same way `join` borrows a player who is already
+        // here.
+        //
+        // ponytail: the teams it does add outlive `clear`, because the protocol
+        // has no removeTeam — they go back to being invisible when the mode
+        // returns to solo, and the next run reuses them by name. Add the action
+        // if a stale team ever actually gets in the way.
+        case 'teams': {
+          host.send({ t: 'host', action: { a: 'setMode', mode: 'teams' } })
+          await host.waitFor((s) => s.mode === 'teams')
+          teamsAreOurs = true
+          for (const group of arg.split('/').filter(Boolean)) {
+            const [teamName, members = ''] = group.split('=')
+            if (!host.state()?.teams.some((t) => t.name === teamName)) {
+              const n = ((host.state()?.teams.length ?? 0) % 6) + 1
+              host.send({
+                t: 'host',
+                action: { a: 'addTeam', name: teamName, color: `var(--id-${n})` },
+              })
+              await host.waitFor((s) => s.teams.some((t) => t.name === teamName))
+            }
+            const teamId = host.state()!.teams.find((t) => t.name === teamName)!.id
+            for (const name of members.split(',').filter(Boolean)) {
+              const playerId = idFor(name)
+              assigned.add(playerId)
+              host.send({ t: 'host', action: { a: 'assign', playerId, teamId } })
+            }
+          }
           break
         }
 

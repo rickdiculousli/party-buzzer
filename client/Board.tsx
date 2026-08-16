@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { useOpen, useSocket } from './useSocket.ts'
-import { colorForPlayer, lockedNames, standings } from './ui.ts'
+import { colorForPlayer, lockedNames, standings, willSeat } from './ui.ts'
 import { markGap, playSpaced, prime, startBed, stopBed, unlock } from './sound.ts'
 import { Votes } from './Votes.tsx'
 import { COLLECT_MS, type BuzzEntry, type State } from '../shared/protocol.ts'
@@ -201,7 +201,13 @@ export function Board() {
   const armed = round.phase === 'ARMED' || round.phase === 'COLLECTING'
   const here = state.players.filter((p) => p.connected).length
   const barred = lockedNames(state)
-  const finalistNames = round.candidates?.map(
+  // `candidates` is only stamped at the arm, so between the host seating a pair
+  // and opening the buzzers there is a gap the board used to spend saying
+  // "Ready" — the room watches the two names disappear a second after they were
+  // announced. The seated pair carries it across that gap; once the arm stamps
+  // candidates, that is the truer source, because a wrong answer narrows it.
+  const seating = willSeat(state)
+  const finalistNames = (round.candidates ?? state.duel?.seated)?.map(
     (id) => state.players.find((p) => p.id === id)?.name ?? '?',
   )
 
@@ -241,16 +247,18 @@ export function Board() {
           ) : state.duel && !state.duel.seated ? (
             <div class="board__noms">
               <p class="board__idle">Who plays?</p>
-              {/* Ranked for display only — the server settles ties and the
-                  one-per-team rule when the host closes the window. */}
+              {/* Ranked for display; lit by the same prediction the host desk
+                  runs, which is not the same as the top two. In teams mode a
+                  same-team runner-up gets skipped, and marking them anyway
+                  promises the room a face-off the close will not produce. */}
               <ol class="board__pool">
                 {state.duel.pool
                   .slice()
                   .sort((a, b) => b.votes.length - a.votes.length)
-                  .map((e, i) => (
+                  .map((e) => (
                     <li
                       key={e.playerId}
-                      class={i < 2 && e.votes.length > 0 ? 'nom is-lead' : 'nom'}
+                      class={seating?.includes(e.playerId) ? 'nom is-lead' : 'nom'}
                     >
                       <span class="nom__name">
                         {state.players.find((p) => p.id === e.playerId)?.name ?? '?'}
