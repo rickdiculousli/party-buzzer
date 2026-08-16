@@ -3,6 +3,7 @@ import { resolveBuzzes, type RawBuzz, type Resolved } from './resolve.ts'
 import { applyHostAction, buzzBlockReason, lockedPlayerIds } from './state.ts'
 import { catalog, moduleFor } from './modes/index.ts'
 import { useItem } from './items.ts'
+import { listPacks } from './packs.ts'
 import { COLLECT_MS } from '../shared/protocol.ts'
 import type {
   ClientMsg, PlayerId, Role, ServerMsg, State,
@@ -39,6 +40,8 @@ export type HubOpts = {
   /** How long buzzes are collected after the first one lands. */
   collectMs?: number
   onChange?: (state: State) => void
+  /** Question packs live here. Filenames only enter State; omit for no packs. */
+  packDir?: string
 }
 
 export class Hub {
@@ -59,6 +62,9 @@ export class Hub {
     // The catalog rides the state payload so the host form needs no fetch of
     // its own. Refresh on boot: a snapshot's copy may come from an older build.
     this.state.games = catalog()
+    // Filenames only, refreshed on boot for the same reason the catalog is: a
+    // snapshot's copy is from whenever it was written.
+    this.state.packs = opts.packDir ? listPacks(opts.packDir) : []
     this.revealMs = opts.revealMs ?? REVEAL_MS
     this.collectMs = opts.collectMs ?? COLLECT_MS
     this.onChange = opts.onChange ?? (() => {})
@@ -73,6 +79,18 @@ export class Hub {
     const player = this.state.players.find((p) => p.id === conn.playerId)
     if (player) player.connected = false
     this.changed()
+  }
+
+  /** Replace the change subscriber. The reader is built after the hub, so the
+   *  composition root swaps in a fan-out once both exist. */
+  setOnChange(fn: (state: State) => void): void {
+    this.onChange = fn
+  }
+
+  /** Deliver a message as if it arrived on a connection. The reader drives the
+   *  game this way, so it goes through every check a real host does. */
+  send(conn: Conn, msg: ClientMsg): void {
+    this.handle(conn, msg)
   }
 
   handle(conn: Conn, msg: ClientMsg): void {
@@ -140,6 +158,9 @@ export class Hub {
       round.fragments = [...(round.fragments ?? []), data]
     } else if (name === 'revealAnswer' && typeof data === 'string') {
       round.answer = data
+    } else if (name === 'reading') {
+      // Display-only progress from the reader. Undefined clears it.
+      this.state.reading = (data ?? undefined) as State['reading']
     } else {
       const handled = moduleFor(this.state.game.id).onAct?.(this.state, name, data) ?? false
       if (!handled) {
@@ -289,10 +310,10 @@ export class Hub {
   }
 
   /**
-   * Phones get the round redacted to their own buzz, question text and answer
-   * stripped (the room reads the board; a phone must not leak the next
-   * fragment before the voice reaches it), and module state only through the
-   * module's own viewModuleState — a module without one exposes nothing.
+   * Phones get the round redacted to their own buzz, module state only through
+   * the module's own viewModuleState, and question text stripped unless the
+   * room has turned the mirror on — quizbowl leaves it off, because reading a
+   * sentence at its start beats hearing it word by word.
    */
   viewFor(conn: Conn): State {
     const mod = moduleFor(this.state.game.id)
@@ -311,8 +332,8 @@ export class Hub {
       round: {
         ...round,
         order: round.order.filter((b) => b.playerId === conn.playerId),
-        fragments: undefined,
-        answer: undefined,
+        fragments: this.state.mirrorFragments ? round.fragments : undefined,
+        answer: this.state.mirrorFragments ? round.answer : undefined,
       },
     }
   }

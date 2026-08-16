@@ -80,6 +80,50 @@ test('useItem rides the act channel and broadcast follows', () => {
   assert.deepEqual(state.effects, [{ kind: 'frozen', playerId: bo.playerId }])
 })
 
+test('players see mirrored fragments only when the mirror is on', () => {
+  const { state, hub, conn } = rig()
+  const phone = conn('player')
+  hub.handle(phone, { t: 'hello', role: 'player', name: 'Ada' })
+  state.round.fragments = ['First fragment.']
+  state.round.answer = 'gold'
+
+  const off = hub.viewFor(phone)
+  assert.equal(off.round.fragments, undefined, 'off: the phone sees nothing')
+  assert.equal(off.round.answer, undefined)
+
+  state.mirrorFragments = true
+  const on = hub.viewFor(phone)
+  assert.deepEqual(on.round.fragments, ['First fragment.'], 'on: the phone mirrors the board')
+  assert.equal(on.round.answer, 'gold')
+})
+
+test('the mirror never widens the buzz-order redaction', () => {
+  const { state, hub, conn } = rig()
+  const a = conn('player')
+  const b = conn('player')
+  hub.handle(a, { t: 'hello', role: 'player', name: 'Ada' })
+  hub.handle(b, { t: 'hello', role: 'player', name: 'Bo' })
+  state.mirrorFragments = true
+  state.round.order = [
+    { playerId: a.playerId!, name: 'Ada', at: 1, deltaMs: 0 },
+    { playerId: b.playerId!, name: 'Bo', at: 2, deltaMs: 1 },
+  ]
+  assert.equal(hub.viewFor(a).round.order.length, 1, 'still only your own buzz')
+})
+
+test('the reading act is host-scoped and lands in state', () => {
+  const { hub, conn, lastState } = rig()
+  const host = conn('host')
+  const phone = conn('player')
+  const reading = {
+    pack: 'one.txt', qIndex: 0, qTotal: 3, fragIndex: 1, fragTotal: 2, paused: false,
+  }
+  hub.handle(phone, { t: 'act', act: 'reading', data: { ...reading, pack: 'forged.txt' } })
+  assert.equal(hub.state.reading, undefined, 'a phone cannot fake reading progress')
+  hub.handle(host, { t: 'act', act: 'reading', data: reading })
+  assert.equal(lastState(0).reading?.pack, 'one.txt')
+})
+
 test('unknown acts are dropped and logged once', () => {
   const { hub, conn } = rig()
   const host = conn('host')
