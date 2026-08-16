@@ -200,6 +200,9 @@ export function Board() {
   const armed = round.phase === 'ARMED' || round.phase === 'COLLECTING'
   const here = state.players.filter((p) => p.connected).length
   const barred = lockedNames(state)
+  const finalistNames = round.candidates?.map(
+    (id) => state.players.find((p) => p.id === id)?.name ?? '?',
+  )
 
   return (
     <main class="board">
@@ -234,10 +237,36 @@ export function Board() {
         <div class={leader ? 'board__mid' : 'board__mid board__mid--cue'}>
           {leader ? (
             <p class="board__hero">{leader.name}</p>
+          ) : state.duel && !state.duel.seated ? (
+            <>
+              <p class="board__idle">Heads-up — nominations open</p>
+              {state.duel.pool.length > 0 && (
+                <p class="board__noms">
+                  {state.duel.pool
+                    .map((e) => {
+                      const n = state.players.find((p) => p.id === e.playerId)?.name ?? '?'
+                      const tags = [
+                        e.votes.length > 0 && `${e.votes.length} ✓`,
+                        e.in && 'in',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')
+                      return tags ? `${n} ${tags}` : n
+                    })
+                    .join(' · ')}
+                </p>
+              )}
+            </>
           ) : round.fragments?.length ? (
-            // The question, assembling as the reader speaks it. Once someone
-            // is answering, the stage belongs to them instead.
             <p class="board__question">{round.fragments.join(' ')}</p>
+          ) : finalistNames?.length === 2 ? (
+            // The face-off yields the stage to the question text while the
+            // reader is speaking, and to the leader the moment someone buzzes.
+            <p class="board__faceoff">
+              <span class="board__hero">{finalistNames[0]}</span>
+              <span class="board__idle">vs</span>
+              <span class="board__hero">{finalistNames[1]}</span>
+            </p>
           ) : (
             <p class={open ? 'board__call' : 'board__idle'}>
               {open ? 'Buzz' : armed ? 'Stand by' : 'Ready'}

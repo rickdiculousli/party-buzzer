@@ -458,6 +458,20 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   color: var(--brass);
 }
 
+/* The face-off frame and the nomination pool: one line each, room-scale. */
+.board__faceoff {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: var(--s3);
+}
+
+.board__noms {
+  font-size: var(--t-sm);
+  color: var(--dim);
+  text-align: center;
+}
+
 .board__side {
   background: var(--panel);
   border-left: 1px solid var(--rule);
@@ -629,6 +643,16 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   justify-content: center;
   gap: var(--s2);
   margin-top: var(--s4);
+}
+
+/* Same vertical rhythm as the other player blocks: a flex column so the
+   eyebrow, buttons and hint stack on the design system's spacing rather
+   than a browser default <p> margin. */
+.player__duel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s2);
 }
 
 /* --- Dial: the standings on the phone, behind glass -------------------- */
