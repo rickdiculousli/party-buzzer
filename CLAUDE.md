@@ -176,9 +176,11 @@ game. Pick an anchor, retrigger it or loop it, and drop the speed to 0.1× to
 actually see where the light sits relative to the movement; a 110ms stamp is
 eleven frames at full speed and there is nothing to judge in that.
 
-Its numbers are the `anim:tunables` block in `client/style.css`, and **Save**
-rewrites that block in place through a dev-only Vite middleware, so a value you
-dialled in cannot change on its way home. The scenarios live in
+Its numbers live in two blocks — `anim:tunables` in `client/style.css` for the
+picture, `cue:recipes` in `client/cues.ts` for the sound — and **Save** rewrites
+both in place through one dev-only Vite middleware, so a value you dialled in
+cannot change on its way home. It is disabled until something has actually
+moved, and says afterwards how much went to each file. The scenarios live in
 `client/anim/scenarios.tsx` and render each component inside a copy of its real
 container — bloom against an empty void reads nothing like bloom beside a cyan
 rail and three other names. The harness is dev-only by construction:

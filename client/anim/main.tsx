@@ -271,6 +271,19 @@ function Harness() {
       .join('\n') +
     '\n}'
 
+  /**
+   * Whether anything is actually waiting to be written.
+   *
+   * Both halves, because Save writes both: a moved CSS dial, or any edit to the
+   * recipe tree — a dragged handle, an added layer, a removed one. Recipes are
+   * compared against the committed table wholesale rather than tracked as they
+   * change, which is the cheap way to be right about structural edits.
+   */
+  const cssDirty = scenario.dials.some(
+    (d) => 'var' in d && values[dialKey(d)] !== origin[dialKey(d)],
+  )
+  const dirty = cssDirty || JSON.stringify(draft) !== JSON.stringify(RECIPES)
+
   const save = async () => {
     setSaved('saving')
     try {
@@ -286,7 +299,12 @@ function Harness() {
       // rewritten cues.ts, and the module's RECIPES in this page's memory is the
       // pre-save one. Reset before a reload therefore goes back to what the file
       // held when the page opened, which is the honest thing for it to mean.
-      setSaved(res.ok ? `saved ${body.written} to style.css, ${body.cues} cues` : `failed: ${body.error}`)
+      setSaved(
+        res.ok
+          ? `wrote ${body.written} ${body.written === 1 ? 'value' : 'values'} to style.css and ` +
+            `${body.cues} ${body.cues === 1 ? 'cue' : 'cues'} to cues.ts`
+          : `failed: ${body.error}`,
+      )
     } catch (err) {
       setSaved(`failed: ${(err as Error).message}`)
     }
@@ -624,16 +642,23 @@ function Harness() {
         })}
 
         <p class="eyebrow">Write back</p>
+        {/* The button used to say "Save to style.css", which was true when the
+            only thing here was CSS. It writes two files now, and since a cue's
+            sound moved into its recipe, cues.ts is the half that carries the
+            audio — a label naming only the stylesheet would send you looking in
+            the wrong file for a change you just made. */}
+        <p class="harness__hint">
+          {dirty
+            ? 'Writes the moved dials into the anim:tunables block in style.css, and every recipe into the cue:recipes block in cues.ts. Both blocks are regenerated in place.'
+            : 'Nothing has moved yet. Drag a dial or edit a layer and this writes it back to the file it came from.'}
+        </p>
         <div class="harness__row">
-          <button class="btn btn--primary" onClick={save}>
-            Save to style.css
+          <button class="btn btn--primary" disabled={!dirty} onClick={save}>
+            Save
           </button>
           <button
             class="btn btn--ghost"
-            disabled={
-              !scenario.dials.some((d) => values[dialKey(d)] !== origin[dialKey(d)]) &&
-              JSON.stringify(draft) === JSON.stringify(RECIPES)
-            }
+            disabled={!dirty}
             onClick={() => {
               setValues({ ...origin })
               setDraft(structuredClone(RECIPES))
@@ -644,6 +669,7 @@ function Harness() {
           </button>
         </div>
         {saved && <p class="harness__saved">{saved}</p>}
+        <p class="harness__hint">The style.css half, as it will be written:</p>
         <pre class="harness__css">{css}</pre>
 
         <p class="eyebrow">Library</p>
