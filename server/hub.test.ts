@@ -184,3 +184,46 @@ test('a selectPack that fails is logged, not thrown — the process must survive
   hub.handle(host, { t: 'act', act: 'fragment', data: 'still alive' })
   assert.deepEqual(hub.state.round.fragments, ['still alive'])
 })
+
+test('a duel narrows the window to its finalists', () => {
+  const { state, hub, conn } = rig()
+  const a = conn('player')
+  const b = conn('player')
+  const c = conn('player')
+  joinAs(hub, a, 'A')
+  joinAs(hub, b, 'B')
+  joinAs(hub, c, 'C')
+  state.round.candidates = [a.playerId!, b.playerId!]
+  state.round.phase = 'ARMED'
+  state.round.armedAt = Date.now() - 10
+  hub.handle(c, { t: 'buzz', at: Date.now() })
+  assert.equal(state.round.phase, 'ARMED', 'a spectator never opens the window')
+  hub.handle(a, { t: 'buzz', at: Date.now() })
+  assert.equal(state.round.phase, 'COLLECTING', 'a finalist buzzes through')
+})
+
+test('duel acts ride the act channel from players only', () => {
+  const { state, hub, conn } = rig()
+  const host = conn('host')
+  const phone = conn('player')
+  joinAs(hub, phone, 'Ada')
+  state.duel = { rule: 'volunteer-random', pool: [], missed: [] }
+  hub.handle(host, { t: 'act', act: 'duelVolunteer' })
+  assert.equal(state.duel.pool.length, 0, 'no playerId, no entry')
+  hub.handle(phone, { t: 'act', act: 'duelVolunteer' })
+  assert.equal(state.duel.pool.length, 1)
+  assert.equal(state.duel.pool[0].playerId, phone.playerId)
+})
+
+test('the duel pool is visible in player views', () => {
+  const { state, hub, conn } = rig()
+  const phone = conn('player')
+  joinAs(hub, phone, 'Ada')
+  state.duel = {
+    rule: 'vote',
+    pool: [{ playerId: 'b', votes: ['a'], in: false }],
+    missed: [],
+  }
+  assert.equal(hub.viewFor(phone).duel?.pool.length, 1, 'the room sees the pool')
+  assert.equal(hub.viewFor(conn('host')).duel?.pool.length, 1)
+})
