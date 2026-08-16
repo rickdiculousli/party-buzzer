@@ -9,14 +9,22 @@
  * ponytail: no cross-cue view — one cue at a time, which is what a scenario
  * shows anyway.
  */
+import { useEffect, useState } from 'preact/hooks'
 import { span } from '../cues.ts'
-import { bufferFor } from '../sound.ts'
+import { bufferFor, primeFile } from '../sound.ts'
 import { Track } from './Track.tsx'
 import type { NumericField } from '../cues.ts'
-import type { Layer, Recipe } from '../synth.ts'
+import type { Layer, Recipe, Source } from '../synth.ts'
 
 /** Ruler steps, coarsest first. The first one that yields ≤8 marks wins. */
 const STEPS = [2000, 1000, 500, 250, 100, 50, 25, 10]
+
+/**
+ * The sources a layer may take. Files come from the server; the oscillators are
+ * a literal because there are five of them and there always will be — the
+ * picker was needed for files regardless, so covering them costs an array.
+ */
+const OSCILLATORS: Source[] = ['sine', 'square', 'sawtooth', 'triangle', 'noise']
 
 /**
  * The axis has to outlast the envelope, not just match it.
@@ -38,12 +46,36 @@ export function Layers({
   recipe,
   onChange,
   onRemove,
+  onAdd,
 }: {
   cue: string
   recipe: Recipe
   onChange: (i: number, field: NumericField, value: number) => void
   onRemove: (i: number) => void
+  onAdd: (source: Source, durationMs: number) => void
 }) {
+  const [picking, setPicking] = useState(false)
+  const [adopted, setAdopted] = useState<{ name: string }[]>([])
+  useEffect(() => {
+    fetch('/__snd/adopted')
+      .then((r) => r.json())
+      .then((b) => setAdopted(b.files))
+      .catch(() => {})
+  }, [])
+
+  /**
+   * Decode before adding, so the new layer's `hold` can be the file's real
+   * length. A file layer is gated like any other and one with no stages is
+   * silent — this default is what stops the front door from handing you a
+   * layer that does nothing.
+   */
+  const addFile = async (name: string) => {
+    const url = `/sounds/${name}`
+    await primeFile(url)
+    onAdd({ file: url }, (bufferFor(url)?.duration ?? 0) * 1000)
+    setPicking(false)
+  }
+
   const spanMs = Math.max(span(recipe), ...recipe.map(audioEnd))
   // Finest-first: STEPS is coarsest-first, and `find` over a descending list
   // stops at the first (coarsest) step that satisfies the test — which for a
@@ -82,6 +114,32 @@ export function Layers({
           onRemove={() => onRemove(i)}
         />
       ))}
+      <div class="harness__row">
+        <button class="btn btn--ghost" onClick={() => setPicking((p) => !p)}>
+          + layer
+        </button>
+      </div>
+      {picking && (
+        <div class="layers__picker">
+          {adopted.map((f) => (
+            <button key={f.name} class="btn" onClick={() => addFile(f.name)}>
+              {f.name}
+            </button>
+          ))}
+          {OSCILLATORS.map((o) => (
+            <button
+              key={String(o)}
+              class="btn"
+              onClick={() => {
+                onAdd(o, 0)
+                setPicking(false)
+              }}
+            >
+              {String(o)}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

@@ -24,7 +24,7 @@ import { render } from 'preact'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { SCENARIOS, dialKey, recipeDials, type Dial } from './scenarios.tsx'
 import { parseTune, play, prime, primeFile, unlock } from '../sound.ts'
-import { RECIPES, getPath, removeLayer, setPath } from '../cues.ts'
+import { RECIPES, addLayer, getPath, removeLayer, setPath } from '../cues.ts'
 import { Layers } from './Layers.tsx'
 import type { Recipe } from '../synth.ts'
 
@@ -441,6 +441,9 @@ function Harness() {
             }
             onRemove={(i) =>
               setDraft((t) => ({ ...t, [cue]: removeLayer(t[cue] ?? [], i) }))
+            }
+            onAdd={(source, durationMs) =>
+              setDraft((t) => ({ ...t, [cue]: addLayer(t[cue] ?? [], source, durationMs) }))
             }
           />
         ))}
