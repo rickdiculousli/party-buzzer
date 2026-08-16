@@ -25,6 +25,9 @@ export function newState(): State {
     duelRules: [],
     packs: [],
     mirrorFragments: false,
+    // Ten seconds of silence is a stall. Only ever read by the judge, which
+    // only runs while the reader drives a pack, so host-read games never feel it.
+    answerWindowSec: 10,
     round: {
       value: 100,
       phase: 'IDLE',
@@ -83,6 +86,8 @@ export function applyHostAction(state: State, action: HostAction): void {
       delete round.award
       delete round.fragments
       delete round.answer
+      delete round.judge
+      delete round.spoken
       delete round.candidates
       // A fresh question: sweep effects stamped to the last one, stamp the
       // live ones (a freeze fired between questions lands here).
@@ -109,6 +114,8 @@ export function applyHostAction(state: State, action: HostAction): void {
       }
       round.phase = 'IDLE'
       round.lockedOut = []
+      // The window is over; the transcript stays up beside the award.
+      delete round.judge
       if (mod.grants) executeGrants(state, mod.grants(state))
       return
     }
@@ -130,6 +137,8 @@ export function applyHostAction(state: State, action: HostAction): void {
       round.order = []
       round.total = 0
       delete round.award
+      // Same: the verdict ended the window, but what was said rides the rebound.
+      delete round.judge
       for (const e of state.effects) e.roundArmedAt = round.armedAt
       duelOnWrong(state, leader.playerId)
       return
@@ -145,6 +154,8 @@ export function applyHostAction(state: State, action: HostAction): void {
       delete round.award
       delete round.fragments
       delete round.answer
+      delete round.judge
+      delete round.spoken
       delete round.candidates
       // A duel is one question. The host re-opens (or rematches by arming
       // before next) rather than the pair leaking into the next round.
@@ -188,6 +199,10 @@ export function applyHostAction(state: State, action: HostAction): void {
 
     case 'setValue':
       round.value = action.value
+      return
+
+    case 'setAnswerWindow':
+      state.answerWindowSec = Math.min(120, Math.max(0, Math.round(action.sec) || 0))
       return
 
     case 'setScore':
@@ -328,6 +343,7 @@ export function loadState(path: string): State {
     delete loaded.round.candidates
     if (!Array.isArray(loaded.packs)) loaded.packs = []
     if (typeof loaded.mirrorFragments !== 'boolean') loaded.mirrorFragments = false
+    if (typeof loaded.answerWindowSec !== 'number') loaded.answerWindowSec = 10
     loaded.game ??= { id: 'trivia', options: {}, moduleState: {} }
     if (!knownModule(loaded.game.id)) {
       console.error(

@@ -156,3 +156,44 @@ test('loadState backfills the addendum fields on an older snapshot', () => {
   assert.equal(loaded.mirrorFragments, false)
   assert.equal(loaded.reading, undefined)
 })
+
+test('setAnswerWindow clamps to 0..120 whole seconds', () => {
+  const state = newState()
+  applyHostAction(state, { a: 'setAnswerWindow', sec: 45.7 })
+  assert.equal(state.answerWindowSec, 46)
+  applyHostAction(state, { a: 'setAnswerWindow', sec: -3 })
+  assert.equal(state.answerWindowSec, 0)
+  applyHostAction(state, { a: 'setAnswerWindow', sec: 9999 })
+  assert.equal(state.answerWindowSec, 120)
+})
+
+test('arm sweeps the judge window and the last spoken answer', () => {
+  const state = newState()
+  state.round.judge = { until: 123 }
+  state.round.spoken = { name: 'Ada', transcript: 'vermont', hit: true }
+  applyHostAction(state, { a: 'arm' })
+  assert.equal(state.round.judge, undefined)
+  assert.equal(state.round.spoken, undefined)
+})
+
+test('a verdict ends the window but the transcript rides out the rebound', () => {
+  const state = newState()
+  state.players = [{ id: 'a', name: 'Ada', connected: true }]
+  applyHostAction(state, { a: 'arm' })
+  state.round.phase = 'LOCKED'
+  state.round.order = [{ playerId: 'a', name: 'Ada', at: state.round.armedAt, deltaMs: 0 }]
+  state.round.judge = {}
+  state.round.spoken = { name: 'Ada', transcript: 'vermont', hit: false }
+  applyHostAction(state, { a: 'wrong', neg: 100 })
+  assert.equal(state.round.judge, undefined, 'the window is over')
+  assert.deepEqual(state.round.spoken, { name: 'Ada', transcript: 'vermont', hit: false })
+})
+
+test('next clears both', () => {
+  const state = newState()
+  state.round.judge = {}
+  state.round.spoken = { name: 'Ada', transcript: 'x', hit: true }
+  applyHostAction(state, { a: 'next' })
+  assert.equal(state.round.judge, undefined)
+  assert.equal(state.round.spoken, undefined)
+})
