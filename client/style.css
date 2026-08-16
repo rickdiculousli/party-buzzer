@@ -999,7 +999,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 
 /* --- the harness waveform editor -------------------------------------- */
 .layers {
-  margin-block: var(--s-3);
+  margin-block: var(--s3);
 }
 .layers__head {
   display: flex;
