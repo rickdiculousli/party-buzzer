@@ -150,3 +150,23 @@ export function seatDuel(state: State, ids: [PlayerId, PlayerId]): boolean {
   duel.seated = [a, b]
   return true
 }
+
+/**
+ * Fresh-question stamp. Called from the `arm` host action only — a `wrong`
+ * rebound re-arms without passing through it, which is what keeps `missed`
+ * alive across the rebound.
+ */
+export function duelOnArm(state: State): void {
+  const duel = state.duel
+  if (!duel?.seated) return
+  duel.missed = []
+  state.round.candidates = [...duel.seated]
+}
+
+/** The exclusive rebound: the leader is out, the other finalist stands alone. */
+export function duelOnWrong(state: State, leaderId: PlayerId): void {
+  const duel = state.duel
+  if (!duel?.seated) return
+  if (!duel.missed.includes(leaderId)) duel.missed.push(leaderId)
+  state.round.candidates = duel.seated.filter((id) => !duel.missed.includes(id))
+}

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { newState } from './state.ts'
+import { applyHostAction, newState } from './state.ts'
 import { resolveDuel, duelAct, seatDuel } from './duel.ts'
 import type { Mode, PlayerId, State } from '../shared/protocol.ts'
 
@@ -147,4 +147,107 @@ test('seatDuel validates: distinct, eligible, one per team', () => {
   assert.equal(seatDuel(state, ['a', 'b']), false, 'same team')
   assert.equal(seatDuel(state, ['a', 'c']), true)
   assert.deepEqual(state.duel!.seated, ['a', 'c'])
+})
+
+test('openDuel is refused mid-round and for unknown rules', () => {
+  const state = stateWith([['a'], ['b']])
+  state.round.phase = 'ARMED'
+  applyHostAction(state, { a: 'openDuel', rule: 'vote' })
+  assert.equal(state.duel, undefined)
+  state.round.phase = 'IDLE'
+  applyHostAction(state, { a: 'openDuel', rule: 'bogus' })
+  assert.equal(state.duel, undefined)
+})
+
+test('random seats instantly; one team total cannot fill two seats', () => {
+  const state = stateWith([['a'], ['b'], ['c']])
+  applyHostAction(state, { a: 'openDuel', rule: 'random' })
+  const seated = state.duel?.seated
+  assert.ok(seated)
+  assert.notEqual(seated[0], seated[1])
+
+  const teamed = stateWith([['a', 'ta'], ['b', 'ta']], 'teams')
+  applyHostAction(teamed, { a: 'openDuel', rule: 'random' })
+  assert.equal(teamed.duel, undefined, 'refused: nothing to close later')
+})
+
+test('random in teams mode draws one per team', () => {
+  const state = stateWith([['a', 'ta'], ['b', 'ta'], ['c', 'tb']], 'teams')
+  applyHostAction(state, { a: 'openDuel', rule: 'random' })
+  const [x, y] = state.duel!.seated!
+  const teamOf = (id: string) => state.players.find((p) => p.id === id)?.teamId
+  assert.notEqual(teamOf(x), teamOf(y))
+})
+
+test('closeDuel with a thin pool stays open', () => {
+  const state = stateWith([['a'], ['b'], ['c']])
+  applyHostAction(state, { a: 'openDuel', rule: 'vote' })
+  state.duel!.pool.push({ playerId: 'a', votes: ['b'], in: false })
+  applyHostAction(state, { a: 'closeDuel' })
+  assert.equal(state.duel!.seated, undefined, 'still collecting')
+})
+
+test('closeDuel is refused once the question is live', () => {
+  const state = stateWith([['a'], ['b'], ['c']])
+  applyHostAction(state, { a: 'openDuel', rule: 'host-pick' })
+  state.round.phase = 'ARMED'
+  applyHostAction(state, { a: 'closeDuel', playerIds: ['a', 'b'] })
+  assert.equal(state.duel!.seated, undefined)
+})
+
+test('arm stamps the seated pair; next clears the duel', () => {
+  const state = stateWith([['a'], ['b'], ['c']])
+  applyHostAction(state, { a: 'openDuel', rule: 'host-pick' })
+  applyHostAction(state, { a: 'closeDuel', playerIds: ['a', 'b'] })
+  applyHostAction(state, { a: 'arm' })
+  assert.deepEqual(state.round.candidates, ['a', 'b'])
+  applyHostAction(state, { a: 'next' })
+  assert.equal(state.duel, undefined)
+  assert.equal(state.round.candidates, undefined)
+})
+
+test('a wrong answer narrows the rebound to the other finalist; a fresh arm resets', () => {
+  const state = stateWith([['a'], ['b'], ['c']])
+  applyHostAction(state, { a: 'openDuel', rule: 'host-pick' })
+  applyHostAction(state, { a: 'closeDuel', playerIds: ['a', 'b'] })
+  applyHostAction(state, { a: 'arm' })
+  state.round.order = [{ playerId: 'a', name: 'a', at: 1, deltaMs: 0 }]
+  state.round.phase = 'LOCKED'
+  applyHostAction(state, { a: 'wrong', neg: 0 })
+  assert.deepEqual(state.duel!.missed, ['a'])
+  assert.deepEqual(state.round.candidates, ['b'], 'exclusive rebound')
+
+  state.round.order = [{ playerId: 'b', name: 'b', at: 2, deltaMs: 0 }]
+  state.round.phase = 'LOCKED'
+  applyHostAction(state, { a: 'wrong', neg: 0 })
+  assert.deepEqual(state.round.candidates, [], 'both missed — the round is dead')
+
+  applyHostAction(state, { a: 'arm' })
+  assert.deepEqual(state.duel!.missed, [])
+  assert.deepEqual(state.round.candidates, ['a', 'b'], 'rematch: same pair, fresh question')
+})
+
+test('setGame cancels an unseated duel; a seated one survives', () => {
+  const state = stateWith([['a'], ['b']])
+  applyHostAction(state, { a: 'openDuel', rule: 'vote' })
+  applyHostAction(state, { a: 'setGame', id: 'trivia', options: {} })
+  // assert.equal narrows state.duel to undefined via strictEqual's assertion
+  // signature, and TS never invalidates that across the mutations below —
+  // Boolean() keeps the check but breaks the false narrowing.
+  assert.equal(Boolean(state.duel), false)
+
+  applyHostAction(state, { a: 'openDuel', rule: 'host-pick' })
+  applyHostAction(state, { a: 'closeDuel', playerIds: ['a', 'b'] })
+  applyHostAction(state, { a: 'setGame', id: 'trivia', options: {} })
+  assert.ok(state.duel?.seated, 'a seated pair is a commitment, not setup')
+})
+
+test('cancelDuel lifts the candidacy mid-round', () => {
+  const state = stateWith([['a'], ['b']])
+  applyHostAction(state, { a: 'openDuel', rule: 'host-pick' })
+  applyHostAction(state, { a: 'closeDuel', playerIds: ['a', 'b'] })
+  applyHostAction(state, { a: 'arm' })
+  applyHostAction(state, { a: 'cancelDuel' })
+  assert.equal(state.duel, undefined)
+  assert.equal(state.round.candidates, undefined, 'the floor reopens')
 })

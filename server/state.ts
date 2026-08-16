@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { ARM_LEAD_MS } from '../shared/protocol.ts'
 import { knownModule, moduleFor, sanitizeOptions } from './modes/index.ts'
 import { executeGrants } from './items.ts'
+import { duelOnArm, duelOnWrong, duelRule, resolveDuel, seatDuel } from './duel.ts'
 import type {
   HostAction, PlayerId, ScoreKey, State,
 } from '../shared/protocol.ts'
@@ -82,11 +83,13 @@ export function applyHostAction(state: State, action: HostAction): void {
       delete round.award
       delete round.fragments
       delete round.answer
+      delete round.candidates
       // A fresh question: sweep effects stamped to the last one, stamp the
       // live ones (a freeze fired between questions lands here).
       state.effects = state.effects.filter((e) => e.roundArmedAt === undefined)
       for (const e of state.effects) e.roundArmedAt = round.armedAt
       moduleFor(state.game.id).onArm?.(state)
+      duelOnArm(state)
       return
     }
 
@@ -128,6 +131,7 @@ export function applyHostAction(state: State, action: HostAction): void {
       round.total = 0
       delete round.award
       for (const e of state.effects) e.roundArmedAt = round.armedAt
+      duelOnWrong(state, leader.playerId)
       return
     }
 
@@ -141,6 +145,10 @@ export function applyHostAction(state: State, action: HostAction): void {
       delete round.award
       delete round.fragments
       delete round.answer
+      delete round.candidates
+      // A duel is one question. The host re-opens (or rematches by arming
+      // before next) rather than the pair leaking into the next round.
+      delete state.duel
       return
 
     case 'undo':
@@ -150,6 +158,9 @@ export function applyHostAction(state: State, action: HostAction): void {
     case 'setGame': {
       // Modes are fixed per session; switching is a fresh game, refused mid-question.
       if (round.phase !== 'IDLE') return
+      // A pool was built under the old game's room; a seated pair is a
+      // commitment and survives.
+      if (state.duel && !state.duel.seated) delete state.duel
       if (!knownModule(action.id)) {
         console.warn(`[state] unknown game "${action.id}" — dropped`)
         return
@@ -196,6 +207,8 @@ export function applyHostAction(state: State, action: HostAction): void {
 
     case 'setMode':
       state.mode = action.mode
+      // Teams constraints shape the pool; re-open under the new mode.
+      if (state.duel && !state.duel.seated) delete state.duel
       return
 
     case 'setMirror':
@@ -216,6 +229,40 @@ export function applyHostAction(state: State, action: HostAction): void {
       if (action.teamId) state.scores[action.teamId] ??= 0
       return
     }
+
+    case 'openDuel': {
+      // Seating happens before the question opens so candidates stamp at arm.
+      if (round.phase !== 'IDLE') return
+      const rule = duelRule(action.rule)
+      if (!rule) return
+      state.duel = { rule: rule.id, pool: [], missed: [] }
+      // Instant rules seat now; entry rules wait for the host to close.
+      if (rule.resolve === 'random') {
+        const pair = resolveDuel(state, state.duel)
+        if (pair) state.duel.seated = pair
+        else delete state.duel // fewer than two eligible — nothing to close
+      }
+      return
+    }
+
+    case 'closeDuel': {
+      const duel = state.duel
+      if (!duel || duel.seated) return
+      if (round.phase !== 'IDLE') return
+      if (action.playerIds) {
+        seatDuel(state, action.playerIds)
+        return
+      }
+      const pair = resolveDuel(state, duel)
+      if (pair) duel.seated = pair
+      return
+    }
+
+    case 'cancelDuel':
+      delete state.duel
+      // Mid-round cancel reopens the floor for the question in flight.
+      delete round.candidates
+      return
   }
 }
 
