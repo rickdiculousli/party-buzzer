@@ -33,8 +33,8 @@ with `HOST_IP=192.168.1.42 npm start`. Change the port with `PORT=9000`.
 
 ## Game modes
 
-The host screen folds a Game section into "Players and teams": pick the mode
-and its options there. The default is plain trivia — the game described above.
+The host screen folds a Game section into "Game, players and teams": pick the
+mode and its options there. The default is plain trivia — the game described above.
 
 **Quizbowl-lite** adds powers (a faster buzz is worth more, while the power
 mark is still up), negs, bouncebacks after a wrong answer, and item drops —
@@ -42,12 +42,25 @@ the winner's phone can hold a freeze, shield, or steal for a later round. A
 mode is set per session; switching resets scores and the board.
 
 Powers and fragments are driven by the host reading a question pack: put
-`.txt` packs in `packs/`, pick one on the host screen, and press Read. Speech
-needs macOS (`say`, `afplay`); without it the fragments still appear, silently.
+`.txt` packs in `packs/`, pick one on the host screen, and press Read. Picking
+a pack pre-renders every fragment to an audio clip, which takes a few seconds
+the first time and is cached after that. **Pause** stops the voice at once and
+resumes by re-reading the interrupted fragment from its start; buzzers stay
+live throughout, because the usual reason to pause is that someone interrupted.
+Speech needs macOS (`say`, `afplay`); without it the fragments still appear,
+silently.
 
-Pack format, four lines: `V: 200` sets the value (optional), the question text
-uses ` / ` to mark where a fragment lands on the board, `A:` gives the answer,
-and a blank line ends the question. See `packs/sample.txt`.
+Fragments go up on the board as they are spoken. Phones see them only if you
+tick "Mirror question text to phones" — off by default, and worth leaving off
+for quizbowl, where reading ahead is the whole game.
+
+Pack format, three lines per question: `V: 200` sets the value (optional; a
+question without one leaves the round value where the last one put it), the
+question text uses ` / ` to mark
+where a fragment lands on the board, `A:` gives the answer, and a blank line
+ends the question. A question with no `A:` is skipped with a warning naming the
+line, so one typo costs one question rather than the pack. See
+`packs/sample.txt`.
 
 ## Fairness
 
