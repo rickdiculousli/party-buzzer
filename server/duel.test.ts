@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { newState } from './state.ts'
-import { resolveDuel } from './duel.ts'
+import { resolveDuel, duelAct, seatDuel } from './duel.ts'
 import type { Mode, PlayerId, State } from '../shared/protocol.ts'
 
 /** A state with named players; the optional second tuple element is a team id. */
@@ -90,4 +90,61 @@ test('a disconnected pool member cannot be seated', () => {
     { playerId: 'a', votes: ['c'], in: false },
   )
   assert.equal(resolveDuel(state, state.duel!), null, 'only one seatable candidate')
+})
+
+test('gates: acts that do not match the rule are dropped', () => {
+  const state = stateWith([['a'], ['b']])
+  openDuel(state, 'vote')
+  assert.equal(duelAct(state, 'a', 'duelVolunteer'), false, 'no volunteering under a vote rule')
+  assert.equal(duelAct(state, 'a', 'duelBackOff'), false)
+  assert.equal(state.duel!.pool.length, 0)
+  assert.equal(duelAct(state, 'a', 'duelVote', 'b'), true)
+  assert.equal(state.duel!.pool.length, 1)
+})
+
+test('a self-vote or a vote for a ghost is dropped', () => {
+  const state = stateWith([['a'], ['b']])
+  openDuel(state, 'vote')
+  assert.equal(duelAct(state, 'a', 'duelVote', 'a'), false)
+  assert.equal(duelAct(state, 'a', 'duelVote', 'ghost'), false)
+  state.players.find((p) => p.id === 'b')!.connected = false
+  assert.equal(duelAct(state, 'a', 'duelVote', 'b'), false, 'disconnected target')
+  assert.equal(state.duel!.pool.length, 0)
+})
+
+test('re-voting moves the vote; one player never counts twice', () => {
+  const state = stateWith([['a'], ['b'], ['c']])
+  openDuel(state, 'vote')
+  duelAct(state, 'a', 'duelVote', 'b')
+  duelAct(state, 'a', 'duelVote', 'c')
+  assert.deepEqual(state.duel!.pool.find((e) => e.playerId === 'b')!.votes, [])
+  assert.deepEqual(state.duel!.pool.find((e) => e.playerId === 'c')!.votes, ['a'])
+})
+
+test('volunteer and back-off under a volunteer rule', () => {
+  const state = stateWith([['a'], ['b']])
+  openDuel(state, 'volunteer-backoff')
+  assert.equal(duelAct(state, 'a', 'duelVote', 'b'), false, 'no voting here')
+  assert.equal(duelAct(state, 'a', 'duelVolunteer'), true)
+  assert.equal(duelAct(state, 'a', 'duelVolunteer'), false, 'already in')
+  assert.equal(duelAct(state, 'a', 'duelBackOff'), true)
+  assert.equal(state.duel!.pool[0].in, false)
+  assert.equal(duelAct(state, 'a', 'duelBackOff'), false, 'already out')
+})
+
+test('entry stops once the duel is seated', () => {
+  const state = stateWith([['a'], ['b']])
+  openDuel(state, 'host-pick')
+  assert.ok(seatDuel(state, ['a', 'b']))
+  assert.equal(duelAct(state, 'a', 'duelVolunteer'), false)
+})
+
+test('seatDuel validates: distinct, eligible, one per team', () => {
+  const state = stateWith([['a', 'ta'], ['b', 'ta'], ['c', 'tb']], 'teams')
+  openDuel(state, 'host-pick')
+  assert.equal(seatDuel(state, ['a', 'a']), false)
+  assert.equal(seatDuel(state, ['a', 'ghost']), false)
+  assert.equal(seatDuel(state, ['a', 'b']), false, 'same team')
+  assert.equal(seatDuel(state, ['a', 'c']), true)
+  assert.deepEqual(state.duel!.seated, ['a', 'c'])
 })

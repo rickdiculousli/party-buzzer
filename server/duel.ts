@@ -85,3 +85,68 @@ export function resolveDuel(state: State, duel: DuelState): [PlayerId, PlayerId]
   }
   return twoSeats(state, source)
 }
+
+/**
+ * A player's duel act. Every path validates against the rule's gates before
+ * touching the pool; false means dropped and nothing mutated.
+ */
+export function duelAct(
+  state: State,
+  playerId: PlayerId,
+  act: string,
+  data?: unknown,
+): boolean {
+  const duel = state.duel
+  if (!duel || duel.seated) return false
+  const rule = duelRule(duel.rule)
+  if (!rule) return false
+  const takesVotes = rule.entry === 'vote' || rule.entry === 'both'
+  const takesVolunteers = rule.entry === 'volunteer' || rule.entry === 'both'
+  const mine = duel.pool.find((e) => e.playerId === playerId)
+
+  if (act === 'duelVolunteer') {
+    if (!takesVolunteers || mine?.in) return false
+    if (mine) mine.in = true
+    else duel.pool.push({ playerId, votes: [], in: true })
+    return true
+  }
+
+  if (act === 'duelBackOff') {
+    if (!takesVolunteers || !mine?.in) return false
+    mine.in = false
+    return true
+  }
+
+  if (act === 'duelVote') {
+    if (!takesVotes || typeof data !== 'string') return false
+    if (data === playerId) return false // a vote is for someone else
+    if (!state.players.some((p) => p.id === data && p.connected)) return false
+    // One vote per player: lift it off whoever held it, then place it.
+    for (const e of duel.pool) {
+      const at = e.votes.indexOf(playerId)
+      if (at >= 0) e.votes.splice(at, 1)
+    }
+    const target = duel.pool.find((e) => e.playerId === data)
+    if (target) target.votes.push(playerId)
+    else duel.pool.push({ playerId: data, votes: [playerId], in: false })
+    return true
+  }
+
+  return false
+}
+
+/**
+ * Seat an explicit pair (host override, and the only path for resolve:'host'
+ * rules). The gates constrain entry; this constrains the result.
+ */
+export function seatDuel(state: State, ids: [PlayerId, PlayerId]): boolean {
+  const duel = state.duel
+  if (!duel || duel.seated) return false
+  const [a, b] = ids
+  if (!a || !b || a === b) return false
+  const ok = new Set(eligible(state))
+  if (!ok.has(a) || !ok.has(b)) return false
+  if (state.mode === 'teams' && teamOf(state, a) === teamOf(state, b)) return false
+  duel.seated = [a, b]
+  return true
+}
