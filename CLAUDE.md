@@ -19,6 +19,7 @@ npm run sim        # synthetic self-play against a running server
 npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@140 correct   # one scripted round
 npm run motion     # the animation harness at /anim.html (dev only)
 npm run fakes -- add [n] / remove   # fake players with fake scores (ids fake-01..fake-99)
+npm run demo-sounds [clean]         # synthesized stand-ins so the sound library has entries
 ```
 
 Run a single test file or case:
@@ -192,8 +193,11 @@ with an envelope, and the panel shows them as a DAW would — every layer of a
 cue on one shared timeline, the audio drawn behind the envelope that gates it.
 Drag the track body to move a layer in time, drag within a few pixels of the
 clip's left edge to slide the audio inside it, drag the four handles for the
-envelope. Audio past the envelope's end is dimmed rather than cut, so the tail
-you gated off stays visible and draggable back. `+ layer` adds a source —
+envelope. The cursor and the caption under each track name the gesture before
+you commit to it — the two body drags differ by six pixels and nothing else,
+so the track has to say which one it is about to do. Audio past the envelope's
+end is dimmed rather than cut, so the tail you gated off stays visible and
+draggable back. `+ layer` adds a source —
 an adopted file or one of five oscillators — and `×` removes one; both are
 undone by Reset, because nothing is written until Save. Save writes the whole
 `cue:recipes` block through the same endpoint that writes the CSS.
