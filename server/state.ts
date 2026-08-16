@@ -4,9 +4,9 @@ import { ARM_LEAD_MS } from '../shared/protocol.ts'
 import { knownModule, moduleFor, sanitizeOptions } from './modes/index.ts'
 import { executeGrants } from './items.ts'
 import { duelOnArm, duelOnWrong, duelRule, resolveDuel, seatDuel } from './duel.ts'
-import { advanceFlow, enterBlock, sanitizeBlocks } from './flow.ts'
+import { advanceFlow, applySetup, enterBlock, sanitizeBlocks } from './flow.ts'
 import type {
-  HostAction, PlayerId, ScoreKey, State,
+  FlowBlock, HostAction, PlayerId, ScoreKey, State,
 } from '../shared/protocol.ts'
 
 export { ARM_LEAD_MS }
@@ -70,6 +70,20 @@ export function buzzBlockReason(state: State, playerId: PlayerId): string | null
 
 export function bump(state: State, key: ScoreKey, delta: number): void {
   state.scores[key] = (state.scores[key] ?? 0) + delta
+}
+
+/**
+ * Whether two blocks would run the room the same way. A shallow compare of
+ * `options` is a corner cut — a block that swaps one option value for a
+ * deep-equal-but-different object would false-negative here — but options
+ * arrive from the builder's own form, which never produces that shape.
+ */
+function sameSetup(a: FlowBlock, b: FlowBlock): boolean {
+  if (a.game !== b.game || a.value !== b.value) return false
+  const ak = Object.keys(a.options)
+  const bk = Object.keys(b.options)
+  if (ak.length !== bk.length) return false
+  return ak.every((k) => a.options[k] === b.options[k])
 }
 
 export function applyHostAction(state: State, action: HostAction): void {
@@ -299,8 +313,16 @@ export function applyHostAction(state: State, action: HostAction): void {
       const keep = prev && prev.at < prev.blocks.length && prev.at < blocks.length
       const at = keep ? prev.at : 0
       const done = keep ? Math.min(prev.done, blocks[at].count - 1) : 0
+      // Keeping position doesn't mean the block AT that position is unchanged —
+      // the host may have just edited the one being played. Compare it against
+      // what was there before and re-apply setup alone if it moved, so the
+      // room's mode never drifts from what the play strip claims. Never
+      // re-open a duel here: that is a per-question event, not a per-edit one,
+      // and firing it on a settings tweak would wipe an in-flight vote pool.
+      const changed = keep && !sameSetup(prev.blocks[at], blocks[at])
       state.flow = { blocks, at, done }
       if (!keep) enterBlock(state, apply, true)
+      else if (changed) applySetup(state, apply)
       return
     }
 

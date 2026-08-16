@@ -113,10 +113,10 @@ async function main() {
   let flowIsOurs = false
 
   const clear = () => {
-    // First: clearFlow (and the closeDuel path underneath a mid-question
-    // cancel) are refused unless the round is IDLE. Resetting the round here,
-    // before anything IDLE-gated runs, is what makes a `clear` mid-question
-    // actually clear rather than leave the flow armed for the next `next`.
+    // First: clearFlow is refused unless the round is IDLE. Resetting the
+    // round here, before anything IDLE-gated runs, is what makes a `clear`
+    // mid-question actually clear rather than leave the flow armed for the
+    // next `next`.
     host.send({ t: 'host', action: { a: 'next' } })
     if (flowIsOurs) host.send({ t: 'host', action: { a: 'clearFlow' } })
     host.send({ t: 'host', action: { a: 'cancelDuel' } })

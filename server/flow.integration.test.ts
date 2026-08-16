@@ -50,3 +50,30 @@ test('a flow saves, loads, and walks the room from block to block', async () => 
     assert.equal(host.last.duel?.pool[0]?.playerId, bo.playerId)
   })
 })
+
+test('a mid-flow undo restores the position and the mode together', async () => {
+  await withServer(async (url) => {
+    const host = new FakeClient(url, 'host')
+    await host.open()
+
+    host.send({ t: 'host', action: { a: 'setFlow', blocks } })
+    await sleep(60)
+    assert.equal(host.last.flow?.at, 0)
+    assert.equal(host.last.game.id, 'trivia')
+
+    // Cross the block boundary: block 1 is one question long, so this one
+    // `next` is both the mode switch and the position advance — one
+    // synchronous mutation, which is the whole point of the undo test.
+    host.send({ t: 'host', action: { a: 'arm' } })
+    await sleep(60)
+    host.send({ t: 'host', action: { a: 'next' } })
+    await sleep(60)
+    assert.equal(host.last.flow?.at, 1)
+    assert.equal(host.last.game.id, 'quizbowl')
+
+    host.send({ t: 'host', action: { a: 'undo' } })
+    await sleep(60)
+    assert.equal(host.last.flow?.at, 0, 'position rewound')
+    assert.equal(host.last.game.id, 'trivia', 'mode rewound with it')
+  })
+})

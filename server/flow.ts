@@ -15,23 +15,41 @@ import type { FlowBlock, HostAction, State } from '../shared/protocol.ts'
 export type Apply = (action: HostAction) => void
 
 /**
- * Set up the block the flow is on. `fresh` means the block itself changed, so
- * the mode and the value are re-applied; a duel opens either way, because a
- * duel block is a duel per question.
+ * The block's mode, its options and its round value. Split out from
+ * `enterBlock` so `setFlow` can re-apply setup alone when the block at a kept
+ * position changed shape, without also re-firing the duel half below (that
+ * would blow away an in-flight nomination pool for a tweak that has nothing
+ * to do with it).
  *
  * Re-stamping the value every question would fight two legitimate things: the
  * host's own mid-block tweak, and the reader's per-question `setValue` from the
- * pack. Neither should lose to a setting written an hour ago.
+ * pack. Neither should lose to a setting written an hour ago — which is why
+ * this only runs when the caller says the block itself is fresh.
  */
-export function enterBlock(state: State, apply: Apply, fresh: boolean): void {
+export function applySetup(state: State, apply: Apply): void {
   const flow = state.flow
   const block = flow?.blocks[flow.at]
   if (!block) return
-  if (fresh) {
-    apply({ a: 'setGame', id: block.game, options: block.options, keepScores: true })
-    if (block.value !== undefined) apply({ a: 'setValue', value: block.value })
-  }
+  apply({ a: 'setGame', id: block.game, options: block.options, keepScores: true })
+  if (block.value !== undefined) apply({ a: 'setValue', value: block.value })
+}
+
+/** The block's duel, if it declares one — a duel block is a duel per question. */
+export function applyDuel(state: State, apply: Apply): void {
+  const flow = state.flow
+  const block = flow?.blocks[flow.at]
+  if (!block) return
   if (block.duel) apply({ a: 'openDuel', rule: block.duel })
+}
+
+/**
+ * Set up the block the flow is on. `fresh` means the block itself changed, so
+ * the mode and the value are re-applied; a duel opens either way, because a
+ * duel block is a duel per question.
+ */
+export function enterBlock(state: State, apply: Apply, fresh: boolean): void {
+  if (fresh) applySetup(state, apply)
+  applyDuel(state, apply)
 }
 
 /**

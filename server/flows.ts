@@ -10,7 +10,6 @@ import { knownModule } from './modes/index.ts'
 import { duelRule } from './duel.ts'
 import type { FlowBlock } from '../shared/protocol.ts'
 
-const known = (id: string) => knownModule(id)
 const rule = (id: string) => !!duelRule(id)
 
 /** Sorted flow filenames. A missing directory is a room with nothing saved. */
@@ -41,7 +40,7 @@ export function readFlow(dir: string, name: string): FlowBlock[] {
     console.warn(`[flows] could not read "${name}":`, err)
     return []
   }
-  return sanitizeBlocks(raw, known, rule)
+  return sanitizeBlocks(raw, knownModule, rule)
 }
 
 /** Write a flow, returning the filename it landed under. */

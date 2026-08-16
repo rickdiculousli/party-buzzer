@@ -1,5 +1,6 @@
 import { useState } from 'preact/hooks'
 import type { FlowBlock, HostAction, State } from '../shared/protocol.ts'
+import { OptionField, defaultsOf } from './GameSettings.tsx'
 
 /**
  * The setlist builder. Setup, so it lives folded away in the host's manage
@@ -41,7 +42,7 @@ export function FlowPanel({
       ...blocks,
       {
         game: game.id,
-        options: Object.fromEntries(game.options.map((o) => [o.key, o.default])),
+        options: defaultsOf(game),
         count: 5,
       },
     ])
@@ -103,7 +104,7 @@ export function FlowPanel({
                   if (!next) return
                   edit(i, {
                     game: id,
-                    options: Object.fromEntries(next.options.map((o) => [o.key, o.default])),
+                    options: defaultsOf(next),
                   })
                 }}
               >
@@ -161,59 +162,13 @@ export function FlowPanel({
               {/* The mode's own options, rendered from the schema in the state
                   payload — the same property that lets GameSettings exist. */}
               {info?.options.map((spec) => (
-                <label key={spec.key} class="field">
-                  {spec.label}
-                  {spec.kind === 'bool' ? (
-                    <input
-                      type="checkbox"
-                      checked={Boolean(b.options[spec.key] ?? spec.default)}
-                      disabled={!idle}
-                      onChange={(e) =>
-                        edit(i, {
-                          options: {
-                            ...b.options,
-                            [spec.key]: (e.target as HTMLInputElement).checked,
-                          },
-                        })
-                      }
-                    />
-                  ) : spec.kind === 'int' ? (
-                    <input
-                      class="input input--num"
-                      type="number"
-                      min={spec.min}
-                      max={spec.max}
-                      value={Number(b.options[spec.key] ?? spec.default)}
-                      disabled={!idle}
-                      onChange={(e) =>
-                        edit(i, {
-                          options: {
-                            ...b.options,
-                            [spec.key]: Number((e.target as HTMLInputElement).value),
-                          },
-                        })
-                      }
-                    />
-                  ) : (
-                    <select
-                      class="input"
-                      value={String(b.options[spec.key] ?? spec.default)}
-                      disabled={!idle}
-                      onChange={(e) =>
-                        edit(i, {
-                          options: {
-                            ...b.options,
-                            [spec.key]: (e.target as HTMLSelectElement).value,
-                          },
-                        })
-                      }
-                    >
-                      {spec.choices.map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                  )}
-                </label>
+                <OptionField
+                  key={spec.key}
+                  spec={spec}
+                  value={b.options[spec.key]}
+                  disabled={!idle}
+                  onChange={(v) => edit(i, { options: { ...b.options, [spec.key]: v } })}
+                />
               ))}
 
               <span class="flow__spacer" />
