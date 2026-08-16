@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'preact/hooks'
 import { useOpen, useSocket } from './useSocket.ts'
 import { colorForPlayer, standings } from './ui.ts'
 import { GameSettings } from './GameSettings.tsx'
+import { DuelPanel } from './DuelPanel.tsx'
 import type { HostAction, ScoreKey } from '../shared/protocol.ts'
 
 /**
@@ -220,6 +221,8 @@ export function Host() {
           </p>
         )}
       </section>
+
+      <DuelPanel state={state} act={act} />
 
       <section>
         <p class="eyebrow">Scores</p>
