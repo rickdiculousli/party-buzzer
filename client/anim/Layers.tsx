@@ -10,8 +10,9 @@
  * shows anyway.
  */
 import { useEffect, useState } from 'preact/hooks'
-import { span } from '../cues.ts'
-import { bufferFor, primeFile } from '../sound.ts'
+import { addLayer, span } from '../cues.ts'
+import { bufferFor, playRecipe, primeFile } from '../sound.ts'
+import { SoundList, usePreview, type SoundRow } from './SoundList.tsx'
 import { Track } from './Track.tsx'
 import type { NumericField } from '../cues.ts'
 import type { Layer, Recipe, Source } from '../synth.ts'
@@ -55,13 +56,64 @@ export function Layers({
   onAdd: (source: Source, durationMs: number) => void
 }) {
   const [picking, setPicking] = useState(false)
-  const [adopted, setAdopted] = useState<{ name: string }[]>([])
+  const [adopted, setAdopted] = useState<{ name: string; size: number }[]>([])
+  const [chosen, setChosen] = useState('')
+  const preview = usePreview()
+
+  /**
+   * The adopted list, decoded on arrival.
+   *
+   * Decoding all of them up front is what lets the list show durations, and a
+   * duration is the one measurement that actually helps you choose — kilobytes
+   * tell you about the encoding, not the sound. These are small local files
+   * that the board will decode anyway.
+   */
   useEffect(() => {
+    if (!picking) return
     fetch('/__snd/adopted')
       .then((r) => r.json())
-      .then((b) => setAdopted(b.files))
+      .then(async (b: { files: { name: string; size: number }[] }) => {
+        setAdopted(b.files)
+        for (const f of b.files) await primeFile(`/sounds/${f.name}`)
+        // The durations arrive with the decodes, so re-render once they have.
+        setAdopted([...b.files])
+      })
       .catch(() => {})
-  }, [])
+  }, [picking])
+
+  /** What `+ layer` would actually add for this row — previewed, then added. */
+  const sourceFor = (id: string): Source =>
+    id.startsWith('file:') ? { file: `/sounds/${id.slice(5)}` } : (id as Source)
+
+  const durationOf = (source: Source): number =>
+    typeof source === 'object' ? (bufferFor(source.file)?.duration ?? 0) * 1000 : 0
+
+  const rows: SoundRow[] = [
+    ...adopted.map((f) => {
+      const ms = durationOf({ file: `/sounds/${f.name}` })
+      return {
+        id: `file:${f.name}`,
+        name: f.name,
+        // Size until the decode lands, because a row with no measurement at all
+        // reads as a broken row rather than a pending one.
+        meta: ms ? `${(ms / 1000).toFixed(2)}s` : `${Math.round(f.size / 1024)}k`,
+      }
+    }),
+    ...OSCILLATORS.map((o) => ({ id: String(o), name: String(o), tag: 'synth' })),
+  ]
+
+  /**
+   * Hear the layer, not the file.
+   *
+   * The preview renders exactly what `+ layer` would put on the timeline —
+   * same default envelope, same gain — because the question you are asking a
+   * candidate is "what does this sound like *as a layer of this cue*", and a
+   * raw file playing at full volume answers a different one.
+   */
+  const previewRow = (id: string) => {
+    const source = sourceFor(id)
+    preview.toggle(id, () => playRecipe(addLayer([], source, durationOf(source))))
+  }
 
   /**
    * Decode before adding, so the new layer's `hold` can be the file's real
@@ -69,11 +121,13 @@ export function Layers({
    * silent — this default is what stops the front door from handing you a
    * layer that does nothing.
    */
-  const addFile = async (name: string) => {
-    const url = `/sounds/${name}`
-    await primeFile(url)
-    onAdd({ file: url }, (bufferFor(url)?.duration ?? 0) * 1000)
+  const add = async () => {
+    const source = sourceFor(chosen)
+    if (typeof source === 'object') await primeFile(source.file)
+    preview.stop()
+    onAdd(source, durationOf(source))
     setPicking(false)
+    setChosen('')
   }
 
   const spanMs = Math.max(span(recipe), ...recipe.map(audioEnd))
@@ -115,29 +169,32 @@ export function Layers({
         />
       ))}
       <div class="harness__row">
-        <button class="btn btn--ghost" onClick={() => setPicking((p) => !p)}>
-          + layer
+        <button
+          class="btn btn--ghost"
+          onClick={() => {
+            preview.stop()
+            setPicking((p) => !p)
+          }}
+        >
+          {picking ? 'Cancel' : '+ layer'}
         </button>
       </div>
       {picking && (
         <div class="layers__picker">
-          {adopted.map((f) => (
-            <button key={f.name} class="btn" onClick={() => addFile(f.name)}>
-              {f.name}
+          <p class="eyebrow">Play one, then add it</p>
+          <SoundList
+            rows={rows}
+            selected={chosen}
+            onSelect={setChosen}
+            playing={preview.playing}
+            onPreview={previewRow}
+            empty="No adopted sounds yet. Adopt one from the Library below."
+          />
+          <div class="harness__row">
+            <button class="btn btn--primary" disabled={!chosen} onClick={add}>
+              Add layer
             </button>
-          ))}
-          {OSCILLATORS.map((o) => (
-            <button
-              key={String(o)}
-              class="btn"
-              onClick={() => {
-                onAdd(o, 0)
-                setPicking(false)
-              }}
-            >
-              {String(o)}
-            </button>
-          ))}
+          </div>
         </div>
       )}
     </div>

@@ -52,7 +52,10 @@ script globs `'server/*.test.ts'` for a reason.
   naming the ceiling and the upgrade path.
 - A number an anchor needs is either a CSS custom property in `anim:tunables`
   or a field in a recipe in `cue:recipes` — never inlined into either a
-  keyframe or a scenario.
+  keyframe or a scenario. The split is by kind, not by convenience: how a thing
+  looks and moves is CSS, how it sounds is its recipe. No cue's gain, offset or
+  envelope lives in a stylesheet; the one cue still on the sample path keeps its
+  four numbers in `BED` in `client/sound.ts`.
 
 ## Architecture
 

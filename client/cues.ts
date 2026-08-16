@@ -20,8 +20,14 @@
  * it, one moment. They were two separate cues fired together until the editor
  * could show them on one timeline — which is the only way to move one against
  * the other and see what you did. Nothing about the sound changed in the
- * merge: both carried the same gain, delay and rate, and `play()` applies the
- * cue's gain to the pair exactly as it applied each cue's own.
+ * merge: both carried the same gain, delay and rate.
+ *
+ * `gain` is on the layer because this table is now the only place a cue's sound
+ * is described. It used to be `--<cue>-snd-gain` in style.css, read through
+ * `getComputedStyle` at play time — which made sense when a cue was one sample
+ * and its numbers sat beside the movement they were aligned to, and stopped
+ * making sense the moment a cue became a list of layers that each already had
+ * a `gain` field. A stylesheet is for what things look like. Volume is not.
  *
  * The block between the markers is machine-written: the harness rewrites it
  * through `POST /__anim/save`, the same way it already rewrites the CSS
@@ -39,6 +45,7 @@ export const RECIPES = {
       "source": {
         "file": "/sounds/stamp.wav"
       },
+      "gain": 0.8,
       "sustain": 1,
       "hold": 216,
       "release": 40
@@ -49,6 +56,7 @@ export const RECIPES = {
       "source": {
         "file": "/sounds/leader.wav"
       },
+      "gain": 0.8,
       "sustain": 1,
       "hold": 841,
       "release": 40
@@ -57,6 +65,7 @@ export const RECIPES = {
       "source": {
         "file": "/sounds/leader2.wav"
       },
+      "gain": 0.8,
       "sustain": 1,
       "hold": 3040,
       "release": 40

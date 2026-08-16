@@ -1,17 +1,21 @@
 /**
  * One-shot sample playback for the anchor moments.
  *
- * The numbers live in the `anim:tunables` block in style.css alongside the
- * visual ones, as ordinary custom properties. Nothing reads them from CSS —
- * `tune()` below does, through `getComputedStyle`. They are there because
- * aligning a sound to a movement is the same act as tuning the movement, and
- * because it means the harness's dials, origin markers and write-back all work
- * on sound without knowing anything about it.
+ * A cue's numbers live with the cue: in `RECIPES` for anything that is a
+ * recipe, in `BED` below for the one cue that is still a sample. They used to
+ * live in the `anim:tunables` block in style.css as custom properties read
+ * through `getComputedStyle`, which was a real argument while a cue was one
+ * sample with a head and a cut — aligning a sound to a movement is the same act
+ * as tuning the movement, and it bought the harness's dials and write-back for
+ * free.
  *
- * That is also why `play()` takes a scope element: the harness sets the
- * properties on its own wrapper rather than on `:root`, so a player that read
- * only from the document would hear the file's committed values while you
- * watched the dialled ones.
+ * A recipe layer already carries `gain`, `delay` and its own envelope, so
+ * keeping a parallel set of the same numbers in a stylesheet meant two homes
+ * for one value and a `head`/`cut` pair that the recipe path silently ignored.
+ * The values moved to the recipe; the stylesheet went back to being about what
+ * things look like. What is left in CSS is genuinely shared with the picture:
+ * `--mark-stagger`, which the marks animate against and this file reads for
+ * spacing.
  */
 
 import { recipeFor } from './cues.ts'
@@ -34,8 +38,9 @@ const FILES: Partial<Record<Cue, string>> = {
  * How long the cut takes to fall silent. Chopping a sample dead mid-waveform
  * is a click, and a click is louder than the sound it ends.
  *
- * ponytail: one constant for every cue, and linear. If a cue ever needs its own
- * release shape, it becomes a `--<cue>-snd-release` beside the others.
+ * ponytail: one constant, linear, and only the bed's cut uses it now — every
+ * other cue expresses its release as a `release` stage on a layer. If the bed
+ * ever wants its own, it becomes a field on `BED`.
  */
 const RELEASE_MS = 40
 
@@ -135,16 +140,22 @@ export function parseTune(raw: string, fallback: number): number {
   return /[^m]s$/.test(v) ? n * 1000 : n
 }
 
-function tune(scope: Element, cue: Cue, key: string, fallback: number): number {
-  return parseTune(getComputedStyle(scope).getPropertyValue(`--${cue}-snd-${key}`), fallback)
-}
+/**
+ * The bed's numbers, for the one cue that is not a recipe.
+ *
+ * `welcome` is a minute and a half of music that runs rather than a sound that
+ * fires: it loops, and `head`/`cut` are its loop points rather than a trim, so
+ * it stays on the sample path until the synth learns to loop. Its four numbers
+ * live here because a recipe is where the others live and this cue has none —
+ * not in a stylesheet, which is the arrangement the rest of this file just got
+ * out of.
+ */
+const BED = { gain: 0.35, head: 0, cut: 0, rate: 1 }
 
 export type PlayOpts = {
-  /** Where the tunables are read from. The harness passes its own wrapper. */
-  scope?: Element
-  /** Multiplies the tuned rate, so slow motion can slow the sound with it. */
+  /** Multiplies the rate, so slow motion can slow the sound with it. */
   rateScale?: number
-  /** Pushed on top of the tuned delay, for spacing one cue out of a cluster. */
+  /** Offsets the start, for spacing one cue out of a cluster. */
   offsetMs?: number
   /** The harness's dialled recipe, standing in for the committed one. */
   recipe?: Recipe
@@ -155,27 +166,33 @@ export type PlayOpts = {
  * has landed — a missed sound is never worth a thrown exception on the one
  * screen the whole room is watching.
  */
-export function play(
-  cue: Cue,
-  { scope, rateScale = 1, offsetMs = 0, recipe }: PlayOpts = {},
-): void {
+/**
+ * Fire a recipe directly, and hand back the way to cut it short.
+ *
+ * The recipe branch of `play()` and every preview in the panel are the same
+ * act — a list of layers, rendered once — so they are one function. A preview
+ * calls this with a recipe that is not a cue and may never become one.
+ *
+ * Everything the recipe needs is in the recipe: each layer's own `gain` is its
+ * level and each layer's own `delay` is its offset, both applied by `schedule`.
+ * The render gain is therefore a plain 1 rather than a second volume control
+ * stacked on top of the layers'.
+ */
+export function playRecipe(recipe: Recipe, rateScale = 1, offsetMs = 0): () => void {
+  const ac = unlock()
+  const t0 = Math.max(ac.currentTime, ac.currentTime + offsetMs / 1000)
+  const stop = render(ac, schedule(recipe, Math.max(0.05, rateScale)), t0, 1, files)
+  // `render` skips a file layer with nothing decoded for it, so start the
+  // decode and let the next trigger have it. One silent cue, not a silent night.
+  for (const l of recipe)
+    if (typeof l.source === 'object' && !files.has(l.source.file)) void primeFile(l.source.file)
+  return stop
+}
+
+export function play(cue: Cue, { rateScale = 1, offsetMs = 0, recipe }: PlayOpts = {}): void {
   const r = recipe ?? recipeFor(cue)
   if (r) {
-    const ac = unlock()
-    const at = scope ?? document.documentElement
-    const delay = tune(at, cue, 'delay', 0)
-    const rate = tune(at, cue, 'rate', 1) * rateScale
-    const gain = tune(at, cue, 'gain', 1)
-    // A recipe's length is its envelopes, so `head` and `cut` stay sample-only.
-    // Clamped to now for the same reason the sample path is: a start in the
-    // past is played immediately, which is late but never silent.
-    const t0 = Math.max(ac.currentTime, ac.currentTime + (delay + offsetMs) / 1000)
-    render(ac, schedule(r, Math.max(0.05, rate)), t0, gain, files)
-    // The same self-heal the sample path below has: `render` skips a file layer
-    // with nothing decoded for it, so start the decode and let the next trigger
-    // have it. One silent cue, not a silent night.
-    for (const l of r)
-      if (typeof l.source === 'object' && !files.has(l.source.file)) void primeFile(l.source.file)
+    playRecipe(r, rateScale, offsetMs)
     return
   }
 
@@ -185,13 +202,8 @@ export function play(
     return
   }
   const ac = unlock()
-  const at = scope ?? document.documentElement
-
-  const delay = tune(at, cue, 'delay', 0)
-  const head = tune(at, cue, 'head', 0)
-  const cut = tune(at, cue, 'cut', 0)
-  const rate = tune(at, cue, 'rate', 1) * rateScale
-  const gain = tune(at, cue, 'gain', 1)
+  const { head, cut, gain } = BED
+  const rate = BED.rate * rateScale
 
   const src = ac.createBufferSource()
   src.buffer = buf
@@ -207,7 +219,7 @@ export function play(
   amp.gain.value = gain
   src.connect(amp).connect(ac.destination)
 
-  const t0 = Math.max(ac.currentTime, ac.currentTime + (delay + offsetMs) / 1000)
+  const t0 = Math.max(ac.currentTime, ac.currentTime + offsetMs / 1000)
   src.start(t0, Math.max(0, head / 1000))
 
   // `cut` is wall-clock output, not a length of the file, so it means the same
@@ -293,14 +305,13 @@ export function playSpaced(cue: Cue | Cue[], scope?: Element): void {
     cues.map((c) => onset(recipeFor(c) ?? [])),
   )
   nextFree = plan.free / 1000
-  cues.forEach((c, i) => play(c, { scope, offsetMs: plan.offsets[i] }))
+  cues.forEach((c, i) => play(c, { offsetMs: plan.offsets[i] }))
 }
 
 /* --- the bed -----------------------------------------------------------
-   A cue that runs rather than fires. Same tunables, read once at the start
-   because there is no later trigger to re-read them on: `head` and `cut`
-   become the loop points, so a file with applause on the tail can be looped
-   on its good bars alone. */
+   A cue that runs rather than fires, and the last one still reading `BED`:
+   `head` and `cut` are its loop points rather than a trim, so a file with
+   applause on the tail can be looped on its good bars alone. */
 
 let bed: { cue: Cue; amp: GainNode; src: AudioBufferSourceNode } | null = null
 /**
@@ -320,14 +331,14 @@ const FADE_MS = 900
  * every broadcast, and a bed that restarted on each one would stutter all the
  * way through the lobby.
  */
-export function startBed(cue: Cue, scope?: Element): void {
+export function startBed(cue: Cue): void {
   if (bed?.cue === cue) return
   wanted = cue
   const buf = buffers.get(cue)
   if (!buf) {
     // Come back once it has decoded — unless the moment has passed by then.
     void load(cue)
-      .then(() => wanted === cue && startBed(cue, scope))
+      .then(() => wanted === cue && startBed(cue))
       .catch(() => {})
     return
   }
@@ -335,17 +346,16 @@ export function startBed(cue: Cue, scope?: Element): void {
   wanted = cue
 
   const ac = unlock()
-  const at = scope ?? document.documentElement
-  const gain = tune(at, cue, 'gain', 0.5)
-  const head = tune(at, cue, 'head', 0) / 1000
-  const cut = tune(at, cue, 'cut', 0) / 1000
+  const { gain } = BED
+  const head = BED.head / 1000
+  const cut = BED.cut / 1000
 
   const src = ac.createBufferSource()
   src.buffer = buf
   src.loop = true
   src.loopStart = Math.max(0, head)
   src.loopEnd = cut > head ? cut : buf.duration
-  src.playbackRate.value = Math.max(0.05, tune(at, cue, 'rate', 1))
+  src.playbackRate.value = Math.max(0.05, BED.rate)
 
   const amp = ac.createGain()
   amp.gain.setValueAtTime(0, ac.currentTime)

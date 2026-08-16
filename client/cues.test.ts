@@ -66,20 +66,32 @@ test('every anchor layer still plays its own WAV, in order', () => {
   }
 })
 
-test('the file envelope holds full gain for the whole file and outlives it', () => {
+/**
+ * The level each file is held at for its whole length.
+ *
+ * 0.8 is what `--<cue>-snd-gain` used to apply after the envelope; it is now
+ * the layer's own `gain`, which is the envelope's peak. Same number, one home.
+ */
+const LEVEL = 0.8
+
+test('the file envelope holds its level for the whole file and outlives it', () => {
   for (const [cue, layers] of Object.entries(FILE_LAYERS)) {
     const voices = schedule(RECIPES[cue as keyof typeof RECIPES])
     layers.forEach((l, i) => {
       const v = voices[i]
       const dur = l.ms / 1000
       assert.ok(v.stop > dur, `${l.file} stops at ${v.stop}s, before its ${dur}s of audio`)
-      // Sampled rather than reasoned about: full gain from the first sample to
-      // the last, so nothing about the file's own shape is altered.
+      // Sampled rather than reasoned about: flat from the first sample to the
+      // last, so nothing about the file's own shape is altered. A dip anywhere
+      // in here is the envelope eating into audio it was only meant to pass.
       for (let n = 0; n <= 40; n++) {
         const t = (dur * n) / 40
         // Not exact: the last sample lands on the hold boundary, and float64 can
         // put it a femtosecond the wrong side of it.
-        assert.ok(gainAt(v.gain, t) > 0.999, `${l.file} is not at full gain at ${t}s`)
+        assert.ok(
+          Math.abs(gainAt(v.gain, t) - LEVEL) < 0.001,
+          `${l.file} is at ${gainAt(v.gain, t)} rather than ${LEVEL} at ${t}s`,
+        )
       }
     })
   }

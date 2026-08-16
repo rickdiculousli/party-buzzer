@@ -26,6 +26,7 @@ import { SCENARIOS, dialKey, recipeDials, type Dial } from './scenarios.tsx'
 import { parseTune, play, prime, primeFile, unlock } from '../sound.ts'
 import { RECIPES, addLayer, getPath, removeLayer, setPath } from '../cues.ts'
 import { Layers } from './Layers.tsx'
+import { SoundList, usePreview } from './SoundList.tsx'
 import type { Recipe } from '../synth.ts'
 
 /**
@@ -190,19 +191,15 @@ function Harness() {
   /**
    * The cue, on the same edge as the animation.
    *
-   * Scoped to the stage so it reads the dialled values rather than the ones
-   * committed to style.css — the harness sets its properties on that wrapper,
-   * and a sound tuned against the file while you watch the slider would be
-   * tuning nothing.
+   * The dialled recipe is handed over directly rather than read from anywhere:
+   * a cue's sound is its recipe now, so the draft *is* the tuning. There is no
+   * scope to pass, because there is no longer a stylesheet holding a second
+   * copy of these numbers to be read from the wrong element.
    */
   useEffect(() => {
     if (lead || muted || !scenario.sound) return
     for (const cue of [scenario.sound].flat())
-      play(cue, {
-        scope: stage.current ?? undefined,
-        rateScale: follow ? speed : 1,
-        recipe: draft[cue],
-      })
+      play(cue, { rateScale: follow ? speed : 1, recipe: draft[cue] })
   }, [lead])
 
   // Decode before the first take rather than during it, so the opening trigger
@@ -265,7 +262,7 @@ function Harness() {
    * this work trimmed and pitched the way I need it", and a raw preview answers a
    * different question.
    */
-  const [auditioning, setAuditioning] = useState('')
+  const preview = usePreview()
   const [selected, setSelected] = useState('')
   /**
    * A dialled tunable, in ms (or as-is for the unitless ones).
@@ -275,32 +272,69 @@ function Harness() {
    * makes it one.
    */
   const tune = (key: string, fallback: number) => parseTune(values[key] ?? '', fallback)
-  const audition = async (name: string) => {
-    setSelected(name)
-    setAuditioning(name)
-    const ac = unlock()
-    const buf = await ac.decodeAudioData(
-      await (await fetch(`/__snd/raw/${encodeURIComponent(name)}`)).arrayBuffer(),
-    )
-    const src = ac.createBufferSource()
-    src.buffer = buf
-    src.playbackRate.value = Math.max(0.05, tune('--audition-rate', 1))
-    src.connect(ac.destination)
-    const head = tune('--audition-head', 0) / 1000
-    // Both ends against the same instant on the context clock. `stop` takes an
-    // absolute time, so a bare `stop(cut)` is always in the past by the time
-    // anyone clicks ▶ — which stops the source immediately, i.e. silence.
-    const t0 = ac.currentTime
-    src.start(t0, head)
-    // `cut` is wall-clock output length, same convention as play()'s `cut` —
-    // see the comment at sound.ts:165 — not a length of the file, so a rate
-    // change does not change how long the audition runs.
-    const cut = tune('--audition-cut', 0) / 1000
-    if (cut > 0)
-      // ponytail: no release ramp here, unlike play()'s RELEASE_MS fade — this is
-      // a preview, not a baked file, and a hard stop is fine to judge a trim by.
-      src.stop(t0 + cut)
-    src.onended = () => setAuditioning('')
+
+  /**
+   * The decoded raw file, kept so a second press starts instantly.
+   *
+   * A download is fetched and decoded once per session rather than per press.
+   * These are the biggest files in the panel and re-decoding one on every
+   * audition made comparing two of them a waiting game.
+   */
+  const raw = useRef(new Map<string, AudioBuffer>())
+
+  const audition = (name: string) => {
+    preview.toggle(name, (done) => {
+      const ac = unlock()
+      let src: AudioBufferSourceNode | null = null
+      let cancelled = false
+
+      const begin = (buf: AudioBuffer) => {
+        if (cancelled) return
+        src = ac.createBufferSource()
+        src.buffer = buf
+        src.playbackRate.value = Math.max(0.05, tune('--audition-rate', 1))
+        src.connect(ac.destination)
+        const head = tune('--audition-head', 0) / 1000
+        // Both ends against the same instant on the context clock. `stop` takes
+        // an absolute time, so a bare `stop(cut)` is always in the past by the
+        // time anyone clicks ▶ — which stops the source immediately, i.e.
+        // silence.
+        const t0 = ac.currentTime
+        src.start(t0, head)
+        // `cut` is wall-clock output length, the same convention `play()` gives
+        // it — not a length of the file, so a rate change does not change how
+        // long the audition runs.
+        const cut = tune('--audition-cut', 0) / 1000
+        if (cut > 0)
+          // ponytail: no release ramp here, unlike the bed's RELEASE_MS fade —
+          // this is a preview, not a baked file, and a hard stop is fine to
+          // judge a trim by.
+          src.stop(t0 + cut)
+        src.onended = done
+      }
+
+      const held = raw.current.get(name)
+      if (held) begin(held)
+      else
+        void fetch(`/__snd/raw/${encodeURIComponent(name)}`)
+          .then((r) => r.arrayBuffer())
+          .then((b) => ac.decodeAudioData(b))
+          .then((buf) => {
+            raw.current.set(name, buf)
+            begin(buf)
+          })
+          .catch(done)
+
+      return () => {
+        // Covers the press that lands while the first decode is still in
+        // flight: there is no node to stop yet, and starting one afterwards
+        // would be a sound nobody asked for any more.
+        cancelled = true
+        try {
+          src?.stop()
+        } catch {}
+      }
+    })
   }
 
   const [adopting, setAdopting] = useState('')
@@ -556,19 +590,20 @@ function Harness() {
         <pre class="harness__css">{css}</pre>
 
         <p class="eyebrow">Library</p>
-        {library.length === 0 && <p class="harness__note">Nothing in sounds/raw/ yet.</p>}
-        {library.map((f) => (
-          <div class="harness__row" key={f.name}>
-            <button
-              class={auditioning === f.name ? 'btn btn--go' : 'btn'}
-              onClick={() => audition(f.name)}
-            >
-              ▶
-            </button>
-            <span class="harness__unit">{f.name}</span>
-            <span class="readout">{Math.round(f.size / 1024)}k</span>
-          </div>
-        ))}
+        <SoundList
+          rows={library.map((f) => ({
+            id: f.name,
+            name: f.name,
+            meta: `${Math.round(f.size / 1024)}k`,
+          }))}
+          selected={selected}
+          onSelect={setSelected}
+          playing={preview.playing}
+          onPreview={audition}
+          empty="Nothing in sounds/raw/ yet. Drop a download in, or run npm run demo-sounds."
+        />
+        {/* Auditions run through these three, so what you hear is the trim you
+            are about to bake in rather than the raw download. */}
         <div class="harness__row">
           <input
             class="input"

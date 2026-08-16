@@ -189,6 +189,11 @@ function apply(param: AudioParam, steps: Step[], t0: number): void {
  * with nothing decoded for it is skipped rather than thrown, on the same
  * principle as `play()` — a missed sound is never worth an exception on the one
  * screen the whole room is watching.
+ *
+ * Returns a function that cuts it short. The board never calls it — a cue on
+ * the board runs to its own end — but a preview you can start and not stop is
+ * a preview that holds the room hostage to a three-second buzzer, so the
+ * handle exists for the panel that needs it.
  */
 export function render(
   ctx: AudioContext,
@@ -196,7 +201,8 @@ export function render(
   t0: number,
   gain: number,
   buffers?: Map<string, AudioBuffer>,
-): void {
+): () => void {
+  const started: (OscillatorNode | AudioBufferSourceNode)[] = []
   for (const v of voices) {
     let node: OscillatorNode | AudioBufferSourceNode
     if (typeof v.source === 'object') {
@@ -242,5 +248,17 @@ export function render(
     if (node instanceof AudioBufferSourceNode) node.start(t0 + v.start, v.head)
     else node.start(t0 + v.start)
     node.stop(t0 + v.stop)
+    started.push(node)
+  }
+
+  return () => {
+    for (const node of started) {
+      // A node whose scheduled stop has already passed throws on a second
+      // stop in some engines, and a preview being cut short after it finished
+      // on its own is the ordinary case, not an error.
+      try {
+        node.stop()
+      } catch {}
+    }
   }
 }
