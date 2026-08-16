@@ -19,6 +19,7 @@ npm run sim        # synthetic self-play against a running server
 npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@140 correct   # one scripted round
 npm run motion     # the animation harness at /anim.html (dev only)
 npm run fakes -- add [n] / remove   # fake players with fake scores (ids fake-01..fake-99)
+npm run demo-sounds [clean]         # synthesized stand-ins so the sound library has entries
 ```
 
 Run a single test file or case:
@@ -51,7 +52,10 @@ script globs `'server/*.test.ts'` for a reason.
   naming the ceiling and the upgrade path.
 - A number an anchor needs is either a CSS custom property in `anim:tunables`
   or a field in a recipe in `cue:recipes` — never inlined into either a
-  keyframe or a scenario.
+  keyframe or a scenario. The split is by kind, not by convenience: how a thing
+  looks and moves is CSS, how it sounds is its recipe. No cue's gain, offset or
+  envelope lives in a stylesheet; the one cue still on the sample path keeps its
+  four numbers in `BED` in `client/sound.ts`.
 
 ## Architecture
 
@@ -172,9 +176,11 @@ game. Pick an anchor, retrigger it or loop it, and drop the speed to 0.1× to
 actually see where the light sits relative to the movement; a 110ms stamp is
 eleven frames at full speed and there is nothing to judge in that.
 
-Its numbers are the `anim:tunables` block in `client/style.css`, and **Save**
-rewrites that block in place through a dev-only Vite middleware, so a value you
-dialled in cannot change on its way home. The scenarios live in
+Its numbers live in two blocks — `anim:tunables` in `client/style.css` for the
+picture, `cue:recipes` in `client/cues.ts` for the sound — and **Save** rewrites
+both in place through one dev-only Vite middleware, so a value you dialled in
+cannot change on its way home. It is disabled until something has actually
+moved, and says afterwards how much went to each file. The scenarios live in
 `client/anim/scenarios.tsx` and render each component inside a copy of its real
 container — bloom against an empty void reads nothing like bloom beside a cyan
 rail and three other names. The harness is dev-only by construction:
@@ -188,15 +194,35 @@ nobody will tune.
 
 The same page has a **Sound** panel. Cues named in `client/cues.ts` are
 synthesized rather than found: a recipe is a list of layers, each one source
-with an envelope, and its dials write back into the `cue:recipes` block through
-the same Save that writes the CSS. Drag the envelope canvas rather than
-inferring the shape from four sliders.
+with an envelope, and the panel shows them as a DAW would — every layer of a
+cue on one shared timeline, the audio drawn behind the envelope that gates it.
+Drag the track body to move a layer in time, drag within a few pixels of the
+clip's left edge to slide the audio inside it, drag the four handles for the
+envelope. The cursor and the caption under each track name the gesture before
+you commit to it — the two body drags differ by six pixels and nothing else,
+so the track has to say which one it is about to do. Audio past the envelope's
+end is dimmed rather than cut, so the tail you gated off stays visible and
+draggable back. `+ layer` adds a source —
+an adopted file or one of five oscillators — and `×` removes one; both are
+undone by Reset, because nothing is written until Save. Save writes the whole
+`cue:recipes` block through the same endpoint that writes the CSS.
+
+A layer may only name a file in `client/public/sounds/`, never one in
+`sounds/raw/`: anything a recipe names has to be servable to the real board.
+Using a download means adopting it first.
 
 Sounds that must stay found live in `sounds/raw/`, which is gitignored — drop a
 download in and it appears in the panel's Library, auditionable through the
-current trim so you hear what you are about to bake in. **Adopt** runs one of
-two `ffmpeg` presets, writes the result into `client/public/sounds/`, and
-appends the row to `CREDITS.md` with the exact command. `ffmpeg` is a machine
+current trim so you hear what you are about to bake in. Adopting runs one of two
+`ffmpeg` presets, writes the result into `client/public/sounds/`, and appends
+the row to `CREDITS.md` with the exact command. **Keep as a cue sound** bakes
+the dialled head, cut and pitch into uncompressed mono PCM with a 40ms fade at
+the cut — a sound that fires. **Keep as looping music** ignores the trim
+entirely and transcodes the whole file to Opus — a bed is looped on its own
+loop points rather than cut, and it is long enough that 64kbps is the
+difference between a 17MB download and a manageable one. The output extension
+follows from the preset rather than from what you typed, because ffmpeg picks
+its encoder from the extension and Opus in a `.wav` container is not a file. `ffmpeg` is a machine
 binary invoked through `child_process`; it is not and must not become an npm
 dependency.
 

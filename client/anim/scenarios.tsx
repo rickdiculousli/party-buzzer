@@ -23,8 +23,8 @@
  */
 import { COLLECT_MS } from '../../shared/protocol.ts'
 import type { Cue } from '../sound.ts'
-import { NUMERIC, RECIPES, type NumericField } from '../cues.ts'
-import type { Layer } from '../synth.ts'
+import { NUMERIC, type NumericField } from '../cues.ts'
+import type { Recipe } from '../synth.ts'
 
 /**
  * A number the harness can move.
@@ -73,28 +73,6 @@ export type Scenario = {
 }
 
 /**
- * The dials every cue has. `head` and `delay` are the two halves of alignment:
- * one moves the trigger, the other moves the attack inside the file — which is
- * why a cue that is a recipe gets neither `head` nor `cut`. There is no file to
- * trim: `play()` ignores both on the recipe branch, and a slider that moves and
- * changes nothing is worse than no slider.
- */
-const soundDials = (cue: Cue, name = 'Snd'): Dial[] => [
-  { var: `--${cue}-snd-delay`, label: `${name} delay`, min: 0, max: 600, step: 5, unit: 'ms' },
-  ...(cue in RECIPES
-    ? []
-    : [
-        { var: `--${cue}-snd-head`, label: `${name} head`, min: 0, max: 1000, step: 5, unit: 'ms' },
-        { var: `--${cue}-snd-cut`, label: `${name} cut (0 = whole)`, min: 0, max: 4000, step: 20, unit: 'ms' },
-      ]),
-  // Rate is pitch as well — it is one resampling knob, not two. Weighted well
-  // past 1: these are one-shots on a board, and the useful move is almost
-  // always shortening and brightening a sample rather than dragging it out.
-  { var: `--${cue}-snd-rate`, label: `${name} rate / pitch`, min: 0.25, max: 6, step: 0.05, unit: '' },
-  { var: `--${cue}-snd-gain`, label: `${name} gain`, min: 0, max: 1.5, step: 0.05, unit: '' },
-]
-
-/**
  * Range and step per recipe field. One table, so every layer dials alike, and
  * keyed off `NUMERIC` so the fields the canvas may write are exactly the ones
  * the panel can show.
@@ -115,34 +93,20 @@ const FIELD: Record<NumericField, { max: number; step: number; unit: string }> =
 /**
  * Every numeric field actually present in a cue's recipe, as dials.
  *
- * Driven off the recipe rather than off a written-out list, so adding a layer
- * to `cues.ts` gives you its dials without touching this file — and so a
- * scenario can never restate a value the recipe already carries.
+ * Driven off the recipe passed in rather than off the committed table, because
+ * the harness now edits a draft: a layer you added a moment ago has to get its
+ * dials without a reload, and a layer you removed has to lose them.
  */
-export function recipeDials(cue: string): Dial[] {
-  const recipe = (RECIPES as Record<string, Layer[]>)[cue] ?? []
+export function recipeDials(cue: string, recipe: Recipe): Dial[] {
   return recipe.flatMap((layer, i) =>
-    NUMERIC.filter((f) => typeof layer[f] === 'number')
-      .map((f) => ({
-        recipe: `${cue}.${i}.${f}`,
-        label: `${cue} L${i + 1} ${f}`,
-        min: 0,
-        ...FIELD[f],
-      })),
+    NUMERIC.filter((f) => typeof layer[f] === 'number').map((f) => ({
+      recipe: `${cue}.${i}.${f}`,
+      label: `${cue} L${i + 1} ${f}`,
+      min: 0,
+      ...FIELD[f],
+    })),
   )
 }
-
-/**
- * The library's own dials, appended to every sound scenario so a raw download
- * auditions through the same rate/head/cut a real cue would apply — the
- * question worth asking a candidate file is whether it works trimmed and
- * pitched the way it will actually be used, not how it sounds raw.
- */
-export const AUDITION: Dial[] = [
-  { var: '--audition-head', label: 'Audition head', min: 0, max: 4000, step: 10, unit: 'ms' },
-  { var: '--audition-cut', label: 'Audition cut (0 = whole)', min: 0, max: 20000, step: 100, unit: 'ms' },
-  { var: '--audition-rate', label: 'Audition rate / pitch', min: 0.25, max: 4, step: 0.05, unit: '' },
-]
 
 // --- shared dial groups ------------------------------------------------------
 
@@ -228,7 +192,7 @@ export const SCENARIOS: Scenario[] = [
     label: 'A mark lands',
     note: 'Three marks are already down. The fourth arrives — which is what the board does all through the collection window, one packet at a time.',
     subject: '.timeline__mark',
-    dials: [...STAMP, ...BLOOM, ...soundDials('stamp'), ...recipeDials('stamp'), ...AUDITION],
+    dials: [...STAMP, ...BLOOM],
     sound: 'stamp',
     render: (lead) => (
       <Stage mid={<p class="board__hero">Ada</p>} below={<Timeline held={lead ? 1 : 0} />} />
@@ -247,13 +211,8 @@ export const SCENARIOS: Scenario[] = [
       { var: '--flare-core', label: 'Core', min: 0, max: 100, step: 2, unit: 'px' },
       { var: '--flare-body', label: 'Body', min: 0, max: 200, step: 4, unit: 'px' },
       { var: '--flare-throw', label: 'Throw', min: 0, max: 400, step: 5, unit: 'px' },
-      ...soundDials('leader'),
-      ...recipeDials('leader'),
-      ...soundDials('leader2', 'Buzzer'),
-      ...recipeDials('leader2'),
-      ...AUDITION,
     ],
-    sound: ['leader', 'leader2'],
+    sound: 'leader',
     // The ghost keeps the middle band open while the name is held back. An
     // empty band collapses, and the timeline underneath would step up and back
     // down on every take — motion the board does not have, in the exact place

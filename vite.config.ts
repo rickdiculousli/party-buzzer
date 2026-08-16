@@ -134,6 +134,31 @@ function sndLibrary(): Plugin {
         }
       })
 
+      /**
+       * What a layer is allowed to point at.
+       *
+       * Adopted files only, never the holding ground: anything a recipe names
+       * has to be servable to the real board, or the harness will happily show
+       * you a cue that goes silent in production. That has already happened
+       * once on this codebase.
+       */
+      server.middlewares.use('/__snd/adopted', async (_req, res) => {
+        res.setHeader('content-type', 'application/json')
+        try {
+          const names = await readdir(OUT)
+          const files = []
+          for (const name of names) {
+            if (!safeOut(name)) continue
+            const s = await stat(resolve(OUT, name))
+            files.push({ name, size: s.size })
+          }
+          files.sort((a, b) => a.name.localeCompare(b.name))
+          res.end(JSON.stringify({ files }))
+        } catch {
+          res.end(JSON.stringify({ files: [] }))
+        }
+      })
+
       server.middlewares.use('/__snd/raw', (req, res) => {
         // A malformed escape throws out of decodeURIComponent; a bad name is a
         // bad name however it got that way.

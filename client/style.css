@@ -797,50 +797,17 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   --punch-scale: 1.12;
   --land-dur: 240ms;
 
-  /* Sound. Read by client/sound.ts, never by CSS — they live here because
-     aligning a sound to a movement is the same act as tuning the movement, and
-     because the harness already knows how to dial and write this block.
-     `head` skips dead air before the sample's attack, which is the half of
-     alignment no amount of `delay` can fix. `cut: 0` plays the whole file.
+  /* No cue's sound lives here any more. A cue's gain, offset and envelope are
+     fields on its layers in client/cues.ts, and the one cue still on the sample
+     path keeps its four numbers in client/sound.ts beside the code that loops
+     it. They were here while a cue was one sample with a head and a cut, on the
+     argument that aligning a sound to a movement is the same act as tuning the
+     movement — but a layer already carried `gain` and `delay`, so the argument
+     was buying two homes for one number.
 
-     These sit at neutral because what was dialled in here has been baked into
-     the files themselves — see client/public/sounds/CREDITS.md for the exact
-     ffmpeg pass each one carries. The dials still work; they now start from a
-     sample that already sounds the way it should. */
-  --stamp-snd-delay: 0ms;
-  --stamp-snd-head: 0ms;
-  --stamp-snd-cut: 0ms;
-  --stamp-snd-rate: 1;
-  --stamp-snd-gain: 0.8;
-
-  --leader-snd-delay: 0ms;
-  --leader-snd-head: 0ms;
-  --leader-snd-cut: 0ms;
-  --leader-snd-rate: 1;
-  --leader-snd-gain: 0.8;
-
-  /* A second layer on the same moment, with its own everything — one sample
-     carries the drop and the other the buzzer, and stacking them is the only
-     way to move one against the other. */
-  --leader2-snd-delay: 0ms;
-  --leader2-snd-head: 0ms;
-  --leader2-snd-cut: 0ms;
-  --leader2-snd-rate: 1;
-  --leader2-snd-gain: 0.8;
-
-  /* The welcome bed loops, so `head` and `cut` are its loop points rather than
-     a trim: set them to the good bars and the tail never plays twice. */
-  --welcome-snd-delay: 0ms;
-  --welcome-snd-head: 0ms;
-  --welcome-snd-cut: 0ms;
-  --welcome-snd-rate: 1;
-  --welcome-snd-gain: 0.35;
-
-  /* The library auditions through these, so what you hear is the trim you are
-     about to bake in rather than the raw download. */
-  --audition-head: 0ms;
-  --audition-cut: 0ms;
-  --audition-rate: 1;
+     `--mark-stagger` above stays, and is the test the rest failed: the marks
+     animate against it and sound.ts spaces cues by it, so it genuinely belongs
+     to both and would have to be duplicated to live anywhere else. */
 }
 /* /anim:tunables */
 
@@ -997,23 +964,175 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   color: var(--chalk);
 }
 
-/* --- the harness envelope canvas ------------------------------------- */
-.envelope {
+/* --- the harness waveform editor -------------------------------------- */
+.layers {
+  margin-block: var(--s3);
+}
+.layers__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.layers__ruler {
+  position: relative;
+  height: 1rem;
+  font-size: var(--t-xs);
+  color: var(--dim);
+}
+.layers__tick {
+  position: absolute;
+  transform: translateX(-50%);
+}
+.track {
+  position: relative;
+}
+.track__canvas {
   width: 100%;
   height: auto;
-  background: var(--surface-2, #0e1116);
+  background: var(--panel);
   border-radius: 6px;
   touch-action: none;
+  cursor: grab;
 }
-.envelope__line {
+.track__wave {
+  stroke: var(--dim);
+  stroke-width: 1;
+}
+.track__wave--gated {
+  opacity: 0.28;
+}
+.track__env {
   fill: none;
-  stroke: var(--accent, #4dd6e8);
+  stroke: var(--cyan);
   stroke-width: 2;
+  pointer-events: none;
 }
-.envelope__handle {
-  fill: var(--accent, #4dd6e8);
+/* The clip's left edge. Faint until the pointer is inside its hit zone, then
+   lit — the six pixels where a press slides the audio instead of moving the
+   layer are otherwise indistinguishable from the rest of the track. */
+.track__grip {
+  stroke: var(--dim);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  pointer-events: none;
+}
+.track__grip.is-live {
+  stroke: var(--cyan);
+  stroke-width: 2;
+  stroke-dasharray: none;
+}
+.track__handle {
+  fill: var(--cyan);
   cursor: ew-resize;
 }
-.envelope__handle:hover {
+/* The one handle that travels in both axes — decay across, sustain up. */
+.track__handle--free {
+  cursor: move;
+}
+.track__handle:hover {
   fill: #fff;
+}
+/* Always present, empty when nothing is hovered, so the stack below does not
+   jump as the pointer crosses it. */
+.track__hint {
+  min-height: 1.1em;
+  margin: 0;
+  font-size: var(--t-xs);
+  color: var(--dim);
+  white-space: pre;
+}
+.track__remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  border: 0;
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+  line-height: 1;
+}
+.track__remove:hover {
+  color: #fff;
+}
+/* --- the sound list --------------------------------------------------
+   The Library and the layer picker are the same list, so they are one
+   component and one rule. Built on `.row` so the harness reads as the same
+   product as the board — including the left border, which carries selection
+   here exactly as it carries the lead in the standings. */
+.sndlist {
+  gap: 2px;
+  margin-block: var(--s2);
+  /* `.stack` is a grid, and a grid item's `min-width` is `auto` — it refuses to
+     shrink below its content, so one long filename widened the whole panel and
+     gave it a horizontal scrollbar. Pinning the column to the container is what
+     lets the name below actually ellipsise. */
+  grid-template-columns: minmax(0, 1fr);
+}
+.sndlist__row {
+  gap: var(--s2);
+  padding: 0 var(--s2) 0 0;
+  background: var(--panel);
+}
+.sndlist__row.is-picked {
+  border-left-color: var(--tungsten);
+  background: var(--raise);
+}
+/* Transport first, because hearing it comes before choosing it. */
+.sndlist__play {
+  flex: none;
+  width: 2rem;
+  align-self: stretch;
+  border: 0;
+  border-right: 1px solid var(--rule);
+  background: transparent;
+  color: var(--dim);
+  font: inherit;
+  font-size: var(--t-xs);
+  cursor: pointer;
+  transition: color var(--fast) var(--ease);
+}
+.sndlist__play:hover {
+  color: var(--chalk);
+}
+.sndlist__play.is-playing {
+  color: var(--tungsten);
+}
+/* The name is the row: it takes the space, and clicking anywhere along the
+   line selects, so the target is the line rather than the word. */
+.sndlist__pick {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--chalk);
+  font: inherit;
+  font-size: var(--t-sm);
+  letter-spacing: 0;
+  text-align: left;
+  padding: var(--s2) 0;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sndlist__tag {
+  flex: none;
+  font-size: var(--t-xs);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--dim);
+}
+/* The measurement, held apart from the name in size and colour so the eye can
+   run down the column of them without reading the names. */
+.sndlist__meta {
+  flex: none;
+  font-size: var(--t-xs);
+  color: var(--dim);
+}
+
+.layers__picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  padding-block: var(--s2);
 }
