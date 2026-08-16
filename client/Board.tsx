@@ -255,18 +255,32 @@ export function Board() {
                 {state.duel.pool
                   .slice()
                   .sort((a, b) => b.votes.length - a.votes.length)
-                  .map((e) => (
-                    <li
-                      key={e.playerId}
-                      class={seating?.includes(e.playerId) ? 'nom is-lead' : 'nom'}
-                    >
-                      <span class="nom__name">
-                        {state.players.find((p) => p.id === e.playerId)?.name ?? '?'}
-                      </span>
-                      {e.in && <span class="chip chip--armed">In</span>}
-                      <Votes voters={e.votes} />
-                    </li>
-                  ))}
+                  .map((e) => {
+                    const player = state.players.find((p) => p.id === e.playerId)
+                    const team = state.teams.find((t) => t.id === player?.teamId)
+                    return (
+                      <li
+                        key={e.playerId}
+                        class={seating?.includes(e.playerId) ? 'nom is-lead' : 'nom'}
+                      >
+                        <span class="nom__name">{player?.name ?? '?'}</span>
+                        {/* Which side each name is on. Without it the room
+                            watches the close reach past the runner-up for no
+                            visible reason — the one-per-team rule is only
+                            legible if the teams are. */}
+                        {team && (
+                          <span
+                            class="chip"
+                            style={{ color: team.color, borderColor: team.color }}
+                          >
+                            {team.name}
+                          </span>
+                        )}
+                        {e.in && <span class="chip chip--armed">In</span>}
+                        <Votes voters={e.votes} />
+                      </li>
+                    )
+                  })}
               </ol>
             </div>
           ) : round.candidates?.length === 0 ? (

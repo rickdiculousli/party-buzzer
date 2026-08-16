@@ -747,6 +747,11 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   width: 100%;
   font-size: var(--t-md);
   text-align: left;
+  /* The identity rail. An inset shadow rather than a border-left, because
+     `is-mine` recolours the border and the rail has to survive that — who
+     someone is does not change when you vote for them. */
+  box-shadow: inset 3px 0 0 var(--id, transparent);
+  padding-left: var(--s3);
 }
 .nom-btn__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Your own vote: outlined, not filled. A tungsten fill would put the crowd

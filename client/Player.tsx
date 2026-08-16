@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { useOpen, useSocket } from './useSocket.ts'
-import { colorForPlayer, standings } from './ui.ts'
+import { colorForPlayer, eligibleForDuel, standings } from './ui.ts'
 import { Votes } from './Votes.tsx'
 import type { State } from '../shared/protocol.ts'
 
@@ -131,6 +131,29 @@ export function Player() {
   const nameOf = (id: string) => state?.players.find((p) => p.id === id)?.name ?? '?'
   const finalistNames = round?.candidates?.map(nameOf)
   const seatedNames = duel?.seated?.map(nameOf)
+
+  /**
+   * Who this phone may nominate, and whether it may nominate at all.
+   *
+   * `eligibleForDuel`, not every connected player: someone the seat can never
+   * take — a phone that joined before the host made teams, and is still on
+   * none — was being offered as a target, and a vote for them is spent on a
+   * name the close will silently pass over. The same rule decides both
+   * directions, so a player with no team is told why their card is empty
+   * rather than voting into a duel they cannot be part of.
+   *
+   * Own team first. In teams mode this is a roster of everyone in the room on
+   * one small screen, and the question a nomination actually asks is who from
+   * my side plays — a list that interleaves the two sides makes that a
+   * reading exercise. The sort is a no-op in solo, where nobody has a team.
+   */
+  const myTeam = state?.players.find((p) => p.id === playerId)?.teamId
+  const nominees = state
+    ? eligibleForDuel(state)
+        .filter((p) => p.id !== playerId)
+        .sort((a, b) => Number(b.teamId === myTeam) - Number(a.teamId === myTeam))
+    : []
+  const canNominate = state?.mode !== 'teams' || !!myTeam
   const [targetFor, setTargetFor] = useState<string | null>(null)
   const score = key ? state?.scores[key] ?? 0 : 0
   const armed = round?.phase === 'ARMED' || round?.phase === 'COLLECTING'
@@ -315,28 +338,36 @@ export function Player() {
               </p>
             </>
           )}
-          {(duelRule.entry === 'vote' || duelRule.entry === 'both') && (
-            <>
-            {opponents.map((p) => {
-              const votes = duel.pool.find((e) => e.playerId === p.id)?.votes ?? []
-              return (
-                <button
-                  key={p.id}
-                  class={myVoteFor === p.id ? 'btn nom-btn is-mine' : 'btn nom-btn'}
-                  onPointerDown={() => send({ t: 'act', act: 'duelVote', data: p.id })}
-                >
-                  <span class="nom-btn__name">{p.name}</span>
-                  <Votes voters={votes} />
-                </button>
-              )
-            })}
-            {/* The gesture is its own undo, which nobody guesses at — and a
-                vote you cannot take back is one people hesitate to cast. */}
-            <p class="muted">
-              {myVoteFor ? 'Tap them again to take your vote back' : 'One vote each'}
-            </p>
-            </>
-          )}
+          {(duelRule.entry === 'vote' || duelRule.entry === 'both') &&
+            (!canNominate ? (
+              <p class="muted">You are not on a team yet — ask the host to put you on one.</p>
+            ) : (
+              <>
+                {nominees.map((p) => {
+                  const votes = duel.pool.find((e) => e.playerId === p.id)?.votes ?? []
+                  return (
+                    <button
+                      key={p.id}
+                      class={myVoteFor === p.id ? 'btn nom-btn is-mine' : 'btn nom-btn'}
+                      // The identity rail, which in teams mode is the team's
+                      // colour — the only thing on this list that says which
+                      // side a name is on, and it matches the colour this
+                      // phone's own name carries in the bar above.
+                      style={{ '--id': state ? colorForPlayer(state, p.id) : undefined }}
+                      onPointerDown={() => send({ t: 'act', act: 'duelVote', data: p.id })}
+                    >
+                      <span class="nom-btn__name">{p.name}</span>
+                      <Votes voters={votes} />
+                    </button>
+                  )
+                })}
+                {/* The gesture is its own undo, which nobody guesses at — and a
+                    vote you cannot take back is one people hesitate to cast. */}
+                <p class="muted">
+                  {myVoteFor ? 'Tap them again to take your vote back' : 'One vote each'}
+                </p>
+              </>
+            ))}
         </div>
       )}
 

@@ -79,6 +79,13 @@ seat cannot take two from one team, so it reaches past him to Eve. That skip is
 the thing to watch.
 
 - [ ] The standings switch to Red and Blue, and your phone shows its team colour
+- [ ] Your nomination list is your own team first, each name railed in its team
+      colour — the same colour your name carries in the bar above it
+- [ ] Nobody who cannot be seated is on that list: join a second phone, leave it
+      off both teams, and it appears on neither roster while being told it is
+      not on a team yet
+- [ ] Each name on the board carries its team, so the skip below has a reason
+      the room can see
 - [ ] Bo sits second on the board with **no** brass rail: the room is told who
       would actually be seated, not who is merely popular
 - [ ] `unvote:Fen` drops Bo to one and the following vote puts him back to two,
