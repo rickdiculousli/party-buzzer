@@ -138,3 +138,32 @@ test('unknown acts are dropped and logged once', () => {
   }
   assert.equal(warnings.length, 1)
 })
+
+test('a selectPack that fails is logged, not thrown — the process must survive it', async () => {
+  const state = newState()
+  const hub = new Hub(state, {
+    reader: {
+      select: () => Promise.reject(new Error('no such pack')),
+      start: () => {},
+      pause: () => {},
+      resume: () => {},
+      stop: () => {},
+    },
+  })
+  const host: Conn = { id: 'h', role: 'host', send: () => {} }
+  hub.add(host)
+  const warnings: string[] = []
+  const orig = console.warn
+  console.warn = (s: string) => warnings.push(s)
+  try {
+    hub.handle(host, { t: 'act', act: 'selectPack', data: 'nope.txt' })
+    // Let the rejected promise's .catch handler run.
+    await new Promise((r) => setTimeout(r, 0))
+  } finally {
+    console.warn = orig
+  }
+  assert.ok(warnings.some((w) => w.includes('selectPack failed')))
+  // The hub is still usable — the rejection did not take the process down.
+  hub.handle(host, { t: 'act', act: 'fragment', data: 'still alive' })
+  assert.deepEqual(hub.state.round.fragments, ['still alive'])
+})

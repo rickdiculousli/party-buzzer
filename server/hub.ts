@@ -180,7 +180,7 @@ export class Hub {
     } else if (name === 'selectPack' && typeof data === 'string') {
       // Mid-question would cut the room off; refuse it the way setGame does.
       if (this.state.round.phase !== 'IDLE') return
-      void this.reader?.select(data)
+      this.reader?.select(data).catch((e) => console.warn(`[hub] selectPack failed: ${e}`))
     } else if (name === 'read') {
       this.reader?.start()
     } else if (name === 'pauseRead') {
