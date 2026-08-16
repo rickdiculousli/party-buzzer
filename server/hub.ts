@@ -34,6 +34,14 @@ const RESETS = new Set(['arm', 'wrong', 'correct', 'next', 'resetRound', 'undo']
  */
 const REVEAL_MS = 150
 
+export type ReaderControls = {
+  select(name: string): Promise<void>
+  start(): void
+  pause(): void
+  resume(): void
+  stop(): void
+}
+
 export type HubOpts = {
   /** Delay from the first buzz to publishing a provisional order. */
   revealMs?: number
@@ -42,6 +50,7 @@ export type HubOpts = {
   onChange?: (state: State) => void
   /** Question packs live here. Filenames only enter State; omit for no packs. */
   packDir?: string
+  reader?: ReaderControls
 }
 
 export class Hub {
@@ -56,6 +65,7 @@ export class Hub {
   private revealMs: number
   private collectMs: number
   private onChange: (state: State) => void
+  private reader: ReaderControls | undefined
 
   constructor(state: State, opts: HubOpts = {}) {
     this.state = state
@@ -68,6 +78,7 @@ export class Hub {
     this.revealMs = opts.revealMs ?? REVEAL_MS
     this.collectMs = opts.collectMs ?? COLLECT_MS
     this.onChange = opts.onChange ?? (() => {})
+    this.reader = opts.reader
   }
 
   add(conn: Conn): void {
@@ -85,6 +96,11 @@ export class Hub {
    *  composition root swaps in a fan-out once both exist. */
   setOnChange(fn: (state: State) => void): void {
     this.onChange = fn
+  }
+
+  /** The reader is built after the hub, so it wires itself in via this setter. */
+  setReader(reader: ReaderControls): void {
+    this.reader = reader
   }
 
   /** Deliver a message as if it arrived on a connection. The reader drives the
@@ -161,6 +177,18 @@ export class Hub {
     } else if (name === 'reading') {
       // Display-only progress from the reader. Undefined clears it.
       this.state.reading = (data ?? undefined) as State['reading']
+    } else if (name === 'selectPack' && typeof data === 'string') {
+      // Mid-question would cut the room off; refuse it the way setGame does.
+      if (this.state.round.phase !== 'IDLE') return
+      void this.reader?.select(data)
+    } else if (name === 'read') {
+      this.reader?.start()
+    } else if (name === 'pauseRead') {
+      this.reader?.pause()
+    } else if (name === 'resumeRead') {
+      this.reader?.resume()
+    } else if (name === 'stopRead') {
+      this.reader?.stop()
     } else {
       const handled = moduleFor(this.state.game.id).onAct?.(this.state, name, data) ?? false
       if (!handled) {

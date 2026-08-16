@@ -4,6 +4,7 @@ import { join, extname, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { WebSocketServer } from 'ws'
 import { Hub, type Conn } from './hub.ts'
+import { Reader } from './reader.ts'
 import { loadState, saveState, flushSave } from './state.ts'
 import { lanAddresses, pickAddress, banner, qrFor, qrSvg } from './net.ts'
 import type { ClientMsg } from '../shared/protocol.ts'
@@ -61,15 +62,26 @@ export async function startServer(opts: {
   statePath?: string
   revealMs?: number
   collectMs?: number
+  packDir?: string
 } = {}) {
   const port = opts.port ?? Number(process.env.PORT ?? 8080)
   const statePath = opts.statePath ?? join(ROOT, 'state.json')
 
+  const packDir = opts.packDir ?? join(ROOT, 'packs')
   const state = loadState(statePath)
   const hub = new Hub(state, {
     revealMs: opts.revealMs,
     collectMs: opts.collectMs,
+    packDir,
     onChange: (s) => saveState(statePath, s),
+  })
+
+  const reader = new Reader(hub, { packDir, cacheDir: join(packDir, '.cache') })
+  hub.setReader(reader)
+  // Both subscribers, now that both exist: the snapshot and the reader's waits.
+  hub.setOnChange((s) => {
+    saveState(statePath, s)
+    reader.onStateChange(s)
   })
 
   let joinUrl = ''
