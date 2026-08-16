@@ -979,3 +979,14 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   .board__side { flex-direction: row; align-items: center; border-left: 0; border-top: 1px solid var(--rule); }
   .board__qr { max-width: 7rem; }
 }
+
+/* The phone as a second screen: readable at arm's length without stealing the
+   buzzer's room. It scrolls rather than pushing the button off the screen. */
+.player__question {
+  margin: 0 0 var(--s3);
+  max-height: 34vh;
+  overflow-y: auto;
+  font-size: var(--t-md);
+  line-height: 1.4;
+  color: var(--chalk);
+}

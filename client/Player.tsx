@@ -241,6 +241,10 @@ export function Player() {
         <span class="player__score readout">{score}</span>
       </div>
 
+      {!!round?.fragments?.length && (
+        <p class="player__question">{round.fragments.join(' ')}</p>
+      )}
+
       {/* Reserved whether or not the filament is in it. Otherwise arming
           shrinks the buzzer under the thumb that is about to press it. */}
       <div class="player__lead-in">
