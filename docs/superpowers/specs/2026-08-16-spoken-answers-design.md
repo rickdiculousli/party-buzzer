@@ -81,13 +81,17 @@ the reader's `speech` seam) so tests never touch Swift.
 - The reader primes it at arm time: `judge.prime(answers)` — memory only, never
   `State`.
 - When a round LOCKs with a leader while primed, the judge opens the window and
-  publishes `round.judgeUntil` (server-domain deadline) through the `act`
-  channel, the same way the reader publishes `reading`. Swept with the next arm
-  like other per-round fields. When the window is off (`answerWindowSec: 0`),
-  `judgeUntil` is absent: the window still opens — the phone shows push-to-talk
-  with no countdown — and only the host ends a stall.
+  publishes `round.judge` through the `act` channel, the same way the reader
+  publishes `reading`. The shape is `{ until?: number }`: present means the
+  judge is live and the phone should offer push-to-talk; `until` (a
+  server-domain deadline) is present only when the window has a duration. When
+  the window is off (`answerWindowSec: 0`) the judge publishes `{}` — the phone
+  shows push-to-talk with no countdown, and only the host ends a stall. Swept
+  with the next arm like other per-round fields, and dropped on `wrong` (the
+  rebound's judge re-publishes it when the new leader locks).
 - The leader's phone POSTs the WAV to `/answer` with its player id. The judge
-  rejects anything that isn't the current leader inside the open window.
+  rejects anything that isn't the current leader inside the open window. As a
+  probe/test hook, a `text/plain` body is the transcript itself, skipping STT.
 - Transcribe → match → publish `round.spoken = { name, transcript, hit }` via
   the `act` channel, then send `correct` or `wrong { neg: round.value }` into
   the hub through a synthetic host connection (`{ id: 'judge', role: 'host' }`),
@@ -115,26 +119,32 @@ field on `State`, a small input on the host screen. 0 = no timeout.
   itself opens only when the player locks in — permission at join, capture on
   demand.
 - When `round.phase === 'LOCKED'`, the player's own order entry leads, and
-  `round.judgeUntil` is set, the buzzer becomes the push-to-talk zone with a
-  countdown to `judgeUntil` (server-domain time, `now()`, clamped as always).
-- AudioWorklet captures 16kHz mono PCM; a WAV header is prepended on send.
+  `round.judge` is set, the buzzer becomes the push-to-talk zone — with a
+  countdown to `judge.until` (server-domain time, `now()`, clamped as always)
+  when `until` is present, and no countdown when the window is open-ended.
+- AudioWorklet captures mono PCM at the context's native rate; a WAV header
+  carrying that rate is prepended on send (the spike's `say`-rendered clips
+  were 44.1kHz and transcribed as-is, so no resampling step earns its place).
   ~6s recording cap auto-sends. WAV sidesteps the browser codec lottery
   (Safari: AAC; Chrome: Opus-in-WebM, which stock macOS cannot decode) and
-  `SFSpeech` reads WAV directly. ~160KB per answer — nothing on LAN.
+  `SFSpeech` reads WAV directly. A few hundred KB per answer — nothing on LAN.
 - Gestures: pointerdown starts, pointerup sends (`fetch POST /answer`), a
   downward drag past a threshold cancels and returns to the hold zone.
   `pointerdown`, never `click`, per the client rules.
 
 ### 7. HTTP route (`server/index.ts`)
 
-`POST /answer`, raw WAV body, `?player=<id>`. Sits beside the SPA routes; the
-WebSocket contract is untouched — no new `ClientMsg`. (Audio is a file upload,
-not a chat message; HTTP is the right shape and keeps protocol.ts clean.)
+`POST /answer`, `?player=<id>`. Sits beside the SPA routes; the WebSocket
+contract is untouched — no new `ClientMsg`. Two body kinds: `audio/wav` (or
+anything else) is a recording to transcribe; `text/plain` is the transcript
+itself, which is how `probe`'s `speak:` step and the judge's own tests drive
+the verdict path without audio. (Audio is a file upload, not a chat message;
+HTTP is the right shape and keeps protocol.ts clean.)
 
 ## Error handling
 
 - STT spawn fails / binary missing → judge degrades to off; host judges. The
-  phone still shows push-to-talk while `judgeUntil` is set; if the server never
+  phone still shows push-to-talk while `round.judge` is set; if the server never
   set it (degraded), the phone never offers it — degradation is automatic.
 - Garbage/empty transcript → a miss, scored wrong, host undoes if unjust.
 - POST from a non-leader, late POST, or POST with no armed judge → 409, dropped.
@@ -148,10 +158,10 @@ not a chat message; HTTP is the right shape and keeps protocol.ts clean.)
   lands as `correct`/`wrong`, timeout path, late POST dropped, host-W race.
 - `shared/pack.test.ts` (existing file if present): `|`-split variants and the
   single-answer back-compat case.
-- `probe` gains a `speak:Name="transcript"` step that injects a transcript
-  straight into the judge's verdict path, so a whole spoken round is one
-  command; real audio stays a `docs/manual-checklist.md` entry (the sim can't
-  speak).
+- `probe` gains a `speak:Name="transcript"` step that POSTs the transcript as
+  `text/plain` straight into the judge's verdict path, so a whole spoken round
+  is one command; real audio stays a `docs/manual-checklist.md` entry (the sim
+  can't speak).
 
 ## What this deliberately does not build
 
