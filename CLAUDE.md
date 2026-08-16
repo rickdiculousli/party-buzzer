@@ -77,6 +77,11 @@ no partial update.
   Modes are fixed per session; `setGame` switches and resets.
 - `server/items.ts` — framework-level boons/sabotage (freeze, shield, steal),
   fired by players over the `act` channel and validated before they apply.
+- `server/duel.ts` — heads-up duels (two-player face-offs). Framework-level,
+  composes with any mode: selection rules are data in a catalog, entry rides
+  the `act` channel, and enforcement is one `round.candidates` check at the
+  hub's buzz gate. A wrong answer narrows candidates to the other finalist,
+  which is the whole rebound mechanic.
 - `server/index.ts` — HTTP + WebSocket, serves `dist/`, routes `/`, `/host`,
   `/board` to the same SPA shell.
 - `client/useSocket.ts` — the socket, the clock sync, and `useOpen`. Every
