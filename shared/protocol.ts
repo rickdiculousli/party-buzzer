@@ -95,6 +95,22 @@ export type ActiveEffect = {
   roundArmedAt?: number
 }
 
+/**
+ * What the reader is doing, for the host screen alone. Display-only: the reader
+ * owns playback and republishes from its own loop, so an undo that restores a
+ * stale block corrects itself on the next push rather than rewinding the audio.
+ */
+export type ReadingState = {
+  pack: string
+  qIndex: number
+  qTotal: number
+  fragIndex: number
+  fragTotal: number
+  paused: boolean
+  /** Present only while a freshly selected pack is being synthesised. */
+  rendering?: { done: number; total: number }
+}
+
 export type State = {
   mode: Mode
   players: Player[]
@@ -107,6 +123,12 @@ export type State = {
   effects: ActiveEffect[]
   /** Static module catalog. The hub refreshes it at startup; snapshots keep a stale copy harmlessly. */
   games: GameInfo[]
+  /** Pack filenames on disk. Filenames only — question content never enters State. */
+  packs: string[]
+  /** Whether players see round.fragments. Off for quizbowl: reading a whole
+   *  sentence at its start beats hearing it word by word. */
+  mirrorFragments: boolean
+  reading?: ReadingState
 }
 
 export type HostAction =
@@ -124,6 +146,7 @@ export type HostAction =
   | { a: 'addTeam'; name: string; color: string }
   | { a: 'assign'; playerId: PlayerId; teamId?: TeamId }
   | { a: 'setGame'; id: string; options: Record<string, unknown> }
+  | { a: 'setMirror'; on: boolean }
 
 export type ClientMsg =
   | { t: 'hello'; role: Role; playerId?: PlayerId; name?: string }

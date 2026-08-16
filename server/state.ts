@@ -21,6 +21,8 @@ export function newState(): State {
     items: {},
     effects: [],
     games: [],
+    packs: [],
+    mirrorFragments: false,
     round: {
       value: 100,
       phase: 'IDLE',
@@ -195,6 +197,10 @@ export function applyHostAction(state: State, action: HostAction): void {
       state.mode = action.mode
       return
 
+    case 'setMirror':
+      state.mirrorFragments = action.on
+      return
+
     case 'addTeam': {
       const team = { id: randomUUID(), name: action.name, color: action.color }
       state.teams.push(team)
@@ -262,6 +268,8 @@ export function loadState(path: string): State {
     // not register — must still boot.
     loaded.items ??= {}
     loaded.effects ??= []
+    if (!Array.isArray(loaded.packs)) loaded.packs = []
+    if (typeof loaded.mirrorFragments !== 'boolean') loaded.mirrorFragments = false
     loaded.game ??= { id: 'trivia', options: {}, moduleState: {} }
     if (!knownModule(loaded.game.id)) {
       console.error(

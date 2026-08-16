@@ -116,3 +116,23 @@ test('loadState falls back to trivia when the snapshot names an unregistered gam
     rmSync(dir, { recursive: true, force: true })
   }
 })
+
+test('setMirror flips the phone mirror and defaults off', () => {
+  const state = newState()
+  assert.equal(state.mirrorFragments, false)
+  applyHostAction(state, { a: 'setMirror', on: true })
+  assert.equal(state.mirrorFragments, true)
+})
+
+test('loadState backfills the addendum fields on an older snapshot', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pb-'))
+  const path = join(dir, 'state.json')
+  const old = newState() as Record<string, unknown>
+  delete old.packs
+  delete old.mirrorFragments
+  writeFileSync(path, JSON.stringify(old))
+  const loaded = loadState(path)
+  assert.deepEqual(loaded.packs, [])
+  assert.equal(loaded.mirrorFragments, false)
+  assert.equal(loaded.reading, undefined)
+})
