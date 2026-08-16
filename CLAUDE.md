@@ -211,9 +211,16 @@ Using a download means adopting it first.
 
 Sounds that must stay found live in `sounds/raw/`, which is gitignored — drop a
 download in and it appears in the panel's Library, auditionable through the
-current trim so you hear what you are about to bake in. **Adopt** runs one of
-two `ffmpeg` presets, writes the result into `client/public/sounds/`, and
-appends the row to `CREDITS.md` with the exact command. `ffmpeg` is a machine
+current trim so you hear what you are about to bake in. Adopting runs one of two
+`ffmpeg` presets, writes the result into `client/public/sounds/`, and appends
+the row to `CREDITS.md` with the exact command. **Keep as a cue sound** bakes
+the dialled head, cut and pitch into uncompressed mono PCM with a 40ms fade at
+the cut — a sound that fires. **Keep as looping music** ignores the trim
+entirely and transcodes the whole file to Opus — a bed is looped on its own
+loop points rather than cut, and it is long enough that 64kbps is the
+difference between a 17MB download and a manageable one. The output extension
+follows from the preset rather than from what you typed, because ffmpeg picks
+its encoder from the extension and Opus in a `.wav` container is not a file. `ffmpeg` is a machine
 binary invoked through `child_process`; it is not and must not become an npm
 dependency.
 

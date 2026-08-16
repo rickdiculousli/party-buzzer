@@ -77,7 +77,7 @@ export function SoundList({
   /** What to say when there is nothing here — an empty list should still direct. */
   empty: string
 }) {
-  if (rows.length === 0) return <p class="harness__note">{empty}</p>
+  if (rows.length === 0) return <p class="harness__hint">{empty}</p>
 
   return (
     <ul class="stack sndlist">

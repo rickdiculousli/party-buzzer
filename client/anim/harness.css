@@ -169,6 +169,9 @@
   flex-direction: column;
   min-width: 0;
 }
+/* The caption over the stage. Absolute, so it sits on the scene without
+   taking a row from it — which makes it the wrong element for anything
+   inside the panel, where text has to hold its place in the column. */
 .harness__note {
   position: absolute;
   top: var(--s3);
@@ -179,6 +182,23 @@
   color: var(--dim);
   z-index: 20;
   pointer-events: none;
+}
+
+/* Explanatory text in the panel: what a control will do, what an empty list
+   means. In flow, and wrapping, unlike the stage caption above. */
+.harness__hint {
+  margin: var(--s2) 0;
+  font-size: var(--t-xs);
+  line-height: 1.5;
+  color: var(--dim);
+}
+.harness__hint strong {
+  color: var(--chalk);
+  font-weight: 600;
+}
+.harness__hint code {
+  font-size: inherit;
+  color: var(--cyan);
 }
 .harness__preview {
   flex: 1;

@@ -341,6 +341,18 @@ function Harness() {
   const [outName, setOutName] = useState('')
   const [role, setRole] = useState('')
 
+  /**
+   * The file a preset produces, whatever you typed.
+   *
+   * The two presets encode to different things — PCM for a one-shot, Opus for a
+   * bed — and ffmpeg picks its encoder from the extension, so a bed written to
+   * `.wav` is a container that cannot hold what is being put in it. Rather than
+   * refuse the name, correct it: the extension is a consequence of the button
+   * you pressed, not a decision anyone wants to make twice.
+   */
+  const outFor = (preset: 'one-shot' | 'bed') =>
+    outName.trim().replace(/\.(wav|ogg)$/i, '') + (preset === 'bed' ? '.ogg' : '.wav')
+
   const adopt = async (name: string, preset: 'one-shot' | 'bed') => {
     setAdopting('running ffmpeg…')
     try {
@@ -349,7 +361,7 @@ function Harness() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           name,
-          out: outName,
+          out: outFor(preset),
           role,
           preset,
           headMs: tune('--audition-head', 0),
@@ -602,12 +614,16 @@ function Harness() {
           onPreview={audition}
           empty="Nothing in sounds/raw/ yet. Drop a download in, or run npm run demo-sounds."
         />
-        {/* Auditions run through these three, so what you hear is the trim you
-            are about to bake in rather than the raw download. */}
+        <p class="eyebrow">Keep this one</p>
+        <p class="harness__hint">
+          Adopting copies a download into <code>client/public/sounds/</code> under a
+          name you choose, where the board can serve it and a layer can point at
+          it. It also writes the ffmpeg command into CREDITS.md.
+        </p>
         <div class="harness__row">
           <input
             class="input"
-            placeholder="stamp.wav"
+            placeholder="call it something"
             value={outName}
             onInput={(e) => setOutName((e.target as HTMLInputElement).value)}
           />
@@ -620,13 +636,27 @@ function Harness() {
         </div>
         <div class="harness__row">
           <button class="btn" disabled={!selected || !outName} onClick={() => adopt(selected, 'one-shot')}>
-            Adopt as one-shot
+            Keep as a cue sound
           </button>
           <button class="btn" disabled={!selected || !outName} onClick={() => adopt(selected, 'bed')}>
-            Adopt as bed
+            Keep as looping music
           </button>
         </div>
-        {selected && <p class="harness__note">Adopting {selected}</p>}
+        {/* The one difference worth stating out loud: the trim is the whole
+            point of the dials above, and the bed preset throws it away. */}
+        <p class="harness__hint">
+          A <strong>cue sound</strong> fires once — a buzz, a stamp. The head, cut and
+          pitch you dialled are baked in, with a 40ms fade at the cut, and it is
+          saved uncompressed as {outName ? <code>{outFor('one-shot')}</code> : '.wav'}.
+        </p>
+        <p class="harness__hint">
+          <strong>Looping music</strong> runs under a screen, like the lobby bed. The
+          whole file is kept and compressed to{' '}
+          {outName ? <code>{outFor('bed')}</code> : '.ogg'} — <em>the trim above is
+          ignored</em>, because a bed is looped on its own loop points rather than
+          cut.
+        </p>
+        {selected && <p class="harness__hint">Adopting {selected}</p>}
         {adopting && <pre class="harness__css">{adopting}</pre>}
       </aside>
 
