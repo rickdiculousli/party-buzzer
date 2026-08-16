@@ -169,6 +169,14 @@ npm run probe -- clear
 npm run anim     # every anchor animation, on a loop, until Ctrl-C
 ```
 
+Probe also drives a whole duel — `duel:` opens one, `vote:Bo=Ada` and
+`in:`/`out:` are sent from each player's own socket (a `duel*` act from the
+host connection is dropped, which is the rule worth exercising rather than
+routing around), `unvote:` takes a vote back so you can watch a tally count
+down, and `seat`/`cancel` close the window. With `wait:` between the steps
+that is a paced walkthrough you can watch on a phone; `docs/manual-checklist.md`
+carries the script.
+
 `join:Name` borrows a player of that name if one is already in the room (a
 `fakes` entry, a real phone) rather than putting a second Ada on the board;
 anyone it does mint gets a `probe-` id, which is the only thing `clear` kicks.

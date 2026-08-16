@@ -125,10 +125,20 @@ export function duelAct(
     if (data === playerId) return false // a vote is for someone else
     if (!state.players.some((p) => p.id === data && p.connected)) return false
     // One vote per player: lift it off whoever held it, then place it.
+    let held = false
     for (const e of duel.pool) {
       const at = e.votes.indexOf(playerId)
-      if (at >= 0) e.votes.splice(at, 1)
+      if (at >= 0) {
+        e.votes.splice(at, 1)
+        held = e.playerId === data
+      }
     }
+    // Voting for whoever you already backed takes the vote away instead of
+    // re-placing it — the same gesture in reverse, which is what `duelBackOff`
+    // is to volunteering. The emptied entry stays in the pool at zero: a name
+    // that vanished the moment its last vote left would read as a bug from
+    // across the room, and `resolveDuel` ignores zero-vote entries anyway.
+    if (held) return true
     const target = duel.pool.find((e) => e.playerId === data)
     if (target) target.votes.push(playerId)
     else duel.pool.push({ playerId: data, votes: [playerId], in: false })

@@ -30,9 +30,27 @@ These need real hardware — run them once before a real game night.
 
 ## Duels
 
-- [ ] Open a nomination duel, vote from a phone, close it, and arm — only the
-      two finalists' buzzers open, everyone else sits out
-- [ ] A wrong answer hands the rebound to the other finalist alone
+Join from your phone as Ada first, then run one paced pass. Every `wait` is a
+beat to look at all three screens; probe borrows the Ada already in the room
+rather than minting a second one, so your phone is one of the finalists.
+
+```bash
+npm run probe -- join:Ada,Bo,Cy,Dee duel:vote wait:4000 \
+  vote:Bo=Ada,Cy=Ada,Dee=Bo wait:3000 unvote:Cy wait:3000 \
+  seat wait:3000 arm buzz:Cy@0 wait:2500 buzz:Bo@120 wrong:0 wait:3000 \
+  buzz:Ada@80 correct
+npm run probe -- clear
+```
+
+- [ ] The pool builds on the phone and the board as the votes land, one at a time
+- [ ] `unvote:Cy` counts Ada's tally back down and leaves her name in place
+- [ ] Your own vote is reversible: tap the name you backed a second time
+- [ ] Closing seats two finalists; the host panel shows the pair and a Cancel
+- [ ] Arming opens only the finalists' buzzers — a spectator's press does
+      nothing at all, not even a timeline mark
+- [ ] A wrong answer hands the rebound to the other finalist alone, and the
+      one who missed is dead-thumbed for the rest of the question
+- [ ] Both finalists missing says so on the board rather than reading "Buzz"
 
 ## Reading
 

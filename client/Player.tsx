@@ -298,6 +298,7 @@ export function Player() {
             </>
           )}
           {(duelRule.entry === 'vote' || duelRule.entry === 'both') && (
+            <>
             <div class="player__items">
               {opponents.map((p) => {
                 const votes = duel.pool.find((e) => e.playerId === p.id)?.votes.length ?? 0
@@ -313,6 +314,12 @@ export function Player() {
                 )
               })}
             </div>
+            {/* The gesture is its own undo, which nobody guesses at — and a
+                vote you cannot take back is one people hesitate to cast. */}
+            <p class="muted">
+              {myVoteFor ? 'Tap them again to take your vote back' : 'One vote each'}
+            </p>
+            </>
           )}
         </div>
       )}

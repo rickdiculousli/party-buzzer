@@ -32,6 +32,12 @@
  *   next             clear the round
  *   reset | undo     reset the round / undo the last host action
  *   act:name[:data]  host-scoped act (fragment / powerEnds / revealAnswer)
+ *   duel:vote        open a heads-up duel under that rule id
+ *   in:A,B | out:A   volunteer / back off, from those players' own sockets
+ *   vote:A=B,C=B     A votes for B, C votes for B (`=`, not `>`: no quoting)
+ *   unvote:A         A takes their vote back — the tally counts down
+ *   seat[:A,B]       close the window: resolve by rule, or seat those two
+ *   cancel           call the duel off
  *   wait:1200        hold, in ms — the only step that exists for your eyes
  *   clear            kick probe's players and reset the round
  *   loop             repeat the whole script until Ctrl-C
@@ -57,7 +63,7 @@ async function main() {
     // The header comment is the manual; printing a second copy is a second
     // thing to keep true.
     log('\n  usage: npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@120 correct')
-    log('  steps: loop join value arm buzz correct wrong next reset undo act wait clear\n')
+    log('  steps: loop join value arm buzz correct wrong next reset undo act duel in out vote unvote seat cancel wait clear\n')
     return
   }
 
@@ -83,6 +89,13 @@ async function main() {
   const idFor = (name: string) =>
     host.state()?.players.find((p) => p.name === name)?.id ??
     `probe-${name.toLowerCase().replace(/\W+/g, '-')}`
+
+  /** A player probe is driving, or the error that says to join them first. */
+  const player = (name: string) => {
+    const conn = players.get(name)
+    if (!conn) throw new Error(`${name} has not joined — add them to a join: step`)
+    return conn
+  }
 
   const clear = () => {
     const gone = (host.state()?.players ?? []).filter((p) => p.id.startsWith('probe-'))
@@ -131,8 +144,7 @@ async function main() {
           let last = 0
           for (const spec of arg.split(',').filter(Boolean)) {
             const [name, offset = '0'] = spec.split('@')
-            const conn = players.get(name)
-            if (!conn) throw new Error(`${name} has not joined — add them to a join: step`)
+            const conn = player(name)
             const pressAt = armedAt + Number(offset)
             last = Math.max(last, Number(offset))
             // Sent at the press instant, not scheduled ahead of it: an early
@@ -177,6 +189,62 @@ async function main() {
           host.send({ t: 'act', act: name, data: rest.join(':') || undefined })
           break
         }
+
+        case 'duel':
+          host.send({ t: 'host', action: { a: 'openDuel', rule: arg } })
+          break
+
+        // Entry acts ride each player's own socket, not the host's: the hub
+        // drops a `duel*` act from a connection with no playerId, which is the
+        // rule this tool exists to exercise rather than route around.
+        case 'in':
+        case 'out':
+          for (const name of arg.split(',').filter(Boolean))
+            player(name).send({
+              t: 'act',
+              act: verb === 'in' ? 'duelVolunteer' : 'duelBackOff',
+            })
+          break
+
+        case 'vote':
+          for (const pair of arg.split(',').filter(Boolean)) {
+            const [voter, target] = pair.split('=')
+            if (!target) throw new Error(`vote needs voter=target, got "${pair}"`)
+            player(voter).send({ t: 'act', act: 'duelVote', data: idFor(target) })
+            // Spaced, because a tally that jumps from nothing to three in one
+            // frame is a number rather than a room making up its mind.
+            await sleep(250)
+          }
+          break
+
+        case 'unvote':
+          for (const name of arg.split(',').filter(Boolean)) {
+            const held = host
+              .state()
+              ?.duel?.pool.find((e) => e.votes.includes(idFor(name)))
+            if (!held) throw new Error(`${name} has no vote to take back`)
+            // Withdrawing is voting again for the same name — the server reads
+            // the repeat as the undo, so probe sends exactly what a phone does.
+            player(name).send({ t: 'act', act: 'duelVote', data: held.playerId })
+            await sleep(250)
+          }
+          break
+
+        case 'seat': {
+          const ids = arg.split(',').filter(Boolean).map(idFor)
+          host.send({
+            t: 'host',
+            action:
+              ids.length === 2
+                ? { a: 'closeDuel', playerIds: [ids[0], ids[1]] }
+                : { a: 'closeDuel' },
+          })
+          break
+        }
+
+        case 'cancel':
+          host.send({ t: 'host', action: { a: 'cancelDuel' } })
+          break
 
         case 'wait':
           await sleep(Number(arg))

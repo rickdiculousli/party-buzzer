@@ -121,6 +121,23 @@ test('re-voting moves the vote; one player never counts twice', () => {
   assert.deepEqual(state.duel!.pool.find((e) => e.playerId === 'c')!.votes, ['a'])
 })
 
+test('voting again for the same name takes the vote back', () => {
+  const state = stateWith([['a'], ['b'], ['c']])
+  openDuel(state, 'vote')
+  duelAct(state, 'a', 'duelVote', 'c')
+  duelAct(state, 'b', 'duelVote', 'c')
+  assert.equal(duelAct(state, 'a', 'duelVote', 'c'), true)
+  const entry = state.duel!.pool.find((e) => e.playerId === 'c')!
+  // The tally drops by one and the name stays put — the count going down in
+  // place is the whole point, on the board as much as in the data.
+  assert.deepEqual(entry.votes, ['b'])
+  assert.equal(duelAct(state, 'b', 'duelVote', 'c'), true)
+  assert.deepEqual(entry.votes, [])
+  // Withdrawn, not spent: the same player can vote again afterwards.
+  assert.equal(duelAct(state, 'a', 'duelVote', 'b'), true)
+  assert.deepEqual(state.duel!.pool.find((e) => e.playerId === 'b')!.votes, ['a'])
+})
+
 test('volunteer and back-off under a volunteer rule', () => {
   const state = stateWith([['a'], ['b']])
   openDuel(state, 'volunteer-backoff')
