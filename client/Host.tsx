@@ -150,7 +150,10 @@ export function Host() {
                 class="input"
                 value={state.reading?.pack ?? ''}
                 disabled={round.phase !== 'IDLE'}
-                onChange={(e) => fire('selectPack', (e.target as HTMLSelectElement).value)}
+                onChange={(e) => {
+                  const name = (e.target as HTMLSelectElement).value
+                  if (name) fire('selectPack', name)
+                }}
               >
                 <option value="">Choose a pack…</option>
                 {state.packs.map((p) => (
@@ -163,20 +166,27 @@ export function Host() {
               <span class="chip chip--data">
                 Rendering {state.reading.rendering.done}/{state.reading.rendering.total}
               </span>
-            ) : state.reading ? (
+            ) : (
               <>
-                <button class="btn" onClick={() => fire(state.reading!.paused ? 'resumeRead' : 'pauseRead')}>
-                  {state.reading.paused ? 'Resume' : 'Pause'}
+                {state.reading?.running ? (
+                  <button class="btn" onClick={() => fire(state.reading!.paused ? 'resumeRead' : 'pauseRead')}>
+                    {state.reading.paused ? 'Resume' : 'Pause'}
+                  </button>
+                ) : (
+                  <button class="btn btn--primary" onClick={() => fire('read')}>Read</button>
+                )}
+                <button class="btn btn--ghost" onClick={() => fire('stopRead')} disabled={!state.reading}>
+                  Stop
                 </button>
-                <button class="btn" onClick={() => fire('read')}>Read</button>
-                <button class="btn btn--ghost" onClick={() => fire('stopRead')}>Stop</button>
-                <span class="chip">
-                  Q{state.reading.qIndex + 1}/{state.reading.qTotal}
-                  {state.reading.fragTotal > 0 &&
-                    ` · fragment ${state.reading.fragIndex}/${state.reading.fragTotal}`}
-                </span>
+                {state.reading && (
+                  <span class="chip">
+                    Q{state.reading.qIndex + 1}/{state.reading.qTotal}
+                    {state.reading.fragTotal > 0 &&
+                      ` · fragment ${state.reading.fragIndex}/${state.reading.fragTotal}`}
+                  </span>
+                )}
               </>
-            ) : null}
+            )}
           </div>
         )}
       </section>

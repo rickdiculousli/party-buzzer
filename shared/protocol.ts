@@ -107,6 +107,8 @@ export type ReadingState = {
   fragIndex: number
   fragTotal: number
   paused: boolean
+  /** Whether the read loop is actually driving the round, vs. selected-but-idle. */
+  running: boolean
   /** Present only while a freshly selected pack is being synthesised. */
   rendering?: { done: number; total: number }
 }

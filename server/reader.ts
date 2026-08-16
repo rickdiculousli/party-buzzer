@@ -96,6 +96,10 @@ export class Reader {
   start(): void {
     if (this.running) return
     this.running = true
+    // Flip the host screen to Pause the instant playback genuinely begins;
+    // `stop()` (called explicitly, or by `run()` when the pack ends) is what
+    // clears `state.reading` — this call must not race a later one that undoes it.
+    this.publish({})
     this.loop = this.run().finally(() => {
       this.running = false
     })
@@ -136,6 +140,7 @@ export class Reader {
       fragIndex: this.fragIndex,
       fragTotal: q?.fragments.length ?? 0,
       paused: this.paused,
+      running: this.running,
       rendering: 'rendering' in patch ? patch.rendering : this.hub.state.reading?.rendering,
     }
     this.hub.send(this.conn, { t: 'act', act: 'reading', data: reading })
