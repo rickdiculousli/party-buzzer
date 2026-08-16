@@ -7,6 +7,9 @@ import { WebSocketServer } from 'ws'
 import { Hub, type Conn } from './hub.ts'
 import { Reader } from './reader.ts'
 import { loadState, saveState, flushSave } from './state.ts'
+import { Judge, type Transcribe } from './judge.ts'
+import { sttBinary, transcribe as sttTranscribe } from './stt.ts'
+import { render as renderClip } from './speech.ts'
 import { lanAddresses, pickAddress, banner, qrFor, qrSvg } from './net.ts'
 import type { ClientMsg } from '../shared/protocol.ts'
 
@@ -64,6 +67,8 @@ export async function startServer(opts: {
   revealMs?: number
   collectMs?: number
   packDir?: string
+  /** Speech-to-text for the judge. Undefined builds the helper; null disables it. */
+  transcribe?: Transcribe | null
 } = {}) {
   const port = opts.port ?? Number(process.env.PORT ?? 8080)
   const statePath = opts.statePath ?? join(ROOT, 'state.json')
@@ -77,13 +82,36 @@ export async function startServer(opts: {
     onChange: (s) => saveState(statePath, s),
   })
 
-  const reader = new Reader(hub, { packDir, cacheDir: join(packDir, '.cache') })
+  let transcribe = opts.transcribe ?? undefined
+  let realStt = false
+  if (opts.transcribe === undefined) {
+    const bin = await sttBinary(join(ROOT, 'server/stt'))
+    if (bin) {
+      transcribe = (wav) => sttTranscribe(bin, wav)
+      realStt = true
+    }
+  }
+  const judge = new Judge(hub, { transcribe })
+
+  const reader = new Reader(hub, { packDir, cacheDir: join(packDir, '.cache'), judge })
   hub.setReader(reader)
-  // Both subscribers, now that both exist: the snapshot and the reader's waits.
+  // All three subscribers, now that all three exist: the snapshot, the
+  // reader's waits, and the judge's window.
   hub.setOnChange((s) => {
     saveState(statePath, s)
     reader.onStateChange(s)
+    judge.onStateChange()
   })
+
+  // The first transcription pays the model load (seconds cold, ~180ms warm),
+  // and game night is not when to discover that. One throwaway clip at boot
+  // warms speechd; the clip caches like any other, so this costs once ever.
+  if (realStt && transcribe) {
+    const hear = transcribe
+    void renderClip(join(packDir, '.cache'), 'Warming up.').then((clip) => {
+      if (clip.durationMs > 0) return hear(clip.path)
+    })
+  }
 
   let joinUrl = ''
 
@@ -93,6 +121,30 @@ export async function startServer(opts: {
         (svg) => res.writeHead(200, { 'content-type': 'image/svg+xml' }).end(svg),
         () => res.writeHead(500).end('qr failed'),
       )
+      return
+    }
+    if (req.method === 'POST' && (req.url ?? '').startsWith('/answer')) {
+      const player = new URL(req.url ?? '/', 'http://localhost').searchParams.get('player') ?? ''
+      // text/plain is the transcript itself — probe's speak: step and tests.
+      // Anything else is a recording to transcribe.
+      const isText = (req.headers['content-type'] ?? '').startsWith('text/plain')
+      const chunks: Buffer[] = []
+      let size = 0
+      req.on('data', (c: Buffer) => {
+        size += c.length
+        if (size <= 2_000_000) chunks.push(c)
+      })
+      req.on('end', () => {
+        // Six seconds of mono 16-bit WAV at 48kHz is 576KB; 2MB is generous.
+        if (size > 2_000_000) {
+          res.writeHead(413).end('too large')
+          return
+        }
+        void judge.submit(player, Buffer.concat(chunks), isText).then((r) => {
+          res.writeHead(r.ok ? 200 : 409, { 'content-type': 'application/json' })
+          res.end(JSON.stringify(r))
+        })
+      })
       return
     }
     void serveStatic(req, res)
