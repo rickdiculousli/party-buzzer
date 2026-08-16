@@ -11,7 +11,7 @@
  * cue's own length and the harness's speed slider is the release valve for a
  * 40ms click beside a 3s bed. Add zoom when a cue actually needs it.
  */
-import { useRef } from 'preact/hooks'
+import { useRef, useState } from 'preact/hooks'
 import { clampField } from '../cues.ts'
 import { peaks } from '../peaks.ts'
 import { bufferFor } from '../sound.ts'
@@ -32,6 +32,27 @@ const EDGE_PX = 6
 
 type Handle = { field: NumericField; x: number; y: number; level: boolean }
 
+/**
+ * What each gesture does, in the words the panel says out loud.
+ *
+ * A waveform with four dots on it does not explain itself, and the two drags
+ * that share the track body — move the layer, slide the audio inside it —
+ * differ by six pixels of pointer position and nothing visible at all. So the
+ * track says which one it is about to do, and the cursor agrees with the
+ * sentence: `col-resize` where the clip edge is grabbable, `ew-resize` on a
+ * handle that only travels sideways, `move` on the one corner that travels in
+ * both. Naming the axis is the part that matters — every field here is a
+ * horizontal drag except `sustain`, and nothing on screen said so before.
+ */
+const GESTURE: Record<string, { hint: string; cursor: string }> = {
+  delay: { hint: '← drag the body → move this layer in time', cursor: 'grab' },
+  head: { hint: '← drag the edge → slide the audio inside the clip', cursor: 'col-resize' },
+  attack: { hint: '← attack →', cursor: 'ew-resize' },
+  decay: { hint: '← decay →, ↑ sustain ↓', cursor: 'move' },
+  hold: { hint: '← hold →', cursor: 'ew-resize' },
+  release: { hint: '← release →', cursor: 'ew-resize' },
+}
+
 export function Track({
   layer,
   spanMs,
@@ -44,6 +65,14 @@ export function Track({
   onRemove: () => void
 }) {
   const box = useRef<SVGSVGElement>(null)
+  /**
+   * Which gesture the pointer is currently over, or in the middle of.
+   *
+   * Held as state rather than read at press time because it drives the cursor
+   * and the caption, both of which have to be right *before* you commit to the
+   * drag — an affordance you only discover by trying it is not an affordance.
+   */
+  const [over, setOver] = useState('')
   const d0 = layer.delay ?? 0
   const a = layer.attack ?? 0
   const d = layer.decay ?? 0
@@ -137,13 +166,18 @@ export function Track({
    * The body drag and the clip's left edge share a boundary, so the edge wins
    * inside its hit zone and the body takes everything else. Same rule Audacity
    * uses: near the edge you are trimming, anywhere else you are moving.
+   *
+   * One function answers it for both the press and the hover, so the cursor
+   * cannot promise one gesture and the press deliver the other.
    */
-  const grabBody = (e: PointerEvent) => {
-    const rect = box.current!.getBoundingClientRect()
+  const zoneAt = (clientX: number): 'head' | 'delay' => {
+    if (!file || !box.current) return 'delay'
+    const rect = box.current.getBoundingClientRect()
     const clipLeft = rect.left + (x(d0) / W) * rect.width
-    if (file && Math.abs(e.clientX - clipLeft) <= EDGE_PX) drag(e, 'head')
-    else drag(e, 'delay')
+    return Math.abs(clientX - clipLeft) <= EDGE_PX ? 'head' : 'delay'
   }
+
+  const gesture = GESTURE[over]
 
   return (
     <div class="track">
@@ -153,31 +187,62 @@ export function Track({
         viewBox={`0 0 ${W} ${H}`}
         role="img"
         aria-label={file ?? String(layer.source)}
-        onPointerDown={(e) => grabBody(e as unknown as PointerEvent)}
+        style={{ cursor: gesture?.cursor ?? 'grab' }}
+        // Preact bails out when the value is unchanged, so this re-renders on
+        // crossing the six-pixel boundary and not on every mouse move — which
+        // matters, because a render here rebuilds the whole waveform path.
+        onPointerMove={(e) => setOver(zoneAt((e as unknown as PointerEvent).clientX))}
+        onPointerLeave={() => setOver('')}
+        onPointerDown={(e) => {
+          const p = e as unknown as PointerEvent
+          drag(p, zoneAt(p.clientX))
+        }}
       >
         <path class="track__wave" d={lit} />
         <path class="track__wave track__wave--gated" d={dim} />
+        {/* The clip's left edge, drawn only when there is audio to slide. It is
+            a marker, not a hit target — `zoneAt` owns the hit test in client
+            pixels, because a rect in viewBox units would shrink with the panel
+            and stop being a six-pixel pointing target. */}
+        {file && (
+          <line
+            class={over === 'head' ? 'track__grip is-live' : 'track__grip'}
+            x1={x(d0)}
+            x2={x(d0)}
+            y1={PAD}
+            y2={H - PAD}
+          />
+        )}
         <polyline class="track__env" points={points} />
         {handles.map((hnd) => (
           <circle
             key={hnd.field}
-            class="track__handle"
+            class={hnd.level ? 'track__handle track__handle--free' : 'track__handle'}
             cx={hnd.x}
             cy={hnd.y}
             r={6}
+            onPointerEnter={() => setOver(hnd.field)}
+            onPointerMove={(e) => {
+              // The svg's own move handler would otherwise take the hint back
+              // the instant the pointer moved a pixel on top of the handle.
+              e.stopPropagation()
+            }}
             onPointerDown={(e) => {
-              // Stops `grabBody` from also starting a delay drag underneath.
+              // Stops the body from also starting a delay drag underneath.
               e.stopPropagation()
               drag(e as unknown as PointerEvent, hnd.field, hnd.level)
             }}
           >
-            <title>{hnd.field}</title>
+            <title>{GESTURE[hnd.field].hint}</title>
           </circle>
         ))}
       </svg>
       <button class="track__remove" title="remove layer" onClick={onRemove}>
         ×
       </button>
+      {/* Reserved whether or not it is filled, so the tracks below do not jump
+          up and down as the pointer crosses the stack. */}
+      <p class="track__hint">{gesture?.hint ?? ' '}</p>
     </div>
   )
 }

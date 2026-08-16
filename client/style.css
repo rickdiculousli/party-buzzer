@@ -813,20 +813,15 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   --stamp-snd-rate: 1;
   --stamp-snd-gain: 0.8;
 
+  /* Two samples on this moment — a drop and a buzzer under it — but one cue
+     and therefore one set of these: they are layers of the `leader` recipe
+     now, and moving one against the other is a layer `delay` in the editor
+     rather than a second copy of every property here. */
   --leader-snd-delay: 0ms;
   --leader-snd-head: 0ms;
   --leader-snd-cut: 0ms;
   --leader-snd-rate: 1;
   --leader-snd-gain: 0.8;
-
-  /* A second layer on the same moment, with its own everything — one sample
-     carries the drop and the other the buzzer, and stacking them is the only
-     way to move one against the other. */
-  --leader2-snd-delay: 0ms;
-  --leader2-snd-head: 0ms;
-  --leader2-snd-cut: 0ms;
-  --leader2-snd-rate: 1;
-  --leader2-snd-gain: 0.8;
 
   /* The welcome bed loops, so `head` and `cut` are its loop points rather than
      a trim: set them to the good bars and the tail never plays twice. */
@@ -1009,8 +1004,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .layers__ruler {
   position: relative;
   height: 1rem;
-  font-size: var(--t-xs, 0.7rem);
-  color: var(--chalk-dim, #7a8794);
+  font-size: var(--t-xs);
+  color: var(--dim);
 }
 .layers__tick {
   position: absolute;
@@ -1022,13 +1017,13 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .track__canvas {
   width: 100%;
   height: auto;
-  background: var(--surface-2, #0e1116);
+  background: var(--panel);
   border-radius: 6px;
   touch-action: none;
   cursor: grab;
 }
 .track__wave {
-  stroke: var(--chalk-dim, #7a8794);
+  stroke: var(--dim);
   stroke-width: 1;
 }
 .track__wave--gated {
@@ -1036,16 +1031,43 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .track__env {
   fill: none;
-  stroke: var(--accent, #4dd6e8);
+  stroke: var(--cyan);
   stroke-width: 2;
   pointer-events: none;
 }
+/* The clip's left edge. Faint until the pointer is inside its hit zone, then
+   lit — the six pixels where a press slides the audio instead of moving the
+   layer are otherwise indistinguishable from the rest of the track. */
+.track__grip {
+  stroke: var(--dim);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  pointer-events: none;
+}
+.track__grip.is-live {
+  stroke: var(--cyan);
+  stroke-width: 2;
+  stroke-dasharray: none;
+}
 .track__handle {
-  fill: var(--accent, #4dd6e8);
+  fill: var(--cyan);
   cursor: ew-resize;
+}
+/* The one handle that travels in both axes — decay across, sustain up. */
+.track__handle--free {
+  cursor: move;
 }
 .track__handle:hover {
   fill: #fff;
+}
+/* Always present, empty when nothing is hovered, so the stack below does not
+   jump as the pointer crosses it. */
+.track__hint {
+  min-height: 1.1em;
+  margin: 0;
+  font-size: var(--t-xs);
+  color: var(--dim);
+  white-space: pre;
 }
 .track__remove {
   position: absolute;
@@ -1053,7 +1075,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   right: 2px;
   border: 0;
   background: transparent;
-  color: var(--chalk-dim, #7a8794);
+  color: var(--dim);
   cursor: pointer;
   line-height: 1;
 }
@@ -1063,6 +1085,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .layers__picker {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--s-1, 0.25rem);
-  padding-block: var(--s-1, 0.25rem);
+  gap: var(--s1);
+  padding-block: var(--s1);
 }
