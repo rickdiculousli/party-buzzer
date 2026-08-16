@@ -293,8 +293,10 @@ export function applyHostAction(state: State, action: HostAction): void {
       }
       const prev = state.flow
       // Editing block 4 during block 2 must not restart the night; a setlist
-      // too short for where the room is has to start over.
-      const keep = prev && prev.at < blocks.length
+      // too short for where the room is has to start over — and so does a
+      // spent one: `prev.at === prev.blocks.length` was never a block anyone
+      // entered, so there is nothing mid-flight to preserve.
+      const keep = prev && prev.at < prev.blocks.length && prev.at < blocks.length
       const at = keep ? prev.at : 0
       const done = keep ? Math.min(prev.done, blocks[at].count - 1) : 0
       state.flow = { blocks, at, done }

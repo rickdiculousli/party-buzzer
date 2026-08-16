@@ -272,3 +272,31 @@ test('the flow actions are refused mid-question, the way setGame is', () => {
   applyHostAction(state, { a: 'setFlow', blocks: flowBlocks })
   assert.equal(state.flow, undefined)
 })
+
+test('setFlow onto a spent setlist restarts at 0/0 and enters the first block fresh', () => {
+  const state = newState()
+  applyHostAction(state, { a: 'setFlow', blocks: [{ game: 'trivia', options: {}, count: 1 }] })
+  playRound(state)
+  assert.equal(state.flow!.at, 1, 'the one-block flow is spent')
+  const next: FlowBlock[] = [
+    { game: 'quizbowl', options: {}, count: 1 },
+    { game: 'trivia', options: {}, count: 1 },
+  ]
+  applyHostAction(state, { a: 'setFlow', blocks: next })
+  assert.deepEqual([state.flow!.at, state.flow!.done], [0, 0])
+  assert.equal(state.game.id, 'quizbowl', 'the first block of the new setlist was actually entered')
+})
+
+test('setFlow routes through sanitizeBlocks: an unknown game is dropped, a NaN count clamps to 1', () => {
+  const state = newState()
+  applyHostAction(state, {
+    a: 'setFlow',
+    blocks: [
+      { game: 'nope', options: {}, count: 1 },
+      { game: 'trivia', options: {}, count: NaN },
+    ] as unknown as FlowBlock[],
+  })
+  assert.equal(state.flow!.blocks.length, 1, 'the unknown-game block was dropped')
+  assert.equal(state.flow!.blocks[0].game, 'trivia')
+  assert.equal(state.flow!.blocks[0].count, 1, 'the NaN count clamped to 1')
+})
