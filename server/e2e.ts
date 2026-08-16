@@ -76,6 +76,7 @@ export async function withServer(fn: (url: string) => Promise<void>): Promise<vo
     statePath: join(dir, 'state.json'),
     revealMs: REVEAL,
     collectMs: COLLECT,
+    flowDir: join(dir, 'flows'),
   })
   try {
     await fn(`http://127.0.0.1:${server.port}`)
