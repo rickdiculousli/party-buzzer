@@ -482,7 +482,7 @@ export type Speech = {
 }
 
 export function clipPath(cacheDir: string, text: string, voice?: string): string {
-  const hash = createHash('sha256').update(`${voice ?? 'default'} ${text}`).digest('hex')
+  const hash = createHash('sha256').update(`${voice ?? 'default'}\n${text}`).digest('hex')
   return join(cacheDir, `${hash.slice(0, 16)}.aiff`)
 }
 
