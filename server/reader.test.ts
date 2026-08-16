@@ -16,12 +16,7 @@ function fakeSpeech(): Speech & { spoken: string[] } {
     render: async (_dir, text) => ({ path: `/fake/${text}`, durationMs: 10 }),
     play: (path) => {
       spoken.push(path.replace('/fake/', ''))
-      return {
-        done: Promise.resolve(),
-        pause: () => {},
-        resume: () => {},
-        stop: () => {},
-      }
+      return { done: Promise.resolve(), stop: () => {} }
     },
   }
 }
@@ -102,6 +97,29 @@ test('an undo mid-question aborts the reader instead of pushing onto a dead roun
     speech.spoken.length < 3,
     `expected the reader to abort, but it spoke all of ${speech.spoken.length}`,
   )
+})
+
+test('pause kills the clip and resume replays that fragment, not the next one', async () => {
+  const { reader, speech } = rig(PACK)
+  // Clips that run until something stops them, so pause lands mid-fragment.
+  speech.play = (path) => {
+    speech.spoken.push(path.replace('/fake/', ''))
+    let end = () => {}
+    return { done: new Promise<void>((r) => (end = r)), stop: () => end() }
+  }
+  await reader.select('one.txt')
+  reader.start()
+  while (speech.spoken.length < 1) await new Promise((r) => setTimeout(r, 5))
+
+  reader.pause()
+  await new Promise((r) => setTimeout(r, 20))
+  assert.deepEqual(speech.spoken, ['First fragment.'], 'paused, not advanced')
+
+  reader.resume()
+  while (speech.spoken.length < 2) await new Promise((r) => setTimeout(r, 5))
+  reader.stop()
+  await reader.settled()
+  assert.deepEqual(speech.spoken[1], 'First fragment.', 'the same fragment again')
 })
 
 test('stop halts the loop and clears reading progress', async () => {

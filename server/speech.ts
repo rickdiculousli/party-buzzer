@@ -1,8 +1,8 @@
 /**
  * Speech, pre-rendered. `say` synthesises at roughly realtime, so doing it live
  * would put a pause before every sentence; rendering the whole pack up front
- * turns playback into a file we control. That is also what makes pause real —
- * `afplay` under SIGSTOP resumes exactly where it stopped.
+ * turns playback into a file we control — cheap to start, cheap to abandon,
+ * which is what makes the reader's pause instant.
  *
  * Clips cache by a hash of the text and the voice, so a pack read twice renders
  * once, ever.
@@ -18,8 +18,6 @@ import { join } from 'node:path'
 export type Clip = { path: string; durationMs: number }
 export type Playback = {
   done: Promise<void>
-  pause(): void
-  resume(): void
   stop(): void
 }
 export type Speech = {
@@ -80,23 +78,18 @@ export function play(path: string): Playback {
     p.on('close', () => resolve())
     p.on('error', () => resolve())
   })
-  const signal = (sig: NodeJS.Signals) => {
-    try {
-      p.kill(sig)
-    } catch {
-      // Already gone. Nothing to hold or release.
-    }
-  }
   return {
     done,
-    pause: () => signal('SIGSTOP'),
-    // SIGCONT on a stopped afplay resumes sample-accurately; there is no seek
-    // and none is needed.
-    resume: () => signal('SIGCONT'),
+    // Killing is the only way to stop cleanly. SIGSTOP looks tidier and sounds
+    // awful: a frozen afplay cannot refill CoreAudio's ring buffer, so the
+    // device loops the last fraction of a second three or four times before it
+    // finally goes quiet. The reader replays the fragment instead of seeking.
     stop: () => {
-      // A stopped process ignores SIGKILL until it is continued.
-      signal('SIGCONT')
-      signal('SIGKILL')
+      try {
+        p.kill('SIGKILL')
+      } catch {
+        // Already gone. Nothing to stop.
+      }
     },
   }
 }

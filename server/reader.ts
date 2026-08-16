@@ -112,13 +112,13 @@ export class Reader {
 
   pause(): void {
     this.paused = true
-    this.playback?.pause()
+    // Kill the clip; `speak` sees `paused` still set and holds, then replays it.
+    this.playback?.stop()
     this.publish({})
   }
 
   resume(): void {
     this.paused = false
-    this.playback?.resume()
     this.publish({})
   }
 
@@ -214,14 +214,31 @@ export class Reader {
     this.stop()
   }
 
+  /**
+   * Speak one fragment, holding here for as long as the host keeps us paused.
+   *
+   * There is no seek: pause kills the clip and resume replays the fragment from
+   * its start. That is the whole cost of the stutter-free pause, and it is the
+   * right behaviour anyway — a human reader interrupted mid-clause re-reads the
+   * clause rather than picking up mid-word.
+   */
   private async speak(text: string): Promise<void> {
     const path = this.clips.get(text)
     if (!path) return
-    const pb = this.speech.play(path)
-    this.playback = pb
-    if (this.paused) pb.pause()
-    await pb.done
-    this.playback = undefined
+    while (this.running) {
+      if (this.paused) {
+        // publish() on resume is what wakes this.
+        await this.until(() => !this.paused)
+        continue
+      }
+      const pb = this.speech.play(path)
+      this.playback = pb
+      await pb.done
+      this.playback = undefined
+      // Not paused means the clip reached its end; paused means pause() killed
+      // it, so loop round and wait to say it again.
+      if (!this.paused) return
+    }
   }
 
   /** Wait until the state satisfies a predicate, or the reader stops. */
