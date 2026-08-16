@@ -143,6 +143,8 @@ export async function startServer(opts: {
         void judge.submit(player, Buffer.concat(chunks), isText).then((r) => {
           res.writeHead(r.ok ? 200 : 409, { 'content-type': 'application/json' })
           res.end(JSON.stringify(r))
+        }, () => {
+          res.writeHead(500).end('judge error')
         })
       })
       return
