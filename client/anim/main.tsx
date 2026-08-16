@@ -22,10 +22,11 @@
  */
 import { render } from 'preact'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
-import { SCENARIOS, dialKey, type Dial } from './scenarios.tsx'
+import { SCENARIOS, dialKey, recipeDials, type Dial } from './scenarios.tsx'
 import { parseTune, play, prime, primeFile, unlock } from '../sound.ts'
-import { RECIPES, getPath, withOverrides } from '../cues.ts'
+import { RECIPES, getPath, setPath } from '../cues.ts'
 import { Envelope } from './Envelope.tsx'
+import type { Recipe } from '../synth.ts'
 
 /**
  * How long the lead-up frame is held before the moment happens.
@@ -49,9 +50,7 @@ const num = (v: string) => parseFloat(v)
 function readDefaults(dials: Dial[]): Record<string, string> {
   const root = getComputedStyle(document.documentElement)
   const out: Record<string, string> = {}
-  for (const d of dials)
-    out[dialKey(d)] =
-      'var' in d ? root.getPropertyValue(d.var).trim() : String(getPath(RECIPES, d.recipe) ?? 0)
+  for (const d of dials) if ('var' in d) out[dialKey(d)] = root.getPropertyValue(d.var).trim()
   return out
 }
 
@@ -72,6 +71,17 @@ function Harness() {
   const [origin, setOrigin] = useState<Record<string, string>>(() =>
     readDefaults(scenario.dials),
   )
+  /**
+   * The recipes as they are being edited, seeded from what is committed.
+   *
+   * A tree rather than the flat `cue.index.field` overrides it replaces,
+   * because add and remove are structural: override keys name a layer by
+   * position, so removing layer 0 silently retargets every key naming layer 1.
+   * Stable per-layer ids would fix that at the cost of writing UI bookkeeping
+   * into committed data. Nothing here is written to disk until Save, which is
+   * what makes Reset able to bring a deleted layer back.
+   */
+  const [draft, setDraft] = useState<Record<string, Recipe>>(() => structuredClone(RECIPES))
   /**
    * `lead` is the frame before the moment; clearing it is the moment.
    *
@@ -172,12 +182,10 @@ function Harness() {
     }
   }, [lead, speed, id])
 
-  // The dialled recipes, not the ones committed to style.css — the harness
-  // sets its properties on the stage wrapper, and a sound tuned against the
-  // file while you watch the slider would be tuning nothing. Hoisted out of
-  // the trigger effect below so the envelope canvas reads the same object the
-  // sound plays from.
-  const live = withOverrides(RECIPES, values)
+  // Every cue this scenario fires. The draft, not the committed table, is what
+  // the harness plays and draws — a sound tuned against the file while you
+  // watch the slider would be tuning nothing.
+  const cues = [scenario.sound ?? []].flat()
 
   /**
    * The cue, on the same edge as the animation.
@@ -193,7 +201,7 @@ function Harness() {
       play(cue, {
         scope: stage.current ?? undefined,
         rateScale: follow ? speed : 1,
-        recipe: live[cue],
+        recipe: draft[cue],
       })
   }, [lead])
 
@@ -209,20 +217,13 @@ function Harness() {
   // the dialled values or the first take after an adopt is the silent one.
   useEffect(() => {
     for (const cue of [scenario.sound ?? []].flat())
-      for (const l of live[cue] ?? [])
+      for (const l of draft[cue] ?? [])
         if (typeof l.source === 'object') void primeFile(l.source.file)
-  }, [id, values])
-
-  // The stage's inline style must never receive a recipe field — Preact would
-  // try to set `stamp.0.decay` as a CSS property. Both the stage and the
-  // preview stick to the CSS half for the same reason.
-  const cssValues = Object.fromEntries(
-    Object.entries(values).filter(([k]) => k.startsWith('--')),
-  )
+  }, [id, draft])
 
   const css =
     ':root {\n' +
-    Object.entries(cssValues)
+    Object.entries(values)
       .map(([k, v]) => `  ${k}: ${v};`)
       .join('\n') +
     '\n}'
@@ -230,15 +231,18 @@ function Harness() {
   const save = async () => {
     setSaved('saving')
     try {
-      const css = Object.fromEntries(Object.entries(values).filter(([k]) => k.startsWith('--')))
       const res = await fetch('/__anim/save', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ css, recipes: withOverrides(RECIPES, values) }),
+        body: JSON.stringify({ css: values, recipes: draft }),
       })
       const body = await res.json()
       // Saved values are the new baseline — see the note on `origin`.
       if (res.ok) setOrigin({ ...values })
+      // The recipe baseline re-seeds on reload rather than here: Save has just
+      // rewritten cues.ts, and the module's RECIPES in this page's memory is the
+      // pre-save one. Reset before a reload therefore goes back to what the file
+      // held when the page opened, which is the honest thing for it to mean.
       setSaved(res.ok ? `saved ${body.written} to style.css, ${body.cues} cues` : `failed: ${body.error}`)
     } catch (err) {
       setSaved(`failed: ${(err as Error).message}`)
@@ -335,6 +339,10 @@ function Harness() {
     }
   }
 
+  // CSS dials come from the scenario; recipe dials come from the draft, so a
+  // layer added a moment ago has its dials without a reload.
+  const dials = [...scenario.dials, ...cues.flatMap((c) => recipeDials(c, draft[c] ?? []))]
+
   return (
     <main class="harness">
       <aside class="harness__panel">
@@ -423,25 +431,25 @@ function Harness() {
         </div>
 
         <p class="eyebrow">{scenario.label}</p>
-        {[scenario.sound ?? []].flat().map((cue) =>
-          (live[cue] ?? []).map((layer, i) => (
+        {cues.map((cue) =>
+          (draft[cue] ?? []).map((layer, i) => (
             <Envelope
               key={`${cue}.${i}`}
               layer={layer}
-              onChange={(field, value) =>
-                setValues((v) => ({ ...v, [`${cue}.${i}.${field}`]: String(value) }))
-              }
+              onChange={(field, value) => setDraft((t) => setPath(t, `${cue}.${i}.${field}`, value))}
             />
           )),
         )}
-        {scenario.dials.map((d) => {
+        {dials.map((d) => {
           const k = dialKey(d)
-          const was = origin[k] ?? ''
-          const now = values[k] ?? ''
+          const recipe = 'recipe' in d
+          const was = recipe ? String(getPath(RECIPES, d.recipe) ?? 0) : origin[k] ?? ''
+          const now = recipe ? String(getPath(draft, d.recipe) ?? 0) : values[k] ?? ''
           const moved = now !== was
-          // Click the origin readout to put this one dial back, which is far
-          // less blunt than resetting the whole panel to compare one change.
-          const back = () => setValues((v) => ({ ...v, [k]: was }))
+          const back = () =>
+            recipe
+              ? setDraft((t) => setPath(t, d.recipe, parseFloat(was)))
+              : setValues((v) => ({ ...v, [k]: was }))
 
           if ('text' in d) {
             return (
@@ -488,15 +496,11 @@ function Harness() {
                   max={d.max}
                   step={d.step}
                   value={num(now)}
-                  onInput={(e) =>
-                    setValues((v) => ({
-                      ...v,
-                      [k]:
-                        'var' in d
-                          ? `${(e.target as HTMLInputElement).value}${d.unit}`
-                          : (e.target as HTMLInputElement).value,
-                    }))
-                  }
+                  onInput={(e) => {
+                    const raw = (e.target as HTMLInputElement).value
+                    if ('recipe' in d) setDraft((t) => setPath(t, d.recipe, parseFloat(raw)))
+                    else setValues((v) => ({ ...v, [k]: `${raw}${d.unit}` }))
+                  }}
                 />
                 <span
                   class="harness__origin"
@@ -521,9 +525,13 @@ function Harness() {
           </button>
           <button
             class="btn btn--ghost"
-            disabled={!scenario.dials.some((d) => values[dialKey(d)] !== origin[dialKey(d)])}
+            disabled={
+              !scenario.dials.some((d) => values[dialKey(d)] !== origin[dialKey(d)]) &&
+              JSON.stringify(draft) === JSON.stringify(RECIPES)
+            }
             onClick={() => {
               setValues({ ...origin })
+              setDraft(structuredClone(RECIPES))
               trigger()
             }}
           >
@@ -573,7 +581,7 @@ function Harness() {
         {adopting && <pre class="harness__css">{adopting}</pre>}
       </aside>
 
-      <div class="harness__stage" style={cssValues}>
+      <div class="harness__stage" style={values}>
         <p class="harness__note">{scenario.note}</p>
         {/* Keyed on the scenario, not on the take: a take must not remount
             this, or the context would animate alongside the subject and the

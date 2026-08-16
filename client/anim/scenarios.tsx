@@ -24,7 +24,7 @@
 import { COLLECT_MS } from '../../shared/protocol.ts'
 import type { Cue } from '../sound.ts'
 import { NUMERIC, RECIPES, type NumericField } from '../cues.ts'
-import type { Layer } from '../synth.ts'
+import type { Recipe } from '../synth.ts'
 
 /**
  * A number the harness can move.
@@ -115,20 +115,18 @@ const FIELD: Record<NumericField, { max: number; step: number; unit: string }> =
 /**
  * Every numeric field actually present in a cue's recipe, as dials.
  *
- * Driven off the recipe rather than off a written-out list, so adding a layer
- * to `cues.ts` gives you its dials without touching this file — and so a
- * scenario can never restate a value the recipe already carries.
+ * Driven off the recipe passed in rather than off the committed table, because
+ * the harness now edits a draft: a layer you added a moment ago has to get its
+ * dials without a reload, and a layer you removed has to lose them.
  */
-export function recipeDials(cue: string): Dial[] {
-  const recipe = (RECIPES as Record<string, Layer[]>)[cue] ?? []
+export function recipeDials(cue: string, recipe: Recipe): Dial[] {
   return recipe.flatMap((layer, i) =>
-    NUMERIC.filter((f) => typeof layer[f] === 'number')
-      .map((f) => ({
-        recipe: `${cue}.${i}.${f}`,
-        label: `${cue} L${i + 1} ${f}`,
-        min: 0,
-        ...FIELD[f],
-      })),
+    NUMERIC.filter((f) => typeof layer[f] === 'number').map((f) => ({
+      recipe: `${cue}.${i}.${f}`,
+      label: `${cue} L${i + 1} ${f}`,
+      min: 0,
+      ...FIELD[f],
+    })),
   )
 }
 
@@ -228,7 +226,7 @@ export const SCENARIOS: Scenario[] = [
     label: 'A mark lands',
     note: 'Three marks are already down. The fourth arrives — which is what the board does all through the collection window, one packet at a time.',
     subject: '.timeline__mark',
-    dials: [...STAMP, ...BLOOM, ...soundDials('stamp'), ...recipeDials('stamp'), ...AUDITION],
+    dials: [...STAMP, ...BLOOM, ...soundDials('stamp'), ...AUDITION],
     sound: 'stamp',
     render: (lead) => (
       <Stage mid={<p class="board__hero">Ada</p>} below={<Timeline held={lead ? 1 : 0} />} />
@@ -248,9 +246,7 @@ export const SCENARIOS: Scenario[] = [
       { var: '--flare-body', label: 'Body', min: 0, max: 200, step: 4, unit: 'px' },
       { var: '--flare-throw', label: 'Throw', min: 0, max: 400, step: 5, unit: 'px' },
       ...soundDials('leader'),
-      ...recipeDials('leader'),
       ...soundDials('leader2', 'Buzzer'),
-      ...recipeDials('leader2'),
       ...AUDITION,
     ],
     sound: ['leader', 'leader2'],
