@@ -116,6 +116,16 @@ export function Player() {
   const myItems = state && playerId ? (state.items[playerId] ?? []) : []
   const itemCounts = [...myItems.reduce((m, id) => m.set(id, (m.get(id) ?? 0) + 1), new Map<string, number>())]
   const opponents = state?.players.filter((p) => p.id !== playerId && p.connected) ?? []
+  const duel = state?.duel
+  const duelRule = state?.duelRules.find((r) => r.id === duel?.rule)
+  const myDuelEntry = duel?.pool.find((e) => e.playerId === playerId)
+  const myVoteFor = duel?.pool.find((e) => e.votes.includes(playerId ?? ''))?.playerId
+  const inCount = duel?.pool.filter((e) => e.in).length ?? 0
+  const finalist = !!playerId && !!round?.candidates?.includes(playerId)
+  const spectator = !!round?.candidates && !finalist && !!playerId
+  const finalistNames = round?.candidates?.map(
+    (id) => state?.players.find((p) => p.id === id)?.name ?? '?',
+  )
   const [targetFor, setTargetFor] = useState<string | null>(null)
   const score = key ? state?.scores[key] ?? 0 : 0
   const armed = round?.phase === 'ARMED' || round?.phase === 'COLLECTING'
@@ -124,7 +134,7 @@ export function Player() {
   // The go cue. Lower than the buzz blip so the two never get confused, and
   // skipped for players who are locked out and cannot act on it.
   const { open, lead } = useOpen(round, now, () => {
-    if (barred || frozen) return
+    if (barred || frozen || spectator) return
     navigator.vibrate?.([40, 40, 40])
     blip(audio.current, 440)
   })
@@ -172,7 +182,7 @@ export function Player() {
   }
 
   const buzz = () => {
-    if (!open || barred || pressed || frozen) return
+    if (!open || barred || pressed || frozen || spectator) return
     // Stamp before anything else so render work never inflates the time.
     send({ t: 'buzz', at: now() })
     setPressedFor(round?.armedAt ?? 0)
@@ -201,6 +211,10 @@ export function Player() {
   } else if (barred) {
     label = 'Out'
     sub = 'Wrong answer — you sit out the rest of this question'
+    mood = 'is-barred'
+  } else if (spectator) {
+    label = 'Duel'
+    sub = `${finalistNames?.join(' vs ')} — you sit this one out`
     mood = 'is-barred'
   } else if (mine && settled) {
     label = won ? 'You’re up' : `+${mine.deltaMs} ms`
@@ -257,10 +271,48 @@ export function Player() {
         )}
       </div>
 
+      {duel && !duel.seated && duelRule && (
+        <div class="player__duel">
+          <p class="eyebrow">Heads-up — who plays?</p>
+          {(duelRule.entry === 'volunteer' || duelRule.entry === 'both') && (
+            <>
+              <button
+                class={myDuelEntry?.in ? 'btn btn--primary' : 'btn'}
+                onPointerDown={() =>
+                  send({ t: 'act', act: myDuelEntry?.in ? 'duelBackOff' : 'duelVolunteer' })
+                }
+              >
+                {myDuelEntry?.in ? 'Back off' : 'I’m in'}
+              </button>
+              <p class="muted">
+                {inCount} in{inCount > 2 ? ' — someone has to back off' : ''}
+              </p>
+            </>
+          )}
+          {(duelRule.entry === 'vote' || duelRule.entry === 'both') && (
+            <div class="player__items">
+              {opponents.map((p) => {
+                const votes = duel.pool.find((e) => e.playerId === p.id)?.votes.length ?? 0
+                return (
+                  <button
+                    key={p.id}
+                    class={myVoteFor === p.id ? 'btn btn--primary' : 'btn'}
+                    onPointerDown={() => send({ t: 'act', act: 'duelVote', data: p.id })}
+                  >
+                    {p.name}
+                    {votes > 0 ? ` · ${votes}` : ''}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       <button
         class={`buzzer ${mood}`}
         onPointerDown={buzz}
-        disabled={!open || barred || pressed || frozen}
+        disabled={!open || barred || pressed || frozen || spectator}
       >
         {label}
         {sub && <span class="buzzer__sub">{sub}</span>}
