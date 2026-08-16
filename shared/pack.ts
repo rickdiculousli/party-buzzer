@@ -4,7 +4,7 @@
  *   V: 200                          optional; falls back to the round value
  *   First fragment. / Second, which  ` / ` splits fragments
  *   continues the second. / Third.   bare lines join the current fragment
- *   A: The answer                   required, so the host can judge
+ *   A: The answer | an alternate      required, so the host can judge
  *
  *   Blank line separates questions.
  *
@@ -12,7 +12,7 @@
  * reaches `State` — only the fragments the room has already heard do, which is
  * what keeps a phone from seeing ahead.
  */
-export type Question = { value?: number; fragments: string[]; answer: string }
+export type Question = { value?: number; fragments: string[]; answer: string; answers: string[] }
 export type PackResult = { questions: Question[]; errors: string[] }
 
 export function parsePack(text: string): PackResult {
@@ -21,6 +21,7 @@ export function parsePack(text: string): PackResult {
   let value: number | undefined
   let fragments: string[] = []
   let answer = ''
+  let variants: string[] = []
   let startLine = 0
 
   const flush = () => {
@@ -28,11 +29,12 @@ export function parsePack(text: string): PackResult {
     if (fragments.length === 0 || !answer) {
       errors.push(`line ${startLine}: a question needs at least one fragment and an A: line`)
     } else {
-      questions.push({ value, fragments, answer })
+      questions.push({ value, fragments, answer, answers: variants })
     }
     value = undefined
     fragments = []
     answer = ''
+    variants = []
   }
 
   text.split('\n').forEach((raw, i) => {
@@ -53,7 +55,10 @@ export function parsePack(text: string): PackResult {
       return
     }
     if (line.startsWith('A:')) {
-      answer = line.slice(2).trim()
+      // `A: Vermont | VT | the Green Mountain State` — alternates for the fuzzy
+      // matcher; the first stays the display answer.
+      variants = line.slice(2).split(' | ').map((s) => s.trim()).filter(Boolean)
+      answer = variants[0] ?? ''
       return
     }
     if (fragments.length === 0) startLine = n

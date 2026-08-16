@@ -52,3 +52,21 @@ A: Real answer
 test('an empty pack parses to nothing, no errors', () => {
   assert.deepEqual(parsePack('\n\n'), { questions: [], errors: [] })
 })
+
+test('an A: line split on " | " carries every variant, first one is the display answer', () => {
+  const { questions, errors } = parsePack(`Question one.
+A: Vermont | VT | the Green Mountain State
+`)
+  assert.deepEqual(errors, [])
+  assert.equal(questions[0].answer, 'Vermont')
+  assert.deepEqual(questions[0].answers, ['Vermont', 'VT', 'the Green Mountain State'])
+})
+
+test('a plain A: line is one variant — existing packs parse unchanged', () => {
+  const { questions, errors } = parsePack(`Question one.
+A: gold
+`)
+  assert.deepEqual(errors, [])
+  assert.equal(questions[0].answer, 'gold')
+  assert.deepEqual(questions[0].answers, ['gold'])
+})
