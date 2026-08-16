@@ -23,7 +23,7 @@
 import { render } from 'preact'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { SCENARIOS, dialKey, recipeDials, type Dial } from './scenarios.tsx'
-import { parseTune, play, prime, primeFile, unlock } from '../sound.ts'
+import { play, prime, primeFile, unlock } from '../sound.ts'
 import { RECIPES, addLayer, getPath, removeLayer, setPath } from '../cues.ts'
 import { Layers } from './Layers.tsx'
 import { SoundList, usePreview } from './SoundList.tsx'
@@ -53,6 +53,52 @@ function readDefaults(dials: Dial[]): Record<string, string> {
   const out: Record<string, string> = {}
   for (const d of dials) if ('var' in d) out[dialKey(d)] = root.getPropertyValue(d.var).trim()
   return out
+}
+
+/**
+ * A number with a label and a readout, and nothing else.
+ *
+ * Deliberately not a `Dial`: a dial carries an origin marker, a "was" readout
+ * and a place in Save, because a dial edits a value committed to a file. The
+ * trim on a download you have not kept yet is committed to nothing, so all of
+ * that machinery would be describing a baseline that does not exist.
+ */
+function Slider({
+  label,
+  value,
+  min,
+  max,
+  step,
+  unit,
+  onChange,
+}: {
+  label: string
+  value: number
+  min: number
+  max: number
+  step: number
+  unit: string
+  onChange: (v: number) => void
+}) {
+  return (
+    <div class="harness__dial">
+      <label>
+        {label}
+        <span class="readout harness__value">
+          {value}
+          {unit}
+        </span>
+      </label>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onInput={(e) => onChange(num((e.target as HTMLInputElement).value))}
+      />
+    </div>
+  )
 }
 
 function Harness() {
@@ -265,13 +311,18 @@ function Harness() {
   const preview = usePreview()
   const [selected, setSelected] = useState('')
   /**
-   * A dialled tunable, in ms (or as-is for the unitless ones).
+   * The trim an audition plays through, and a cue sound bakes in.
    *
-   * `parseTune` rather than `parseFloat` for the reason sound.ts spells out: a
-   * value that reads `1s` is a thousand milliseconds, and a bare parseFloat
-   * makes it one.
+   * Plain state, and it lives beside the Library because it belongs to the
+   * Library. It used to be three custom properties in the `anim:tunables`
+   * block, which put its sliders up among the animation dials — a screen away
+   * from the list they act on, absent entirely from any scenario without a
+   * sound, and quietly reading zero when you adopted from one of those. None of
+   * that bought anything: a scratch trim on a download you are deciding about
+   * is not a value anyone wants written back to a stylesheet.
    */
-  const tune = (key: string, fallback: number) => parseTune(values[key] ?? '', fallback)
+  const [trim, setTrim] = useState({ head: 0, cut: 0, rate: 1 })
+  const noTrim = trim.head === 0 && trim.cut === 0 && trim.rate === 1
 
   /**
    * The decoded raw file, kept so a second press starts instantly.
@@ -292,9 +343,9 @@ function Harness() {
         if (cancelled) return
         src = ac.createBufferSource()
         src.buffer = buf
-        src.playbackRate.value = Math.max(0.05, tune('--audition-rate', 1))
+        src.playbackRate.value = Math.max(0.05, trim.rate)
         src.connect(ac.destination)
-        const head = tune('--audition-head', 0) / 1000
+        const head = trim.head / 1000
         // Both ends against the same instant on the context clock. `stop` takes
         // an absolute time, so a bare `stop(cut)` is always in the past by the
         // time anyone clicks ▶ — which stops the source immediately, i.e.
@@ -304,7 +355,7 @@ function Harness() {
         // `cut` is wall-clock output length, the same convention `play()` gives
         // it — not a length of the file, so a rate change does not change how
         // long the audition runs.
-        const cut = tune('--audition-cut', 0) / 1000
+        const cut = trim.cut / 1000
         if (cut > 0)
           // ponytail: no release ramp here, unlike the bed's RELEASE_MS fade —
           // this is a preview, not a baked file, and a hard stop is fine to
@@ -364,22 +415,16 @@ function Harness() {
           out: outFor(preset),
           role,
           preset,
-          headMs: tune('--audition-head', 0),
-          cutMs: tune('--audition-cut', 0),
-          rate: tune('--audition-rate', 1),
+          headMs: trim.head,
+          cutMs: trim.cut,
+          rate: trim.rate,
         }),
       })
       const body = await res.json()
       setAdopting(res.ok ? body.command : `failed: ${body.error}`)
-      // The dials reset because what was dialled in is now baked into the file —
+      // The trim resets because what was dialled in is now baked into the file —
       // the convention CREDITS.md already states.
-      if (res.ok)
-        setValues((v) => ({
-          ...v,
-          '--audition-head': '0ms',
-          '--audition-cut': '0ms',
-          '--audition-rate': '1',
-        }))
+      if (res.ok) setTrim({ head: 0, cut: 0, rate: 1 })
     } catch (err) {
       setAdopting(`failed: ${(err as Error).message}`)
     }
@@ -614,49 +659,105 @@ function Harness() {
           onPreview={audition}
           empty="Nothing in sounds/raw/ yet. Drop a download in, or run npm run demo-sounds."
         />
-        <p class="eyebrow">Keep this one</p>
-        <p class="harness__hint">
-          Adopting copies a download into <code>client/public/sounds/</code> under a
-          name you choose, where the board can serve it and a layer can point at
-          it. It also writes the ffmpeg command into CREDITS.md.
-        </p>
-        <div class="harness__row">
-          <input
-            class="input"
-            placeholder="call it something"
-            value={outName}
-            onInput={(e) => setOutName((e.target as HTMLInputElement).value)}
-          />
-          <input
-            class="input"
-            placeholder="what it is for"
-            value={role}
-            onInput={(e) => setRole((e.target as HTMLInputElement).value)}
-          />
-        </div>
-        <div class="harness__row">
-          <button class="btn" disabled={!selected || !outName} onClick={() => adopt(selected, 'one-shot')}>
-            Keep as a cue sound
-          </button>
-          <button class="btn" disabled={!selected || !outName} onClick={() => adopt(selected, 'bed')}>
-            Keep as looping music
-          </button>
-        </div>
-        {/* The one difference worth stating out loud: the trim is the whole
-            point of the dials above, and the bed preset throws it away. */}
-        <p class="harness__hint">
-          A <strong>cue sound</strong> fires once — a buzz, a stamp. The head, cut and
-          pitch you dialled are baked in, with a 40ms fade at the cut, and it is
-          saved uncompressed as {outName ? <code>{outFor('one-shot')}</code> : '.wav'}.
-        </p>
-        <p class="harness__hint">
-          <strong>Looping music</strong> runs under a screen, like the lobby bed. The
-          whole file is kept and compressed to{' '}
-          {outName ? <code>{outFor('bed')}</code> : '.ogg'} — <em>the trim above is
-          ignored</em>, because a bed is looped on its own loop points rather than
-          cut.
-        </p>
-        {selected && <p class="harness__hint">Adopting {selected}</p>}
+        {/* The trim and the keep controls only mean anything against a chosen
+            download, so they arrive with one rather than sitting there greyed
+            out asking to be understood in the abstract. */}
+        {!selected && library.length > 0 && (
+          <p class="harness__hint">Pick a sound above to trim it and keep it.</p>
+        )}
+        {selected && (
+          <>
+            <p class="eyebrow">Trim it</p>
+            <p class="harness__hint">
+              These act on <code>{selected}</code>. Play it again after each change —
+              the preview runs through them, so you are hearing the cut you are
+              about to make.
+            </p>
+            <Slider
+              label="Start at"
+              value={trim.head}
+              min={0}
+              max={4000}
+              step={10}
+              unit="ms"
+              onChange={(head) => setTrim({ ...trim, head })}
+            />
+            <Slider
+              label={trim.cut === 0 ? 'Play for (all of it)' : 'Play for'}
+              value={trim.cut}
+              min={0}
+              max={20000}
+              step={100}
+              unit="ms"
+              onChange={(cut) => setTrim({ ...trim, cut })}
+            />
+            <Slider
+              label="Speed and pitch"
+              value={trim.rate}
+              min={0.25}
+              max={4}
+              step={0.05}
+              unit="×"
+              onChange={(rate) => setTrim({ ...trim, rate })}
+            />
+            {!noTrim && (
+              <button class="btn btn--ghost" onClick={() => setTrim({ head: 0, cut: 0, rate: 1 })}>
+                Back to the whole file
+              </button>
+            )}
+
+            <p class="eyebrow">Keep it</p>
+            <p class="harness__hint">
+              Keeping it copies the download into <code>client/public/sounds/</code>{' '}
+              under a name you choose — that folder is the only one the board can
+              serve from, and the only one a layer may point at. The ffmpeg command
+              goes into CREDITS.md so the licence trail survives.
+            </p>
+            <div class="harness__dial">
+              <label for="snd-name">Name it</label>
+              <input
+                id="snd-name"
+                class="input"
+                placeholder="big-buzzer"
+                value={outName}
+                onInput={(e) => setOutName((e.target as HTMLInputElement).value)}
+              />
+            </div>
+            <div class="harness__dial">
+              <label for="snd-role">What it is for, in CREDITS.md</label>
+              <input
+                id="snd-role"
+                class="input"
+                placeholder="the buzzer under the leader's name"
+                value={role}
+                onInput={(e) => setRole((e.target as HTMLInputElement).value)}
+              />
+            </div>
+
+            <div class="harness__row">
+              <button class="btn" disabled={!outName} onClick={() => adopt(selected, 'one-shot')}>
+                Keep as a cue sound
+              </button>
+              <button class="btn" disabled={!outName} onClick={() => adopt(selected, 'bed')}>
+                Keep as looping music
+              </button>
+            </div>
+            {/* The difference worth stating out loud: the trim is the whole point
+                of the sliders above, and the music preset throws it away. */}
+            <p class="harness__hint">
+              A <strong>cue sound</strong> fires once — a buzz, a stamp. The trim above
+              is baked in, with a 40ms fade at the cut, and it is saved uncompressed
+              as <code>{outName ? outFor('one-shot') : 'name.wav'}</code>.
+            </p>
+            <p class="harness__hint">
+              <strong>Looping music</strong> runs under a screen, like the lobby bed.
+              The whole file is kept and compressed to{' '}
+              <code>{outName ? outFor('bed') : 'name.ogg'}</code> — <em>the trim is
+              ignored</em>, because a bed loops on its own loop points rather than
+              being cut.
+            </p>
+          </>
+        )}
         {adopting && <pre class="harness__css">{adopting}</pre>}
       </aside>
 
