@@ -10,7 +10,8 @@ system — that document is the source of truth for anything visual, and
 ## Commands
 
 ```bash
-npm start          # serve dist/ on :8080, prints the QR and join URL
+npm start          # serve dist/ on :8080, print the QR, open /host and /board
+                   # (NO_OPEN=1 to keep the tabs shut)
 npm run dev        # Vite HMR; run `npm start` alongside it for the API
 npm run build      # vite build -> dist/  (npm start serves this, not client/)
 npm test           # node:test
