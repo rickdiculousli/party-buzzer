@@ -246,10 +246,9 @@ export const SCENARIOS: Scenario[] = [
       { var: '--flare-body', label: 'Body', min: 0, max: 200, step: 4, unit: 'px' },
       { var: '--flare-throw', label: 'Throw', min: 0, max: 400, step: 5, unit: 'px' },
       ...soundDials('leader'),
-      ...soundDials('leader2', 'Buzzer'),
       ...AUDITION,
     ],
-    sound: ['leader', 'leader2'],
+    sound: 'leader',
     // The ghost keeps the middle band open while the name is held back. An
     // empty band collapses, and the timeline underneath would step up and back
     // down on every take — motion the board does not have, in the exact place

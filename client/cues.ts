@@ -5,10 +5,9 @@
  * to the sample path in `sound.ts`, unchanged. Both kinds coexist on purpose —
  * ninety-three seconds of marimba will never be a recipe.
  *
- * All three anchor cues are the hand-tuned WAVs, each wrapped in a single
- * `{ file }` layer. That buys the envelope canvas and room for a second layer
- * without changing a sample of what plays today, because the envelope is
- * deliberately a no-op: no attack and no decay means `schedule`'s first two
+ * The anchor cues are the hand-tuned WAVs, each wrapped in a `{ file }` layer.
+ * That buys the waveform editor without changing a sample of what plays today,
+ * because the envelope is deliberately a no-op: no attack and no decay means `schedule`'s first two
  * steps land on the same instant, so gain is at full from the file's first
  * sample; `sustain: 1` keeps the sustain level *at* full rather than at
  * `GAIN_FLOOR`, which is what an omitted sustain would mean and would be
@@ -16,6 +15,13 @@
  * early; and the 40ms release runs entirely past the end of the buffer, where
  * there is nothing left to fade. Change `hold` if you re-cut a file — a layer
  * whose stages are shorter than its file is a truncated cue.
+ *
+ * `leader` is two layers because it is two sounds: a drop and a buzzer under
+ * it, one moment. They were two separate cues fired together until the editor
+ * could show them on one timeline — which is the only way to move one against
+ * the other and see what you did. Nothing about the sound changed in the
+ * merge: both carried the same gain, delay and rate, and `play()` applies the
+ * cue's gain to the pair exactly as it applied each cue's own.
  *
  * The block between the markers is machine-written: the harness rewrites it
  * through `POST /__anim/save`, the same way it already rewrites the CSS
@@ -46,9 +52,7 @@ export const RECIPES = {
       "sustain": 1,
       "hold": 841,
       "release": 40
-    }
-  ],
-  "leader2": [
+    },
     {
       "source": {
         "file": "/sounds/leader2.wav"

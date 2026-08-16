@@ -19,18 +19,25 @@ test('every shipped recipe is non-empty', () => {
 })
 
 /**
- * The three anchor cues are the hand-tuned WAVs in a one-layer wrapper, and the
- * whole point of that wrapper is that it changes nothing yet. The envelope
+ * Every hand-tuned WAV that ships, and which cue's layer plays it.
+ *
+ * The wrapper around these files must keep changing nothing. The envelope
  * gates the file, so this is the assertion that catches the two ways it can
  * silently ruin them: a stage list shorter than the audio truncates the cue,
  * and a missing `sustain` collapses the whole thing to `GAIN_FLOOR`.
  *
+ * `leader` carries two of them — the drop and the buzzer under it — because
+ * they are one moment. They were separate cues fired together before the
+ * editor could put them on one timeline.
+ *
  * Durations are the real ones, measured off the files in client/public/sounds.
  */
-const DURATION_MS: Record<string, number> = {
-  stamp: 216,
-  leader: 841,
-  leader2: 3040,
+const FILE_LAYERS: Record<string, { file: string; ms: number }[]> = {
+  stamp: [{ file: '/sounds/stamp.wav', ms: 216 }],
+  leader: [
+    { file: '/sounds/leader.wav', ms: 841 },
+    { file: '/sounds/leader2.wav', ms: 3040 },
+  ],
 }
 
 /** The scheduled gain at one instant, walking the steps the way WebAudio does. */
@@ -51,29 +58,48 @@ function gainAt(steps: Step[], t: number): number {
   return prev.value
 }
 
-test('each anchor cue is one file layer over its own WAV', () => {
-  for (const [cue, ms] of Object.entries(DURATION_MS)) {
+test('every anchor layer still plays its own WAV, in order', () => {
+  for (const [cue, layers] of Object.entries(FILE_LAYERS)) {
     const r = RECIPES[cue as keyof typeof RECIPES]
-    assert.equal(r.length, 1, `${cue} is no longer a single layer`)
-    assert.deepEqual(r[0].source, { file: `/sounds/${cue}.wav` })
-    assert.ok(ms > 0)
+    assert.equal(r.length, layers.length, `${cue} has the wrong number of layers`)
+    layers.forEach((l, i) => assert.deepEqual(r[i].source, { file: l.file }))
   }
 })
 
 test('the file envelope holds full gain for the whole file and outlives it', () => {
-  for (const [cue, ms] of Object.entries(DURATION_MS)) {
-    const [v] = schedule(RECIPES[cue as keyof typeof RECIPES])
-    const dur = ms / 1000
-    assert.ok(v.stop > dur, `${cue} stops at ${v.stop}s, before its ${dur}s of audio`)
-    // Sampled rather than reasoned about: full gain from the first sample to
-    // the last, so nothing about the file's own shape is altered.
-    for (let i = 0; i <= 40; i++) {
-      const t = (dur * i) / 40
-      // Not exact: the last sample lands on the hold boundary, and float64 can
-      // put it a femtosecond the wrong side of it.
-      assert.ok(gainAt(v.gain, t) > 0.999, `${cue} is not at full gain at ${t}s`)
-    }
+  for (const [cue, layers] of Object.entries(FILE_LAYERS)) {
+    const voices = schedule(RECIPES[cue as keyof typeof RECIPES])
+    layers.forEach((l, i) => {
+      const v = voices[i]
+      const dur = l.ms / 1000
+      assert.ok(v.stop > dur, `${l.file} stops at ${v.stop}s, before its ${dur}s of audio`)
+      // Sampled rather than reasoned about: full gain from the first sample to
+      // the last, so nothing about the file's own shape is altered.
+      for (let n = 0; n <= 40; n++) {
+        const t = (dur * n) / 40
+        // Not exact: the last sample lands on the hold boundary, and float64 can
+        // put it a femtosecond the wrong side of it.
+        assert.ok(gainAt(v.gain, t) > 0.999, `${l.file} is not at full gain at ${t}s`)
+      }
+    })
   }
+})
+
+/**
+ * The merge that folded `leader2` into `leader` must not have moved anything.
+ *
+ * Both were separate cues fired together by `playSpaced`, each with its own
+ * gain, delay and rate — all identical, which is what made the merge safe. The
+ * assertion is that both layers still start together at zero and run their own
+ * full length, because a stray `delay` on either one is the one edit that would
+ * quietly reorder a moment the room knows by ear.
+ */
+test('the leader drop and its buzzer still start together', () => {
+  const [drop, buzzer] = schedule(RECIPES.leader)
+  assert.equal(drop.start, 0)
+  assert.equal(buzzer.start, 0)
+  assert.ok(drop.stop > 0.841, 'the drop is truncated')
+  assert.ok(buzzer.stop > 3.04, 'the buzzer is truncated')
 })
 
 test('setPath writes one field and leaves the source table alone', () => {

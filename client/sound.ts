@@ -17,12 +17,16 @@
 import { recipeFor } from './cues.ts'
 import { onset, render, schedule, type Recipe } from './synth.ts'
 
-export type Cue = 'stamp' | 'leader' | 'leader2' | 'welcome'
+export type Cue = 'stamp' | 'leader' | 'welcome'
 
+/**
+ * The sample path's files. A cue that is a recipe names its files in its
+ * layers instead and never appears here — `leader.wav` and `leader2.wav` are
+ * both layers of the one `leader` cue, which is why neither is listed.
+ */
 const FILES: Partial<Record<Cue, string>> = {
   stamp: '/sounds/stamp.wav',
   leader: '/sounds/leader.wav',
-  leader2: '/sounds/leader2.wav',
   welcome: '/sounds/welcome.ogg',
 }
 

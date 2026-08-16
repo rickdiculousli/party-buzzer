@@ -115,7 +115,7 @@ export function Board() {
   useEffect(() => {
     const go = () => {
       unlock()
-      prime('stamp', 'leader', 'leader2')
+      prime('stamp', 'leader')
       setAudible(true)
     }
     document.addEventListener('pointerdown', go, { once: true })
@@ -190,7 +190,7 @@ export function Board() {
     // queues agree on the gap but not on the instant, because they cannot: this
     // effect runs some unknown time after the render that placed the marks.
     for (let i = was; i < buzzes; i++)
-      playSpaced(i === 0 ? ['leader', 'leader2'] : 'stamp')
+      playSpaced(i === 0 ? 'leader' : 'stamp')
   }, [buzzes])
 
   if (!state) return <main class="board"><p class="board__idle">Connecting</p></main>
