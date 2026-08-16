@@ -6,3 +6,8 @@ packs/.cache/
 # Downloads waiting to be auditioned. Deliberately messy and deliberately not
 # in the repo — what survives gets adopted into client/public/sounds.
 sounds/raw/
+
+# Synthesized stand-ins from `npm run demo-sounds`, so the Library and the
+# + layer picker have something to pick from. Throwaway by construction — a
+# recipe that names one plays here and nowhere else.
+client/public/sounds/demo-*
