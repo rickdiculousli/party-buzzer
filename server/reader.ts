@@ -118,7 +118,7 @@ export class Reader {
     this.paused = false
     this.playback?.stop()
     this.playback = undefined
-    this.hub.state.reading = undefined
+    this.hub.send(this.conn, { t: 'act', act: 'reading', data: undefined })
     this.wake()
   }
 
@@ -152,33 +152,39 @@ export class Reader {
       await this.until((s) => s.round.phase === 'ARMED')
       if (!this.running) return
 
-      // The arm this question belongs to. If it changes under us — an undo, a
-      // host re-arm — this question is over and pushing onto it would land on a
-      // round that no longer exists.
       const stamp = this.hub.state.round.armedAt
       await sleep(Math.max(0, stamp - Date.now()))
 
+      // A replaced round (undo, a fresh `arm`/`next`) deletes round.fragments;
+      // a `wrong` rebound re-arms but keeps them, since the question is still
+      // live. Tracking how many we've pushed lets the reader tell "the round
+      // moved on without me" from "the round bounced and is still mine" —
+      // `armedAt` alone can't, because a rebound changes it too.
+      //
+      // Before the first fragment is pushed, fragments can't carry that
+      // signal yet (both cases read as empty), so that one check falls back
+      // to `armedAt`. That's safe specifically here: COLLECT_MS is longer
+      // than ARM_LEAD_MS, so a genuine wrong-judgment rebound cannot land
+      // before this question's first fragment goes out.
+      let pushed = 0
+      const stillMine = () =>
+        pushed === 0
+          ? this.hub.state.round.armedAt === stamp
+          : (this.hub.state.round.fragments?.length ?? 0) >= pushed
+
       const powerAfter = Number(this.hub.state.game.options.powerAfterFragment ?? 0)
       for (let f = 0; f < q.fragments.length && this.running; f++) {
-        if (this.hub.state.round.armedAt !== stamp) return
+        if (!stillMine()) return
         this.fragIndex = f + 1
         const text = q.fragments[f]
         this.hub.send(this.conn, { t: 'act', act: 'fragment', data: text })
+        pushed += 1
         this.publish({})
         await this.speak(text)
-        if (!this.running || this.hub.state.round.armedAt !== stamp) return
+        if (!this.running || !stillMine()) return
         if (powerAfter > 0 && f + 1 === powerAfter) {
           this.hub.send(this.conn, { t: 'act', act: 'powerEnds' })
         }
-      }
-
-      // Nobody ever buzzed while every fragment played — nothing for the host
-      // to judge, so there's nothing to wait for either. Move straight to the
-      // next question; `arm` resets the round regardless of its prior phase,
-      // so leaving this one ARMED and its fragments on the board is harmless,
-      // and it's what keeps them there for anyone still reading the wall.
-      if (this.hub.state.round.order.length === 0 && this.hub.state.round.lockedOut.length === 0) {
-        continue
       }
 
       // The host judges from here. Resolved means scored, or passed with nobody

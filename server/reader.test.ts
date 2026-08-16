@@ -55,6 +55,11 @@ test('reading a question arms it, speaks each fragment, and pushes them in order
   const { state, reader, speech } = rig(PACK)
   await reader.select('one.txt')
   reader.start()
+  // Nothing judges this question — real quizbowl leaves it ARMED so a late
+  // buzz still lands. fakeSpeech is instant, but arming has a lead-in, so
+  // poll for both fragments rather than guess a delay.
+  while (speech.spoken.length < 2) await new Promise((r) => setTimeout(r, 5))
+  reader.stop()
   await reader.settled()
 
   assert.equal(state.round.value, 300, 'the pack value drives the round')
@@ -70,6 +75,12 @@ test('power closes after the configured fragment', async () => {
   })
   await reader.select('one.txt')
   reader.start()
+  while (
+    (state.game.moduleState as { powerEndsAt?: number }).powerEndsAt === undefined
+  ) {
+    await new Promise((r) => setTimeout(r, 5))
+  }
+  reader.stop()
   await reader.settled()
 
   const ms = state.game.moduleState as { powerEndsAt?: number }
