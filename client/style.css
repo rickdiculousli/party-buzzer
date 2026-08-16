@@ -997,23 +997,66 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   color: var(--chalk);
 }
 
-/* --- the harness envelope canvas ------------------------------------- */
-.envelope {
+/* --- the harness waveform editor -------------------------------------- */
+.layers {
+  margin-block: var(--s-3);
+}
+.layers__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.layers__ruler {
+  position: relative;
+  height: 1rem;
+  font-size: var(--t-xs, 0.7rem);
+  color: var(--chalk-dim, #7a8794);
+}
+.layers__tick {
+  position: absolute;
+  transform: translateX(-50%);
+}
+.track {
+  position: relative;
+}
+.track__canvas {
   width: 100%;
   height: auto;
   background: var(--surface-2, #0e1116);
   border-radius: 6px;
   touch-action: none;
+  cursor: grab;
 }
-.envelope__line {
+.track__wave {
+  stroke: var(--chalk-dim, #7a8794);
+  stroke-width: 1;
+}
+.track__wave--gated {
+  opacity: 0.28;
+}
+.track__env {
   fill: none;
   stroke: var(--accent, #4dd6e8);
   stroke-width: 2;
+  pointer-events: none;
 }
-.envelope__handle {
+.track__handle {
   fill: var(--accent, #4dd6e8);
   cursor: ew-resize;
 }
-.envelope__handle:hover {
+.track__handle:hover {
   fill: #fff;
+}
+.track__remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  border: 0;
+  background: transparent;
+  color: var(--chalk-dim, #7a8794);
+  cursor: pointer;
+  line-height: 1;
+}
+.track__remove:hover {
+  color: #fff;
 }

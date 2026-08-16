@@ -24,8 +24,8 @@ import { render } from 'preact'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { SCENARIOS, dialKey, recipeDials, type Dial } from './scenarios.tsx'
 import { parseTune, play, prime, primeFile, unlock } from '../sound.ts'
-import { RECIPES, getPath, setPath } from '../cues.ts'
-import { Envelope } from './Envelope.tsx'
+import { RECIPES, getPath, removeLayer, setPath } from '../cues.ts'
+import { Layers } from './Layers.tsx'
 import type { Recipe } from '../synth.ts'
 
 /**
@@ -431,15 +431,19 @@ function Harness() {
         </div>
 
         <p class="eyebrow">{scenario.label}</p>
-        {cues.map((cue) =>
-          (draft[cue] ?? []).map((layer, i) => (
-            <Envelope
-              key={`${cue}.${i}`}
-              layer={layer}
-              onChange={(field, value) => setDraft((t) => setPath(t, `${cue}.${i}.${field}`, value))}
-            />
-          )),
-        )}
+        {cues.map((cue) => (
+          <Layers
+            key={cue}
+            cue={cue}
+            recipe={draft[cue] ?? []}
+            onChange={(i, field, value) =>
+              setDraft((t) => setPath(t, `${cue}.${i}.${field}`, value))
+            }
+            onRemove={(i) =>
+              setDraft((t) => ({ ...t, [cue]: removeLayer(t[cue] ?? [], i) }))
+            }
+          />
+        ))}
         {dials.map((d) => {
           const k = dialKey(d)
           const recipe = 'recipe' in d
