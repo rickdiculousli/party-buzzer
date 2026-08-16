@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { DuelRuleInfo, DuelState, HostAction, PlayerId, State } from '../shared/protocol.ts'
+import { Votes } from './Votes.tsx'
 
 const teamOf = (state: State, id: PlayerId) => state.players.find((p) => p.id === id)?.teamId
 
@@ -148,14 +149,13 @@ export function DuelPanel({ state, act }: { state: State; act: (a: HostAction) =
                 class={willSeat?.includes(e.playerId) ? 'row is-lead' : 'row'}
               >
                 <span class="row__label">{name(e.playerId)}</span>
-                <span class="readout readout--ms">
-                  {[
-                    e.votes.length > 0 && `${e.votes.length} vote${e.votes.length === 1 ? '' : 's'}`,
-                    e.in && 'in',
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </span>
+                {e.in && <span class="chip chip--armed">In</span>}
+                {/* Heads, not a cyan number: cyan is the measurement colour
+                    and a vote measures nothing. The host desk keeps the digit
+                    beside them because this is the screen the close is called
+                    from, and at four apiece a count settles it faster. */}
+                <Votes voters={e.votes} />
+                {e.votes.length > 0 && <span class="readout">{e.votes.length}</span>}
               </li>
             ))}
           </ol>

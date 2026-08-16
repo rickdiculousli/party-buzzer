@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import { useOpen, useSocket } from './useSocket.ts'
 import { colorForPlayer, lockedNames, standings } from './ui.ts'
 import { markGap, playSpaced, prime, startBed, stopBed, unlock } from './sound.ts'
+import { Votes } from './Votes.tsx'
 import { COLLECT_MS, type BuzzEntry, type State } from '../shared/protocol.ts'
 
 type Mark = BuzzEntry & { lane: number }
@@ -238,25 +239,28 @@ export function Board() {
           {leader ? (
             <p class="board__hero">{leader.name}</p>
           ) : state.duel && !state.duel.seated ? (
-            <>
-              <p class="board__idle">Heads-up — nominations open</p>
-              {state.duel.pool.length > 0 && (
-                <p class="board__noms">
-                  {state.duel.pool
-                    .map((e) => {
-                      const n = state.players.find((p) => p.id === e.playerId)?.name ?? '?'
-                      const tags = [
-                        e.votes.length > 0 && `${e.votes.length} ✓`,
-                        e.in && 'in',
-                      ]
-                        .filter(Boolean)
-                        .join(' ')
-                      return tags ? `${n} ${tags}` : n
-                    })
-                    .join(' · ')}
-                </p>
-              )}
-            </>
+            <div class="board__noms">
+              <p class="board__idle">Who plays?</p>
+              {/* Ranked for display only — the server settles ties and the
+                  one-per-team rule when the host closes the window. */}
+              <ol class="board__pool">
+                {state.duel.pool
+                  .slice()
+                  .sort((a, b) => b.votes.length - a.votes.length)
+                  .map((e, i) => (
+                    <li
+                      key={e.playerId}
+                      class={i < 2 && e.votes.length > 0 ? 'nom is-lead' : 'nom'}
+                    >
+                      <span class="nom__name">
+                        {state.players.find((p) => p.id === e.playerId)?.name ?? '?'}
+                      </span>
+                      {e.in && <span class="chip chip--armed">In</span>}
+                      <Votes voters={e.votes} />
+                    </li>
+                  ))}
+              </ol>
+            </div>
           ) : round.candidates?.length === 0 ? (
             // Both finalists missed: candidates is `[]`, not absent, so the
             // fall-through below would otherwise invite the whole room to buzz

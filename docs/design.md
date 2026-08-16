@@ -220,6 +220,26 @@ number is a duration, which turns it cyan.
 
 Scores are `.readout` but **not** `--ms` — a score is drama, not measurement.
 
+### Votes — `.votes`
+
+A nomination tally, counted in heads rather than digits: one 👤 per vote, drawn
+from `<Votes voters={…} />` so all three surfaces count the same way. It sizes
+off the type it sits beside — room-scale on the board, thumb-scale on the phone
+— and is warm-tinted by a filter on the container rather than given a swatch,
+because "a crowd" is neither drama nor measurement and the palette should not
+grow a third register for it.
+
+```html
+<span class="votes"><span class="vote">👤</span><span class="vote">👤</span></span>
+```
+
+A vote is never a `.readout--ms`; nothing about it is a duration. The host desk
+is the one place a digit rides alongside, because that screen calls the close.
+
+Each figure animates on mount (`cast`, anchor 6), which is why `Votes` keys by
+voter id: the arriving vote must be the element that mounts, and taking a vote
+back must not restart the ones that stay.
+
 ### Button — `.btn`
 
 ```html

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { useOpen, useSocket } from './useSocket.ts'
 import { colorForPlayer, standings } from './ui.ts'
+import { Votes } from './Votes.tsx'
 import type { State } from '../shared/protocol.ts'
 
 // Mirror of server/items.ts — ids, display names, targeting. The wire carries
@@ -299,21 +300,19 @@ export function Player() {
           )}
           {(duelRule.entry === 'vote' || duelRule.entry === 'both') && (
             <>
-            <div class="player__items">
-              {opponents.map((p) => {
-                const votes = duel.pool.find((e) => e.playerId === p.id)?.votes.length ?? 0
-                return (
-                  <button
-                    key={p.id}
-                    class={myVoteFor === p.id ? 'btn btn--primary' : 'btn'}
-                    onPointerDown={() => send({ t: 'act', act: 'duelVote', data: p.id })}
-                  >
-                    {p.name}
-                    {votes > 0 ? ` · ${votes}` : ''}
-                  </button>
-                )
-              })}
-            </div>
+            {opponents.map((p) => {
+              const votes = duel.pool.find((e) => e.playerId === p.id)?.votes ?? []
+              return (
+                <button
+                  key={p.id}
+                  class={myVoteFor === p.id ? 'btn nom-btn is-mine' : 'btn nom-btn'}
+                  onPointerDown={() => send({ t: 'act', act: 'duelVote', data: p.id })}
+                >
+                  <span class="nom-btn__name">{p.name}</span>
+                  <Votes voters={votes} />
+                </button>
+              )
+            })}
             {/* The gesture is its own undo, which nobody guesses at — and a
                 vote you cannot take back is one people hesitate to cast. */}
             <p class="muted">
