@@ -33,7 +33,8 @@
  *   reset | undo     reset the round / undo the last host action
  *   act:name[:data]  host-scoped act (fragment / powerEnds / revealAnswer)
  *   teams:R=A,B/S=C  teams mode, those teams, those players on them
- *   flow:t*2,q*1:v   setlist: mode*count blocks, last one opens a duel rule
+ *   flow:t*2,q*1:v   setlist: mode*count blocks, a trailing :rule opens a duel
+ *                    for the block it follows
  *   jump:1           jump the flow to that block index
  *   duel:vote        open a heads-up duel under that rule id
  *   in:A,B | out:A   volunteer / back off, from those players' own sockets
@@ -112,6 +113,11 @@ async function main() {
   let flowIsOurs = false
 
   const clear = () => {
+    // First: clearFlow (and the closeDuel path underneath a mid-question
+    // cancel) are refused unless the round is IDLE. Resetting the round here,
+    // before anything IDLE-gated runs, is what makes a `clear` mid-question
+    // actually clear rather than leave the flow armed for the next `next`.
+    host.send({ t: 'host', action: { a: 'next' } })
     if (flowIsOurs) host.send({ t: 'host', action: { a: 'clearFlow' } })
     host.send({ t: 'host', action: { a: 'cancelDuel' } })
     // Before the kick: an assign for a player who is already gone does nothing.
@@ -119,7 +125,6 @@ async function main() {
     if (teamsAreOurs) host.send({ t: 'host', action: { a: 'setMode', mode: 'solo' } })
     const gone = (host.state()?.players ?? []).filter((p) => p.id.startsWith('probe-'))
     for (const p of gone) host.send({ t: 'host', action: { a: 'kick', playerId: p.id } })
-    host.send({ t: 'host', action: { a: 'next' } })
     log(`  cleared ${gone.length}`)
   }
   process.on('SIGINT', () => setTimeout(() => process.exit(0), 100))

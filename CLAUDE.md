@@ -191,11 +191,11 @@ takes one player per team, so nominating across the line is choosing your
 opponent's champion. `duelAct` refuses it, the phone's roster shows only your
 team, and the board splits the pool into a column per side.
 
-`flow:trivia*2,quizbowl*1:vote` builds a setlist of `mode*count` blocks, a
-trailing `:rule` on the last one opening a duel each question; `jump:1` moves
-the flow to that block index. `clear` drops a flow only when probe is the one
-that set it, the same rule as teams — a host's own setlist survives a probe
-run against it.
+`flow:trivia*2,quizbowl*1:vote` builds a setlist of `mode*count` blocks; a
+trailing `:rule` opens a duel each question for the block it follows, not
+necessarily the last one. `jump:1` moves the flow to that block index. `clear`
+drops a flow only when probe is the one that set it, the same rule as teams —
+a host's own setlist survives a probe run against it.
 
 With `wait:` between the steps that is a paced walkthrough you can watch on a
 phone, and the two worth keeping are npm scripts rather than a paragraph to

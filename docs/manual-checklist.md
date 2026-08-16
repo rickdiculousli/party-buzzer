@@ -98,10 +98,12 @@ thing to watch, and the two columns are what make it obvious.
 
 ### The setlist — `npm run walk-flow`
 
-Four players run a two-block setlist: two trivia questions, then two quizbowl
-questions each opened as a duel vote, then `jump:0` puts the flow back at the
-top. The point isn't any one buzz — it's the strip and the standings surviving
-the mode switch, and the flow itself surviving a jump back to block 1.
+Four players build a three-block setlist and play the first two: two trivia
+questions, then two quizbowl questions each opened as a duel vote, then
+`jump:0` puts the flow back at the top before the trailing trivia block is
+ever reached. The point isn't any one buzz — it's the strip and the standings
+surviving the mode switch, and the flow itself surviving a jump back to
+block 1.
 
 ```bash
 npm run walk-flow
