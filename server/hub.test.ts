@@ -111,6 +111,23 @@ test('the mirror never widens the buzz-order redaction', () => {
   assert.equal(hub.viewFor(a).round.order.length, 1, 'still only your own buzz')
 })
 
+test('reading progress is host/board only, never sent to a player view', () => {
+  const { state, hub, conn } = rig()
+  state.reading = {
+    pack: 'science.txt',
+    qIndex: 1,
+    qTotal: 5,
+    fragIndex: 2,
+    fragTotal: 3,
+    paused: false,
+    running: true,
+  }
+  const phone = conn('player')
+  joinAs(hub, phone, 'Ada')
+  assert.equal(hub.viewFor(phone).reading, undefined)
+  assert.deepEqual(hub.viewFor(conn('host')).reading, state.reading)
+})
+
 test('the reading act is host-scoped and lands in state', () => {
   const { hub, conn, lastState } = rig()
   const host = conn('host')

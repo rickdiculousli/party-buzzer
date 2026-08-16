@@ -12,7 +12,13 @@ export function listPacks(dir: string): string[] {
     return readdirSync(dir)
       .filter((f) => f.endsWith('.txt'))
       .sort()
-  } catch {
+  } catch (err) {
+    // A missing directory is a room with no packs; anything else (EACCES, a
+    // file where a directory should be) is worth a warning, so a permissions
+    // slip on game night doesn't read as "no packs" for ten silent minutes.
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+      console.warn(`[packs] could not read pack directory "${dir}":`, err)
+    }
     return []
   }
 }

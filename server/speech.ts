@@ -11,8 +11,8 @@
  * game still runs — fragments appear, power still closes.
  */
 import { spawn } from 'node:child_process'
-import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync } from 'node:fs'
+import { createHash, randomUUID } from 'node:crypto'
+import { existsSync, mkdirSync, renameSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 
 export type Clip = { path: string; durationMs: number }
@@ -54,11 +54,21 @@ export async function render(cacheDir: string, text: string, voice?: string): Pr
   mkdirSync(cacheDir, { recursive: true })
   const path = clipPath(cacheDir, text, voice)
   if (!existsSync(path)) {
-    const args = voice ? ['-v', voice, '-o', path, text] : ['-o', path, text]
+    // Render to a temp path and rename into place on success, so a `say`
+    // killed mid-render (the host, impatient during a ~30s pre-render) never
+    // leaves a truncated clip cached under the real path forever. Rename is
+    // atomic within a directory, which also covers two concurrent renders of
+    // identical text racing for the same cache path.
+    const tmp = `${path}.${randomUUID()}.tmp`
+    const args = voice ? ['-v', voice, '-o', tmp, text] : ['-o', tmp, text]
     const { ok } = await run('say', args)
-    // No `say` on this box, or one bad fragment. Duration 0 means "play nothing
-    // and move on" — the fragment still goes up on the board.
-    if (!ok) return { path, durationMs: 0 }
+    if (!ok) {
+      rmSync(tmp, { force: true })
+      // No `say` on this box, or one bad fragment. Duration 0 means "play
+      // nothing and move on" — the fragment still goes up on the board.
+      return { path, durationMs: 0 }
+    }
+    renameSync(tmp, path)
   }
   const { stdout } = await run('afinfo', [path])
   return { path, durationMs: parseDuration(stdout) }

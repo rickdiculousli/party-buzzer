@@ -64,7 +64,11 @@ export class Reader {
 
   async select(name: string): Promise<void> {
     this.stop()
-    const { questions } = loadPack(this.opts.packDir, name)
+    const { questions, errors } = loadPack(this.opts.packDir, name)
+    for (const e of errors) console.warn(`[reader] ${name}: ${e}`)
+    if (questions.length === 0) {
+      throw new Error(`pack "${name}" has no valid questions`)
+    }
     this.questions = questions
     this.pack = name
     this.qIndex = 0
@@ -96,6 +100,7 @@ export class Reader {
   start(): void {
     if (this.running) return
     this.running = true
+    this.paused = false
     // Flip the host screen to Pause the instant playback genuinely begins;
     // `stop()` (called explicitly, or by `run()` when the pack ends) is what
     // clears `state.reading` — this call must not race a later one that undoes it.

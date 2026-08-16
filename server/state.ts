@@ -286,6 +286,11 @@ export function loadState(path: string): State {
     delete loaded.round.award
     delete loaded.round.fragments
     delete loaded.round.answer
+    // A reader is never mid-pack on a fresh boot — the Reader instance that
+    // would drive it is built fresh too. Without this, a stale `running: true`
+    // offers Pause on a reader that never started, and the next Read runs
+    // paused from the first clip with nothing on screen to explain why.
+    delete loaded.reading
     return loaded
   } catch (err) {
     console.error('[state] snapshot unreadable, starting fresh:', err)

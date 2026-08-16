@@ -341,7 +341,10 @@ export class Hub {
    * Phones get the round redacted to their own buzz, module state only through
    * the module's own viewModuleState, and question text stripped unless the
    * room has turned the mirror on — quizbowl leaves it off, because reading a
-   * sentence at its start beats hearing it word by word.
+   * sentence at its start beats hearing it word by word. Reader progress
+   * (`reading`) is host/board only: even with the mirror off, `fragIndex`/
+   * `fragTotal` would tell a player the question is about to end before the
+   * room has heard it, and it also carries the pack filename.
    */
   viewFor(conn: Conn): State {
     const mod = moduleFor(this.state.game.id)
@@ -363,6 +366,7 @@ export class Hub {
         fragments: this.state.mirrorFragments ? round.fragments : undefined,
         answer: this.state.mirrorFragments ? round.answer : undefined,
       },
+      reading: undefined,
     }
   }
 
