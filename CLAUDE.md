@@ -19,6 +19,7 @@ npm run typecheck
 npm run sim        # synthetic self-play against a running server
 npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@140 correct   # one scripted round
 npm run walk-duel / walk-teams      # the two paced duel walkthroughs, ~1 min each
+npm run walk-flow  # the paced setlist walkthrough, ~1 min
 npm run motion     # the animation harness at /anim.html (dev only)
 npm run fakes -- add [n] / remove   # fake players with fake scores (ids fake-01..fake-99)
 npm run demo-sounds [clean]         # synthesized stand-ins so the sound library has entries
@@ -84,6 +85,10 @@ no partial update.
   the `act` channel, and enforcement is one `round.candidates` check at the
   hub's buzz gate. A wrong answer narrows candidates to the other finalist,
   which is the whole rebound mechanic.
+- `server/flow.ts` — the game flow: an ordered setlist of blocks. It advises
+  and never arms — entering a block applies its setup and stops, so the host
+  still arms, judges and moves on.
+- `server/flows.ts` — saved flows on disk, filenames in `State` like `packs`.
 - `server/index.ts` — HTTP + WebSocket, serves `dist/`, routes `/`, `/host`,
   `/board` to the same SPA shell.
 - `client/useSocket.ts` — the socket, the clock sync, and `useOpen`. Every
@@ -185,6 +190,12 @@ In teams mode a vote may only name someone on the voter's own side: the seat
 takes one player per team, so nominating across the line is choosing your
 opponent's champion. `duelAct` refuses it, the phone's roster shows only your
 team, and the board splits the pool into a column per side.
+
+`flow:trivia*2,quizbowl*1:vote` builds a setlist of `mode*count` blocks, a
+trailing `:rule` on the last one opening a duel each question; `jump:1` moves
+the flow to that block index. `clear` drops a flow only when probe is the one
+that set it, the same rule as teams — a host's own setlist survives a probe
+run against it.
 
 With `wait:` between the steps that is a paced walkthrough you can watch on a
 phone, and the two worth keeping are npm scripts rather than a paragraph to
