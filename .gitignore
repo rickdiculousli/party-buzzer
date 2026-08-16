@@ -12,6 +12,10 @@ sounds/raw/
 # recipe that names one plays here and nowhere else.
 client/public/sounds/demo-*
 
+# Built by swiftc at server boot from server/stt/stt.swift — a machine binary,
+# not a source artifact.
+server/stt/stt
+
 # Isolated workspaces and agent scratch. Neither belongs in the repo.
 .worktrees/
 .superpowers/

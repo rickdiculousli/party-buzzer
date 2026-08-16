@@ -36,7 +36,7 @@ export function parseDuration(afinfoOutput: string): number {
   return m ? Math.round(Number(m[1]) * 1000) : 0
 }
 
-function run(cmd: string, args: string[]): Promise<{ ok: boolean; stdout: string }> {
+export function run(cmd: string, args: string[]): Promise<{ ok: boolean; stdout: string }> {
   return new Promise((resolve) => {
     let stdout = ''
     const p = spawn(cmd, args)
