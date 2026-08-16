@@ -91,8 +91,13 @@ export function SoundList({
           >
             {r.id === playing ? '❙❙' : '▶'}
           </button>
+          {/* The name is truncated at the end, and a download's name carries its
+              meaning at the end — `512345__someguy__big-buzzer-take2.wav` keeps
+              the part you do not need. The full name on hover is the cheap half
+              of the fix; renaming it is what Adopt is for. */}
           <button
             class="sndlist__pick"
+            title={r.name}
             aria-pressed={r.id === selected}
             onClick={() => onSelect(r.id)}
           >

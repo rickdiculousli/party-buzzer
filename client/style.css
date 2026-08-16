@@ -1065,6 +1065,11 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .sndlist {
   gap: 2px;
   margin-block: var(--s2);
+  /* `.stack` is a grid, and a grid item's `min-width` is `auto` — it refuses to
+     shrink below its content, so one long filename widened the whole panel and
+     gave it a horizontal scrollbar. Pinning the column to the container is what
+     lets the name below actually ellipsise. */
+  grid-template-columns: minmax(0, 1fr);
 }
 .sndlist__row {
   gap: var(--s2);
