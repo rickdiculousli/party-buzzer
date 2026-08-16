@@ -8,8 +8,9 @@
  *
  *   Blank line separates questions.
  *
- * The reader tool owns the pack; question content never touches the server
- * beyond the fragments it reveals.
+ * The server owns the pack and holds it in memory. Question content never
+ * reaches `State` — only the fragments the room has already heard do, which is
+ * what keeps a phone from seeing ahead.
  */
 export type Question = { value?: number; fragments: string[]; answer: string }
 export type PackResult = { questions: Question[]; errors: string[] }
