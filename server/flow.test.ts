@@ -95,6 +95,19 @@ test('a duel block opens a duel every question; a plain block opens none', () =>
   assert.equal(r.seen.length, 0)
 })
 
+test('the value is stamped on entry, not re-stamped by every question within the block', () => {
+  const state = stateWithFlow([block({ count: 3, value: 400 })])
+  const { seen, apply } = recorder()
+  enterBlock(state, apply, true) // the initial, fresh entry — as the flow's own setup would do
+  advanceFlow(state, apply) // still inside the block: not fresh
+  advanceFlow(state, apply) // still inside the block: not fresh
+  assert.equal(
+    seen.filter((a) => a.a === 'setValue').length,
+    1,
+    'a per-question re-stamp would clobber a mid-block tweak or the pack\'s own setValue',
+  )
+})
+
 test('sanitizeBlocks drops what this build cannot run and clamps the rest', () => {
   const known = (id: string) => id === 'trivia' || id === 'quizbowl'
   const rule = (id: string) => id === 'vote'
@@ -104,6 +117,7 @@ test('sanitizeBlocks drops what this build cannot run and clamps the rest', () =
       { game: 'chess', options: {}, count: 3 },
       { game: 'quizbowl', options: {}, count: 2, duel: 'thunderdome' },
       { game: 'quizbowl', options: {}, count: 2.6, value: 400, duel: 'vote' },
+      { game: 'trivia', options: {}, count: 500 },
       'not a block',
     ],
     known,
@@ -112,6 +126,7 @@ test('sanitizeBlocks drops what this build cannot run and clamps the rest', () =
   assert.deepEqual(out, [
     { game: 'trivia', options: { a: 1 }, count: 1 },
     { game: 'quizbowl', options: {}, count: 3, value: 400, duel: 'vote' },
+    { game: 'trivia', options: {}, count: 99 },
   ])
 })
 
