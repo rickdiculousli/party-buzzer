@@ -108,10 +108,14 @@ export function Board() {
    * with no explanation is the kind of thing you discover mid-game.
    */
   const [audible, setAudible] = useState(false)
+  // The anchor cues are recipes, but recipes over real files, so their bytes
+  // still have to be decoded — on the click, because that is the first moment
+  // there is a context to decode into. The welcome bed decodes itself when the
+  // lobby asks for it.
   useEffect(() => {
-    prime('stamp', 'leader', 'leader2')
     const go = () => {
       unlock()
+      prime('stamp', 'leader', 'leader2')
       setAudible(true)
     }
     document.addEventListener('pointerdown', go, { once: true })

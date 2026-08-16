@@ -835,6 +835,12 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   --welcome-snd-cut: 0ms;
   --welcome-snd-rate: 1;
   --welcome-snd-gain: 0.35;
+
+  /* The library auditions through these, so what you hear is the trim you are
+     about to bake in rather than the raw download. */
+  --audition-head: 0ms;
+  --audition-cut: 0ms;
+  --audition-rate: 1;
 }
 /* /anim:tunables */
 
@@ -989,4 +995,25 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   font-size: var(--t-md);
   line-height: 1.4;
   color: var(--chalk);
+}
+
+/* --- the harness envelope canvas ------------------------------------- */
+.envelope {
+  width: 100%;
+  height: auto;
+  background: var(--surface-2, #0e1116);
+  border-radius: 6px;
+  touch-action: none;
+}
+.envelope__line {
+  fill: none;
+  stroke: var(--accent, #4dd6e8);
+  stroke-width: 2;
+}
+.envelope__handle {
+  fill: var(--accent, #4dd6e8);
+  cursor: ew-resize;
+}
+.envelope__handle:hover {
+  fill: #fff;
 }

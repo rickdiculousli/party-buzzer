@@ -14,9 +14,12 @@
  * watched the dialled ones.
  */
 
+import { recipeFor } from './cues.ts'
+import { onset, render, schedule, type Recipe } from './synth.ts'
+
 export type Cue = 'stamp' | 'leader' | 'leader2' | 'welcome'
 
-const FILES: Record<Cue, string> = {
+const FILES: Partial<Record<Cue, string>> = {
   stamp: '/sounds/stamp.wav',
   leader: '/sounds/leader.wav',
   leader2: '/sounds/leader2.wav',
@@ -54,7 +57,9 @@ export function unlock(): AudioContext {
 function load(cue: Cue): Promise<AudioBuffer> {
   const held = loading.get(cue)
   if (held) return held
-  const job = fetch(FILES[cue])
+  const url = FILES[cue]
+  if (!url) return Promise.reject(new Error(`${cue} has no file`))
+  const job = fetch(url)
     .then((r) => r.arrayBuffer())
     .then((b) => unlock().decodeAudioData(b))
     .then((buf) => {
@@ -65,9 +70,37 @@ function load(cue: Cue): Promise<AudioBuffer> {
   return job
 }
 
-/** Decode ahead of time, so the first play is not late by a decode. */
+/**
+ * Decode ahead of time, so the first play is not late by a decode.
+ *
+ * A cue that is a recipe needs the bytes each of its `{ file }` layers names,
+ * keyed by URL, because that is the map `render` looks in — priming the sample
+ * buffer for such a cue fills the wrong map and the cue plays silently. A cue
+ * that is still a sample needs its own buffer as before. Callers pass cue names
+ * either way and never have to know which kind they got.
+ */
 export function prime(...cues: Cue[]): void {
-  for (const c of cues) void load(c).catch(() => {})
+  for (const c of cues) {
+    const r = recipeFor(c)
+    if (!r) {
+      void load(c).catch(() => {})
+      continue
+    }
+    for (const l of r) if (typeof l.source === 'object') void primeFile(l.source.file)
+  }
+}
+
+/** Decoded raw/adopted files, keyed by the path a `{ file }` layer names. */
+const files = new Map<string, AudioBuffer>()
+
+/** Decode a file so a `{ file }` layer can use it. Idempotent. */
+export function primeFile(url: string): Promise<void> {
+  if (files.has(url)) return Promise.resolve()
+  return fetch(url)
+    .then((r) => r.arrayBuffer())
+    .then((b) => unlock().decodeAudioData(b))
+    .then((buf) => void files.set(url, buf))
+    .catch(() => {})
 }
 
 /**
@@ -98,6 +131,8 @@ export type PlayOpts = {
   rateScale?: number
   /** Pushed on top of the tuned delay, for spacing one cue out of a cluster. */
   offsetMs?: number
+  /** The harness's dialled recipe, standing in for the committed one. */
+  recipe?: Recipe
 }
 
 /**
@@ -105,7 +140,30 @@ export type PlayOpts = {
  * has landed — a missed sound is never worth a thrown exception on the one
  * screen the whole room is watching.
  */
-export function play(cue: Cue, { scope, rateScale = 1, offsetMs = 0 }: PlayOpts = {}): void {
+export function play(
+  cue: Cue,
+  { scope, rateScale = 1, offsetMs = 0, recipe }: PlayOpts = {},
+): void {
+  const r = recipe ?? recipeFor(cue)
+  if (r) {
+    const ac = unlock()
+    const at = scope ?? document.documentElement
+    const delay = tune(at, cue, 'delay', 0)
+    const rate = tune(at, cue, 'rate', 1) * rateScale
+    const gain = tune(at, cue, 'gain', 1)
+    // A recipe's length is its envelopes, so `head` and `cut` stay sample-only.
+    // Clamped to now for the same reason the sample path is: a start in the
+    // past is played immediately, which is late but never silent.
+    const t0 = Math.max(ac.currentTime, ac.currentTime + (delay + offsetMs) / 1000)
+    render(ac, schedule(r, Math.max(0.05, rate)), t0, gain, files)
+    // The same self-heal the sample path below has: `render` skips a file layer
+    // with nothing decoded for it, so start the decode and let the next trigger
+    // have it. One silent cue, not a silent night.
+    for (const l of r)
+      if (typeof l.source === 'object' && !files.has(l.source.file)) void primeFile(l.source.file)
+    return
+  }
+
   const buf = buffers.get(cue)
   if (!buf) {
     void load(cue).catch(() => {})
@@ -134,7 +192,7 @@ export function play(cue: Cue, { scope, rateScale = 1, offsetMs = 0 }: PlayOpts 
   amp.gain.value = gain
   src.connect(amp).connect(ac.destination)
 
-  const t0 = ac.currentTime + (delay + offsetMs) / 1000
+  const t0 = Math.max(ac.currentTime, ac.currentTime + (delay + offsetMs) / 1000)
   src.start(t0, Math.max(0, head / 1000))
 
   // `cut` is wall-clock output, not a length of the file, so it means the same
@@ -173,6 +231,33 @@ export function markGap(scope?: Element): number {
 let nextFree = 0
 
 /**
+ * Where each cue of one moment starts, in ms from now.
+ *
+ * Slots are spaced by when a cue is *heard*, not when it starts, because the
+ * ear times a sound by its attack. A cue with a 120ms onset therefore starts
+ * 120ms before its slot so that its attack lands on it. `delay` is untouched by
+ * any of this and keeps its full power to reorder: `delay` is an offset you
+ * asked for, `onset` is latency you did not.
+ *
+ * Pure so it can be checked without a browser — the audio clock is the caller's
+ * problem.
+ */
+export function spacedPlan(
+  now: number,
+  free: number,
+  gap: number,
+  onsets: number[],
+): { free: number; offsets: number[] } {
+  const heard = Math.max(now, free)
+  return {
+    free: heard + gap,
+    // A cue whose onset is longer than the lead available cannot start in the
+    // past, so it is late instead. Which is what it would have been anyway.
+    offsets: onsets.map((o) => Math.max(0, heard - o - now)),
+  }
+}
+
+/**
  * Fire a cue, never sooner than a gap after the last one.
  *
  * Several cues given together are one moment, not several: they share the slot
@@ -184,10 +269,16 @@ let nextFree = 0
  */
 export function playSpaced(cue: Cue | Cue[], scope?: Element): void {
   const ac = unlock()
-  const at = Math.max(ac.currentTime, nextFree)
-  nextFree = at + markGap(scope) / 1000
-  const offsetMs = (at - ac.currentTime) * 1000
-  for (const c of [cue].flat()) play(c, { scope, offsetMs })
+  const cues = [cue].flat()
+  const now = ac.currentTime * 1000
+  const plan = spacedPlan(
+    now,
+    nextFree * 1000,
+    markGap(scope),
+    cues.map((c) => onset(recipeFor(c) ?? [])),
+  )
+  nextFree = plan.free / 1000
+  cues.forEach((c, i) => play(c, { scope, offsetMs: plan.offsets[i] }))
 }
 
 /* --- the bed -----------------------------------------------------------

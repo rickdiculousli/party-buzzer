@@ -11,7 +11,7 @@
     "probe": "node tools/probe.ts",
     "motion": "vite --open /anim.html",
     "anim": "node tools/probe.ts loop join:Ada,Bo,Cy,Dee value:400 arm buzz:Ada@1000,Bo@1250,Cy@1500,Dee@1750 wait:2000 correct wait:2000 next wait:1000",
-    "test": "node --test 'server/*.test.ts' 'server/modes/*.test.ts' 'client/*.test.ts' 'shared/*.test.ts'",
+    "test": "node --test 'server/*.test.ts' 'server/modes/*.test.ts' 'client/*.test.ts' 'shared/*.test.ts' 'tools/*.test.ts'",
     "typecheck": "tsc --noEmit",
     "fakes": "node tools/fakes.ts"
   },
