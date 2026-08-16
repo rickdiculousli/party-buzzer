@@ -280,3 +280,24 @@ test('cancelDuel lifts the candidacy mid-round', () => {
   assert.equal(state.duel, undefined)
   assert.equal(state.round.candidates, undefined, 'the floor reopens')
 })
+
+test('a vote crosses neither the team line nor the eligibility line', () => {
+  const state = stateWith([['a', 'ta'], ['b', 'ta'], ['c', 'tb'], ['d']], 'teams')
+  openDuel(state, 'vote')
+  // Your own side: the nomination the seat is actually asking for.
+  assert.equal(duelAct(state, 'a', 'duelVote', 'b'), true)
+  // Across the line: picking your opponent's champion is not a nomination.
+  assert.equal(duelAct(state, 'a', 'duelVote', 'c'), false)
+  // Nobody the seat could take anyway — d is on no team.
+  assert.equal(duelAct(state, 'd', 'duelVote', 'a'), false)
+  assert.equal(duelAct(state, 'a', 'duelVote', 'd'), false)
+  // The refusals left the one good vote alone.
+  assert.deepEqual(state.duel!.pool.map((e) => [e.playerId, e.votes]), [['b', ['a']]])
+})
+
+test('solo mode still lets anyone nominate anyone', () => {
+  const state = stateWith([['a'], ['b'], ['c']])
+  openDuel(state, 'vote')
+  assert.equal(duelAct(state, 'a', 'duelVote', 'b'), true)
+  assert.equal(duelAct(state, 'b', 'duelVote', 'c'), true)
+})

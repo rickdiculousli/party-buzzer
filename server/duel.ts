@@ -123,7 +123,15 @@ export function duelAct(
   if (act === 'duelVote') {
     if (!takesVotes || typeof data !== 'string') return false
     if (data === playerId) return false // a vote is for someone else
-    if (!state.players.some((p) => p.id === data && p.connected)) return false
+    if (!eligible(state).includes(data)) return false
+    // In teams mode you nominate your own side's player, because that is what
+    // the seat is: one from each team, chosen by the people who have to live
+    // with it. Voting across the line is picking your opponent's champion,
+    // which is either a courtesy or sabotage and never a nomination.
+    //
+    // Enforced here and not only in the phone's roster: a rule the client is
+    // the sole keeper of is a rule one hand-built message walks through.
+    if (state.mode === 'teams' && teamOf(state, playerId) !== teamOf(state, data)) return false
     // One vote per player: lift it off whoever held it, then place it.
     let held = false
     for (const e of duel.pool) {

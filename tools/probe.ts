@@ -225,9 +225,14 @@ async function main() {
         // returns to solo, and the next run reuses them by name. Add the action
         // if a stale team ever actually gets in the way.
         case 'teams': {
-          host.send({ t: 'host', action: { a: 'setMode', mode: 'teams' } })
-          await host.waitFor((s) => s.mode === 'teams')
-          teamsAreOurs = true
+          // Only if it is not already on. `setMode` drops an open duel, so
+          // re-sending it to add one late player would cancel the window you
+          // were about to watch.
+          if (host.state()?.mode !== 'teams') {
+            host.send({ t: 'host', action: { a: 'setMode', mode: 'teams' } })
+            await host.waitFor((s) => s.mode === 'teams')
+            teamsAreOurs = true
+          }
           for (const group of arg.split('/').filter(Boolean)) {
             const [teamName, members = ''] = group.split('=')
             if (!host.state()?.teams.some((t) => t.name === teamName)) {

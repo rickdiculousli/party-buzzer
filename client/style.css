@@ -506,6 +506,32 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   flex-direction: column;
   gap: var(--s2);
   width: min(100%, 32rem);
+  margin-inline: auto;
+}
+
+/* Two sides, side by side. Equal columns whatever each holds, so neither team
+   looks more considered than the other for having nominated more people. */
+/* The stage centres its bands by shrink-to-fit, which leaves a percentage
+   width with nothing to measure against: the columns collapsed onto their own
+   content, ellipsised the names, and then auto-fit decided only one track fit.
+   So the width is stated in viewport units, which do not care what the
+   containing block turned out to be. 68vw keeps it inside the stage once the
+   standings rail has taken its share. */
+.board__sides {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: var(--s5);
+  width: min(60rem, 68vw);
+}
+.board__sidepool { min-width: 0; }
+.board__sidepool .board__pool { width: 100%; }
+/* The column head carries the team's colour, so the rule beside it does too —
+   it is the only thing naming which side this column is. */
+.board__sidepool .eyebrow { font-size: var(--t-sm); }
+.board__sidepool .eyebrow::after { background: currentColor; opacity: 0.4; }
+
+@media (max-width: 60rem) {
+  .board__sides { grid-template-columns: 1fr; gap: var(--s4); }
 }
 .nom {
   display: flex;

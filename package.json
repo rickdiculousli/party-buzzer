@@ -12,7 +12,7 @@
     "motion": "vite --open /anim.html",
     "anim": "node tools/probe.ts loop join:Ada,Bo,Cy,Dee value:400 arm buzz:Ada@1000,Bo@1250,Cy@1500,Dee@1750 wait:2000 correct wait:2000 next wait:1000",
     "walk-duel": "node tools/probe.ts join:Bo,Cy,Dee,Eve,Fen,Gus,Hal,Ida,Jo duel:vote wait:3000 vote:Cy=Bo,Dee=Bo,Eve=Bo wait:2500 vote:Gus=Fen,Hal=Fen wait:2500 vote:Ida=Fen wait:2500 vote:Jo=Gus wait:2500 vote:Dee=Gus,Eve=Gus wait:2500 unvote:Cy wait:2500 vote:Hal=Gus wait:2500 unvote:Ida wait:2000 vote:Ida=Fen wait:3000 seat wait:4000 arm buzz:Hal@0 wait:2000 buzz:Fen@120 wrong:0 wait:3000 buzz:Fen@60,Gus@80 correct wait:8000 clear",
-    "walk-teams": "node tools/probe.ts join:Ada,Bo,Cy,Dee,Eve,Fen,Gus,Hal teams:Red=Ada,Bo,Cy,Dee/Blue=Eve,Fen,Gus,Hal wait:3000 duel:vote wait:2000 vote:Bo=Ada,Cy=Ada,Eve=Ada wait:2500 vote:Dee=Bo,Fen=Bo wait:2500 vote:Gus=Eve,Hal=Eve wait:2500 unvote:Fen wait:2500 vote:Fen=Bo wait:3000 seat wait:5000 arm buzz:Cy@0 wait:2000 buzz:Eve@120 wrong:0 wait:4000 buzz:Fen@60,Ada@140 correct wait:8000 clear",
+    "walk-teams": "node tools/probe.ts join:Ada,Bo,Cy,Dee,Eve,Fen,Gus,Hal teams:Red=Ada,Bo,Cy,Dee/Blue=Eve,Fen,Gus,Hal wait:3000 duel:vote wait:2000 vote:Bo=Ada,Cy=Ada wait:2500 vote:Fen=Eve,Gus=Eve wait:2500 vote:Dee=Bo,Ada=Bo wait:2500 unvote:Gus wait:2500 vote:Hal=Fen wait:3000 seat wait:5000 arm buzz:Cy@0 wait:2000 buzz:Eve@120 wrong:0 wait:4000 buzz:Fen@60,Ada@140 correct wait:8000 clear",
     "test": "node --test 'server/*.test.ts' 'server/modes/*.test.ts' 'client/*.test.ts' 'shared/*.test.ts' 'tools/*.test.ts'",
     "typecheck": "tsc --noEmit",
     "fakes": "node tools/fakes.ts",

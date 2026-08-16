@@ -74,22 +74,22 @@ phone is Red's finalist and the rebound is yours to press.
 npm run walk-teams
 ```
 
-Ada leads on three votes and her own teammate Bo is second on two — but the
-seat cannot take two from one team, so it reaches past him to Eve. That skip is
-the thing to watch.
+Each side nominates its own. Red splits two-two between Ada and Bo while Blue
+settles on Eve, so Red holds both of the top spots on votes — and the seat
+cannot take two from one team, so it reaches past Bo to Eve. That skip is the
+thing to watch, and the two columns are what make it obvious.
 
 - [ ] The standings switch to Red and Blue, and your phone shows its team colour
-- [ ] Your nomination list is your own team first, each name railed in its team
-      colour — the same colour your name carries in the bar above it
+- [ ] Your nomination list is **your own team only** — no Blue name is on it,
+      and the hint says your team picks its own
 - [ ] Nobody who cannot be seated is on that list: join a second phone, leave it
-      off both teams, and it appears on neither roster while being told it is
+      off both teams, and it appears on nobody's roster while being told it is
       not on a team yet
-- [ ] Each name on the board carries its team, so the skip below has a reason
-      the room can see
-- [ ] Bo sits second on the board with **no** brass rail: the room is told who
-      would actually be seated, not who is merely popular
-- [ ] `unvote:Fen` drops Bo to one and the following vote puts him back to two,
-      and he is skipped either way
+- [ ] The board is two columns, one per side, headed in the team's colour — an
+      empty column stays up, so you can see which side has not decided
+- [ ] The top of **each** column is railed brass. Bo is second in Red's column
+      and dark, which is the seat reaching past him made visible
+- [ ] `unvote:Gus` drops Eve to one, and the pair that gets seated changes with it
 - [ ] Closing seats Ada and Eve; the host panel shows the pair and a Cancel
 - [ ] Cy's press does nothing — he is Ada's teammate, not her second
 - [ ] Eve answering wrong locks out **all of Blue**, not just Eve, and narrows

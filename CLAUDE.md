@@ -177,7 +177,14 @@ host connection is dropped, which is the rule worth exercising rather than
 routing around), `unvote:` takes a vote back so you can watch a tally count
 down, and `seat`/`cancel` close the window. `teams:Red=Ada,Bo/Blue=Cy,Dee` sets
 the mode, the teams and the assignments in one step, reusing a team of that name
-if the room already has one.
+if the room already has one and leaving the mode alone if it is already teams —
+`setMode` drops an open duel, so re-sending it to add one late player would
+cancel the window you were about to watch.
+
+In teams mode a vote may only name someone on the voter's own side: the seat
+takes one player per team, so nominating across the line is choosing your
+opponent's champion. `duelAct` refuses it, the phone's roster shows only your
+team, and the board splits the pool into a column per side.
 
 With `wait:` between the steps that is a paced walkthrough you can watch on a
 phone, and the two worth keeping are npm scripts rather than a paragraph to

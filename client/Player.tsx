@@ -142,16 +142,18 @@ export function Player() {
    * directions, so a player with no team is told why their card is empty
    * rather than voting into a duel they cannot be part of.
    *
-   * Own team first. In teams mode this is a roster of everyone in the room on
-   * one small screen, and the question a nomination actually asks is who from
-   * my side plays — a list that interleaves the two sides makes that a
-   * reading exercise. The sort is a no-op in solo, where nobody has a team.
+   * Your own side only, in teams mode. The seat takes one player from each
+   * team, so the nomination you are being asked for is your team's — picking
+   * from the other side is choosing your opponent's champion, which is either
+   * a courtesy or sabotage and never an answer to the question. The server
+   * refuses a vote across the line for the same reason; this is the roster
+   * agreeing with it rather than the rule itself.
    */
   const myTeam = state?.players.find((p) => p.id === playerId)?.teamId
   const nominees = state
-    ? eligibleForDuel(state)
-        .filter((p) => p.id !== playerId)
-        .sort((a, b) => Number(b.teamId === myTeam) - Number(a.teamId === myTeam))
+    ? eligibleForDuel(state).filter(
+        (p) => p.id !== playerId && (state.mode !== 'teams' || p.teamId === myTeam),
+      )
     : []
   const canNominate = state?.mode !== 'teams' || !!myTeam
   const [targetFor, setTargetFor] = useState<string | null>(null)
@@ -364,7 +366,11 @@ export function Player() {
                 {/* The gesture is its own undo, which nobody guesses at — and a
                     vote you cannot take back is one people hesitate to cast. */}
                 <p class="muted">
-                  {myVoteFor ? 'Tap them again to take your vote back' : 'One vote each'}
+                  {myVoteFor
+                    ? 'Tap them again to take your vote back'
+                    : state?.mode === 'teams'
+                      ? 'One vote each — your team picks its own'
+                      : 'One vote each'}
                 </p>
               </>
             ))}

@@ -96,6 +96,41 @@ function Timeline({
   )
 }
 
+/**
+ * A ranked column of nominations.
+ *
+ * Ranked for display; lit by the same prediction the host desk runs, which is
+ * not the same as the top two. In teams mode a same-team runner-up gets
+ * skipped, and marking them anyway promises the room a face-off the close will
+ * not produce.
+ */
+function NomList({
+  state,
+  entries,
+  seating,
+}: {
+  state: State
+  entries: NonNullable<State['duel']>['pool']
+  seating: string[] | null
+}) {
+  return (
+    <ol class="board__pool">
+      {entries
+        .slice()
+        .sort((a, b) => b.votes.length - a.votes.length)
+        .map((e) => (
+          <li key={e.playerId} class={seating?.includes(e.playerId) ? 'nom is-lead' : 'nom'}>
+            <span class="nom__name">
+              {state.players.find((p) => p.id === e.playerId)?.name ?? '?'}
+            </span>
+            {e.in && <span class="chip chip--armed">In</span>}
+            <Votes voters={e.votes} />
+          </li>
+        ))}
+    </ol>
+  )
+}
+
 export function Board() {
   const { state, now, connected } = useSocket('board')
   // The big screen is what the room watches, so it must not light up before
@@ -247,41 +282,33 @@ export function Board() {
           ) : state.duel && !state.duel.seated ? (
             <div class="board__noms">
               <p class="board__idle">Who plays?</p>
-              {/* Ranked for display; lit by the same prediction the host desk
-                  runs, which is not the same as the top two. In teams mode a
-                  same-team runner-up gets skipped, and marking them anyway
-                  promises the room a face-off the close will not produce. */}
-              <ol class="board__pool">
-                {state.duel.pool
-                  .slice()
-                  .sort((a, b) => b.votes.length - a.votes.length)
-                  .map((e) => {
-                    const player = state.players.find((p) => p.id === e.playerId)
-                    const team = state.teams.find((t) => t.id === player?.teamId)
-                    return (
-                      <li
-                        key={e.playerId}
-                        class={seating?.includes(e.playerId) ? 'nom is-lead' : 'nom'}
-                      >
-                        <span class="nom__name">{player?.name ?? '?'}</span>
-                        {/* Which side each name is on. Without it the room
-                            watches the close reach past the runner-up for no
-                            visible reason — the one-per-team rule is only
-                            legible if the teams are. */}
-                        {team && (
-                          <span
-                            class="chip"
-                            style={{ color: team.color, borderColor: team.color }}
-                          >
-                            {team.name}
-                          </span>
+              {state.mode === 'teams' ? (
+                // A column per side, because that is the shape of the decision:
+                // two rooms picking one name each, and the seat takes the top of
+                // each column. One merged list made the close look like it was
+                // reaching past the runner-up for no reason — here the runner-up
+                // is visibly in the wrong column. An empty column stays up, so
+                // the room can see which side has not made up its mind.
+                <div class="board__sides">
+                  {state.teams.map((team) => (
+                    <div key={team.id} class="board__sidepool">
+                      <p class="eyebrow" style={{ color: team.color }}>
+                        {team.name}
+                      </p>
+                      <NomList
+                        state={state}
+                        seating={seating}
+                        entries={state.duel!.pool.filter(
+                          (e) =>
+                            state.players.find((p) => p.id === e.playerId)?.teamId === team.id,
                         )}
-                        {e.in && <span class="chip chip--armed">In</span>}
-                        <Votes voters={e.votes} />
-                      </li>
-                    )
-                  })}
-              </ol>
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <NomList state={state} seating={seating} entries={state.duel.pool} />
+              )}
             </div>
           ) : round.candidates?.length === 0 ? (
             // Both finalists missed: candidates is `[]`, not absent, so the
