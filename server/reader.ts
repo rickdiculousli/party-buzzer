@@ -21,12 +21,15 @@ import { loadPack } from './packs.ts'
 import { render as realRender, play as realPlay, type Playback, type Speech } from './speech.ts'
 import type { Question } from '../shared/pack.ts'
 import type { State } from '../shared/protocol.ts'
+import type { Judge } from './judge.ts'
 
 export type ReaderOpts = {
   packDir: string
   cacheDir: string
   speech?: Speech
   voice?: string
+  /** The judge scores the spoken answer; absent, the host judges as always. */
+  judge?: Judge
 }
 
 export class Reader {
@@ -127,6 +130,7 @@ export class Reader {
     this.paused = false
     this.playback?.stop()
     this.playback = undefined
+    this.opts.judge?.unprime()
     this.hub.send(this.conn, { t: 'act', act: 'reading', data: undefined })
     this.wake()
   }
@@ -159,6 +163,9 @@ export class Reader {
         this.hub.send(this.conn, { t: 'host', action: { a: 'setValue', value: q.value } })
       }
       this.hub.send(this.conn, { t: 'host', action: { a: 'arm' } })
+      // Answer variants, memory only — this is the one path by which the judge
+      // ever learns what the room is about to be asked.
+      this.opts.judge?.prime(q.answers)
       await this.until((s) => s.round.phase === 'ARMED')
       if (!this.running) return
 
