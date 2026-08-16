@@ -156,3 +156,20 @@ test('loadState backfills the addendum fields on an older snapshot', () => {
   assert.equal(loaded.mirrorFragments, false)
   assert.equal(loaded.reading, undefined)
 })
+
+test('setGame keeps the standings when the flow asks it to', () => {
+  const state = newState()
+  state.scores = { ada: 300 }
+  applyHostAction(state, { a: 'setGame', id: 'quizbowl', options: {}, keepScores: true })
+  assert.equal(state.game.id, 'quizbowl')
+  assert.deepEqual(state.scores, { ada: 300 })
+  // Items and effects are mode-flavoured and reset either way.
+  assert.deepEqual(state.items, {})
+})
+
+test('a host switching modes by hand still wipes the standings', () => {
+  const state = newState()
+  state.scores = { ada: 300 }
+  applyHostAction(state, { a: 'setGame', id: 'quizbowl', options: {} })
+  assert.deepEqual(state.scores, {})
+})

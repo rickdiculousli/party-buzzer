@@ -23,6 +23,7 @@ export function newState(): State {
     effects: [],
     games: [],
     duelRules: [],
+    flows: [],
     packs: [],
     mirrorFragments: false,
     round: {
@@ -173,7 +174,10 @@ export function applyHostAction(state: State, action: HostAction): void {
         return
       }
       state.game = { id: mod.id, options, moduleState: mod.init(options) }
-      state.scores = {}
+      // A host switching modes is starting a fresh game. The flow crossing a
+      // block boundary is not — erasing the standings at block 2 would be the
+      // worst thing this feature could do.
+      if (!action.keepScores) state.scores = {}
       state.items = {}
       state.effects = []
       round.armedAt = 0
@@ -320,6 +324,7 @@ export function loadState(path: string): State {
     loaded.items ??= {}
     loaded.effects ??= []
     loaded.duelRules ??= []
+    if (!Array.isArray(loaded.flows)) loaded.flows = []
     // A duel mid-setup can't survive a restart: the pool was voted under a
     // room that may not be back. Fresh boot, no duel — and round.candidates
     // goes with it, since without the duel it is just two ids that can buzz
