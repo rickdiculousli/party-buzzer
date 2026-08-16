@@ -123,6 +123,10 @@ export function Player() {
   const inCount = duel?.pool.filter((e) => e.in).length ?? 0
   const finalist = !!playerId && !!round?.candidates?.includes(playerId)
   const spectator = !!round?.candidates && !finalist && !!playerId
+  // Both finalists missed: candidates is `[]`, still truthy, so the two checks
+  // above alone would call every player (finalists included) a spectator of a
+  // duel with nobody named in it. Dead is its own state.
+  const dead = round?.candidates?.length === 0
   const finalistNames = round?.candidates?.map(
     (id) => state?.players.find((p) => p.id === id)?.name ?? '?',
   )
@@ -212,6 +216,10 @@ export function Player() {
     label = 'Out'
     sub = 'Wrong answer — you sit out the rest of this question'
     mood = 'is-barred'
+  } else if (dead) {
+    label = 'Duel'
+    sub = 'Both missed — waiting for the host'
+    mood = 'is-barred'
   } else if (spectator) {
     label = 'Duel'
     sub = `${finalistNames?.join(' vs ')} — you sit this one out`
@@ -271,7 +279,7 @@ export function Player() {
         )}
       </div>
 
-      {duel && !duel.seated && duelRule && (
+      {duel && !duel.seated && duelRule && duelRule.entry !== 'none' && (
         <div class="player__duel">
           <p class="eyebrow">Heads-up — who plays?</p>
           {(duelRule.entry === 'volunteer' || duelRule.entry === 'both') && (

@@ -318,8 +318,11 @@ export function loadState(path: string): State {
     loaded.effects ??= []
     loaded.duelRules ??= []
     // A duel mid-setup can't survive a restart: the pool was voted under a
-    // room that may not be back. Fresh boot, no duel.
+    // room that may not be back. Fresh boot, no duel — and round.candidates
+    // goes with it, since without the duel it is just two ids that can buzz
+    // for a reason nobody can see anymore.
     delete loaded.duel
+    delete loaded.round.candidates
     if (!Array.isArray(loaded.packs)) loaded.packs = []
     if (typeof loaded.mirrorFragments !== 'boolean') loaded.mirrorFragments = false
     loaded.game ??= { id: 'trivia', options: {}, moduleState: {} }

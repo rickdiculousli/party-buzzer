@@ -5,7 +5,7 @@ import { resolveDuel, duelAct, seatDuel } from './duel.ts'
 import type { Mode, PlayerId, State } from '../shared/protocol.ts'
 
 /** A state with named players; the optional second tuple element is a team id. */
-export function stateWith(players: [PlayerId, string?][], mode: Mode = 'solo'): State {
+function stateWith(players: [PlayerId, string?][], mode: Mode = 'solo'): State {
   const state = newState()
   state.mode = mode
   const teamIds = [...new Set(players.map(([, t]) => t).filter((t): t is string => !!t))]
@@ -15,7 +15,7 @@ export function stateWith(players: [PlayerId, string?][], mode: Mode = 'solo'): 
 }
 
 /** A duel in mid-setup, without going through the host action (Task 4's subject). */
-export function openDuel(state: State, rule: string): void {
+function openDuel(state: State, rule: string): void {
   state.duel = { rule, pool: [], missed: [] }
 }
 

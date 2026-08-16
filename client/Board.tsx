@@ -257,6 +257,11 @@ export function Board() {
                 </p>
               )}
             </>
+          ) : round.candidates?.length === 0 ? (
+            // Both finalists missed: candidates is `[]`, not absent, so the
+            // fall-through below would otherwise invite the whole room to buzz
+            // on a question nobody may answer.
+            <p class="board__idle">Both missed — waiting for the host</p>
           ) : round.fragments?.length ? (
             <p class="board__question">{round.fragments.join(' ')}</p>
           ) : finalistNames?.length === 2 ? (

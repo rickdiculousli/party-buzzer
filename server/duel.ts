@@ -9,7 +9,7 @@
  * result with one check on round.candidates at the buzz gate.
  */
 import type {
-  DuelPoolEntry, DuelRuleInfo, DuelState, PlayerId, State,
+  DuelRuleInfo, DuelState, PlayerId, State,
 } from '../shared/protocol.ts'
 
 export const DUEL_RULES: DuelRuleInfo[] = [
@@ -88,7 +88,10 @@ export function resolveDuel(state: State, duel: DuelState): [PlayerId, PlayerId]
 
 /**
  * A player's duel act. Every path validates against the rule's gates before
- * touching the pool; false means dropped and nothing mutated.
+ * touching the pool; false means dropped and nothing mutated. Deliberately
+ * does not run entrants through `eligible()` — a disconnect between entry and
+ * close is fine because `resolveDuel`/`seatDuel` re-filter against it before
+ * anyone is actually seated.
  */
 export function duelAct(
   state: State,

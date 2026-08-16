@@ -28,6 +28,12 @@ These need real hardware — run them once before a real game night.
       believable millisecond gap
 - [ ] Host laptop sleeping and waking does not lose scores
 
+## Duels
+
+- [ ] Open a nomination duel, vote from a phone, close it, and arm — only the
+      two finalists' buzzers open, everyone else sits out
+- [ ] A wrong answer hands the rebound to the other finalist alone
+
 ## Reading
 
 - [ ] Pack selected and rendered before guests arrive (first render is ~30s and
