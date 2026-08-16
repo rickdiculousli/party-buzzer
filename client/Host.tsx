@@ -19,6 +19,7 @@ const KEYS: Record<string, HostAction> = {
 export function Host() {
   const { state, connected, send, now } = useSocket('host')
   const act = (action: HostAction) => send({ t: 'host', action })
+  const fire = (a: string, data?: unknown) => send({ t: 'act', act: a, data })
   const { open } = useOpen(state?.round, now)
 
   // The handler is bound once but needs the live round to judge against.
@@ -140,6 +141,44 @@ export function Host() {
             Next question<span class="key">N</span>
           </button>
         </div>
+
+        {state.packs.length > 0 && (
+          <div class="host__reader">
+            <label class="field">
+              Pack
+              <select
+                class="input"
+                value={state.reading?.pack ?? ''}
+                disabled={round.phase !== 'IDLE'}
+                onChange={(e) => fire('selectPack', (e.target as HTMLSelectElement).value)}
+              >
+                <option value="">Choose a pack…</option>
+                {state.packs.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            </label>
+
+            {state.reading?.rendering ? (
+              <span class="chip chip--data">
+                Rendering {state.reading.rendering.done}/{state.reading.rendering.total}
+              </span>
+            ) : state.reading ? (
+              <>
+                <button class="btn" onClick={() => fire(state.reading!.paused ? 'resumeRead' : 'pauseRead')}>
+                  {state.reading.paused ? 'Resume' : 'Pause'}
+                </button>
+                <button class="btn" onClick={() => fire('read')}>Read</button>
+                <button class="btn btn--ghost" onClick={() => fire('stopRead')}>Stop</button>
+                <span class="chip">
+                  Q{state.reading.qIndex + 1}/{state.reading.qTotal}
+                  {state.reading.fragTotal > 0 &&
+                    ` · fragment ${state.reading.fragIndex}/${state.reading.fragTotal}`}
+                </span>
+              </>
+            ) : null}
+          </div>
+        )}
       </section>
 
       <section>
@@ -211,7 +250,10 @@ export function Host() {
 
       {/* Setup, not play. Folded away so the controls above stay the whole screen. */}
       <details class="host__manage">
-        <summary>Players and teams · {state.players.length} joined</summary>
+        <summary>
+          Game, players and teams · {state.games.find((g) => g.id === state.game.id)?.name} ·{' '}
+          {state.players.length} joined
+        </summary>
 
         <GameSettings state={state} act={act} />
 
@@ -225,6 +267,17 @@ export function Host() {
                 a: 'setMode',
                 mode: (e.target as HTMLInputElement).checked ? 'teams' : 'solo',
               })
+            }
+          />
+        </label>
+
+        <label class="field" style={{ margin: 'var(--s3) 0' }}>
+          Mirror question text to phones
+          <input
+            type="checkbox"
+            checked={state.mirrorFragments}
+            onChange={(e) =>
+              act({ a: 'setMirror', on: (e.target as HTMLInputElement).checked })
             }
           />
         </label>

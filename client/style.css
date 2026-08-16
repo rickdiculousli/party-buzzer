@@ -503,6 +503,14 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .host__controls .btn--major { flex: 1 1 12rem; }
 .host__minor { display: flex; gap: var(--s2); flex-wrap: wrap; }
 
+.host__reader {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  flex-wrap: wrap;
+  margin-top: var(--s3);
+}
+
 .host__order { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s1); }
 .host__scores { display: grid; gap: var(--s1); }
 .host__score-row { display: flex; align-items: center; gap: var(--s3); padding: var(--s2) var(--s3); background: var(--panel); border-left: 3px solid var(--rule); }
