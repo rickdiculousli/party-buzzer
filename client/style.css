@@ -453,6 +453,14 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   color: #201a03;
   border-radius: var(--r-sm);
 }
+/* The judge's transcript: brass when it scored, tally-red when it did not. */
+.board__spoken {
+  margin: 0 0 var(--s2);
+  font-size: var(--t-lg);
+  color: var(--dim);
+}
+.board__spoken.is-hit { color: var(--brass); }
+.board__spoken.is-miss { color: var(--tally); }
 /* The question assembling on the wall, spoken fragment by spoken fragment. */
 .board__question {
   font-family: var(--display);

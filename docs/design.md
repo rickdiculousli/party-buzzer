@@ -336,6 +336,26 @@ an ordinal; the dial is a ranking, not a photo finish. The tilt angle comes from
 `scroll-snap-type: y proximity` settles a row into the band without trapping
 the flick.
 
+### Spoken line — `.board__spoken`
+
+What the judge heard, quoted on the board: the transcript of the leader's
+spoken answer, in curly quotes, dim until the host scores it — then brass
+(`is-hit`) when it earned the points, tally (`is-miss`) when it did not. An
+empty transcript reads as "no answer", which is itself a verdict.
+
+```html
+<p class="board__spoken is-hit">“photosynthesis”</p>
+<p class="board__spoken is-miss">“respiration”</p>
+```
+
+It lives in `board__above`, above the award stamp, because evidence belongs
+with the payoff: the room reads what was said and what it scored in one
+glance. The three-band layout keeps the hero name pinned at centre, so the
+line arriving or leaving never moves it. And it outlives a rebound the way
+the award does — a wrong answer hands the question to the next finalist, the
+collection window is gone, but what the first player said is still the story
+the room is reacting to, so it stays up until the next question arms.
+
 ---
 
 ## 6. The two signatures
