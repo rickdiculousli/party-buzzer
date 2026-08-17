@@ -102,10 +102,17 @@ export class Judge {
     this.hub.send(this.conn, { t: 'act', act: 'judgeWindow', data: undefined })
 
     const transcript = isText ? body.toString('utf8').trim() : await this.hear(body)
+    // The round may have moved while transcription was in flight — a host
+    // score, or a wrong that rebounded to a new leader. A late verdict must
+    // not land on the rebound's leader, and the transcript belongs to a round
+    // that is gone.
+    if (
+      this.hub.state.round.phase !== 'LOCKED' ||
+      this.hub.state.round.order[0]?.playerId !== playerId
+    ) {
+      return { ok: false }
+    }
     const hit = !!transcript && matchAnswer(transcript, answers)
-    // Shown before the verdict lands, so what was said is on the board even
-    // when the host's own C or W beat the judge to it — the verdict then drops
-    // on the LOCKED guard in applyHostAction, and the transcript stays true.
     this.hub.send(this.conn, { t: 'act', act: 'spoken', data: { name, transcript, hit } })
     this.hub.send(this.conn, { t: 'host', action: hit ? { a: 'correct' } : { a: 'wrong', neg } })
     return { ok: true, hit, transcript }

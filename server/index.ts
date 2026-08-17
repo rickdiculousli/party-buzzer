@@ -110,7 +110,8 @@ export async function startServer(opts: {
     const hear = transcribe
     void renderClip(join(packDir, '.cache'), 'Warming up.').then((clip) => {
       if (clip.durationMs > 0) return hear(clip.path)
-    })
+      // No warm-up is no judge failure — the first real answer pays the load.
+    }).catch(() => {})
   }
 
   let joinUrl = ''

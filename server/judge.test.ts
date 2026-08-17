@@ -102,7 +102,7 @@ test('anything that is not the leader in the open window is refused', async () =
     'not the leader')
 })
 
-test('a host W mid-transcription wins; the late verdict drops on the phase guard', async () => {
+test('a host W mid-transcription wins; the late verdict drops in the judge', async () => {
   let release: (t: string | null) => void = () => {}
   const slow: Transcribe = () => new Promise((r) => (release = r))
   const { state, hub, judge, ada } = rig(slow)
@@ -113,9 +113,9 @@ test('a host W mid-transcription wins; the late verdict drops on the phase guard
   hub.handle(hostConn, { t: 'host', action: { a: 'wrong', neg: 100 } })
   assert.equal(state.round.phase, 'ARMED')
   release('vermont')
-  const res = await pending
-  assert.equal(res.ok, true)
+  assert.deepEqual(await pending, { ok: false })
   assert.equal(state.round.phase, 'ARMED', 'the late verdict did not score')
+  assert.equal(state.round.spoken, undefined, 'nor showed its transcript')
   assert.equal(state.scores[ada.playerId!], -100, 'and did not dock twice')
   assert.equal(state.round.lockedOut.length, 1)
 })
@@ -135,6 +135,34 @@ test('the audio path hands transcribe a wav file and cleans it up', async () => 
   assert.ok(seen.endsWith('.wav'))
   assert.equal(existsSync(seen), false, 'the temp file is gone afterwards')
   assert.equal(state.round.award?.points, 100)
+})
+
+test('a transcription slower than the rebound does not score the new leader', async () => {
+  let release: (t: string | null) => void = () => {}
+  const slow: Transcribe = () => new Promise((r) => (release = r))
+  const { state, hub, judge, ada } = rig(slow)
+  const bo: Conn = { id: 'b', role: 'player', send: () => {} }
+  hub.handle(bo, { t: 'hello', role: 'player', name: 'Bo' })
+  judge.prime(['Vermont'])
+  await lockIn(hub, ada)
+  const pending = judge.submit(ada.playerId!, Buffer.from('RIFF….'), false)
+  await sleep(10)
+  // The host wrongs Ada and the rebound locks Bo before the transcript returns.
+  hub.handle(hostConn, { t: 'host', action: { a: 'wrong', neg: 100 } })
+  assert.equal(state.round.phase, 'ARMED')
+  const armedAt = state.round.armedAt
+  await sleep(armedAt - Date.now() + 5)
+  hub.handle(bo, { t: 'buzz', at: armedAt })
+  await sleep(80)
+  assert.equal(state.round.phase, 'LOCKED')
+  assert.equal(state.round.order[0]?.playerId, bo.playerId)
+
+  release('vermont')
+  assert.deepEqual(await pending, { ok: false })
+  assert.equal(state.round.spoken, undefined, 'the stale transcript never showed')
+  assert.equal(state.round.phase, 'LOCKED', "Bo's round is undisturbed")
+  assert.equal(state.scores[bo.playerId!], 0)
+  assert.equal(state.scores[ada.playerId!], -100, "Ada's dock stands, no double")
 })
 
 /** Speech that plays instantly. Same fake as reader.test.ts. */

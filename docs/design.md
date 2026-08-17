@@ -339,8 +339,9 @@ the flick.
 ### Spoken line — `.board__spoken`
 
 What the judge heard, quoted on the board: the transcript of the leader's
-spoken answer, in curly quotes, dim until the host scores it — then brass
-(`is-hit`) when it earned the points, tally (`is-miss`) when it did not. An
+spoken answer, in curly quotes — the judge's verdict lands with the line, so
+it is brass (`is-hit`) when it earned the points and tally (`is-miss`) when
+it did not, from its first frame. An
 empty transcript reads as "no answer", which is itself a verdict.
 
 ```html

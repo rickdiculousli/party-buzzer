@@ -229,6 +229,8 @@ export function Player() {
     })
     return () => {
       dead = true
+      // A stray cap timer would fire sendAnswer into the next window's recorder.
+      clearTimeout(capTimer.current)
       recorder.current = null
       rec.stop()
       for (const t of micStream.current?.getTracks() ?? []) t.stop()
