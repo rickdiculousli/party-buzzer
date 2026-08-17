@@ -603,6 +603,14 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .host__spacer { flex: 1; }
 
+/* The play strip: position, above the fold, never competing with the controls. */
+.host__flow {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin-bottom: var(--s3);
+}
+
 .host__controls { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: stretch; }
 .host__controls .btn--major { flex: 1 1 12rem; }
 .host__minor { display: flex; gap: var(--s2); flex-wrap: wrap; }
@@ -614,6 +622,44 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .host__spoken.is-hit { color: var(--brass); }
 .host__spoken.is-miss { color: var(--tally); }
+
+.flow__io {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  margin-bottom: var(--s3);
+}
+.flow__io .input { flex: 1 1 10rem; min-width: 0; }
+.flow__io .btn { flex: none; }
+
+/* A block is a row, and rows on this surface sit on --panel behind a coloured
+   left rule. Without the fill the fields read as loose form controls. */
+.flow__block {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  padding: var(--s3);
+  background: var(--panel);
+  border-left: 3px solid var(--rule);
+  margin-bottom: var(--s2);
+}
+
+/* Reorder and remove are one cluster, not three equidistant buttons. `auto`
+   rather than a spacer element: a spacer only pushes right while it shares a
+   line, so a block with few fields left its buttons hanging at the left. */
+.flow__acts { display: flex; gap: var(--s1); flex: none; margin-left: auto; }
+
+/* Where the room actually is, in the same brass the board rails a leader with. */
+.flow__block.is-here {
+  border-left-color: var(--brass);
+  background: #241d0c;
+}
+
+.flow__n {
+  font-variant-numeric: tabular-nums;
+  color: var(--dim);
+}
 
 .host__reader {
   display: flex;
@@ -627,6 +673,9 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .host__scores { display: grid; gap: var(--s1); }
 .host__score-row { display: flex; align-items: center; gap: var(--s3); padding: var(--s2) var(--s3); background: var(--panel); border-left: 3px solid var(--rule); }
 
+/* The panel spaces its own blocks, the way .host does, so no child carries a
+   margin of its own. */
+.host__manage[open] { display: grid; gap: var(--s5); }
 .host__manage summary {
   cursor: pointer;
   font-size: var(--t-xs);
@@ -638,6 +687,11 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .host__manage summary:hover { color: var(--chalk); }
 .host__player { display: flex; align-items: center; gap: var(--s2); padding: var(--s1) 0; }
 .host__player .input { flex: 1; }
+
+/* Room toggles: one column so the two checkboxes land on the same edge instead
+   of each sitting wherever its label ends. */
+.host__toggles { display: grid; gap: var(--s3); max-width: 26rem; margin-bottom: var(--s3); }
+.host__toggles .field { justify-content: space-between; }
 
 .muted { color: var(--dim); font-size: var(--t-sm); }
 

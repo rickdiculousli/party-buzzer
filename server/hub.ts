@@ -5,6 +5,7 @@ import { catalog, moduleFor } from './modes/index.ts'
 import { useItem } from './items.ts'
 import { duelAct, duelCatalog } from './duel.ts'
 import { listPacks } from './packs.ts'
+import { listFlows, readFlow, writeFlow } from './flows.ts'
 import { COLLECT_MS } from '../shared/protocol.ts'
 import type {
   ClientMsg, PlayerId, Role, ServerMsg, State,
@@ -51,6 +52,8 @@ export type HubOpts = {
   onChange?: (state: State) => void
   /** Question packs live here. Filenames only enter State; omit for no packs. */
   packDir?: string
+  /** Saved flows live here. Filenames only enter State; omit for no flows. */
+  flowDir?: string
   reader?: ReaderControls
 }
 
@@ -67,6 +70,7 @@ export class Hub {
   private collectMs: number
   private onChange: (state: State) => void
   private reader: ReaderControls | undefined
+  private flowDir: string | undefined
 
   constructor(state: State, opts: HubOpts = {}) {
     this.state = state
@@ -78,6 +82,9 @@ export class Hub {
     // Filenames only, refreshed on boot for the same reason the catalog is: a
     // snapshot's copy is from whenever it was written.
     this.state.packs = opts.packDir ? listPacks(opts.packDir) : []
+    // Same reasoning as packs: filenames only, refreshed on boot.
+    this.flowDir = opts.flowDir
+    this.state.flows = opts.flowDir ? listFlows(opts.flowDir) : []
     this.revealMs = opts.revealMs ?? REVEAL_MS
     this.collectMs = opts.collectMs ?? COLLECT_MS
     this.onChange = opts.onChange ?? (() => {})
@@ -206,6 +213,30 @@ export class Hub {
       this.reader?.resume()
     } else if (name === 'stopRead') {
       this.reader?.stop()
+    } else if (name === 'saveFlow' && typeof data === 'string') {
+      if (!this.flowDir || !this.state.flow) return
+      try {
+        writeFlow(this.flowDir, data, this.state.flow.blocks)
+      } catch (e) {
+        console.warn(`[hub] saveFlow failed: ${e}`)
+        return
+      }
+      this.state.flows = listFlows(this.flowDir)
+    } else if (name === 'loadFlow' && typeof data === 'string') {
+      if (!this.flowDir) return
+      let blocks
+      try {
+        blocks = readFlow(this.flowDir, data)
+      } catch (e) {
+        console.warn(`[hub] loadFlow failed: ${e}`)
+        return
+      }
+      if (blocks.length === 0) return
+      // Loading replaces the whole setlist, so it is undoable like the builder's
+      // own edits — same snapshot push the host path takes.
+      this.history.push(structuredClone(this.state))
+      if (this.history.length > UNDO_DEPTH) this.history.shift()
+      applyHostAction(this.state, { a: 'setFlow', blocks })
     } else {
       const handled = moduleFor(this.state.game.id).onAct?.(this.state, name, data) ?? false
       if (!handled) {

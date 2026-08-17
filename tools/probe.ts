@@ -34,6 +34,9 @@
  *   act:name[:data]  host-scoped act (fragment / powerEnds / revealAnswer)
  *   speak:A=text     A's transcript, POSTed as text/plain into the judge
  *   teams:R=A,B/S=C  teams mode, those teams, those players on them
+ *   flow:t*2,q*1:v   setlist: mode*count blocks, a trailing :rule opens a duel
+ *                    for the block it follows
+ *   jump:1           jump the flow to that block index
  *   duel:vote        open a heads-up duel under that rule id
  *   in:A,B | out:A   volunteer / back off, from those players' own sockets
  *   vote:A=B,C=B     A votes for B, C votes for B (`=`, not `>`: no quoting)
@@ -65,8 +68,8 @@ async function main() {
     // The header comment is the manual; printing a second copy is a second
     // thing to keep true.
     log('\n  usage: npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@120 correct')
-    log('  steps: loop join value arm buzz correct wrong next reset undo act speak teams duel in out vote unvote seat cancel wait clear')
-    log('  walks: npm run walk-duel   npm run walk-teams\n')
+    log('  steps: loop join value arm buzz correct wrong next reset undo act speak teams flow jump duel in out vote unvote seat cancel wait clear')
+    log('  walks: npm run walk-duel   npm run walk-teams   npm run walk-flow\n')
     return
   }
 
@@ -108,15 +111,21 @@ async function main() {
    */
   const assigned = new Set<string>()
   let teamsAreOurs = false
+  let flowIsOurs = false
 
   const clear = () => {
+    // First: clearFlow is refused unless the round is IDLE. Resetting the
+    // round here, before anything IDLE-gated runs, is what makes a `clear`
+    // mid-question actually clear rather than leave the flow armed for the
+    // next `next`.
+    host.send({ t: 'host', action: { a: 'next' } })
+    if (flowIsOurs) host.send({ t: 'host', action: { a: 'clearFlow' } })
     host.send({ t: 'host', action: { a: 'cancelDuel' } })
     // Before the kick: an assign for a player who is already gone does nothing.
     for (const playerId of assigned) host.send({ t: 'host', action: { a: 'assign', playerId } })
     if (teamsAreOurs) host.send({ t: 'host', action: { a: 'setMode', mode: 'solo' } })
     const gone = (host.state()?.players ?? []).filter((p) => p.id.startsWith('probe-'))
     for (const p of gone) host.send({ t: 'host', action: { a: 'kick', playerId: p.id } })
-    host.send({ t: 'host', action: { a: 'next' } })
     log(`  cleared ${gone.length}`)
   }
   process.on('SIGINT', () => setTimeout(() => process.exit(0), 100))
@@ -127,10 +136,12 @@ async function main() {
   for (let pass = 1; ; pass++) {
     if (looping) log(`  ── pass ${pass}`)
     for (const step of steps) {
-      // First colon only — an act's data can itself hold colons.
+      // First colon only: `flow:trivia*2,quizbowl*1:vote` has to keep the
+      // duel rule attached, and an act's data can itself hold colons — a full
+      // split-and-take-two would silently drop everything past the second one.
       const sep = step.indexOf(':')
-      const verb = sep < 0 ? step : step.slice(0, sep)
-      const arg = sep < 0 ? '' : step.slice(sep + 1)
+      const verb = sep === -1 ? step : step.slice(0, sep)
+      const arg = sep === -1 ? '' : step.slice(sep + 1)
       log(`  ${step}`)
 
       switch (verb) {
@@ -282,6 +293,29 @@ async function main() {
           }
           break
         }
+
+        // flow:trivia*3,quizbowl*2:vote  — mode*count, optionally :duelRule
+        case 'flow': {
+          const blocks = arg.split(',').filter(Boolean).map((part) => {
+            const [head, duel] = part.split(':')
+            const [game, count = '1'] = head.split('*')
+            return {
+              game,
+              options: {},
+              count: Number(count),
+              ...(duel ? { duel } : {}),
+            }
+          })
+          host.send({ t: 'host', action: { a: 'setFlow', blocks } })
+          await host.waitFor((s) => s.flow?.blocks.length === blocks.length)
+          flowIsOurs = true
+          log(`  flow ${blocks.length} blocks`)
+          break
+        }
+
+        case 'jump':
+          host.send({ t: 'host', action: { a: 'flowJump', at: Number(arg) } })
+          break
 
         case 'duel':
           host.send({ t: 'host', action: { a: 'openDuel', rule: arg } })

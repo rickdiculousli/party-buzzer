@@ -1,7 +1,7 @@
 import type { GameInfo, HostAction, OptionSpec, State } from '../shared/protocol.ts'
 import { modeSurfaces } from './modes/index.ts'
 
-function OptionField({
+export function OptionField({
   spec,
   value,
   disabled,
@@ -58,7 +58,7 @@ function OptionField({
   )
 }
 
-function defaultsOf(info: GameInfo): Record<string, unknown> {
+export function defaultsOf(info: GameInfo): Record<string, unknown> {
   return Object.fromEntries(info.options.map((o) => [o.key, o.default]))
 }
 

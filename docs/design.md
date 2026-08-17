@@ -240,6 +240,25 @@ Each figure animates on mount (`cast`, anchor 6), which is why `Votes` keys by
 voter id: the arriving vote must be the element that mounts, and taking a vote
 back must not restart the ones that stay.
 
+### Flow strip and builder — `.host__flow`, `.flow`
+
+The setlist has two very different readers, so it gets two very different
+treatments. The play strip (`.host__flow`) says where the room is right now —
+block, mode, question count, a duel flag — and sits above `.host__controls`,
+unfolded, because a host who has to open a disclosure to learn what round it
+is will not do it. The builder (`.flow`, inside `FlowPanel`) is setup, not
+play: it lives folded away in the host's manage details beside `GameSettings`,
+one block per row with its own mode, question count, value and duel rule,
+reordered with `↑`/`↓` rather than drag, because a game night's flow is short
+enough that two buttons beat a pointer library. The block the room is running
+rails brass (`.flow__block.is-here`) — the same colour the board uses for a
+leader — so scrolling the builder mid-game still shows which row is live.
+
+The board gets one chip, not the strip. The stage belongs to the question; a
+setlist that pulls the eye during a buzz has failed at its job, so the board's
+share of it is `N/total · QM of count`, sized and coloured like every other
+status chip, competing for no more attention than "3 players" does.
+
 ### Button — `.btn`
 
 ```html
@@ -482,8 +501,13 @@ Shortcuts never fire while focus is in an input, a select, or a
 wrong player is the mistake a host actually makes, and it was previously
 unrecoverable without hand-editing a score.
 
-Player and team management lives in a collapsed `<details>` because it is setup,
-not play. During a game the controls own the screen.
+Setup lives in a collapsed `<details>` because it is not play — during a game the
+controls own the screen. Inside, four eyebrow-labelled blocks in the order a
+night is actually set up: **Game**, **Flow**, **Room** (teams mode, the teams
+themselves, mirroring), **Players**. Every block carries an eyebrow and the panel
+spaces them itself, so no control inside it sets its own margin. Teams mode and
+Add team sit together under Room; a control separated from the switch that
+enables it reads as belonging to neither.
 
 ### Phone — one object in one hand
 

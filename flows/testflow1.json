@@ -1,0 +1,21 @@
+[
+  {
+    "game": "trivia",
+    "options": {},
+    "count": 5,
+    "value": 50
+  },
+  {
+    "game": "quizbowl",
+    "options": {
+      "powerAfterFragment": 2,
+      "powerBonus": 50,
+      "neg": 0,
+      "bouncebacks": true,
+      "itemsEnabled": false
+    },
+    "count": 1,
+    "value": 0,
+    "duel": "vote"
+  }
+]

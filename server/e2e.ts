@@ -78,6 +78,7 @@ export async function withServer(fn: (url: string) => Promise<void>): Promise<vo
     collectMs: COLLECT,
     // No speech-to-text in tests: boot must never invoke swiftc.
     transcribe: null,
+    flowDir: join(dir, 'flows'),
   })
   try {
     await fn(`http://127.0.0.1:${server.port}`)

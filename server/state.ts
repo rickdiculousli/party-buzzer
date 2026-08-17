@@ -4,8 +4,9 @@ import { ARM_LEAD_MS } from '../shared/protocol.ts'
 import { knownModule, moduleFor, sanitizeOptions } from './modes/index.ts'
 import { executeGrants } from './items.ts'
 import { duelOnArm, duelOnWrong, duelRule, resolveDuel, seatDuel } from './duel.ts'
+import { advanceFlow, applySetup, enterBlock, sanitizeBlocks } from './flow.ts'
 import type {
-  HostAction, PlayerId, ScoreKey, State,
+  FlowBlock, HostAction, PlayerId, ScoreKey, State,
 } from '../shared/protocol.ts'
 
 export { ARM_LEAD_MS }
@@ -23,6 +24,7 @@ export function newState(): State {
     effects: [],
     games: [],
     duelRules: [],
+    flows: [],
     packs: [],
     mirrorFragments: false,
     // Ten seconds of silence is a stall. Only ever read by the judge, which
@@ -73,9 +75,26 @@ export function bump(state: State, key: ScoreKey, delta: number): void {
   state.scores[key] = (state.scores[key] ?? 0) + delta
 }
 
+/**
+ * Whether two blocks would run the room the same way. A shallow compare of
+ * `options` is a corner cut — a block that swaps one option value for a
+ * deep-equal-but-different object would false-negative here — but options
+ * arrive from the builder's own form, which never produces that shape.
+ */
+function sameSetup(a: FlowBlock, b: FlowBlock): boolean {
+  if (a.game !== b.game || a.value !== b.value) return false
+  const ak = Object.keys(a.options)
+  const bk = Object.keys(b.options)
+  if (ak.length !== bk.length) return false
+  return ak.every((k) => a.options[k] === b.options[k])
+}
+
 export function applyHostAction(state: State, action: HostAction): void {
   const round = state.round
   const leader = round.order[0]
+  // The flow applies its blocks through this same function: entering a block is
+  // exactly the actions a host would press, so every validation still runs.
+  const apply = (a: HostAction) => applyHostAction(state, a)
 
   switch (action.a) {
     case 'arm': {
@@ -145,7 +164,10 @@ export function applyHostAction(state: State, action: HostAction): void {
     }
 
     case 'next':
-    case 'resetRound':
+    case 'resetRound': {
+      // Captured before the reset clears it: this is what tells a finished
+      // question from a double-tap on N or a stale award being cleared.
+      const played = round.armedAt > 0
       round.phase = 'IDLE'
       round.armedAt = 0
       round.order = []
@@ -160,7 +182,12 @@ export function applyHostAction(state: State, action: HostAction): void {
       // A duel is one question. The host re-opens (or rematches by arming
       // before next) rather than the pair leaking into the next round.
       delete state.duel
+      // After the reset, never before: the block's `openDuel` needs an IDLE
+      // round and a cleared duel to land on. `resetRound` is the host taking a
+      // question back, so it spends nothing.
+      if (action.a === 'next' && played) advanceFlow(state, apply)
       return
+    }
 
     case 'undo':
       // Handled by the hub, which owns the snapshot stack.
@@ -184,7 +211,10 @@ export function applyHostAction(state: State, action: HostAction): void {
         return
       }
       state.game = { id: mod.id, options, moduleState: mod.init(options) }
-      state.scores = {}
+      // A host switching modes is starting a fresh game. The flow crossing a
+      // block boundary is not — erasing the standings at block 2 would be the
+      // worst thing this feature could do.
+      if (!action.keepScores) state.scores = {}
       state.items = {}
       state.effects = []
       round.armedAt = 0
@@ -281,6 +311,53 @@ export function applyHostAction(state: State, action: HostAction): void {
       // Mid-round cancel reopens the floor for the question in flight.
       delete round.candidates
       return
+
+    case 'setFlow': {
+      // Setup, not play — refused mid-question the way setGame is.
+      if (round.phase !== 'IDLE') return
+      const blocks = sanitizeBlocks(action.blocks, knownModule, (id) => !!duelRule(id))
+      if (blocks.length === 0) {
+        delete state.flow
+        return
+      }
+      const prev = state.flow
+      // Editing block 4 during block 2 must not restart the night; a setlist
+      // too short for where the room is has to start over — and so does a
+      // spent one: `prev.at === prev.blocks.length` was never a block anyone
+      // entered, so there is nothing mid-flight to preserve.
+      const keep = prev && prev.at < prev.blocks.length && prev.at < blocks.length
+      const at = keep ? prev.at : 0
+      const done = keep ? Math.min(prev.done, blocks[at].count - 1) : 0
+      // Keeping position doesn't mean the block AT that position is unchanged —
+      // the host may have just edited the one being played. Compare it against
+      // what was there before and re-apply setup alone if it moved, so the
+      // room's mode never drifts from what the play strip claims. Never
+      // re-open a duel here: that is a per-question event, not a per-edit one,
+      // and firing it on a settings tweak would wipe an in-flight vote pool.
+      const changed = keep && !sameSetup(prev.blocks[at], blocks[at])
+      state.flow = { blocks, at, done }
+      if (!keep) enterBlock(state, apply, true)
+      else if (changed) applySetup(state, apply)
+      return
+    }
+
+    case 'flowJump': {
+      if (round.phase !== 'IDLE') return
+      const flow = state.flow
+      if (!flow) return
+      const at = Number.isFinite(action.at) ? Math.round(action.at) : 0
+      flow.at = Math.min(Math.max(0, at), flow.blocks.length)
+      flow.done = 0
+      enterBlock(state, apply, true)
+      return
+    }
+
+    case 'clearFlow':
+      if (round.phase !== 'IDLE') return
+      // The setlist goes; the game in progress stays. Clearing a plan is not a
+      // reason to change the mode or cancel a duel the room is already voting on.
+      delete state.flow
+      return
   }
 }
 
@@ -335,6 +412,18 @@ export function loadState(path: string): State {
     loaded.items ??= {}
     loaded.effects ??= []
     loaded.duelRules ??= []
+    if (!Array.isArray(loaded.flows)) loaded.flows = []
+    // A setlist written by another build may name modules this one does not
+    // register. Drop what we cannot run rather than booting into a flow that
+    // silently misbehaves at block 3.
+    if (loaded.flow) {
+      loaded.flow.blocks = sanitizeBlocks(loaded.flow.blocks, knownModule, (id) => !!duelRule(id))
+      if (loaded.flow.blocks.length === 0) delete loaded.flow
+      else {
+        loaded.flow.at = Math.min(Math.max(0, loaded.flow.at | 0), loaded.flow.blocks.length)
+        loaded.flow.done = Math.max(0, loaded.flow.done | 0)
+      }
+    }
     // A duel mid-setup can't survive a restart: the pool was voted under a
     // room that may not be back. Fresh boot, no duel — and round.candidates
     // goes with it, since without the duel it is just two ids that can buzz

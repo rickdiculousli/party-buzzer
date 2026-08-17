@@ -69,16 +69,19 @@ export async function startServer(opts: {
   packDir?: string
   /** Speech-to-text for the judge. Undefined builds the helper; null disables it. */
   transcribe?: Transcribe | null
+  flowDir?: string
 } = {}) {
   const port = opts.port ?? Number(process.env.PORT ?? 8080)
   const statePath = opts.statePath ?? join(ROOT, 'state.json')
 
   const packDir = opts.packDir ?? join(ROOT, 'packs')
+  const flowDir = opts.flowDir ?? join(ROOT, 'flows')
   const state = loadState(statePath)
   const hub = new Hub(state, {
     revealMs: opts.revealMs,
     collectMs: opts.collectMs,
     packDir,
+    flowDir,
     onChange: (s) => saveState(statePath, s),
   })
 

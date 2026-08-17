@@ -96,6 +96,28 @@ thing to watch, and the two columns are what make it obvious.
       the question to Ada alone
 - [ ] Red's score moves, not Ada's
 
+### The setlist — `npm run walk-flow`
+
+Four players build a three-block setlist and play the first two: two trivia
+questions, then two quizbowl questions each opened as a duel vote, then
+`jump:0` puts the flow back at the top before the trailing trivia block is
+ever reached. The point isn't any one buzz — it's the strip and the standings
+surviving the mode switch, and the flow itself surviving a jump back to
+block 1.
+
+```bash
+npm run walk-flow
+```
+
+- [ ] The host strip counts `Q1 of 2` → `Q2 of 2` and then rolls to block 2
+- [ ] The scores from block 1 are **still there** after the mode switches
+- [ ] Each question in the duel block opens its own nomination window
+- [ ] `resetRound` (the host taking a question back) does not spend a question
+- [ ] The board's chip tracks the strip and never grows past a chip
+- [ ] Skip block jumps forward; the flow sits at "Flow complete" at the end
+- [ ] Saving, clearing and loading the same flow returns the same blocks
+- [ ] `clear` leaves the room with no flow
+
 ### Left over from either
 
 - [ ] Both finalists missing says so on the board rather than reading "Buzz"

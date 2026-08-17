@@ -137,6 +137,32 @@ export type ActiveEffect = {
   roundArmedAt?: number
 }
 
+/** One stretch of the night: N questions of one mode, optionally as duels. */
+export type FlowBlock = {
+  /** Module id, into the same catalog the host settings form renders from. */
+  game: string
+  /** Values for that module's option schema; sanitized when applied. */
+  options: Record<string, unknown>
+  /** Questions in this block. */
+  count: number
+  /** Round value for the block. Absent = leave whatever the host set. */
+  value?: number
+  /** Duel rule id, opened before every question in the block. */
+  duel?: string
+}
+
+/**
+ * The setlist and where the room is in it. Rides State, so snapshot, undo and
+ * broadcast come free — the same bargain `duel` and `items` take.
+ */
+export type FlowState = {
+  blocks: FlowBlock[]
+  /** Index of the running block. Equals blocks.length when the flow is spent. */
+  at: number
+  /** Questions gone by inside the current block. */
+  done: number
+}
+
 /**
  * What the reader is doing, for the host screen alone. Display-only: the reader
  * owns playback and republishes from its own loop, so an undo that restores a
@@ -171,6 +197,10 @@ export type State = {
   duel?: DuelState
   /** Static rule catalog. Refreshed at startup beside `games`. */
   duelRules: DuelRuleInfo[]
+  /** The setlist, if the host built one. Absent = the host is driving freehand. */
+  flow?: FlowState
+  /** Saved flow filenames on disk. Filenames only, like `packs`. */
+  flows: string[]
   /** Pack filenames on disk. Filenames only — question content never enters State. */
   packs: string[]
   /** Whether players see round.fragments. Off for quizbowl: reading a whole
@@ -196,12 +226,17 @@ export type HostAction =
   | { a: 'setMode'; mode: Mode }
   | { a: 'addTeam'; name: string; color: string }
   | { a: 'assign'; playerId: PlayerId; teamId?: TeamId }
-  | { a: 'setGame'; id: string; options: Record<string, unknown> }
+  /** `keepScores` is the flow crossing a block boundary; a host switch resets. */
+  | { a: 'setGame'; id: string; options: Record<string, unknown>; keepScores?: boolean }
   | { a: 'setMirror'; on: boolean }
   | { a: 'openDuel'; rule: string }
   /** ids = host override (and the only path for resolve:'host' rules); absent = resolve by rule. */
   | { a: 'closeDuel'; playerIds?: [PlayerId, PlayerId] }
   | { a: 'cancelDuel' }
+  /** The builder writes the whole array: one edit, one undo step. Empty clears. */
+  | { a: 'setFlow'; blocks: FlowBlock[] }
+  | { a: 'flowJump'; at: number }
+  | { a: 'clearFlow' }
 
 export type ClientMsg =
   | { t: 'hello'; role: Role; playerId?: PlayerId; name?: string }
