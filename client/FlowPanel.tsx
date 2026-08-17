@@ -94,24 +94,27 @@ export function FlowPanel({
           return (
             <div key={i} class={i === state.flow?.at ? 'flow__block is-here' : 'flow__block'}>
               <span class="flow__n">{i + 1}</span>
-              <select
-                class="input"
-                value={b.game}
-                disabled={!idle}
-                onChange={(e) => {
-                  const id = (e.target as HTMLSelectElement).value
-                  const next = state.games.find((g) => g.id === id)
-                  if (!next) return
-                  edit(i, {
-                    game: id,
-                    options: defaultsOf(next),
-                  })
-                }}
-              >
-                {state.games.map((g) => (
-                  <option key={g.id} value={g.id}>{g.name}</option>
-                ))}
-              </select>
+              <label class="field">
+                Mode
+                <select
+                  class="input"
+                  value={b.game}
+                  disabled={!idle}
+                  onChange={(e) => {
+                    const id = (e.target as HTMLSelectElement).value
+                    const next = state.games.find((g) => g.id === id)
+                    if (!next) return
+                    edit(i, {
+                      game: id,
+                      options: defaultsOf(next),
+                    })
+                  }}
+                >
+                  {state.games.map((g) => (
+                    <option key={g.id} value={g.id}>{g.name}</option>
+                  ))}
+                </select>
+              </label>
 
               <label class="field">
                 Questions
@@ -171,24 +174,32 @@ export function FlowPanel({
                 />
               ))}
 
-              <span class="flow__spacer" />
-              <button class="btn btn--ghost" disabled={!idle || i === 0} onClick={() => move(i, -1)}>
-                ↑
-              </button>
-              <button
-                class="btn btn--ghost"
-                disabled={!idle || i === blocks.length - 1}
-                onClick={() => move(i, 1)}
-              >
-                ↓
-              </button>
-              <button
-                class="btn btn--ghost"
-                disabled={!idle}
-                onClick={() => write(blocks.filter((_, j) => j !== i))}
-              >
-                ×
-              </button>
+              <span class="flow__acts">
+                <button
+                  class="btn btn--ghost"
+                  title="Move up"
+                  disabled={!idle || i === 0}
+                  onClick={() => move(i, -1)}
+                >
+                  ↑
+                </button>
+                <button
+                  class="btn btn--ghost"
+                  title="Move down"
+                  disabled={!idle || i === blocks.length - 1}
+                  onClick={() => move(i, 1)}
+                >
+                  ↓
+                </button>
+                <button
+                  class="btn btn--ghost"
+                  title="Remove block"
+                  disabled={!idle}
+                  onClick={() => write(blocks.filter((_, j) => j !== i))}
+                >
+                  ×
+                </button>
+              </span>
             </div>
           )
         })

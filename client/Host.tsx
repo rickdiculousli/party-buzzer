@@ -289,89 +289,109 @@ export function Host() {
         </div>
       </section>
 
-      {/* Setup, not play. Folded away so the controls above stay the whole screen. */}
+      {/* Setup, not play. Folded away so the controls above stay the whole screen.
+          Four labelled blocks in the order a night is set up: what game, what
+          setlist, what room, who is in it. */}
       <details class="host__manage">
         <summary>
-          Game, players and teams · {state.games.find((g) => g.id === state.game.id)?.name} ·{' '}
+          Setup · {state.games.find((g) => g.id === state.game.id)?.name} ·{' '}
           {state.players.length} joined
         </summary>
 
         <GameSettings state={state} act={act} />
         <FlowPanel state={state} act={act} fire={fire} />
 
-        <label class="field" style={{ margin: 'var(--s3) 0' }}>
-          Teams mode
-          <input
-            type="checkbox"
-            checked={state.mode === 'teams'}
-            onChange={(e) =>
-              act({
-                a: 'setMode',
-                mode: (e.target as HTMLInputElement).checked ? 'teams' : 'solo',
-              })
-            }
-          />
-        </label>
-
-        <label class="field" style={{ margin: 'var(--s3) 0' }}>
-          Mirror question text to phones
-          <input
-            type="checkbox"
-            checked={state.mirrorFragments}
-            onChange={(e) =>
-              act({ a: 'setMirror', on: (e.target as HTMLInputElement).checked })
-            }
-          />
-        </label>
-
-        {state.mode === 'teams' && (
-          <button
-            class="btn"
-            onClick={() =>
-              act({
-                a: 'addTeam',
-                name: `Team ${state.teams.length + 1}`,
-                color: `var(--id-${(state.teams.length % 6) + 1})`,
-              })
-            }
-          >
-            Add team
-          </button>
-        )}
-
-        {state.players.map((p) => (
-          <div key={p.id} class="host__player">
-            <span class={p.connected ? 'lamp-dot is-on' : 'lamp-dot is-off'} />
-            <input
-              class="input"
-              value={p.name}
-              onChange={(e) =>
-                act({ a: 'rename', playerId: p.id, name: (e.target as HTMLInputElement).value })
-              }
-            />
-            {state.mode === 'teams' && (
-              <select
-                class="input"
-                value={p.teamId ?? ''}
+        <section>
+          <p class="eyebrow">Room</p>
+          {/* Teams mode and its Add team belong to each other; the mirror toggle
+              used to sit between them. */}
+          <div class="host__toggles">
+            <label class="field">
+              Teams mode
+              <input
+                type="checkbox"
+                checked={state.mode === 'teams'}
                 onChange={(e) =>
                   act({
-                    a: 'assign',
-                    playerId: p.id,
-                    teamId: (e.target as HTMLSelectElement).value || undefined,
+                    a: 'setMode',
+                    mode: (e.target as HTMLInputElement).checked ? 'teams' : 'solo',
+                  })
+                }
+              />
+            </label>
+            <label class="field">
+              Mirror question text to phones
+              <input
+                type="checkbox"
+                checked={state.mirrorFragments}
+                onChange={(e) => act({ a: 'setMirror', on: (e.target as HTMLInputElement).checked })}
+              />
+            </label>
+          </div>
+
+          {state.mode === 'teams' && (
+            <div class="host__minor">
+              {state.teams.map((t) => (
+                <span key={t.id} class="chip" style={{ borderLeft: `3px solid ${t.color}` }}>
+                  {t.name}
+                </span>
+              ))}
+              <button
+                class="btn"
+                onClick={() =>
+                  act({
+                    a: 'addTeam',
+                    name: `Team ${state.teams.length + 1}`,
+                    color: `var(--id-${(state.teams.length % 6) + 1})`,
                   })
                 }
               >
-                <option value="">No team</option>
-                {state.teams.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </select>
-            )}
-            <button class="btn btn--ghost" onClick={() => act({ a: 'kick', playerId: p.id })}>
-              Remove
-            </button>
-          </div>
-        ))}
+                Add team
+              </button>
+            </div>
+          )}
+        </section>
+
+        <section>
+          <p class="eyebrow">Players</p>
+          {state.players.length === 0 ? (
+            <p class="muted">Nobody has joined yet. The QR on the board is how they get in.</p>
+          ) : (
+            state.players.map((p) => (
+              <div key={p.id} class="host__player">
+                <span class={p.connected ? 'lamp-dot is-on' : 'lamp-dot is-off'} />
+                <input
+                  class="input"
+                  value={p.name}
+                  onChange={(e) =>
+                    act({ a: 'rename', playerId: p.id, name: (e.target as HTMLInputElement).value })
+                  }
+                />
+                {state.mode === 'teams' && (
+                  <select
+                    class="input"
+                    value={p.teamId ?? ''}
+                    onChange={(e) =>
+                      act({
+                        a: 'assign',
+                        playerId: p.id,
+                        teamId: (e.target as HTMLSelectElement).value || undefined,
+                      })
+                    }
+                  >
+                    <option value="">No team</option>
+                    {state.teams.map((t) => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                )}
+                <button class="btn btn--ghost" onClick={() => act({ a: 'kick', playerId: p.id })}>
+                  Remove
+                </button>
+              </div>
+            ))
+          )}
+        </section>
       </details>
     </main>
   )

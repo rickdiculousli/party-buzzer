@@ -480,8 +480,13 @@ Shortcuts never fire while focus is in an input, a select, or a
 wrong player is the mistake a host actually makes, and it was previously
 unrecoverable without hand-editing a score.
 
-Player and team management lives in a collapsed `<details>` because it is setup,
-not play. During a game the controls own the screen.
+Setup lives in a collapsed `<details>` because it is not play — during a game the
+controls own the screen. Inside, four eyebrow-labelled blocks in the order a
+night is actually set up: **Game**, **Flow**, **Room** (teams mode, the teams
+themselves, mirroring), **Players**. Every block carries an eyebrow and the panel
+spaces them itself, so no control inside it sets its own margin. Teams mode and
+Add team sit together under Room; a control separated from the switch that
+enables it reads as belonging to neither.
 
 ### Phone — one object in one hand
 
