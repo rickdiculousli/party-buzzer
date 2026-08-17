@@ -76,6 +76,8 @@ export async function withServer(fn: (url: string) => Promise<void>): Promise<vo
     statePath: join(dir, 'state.json'),
     revealMs: REVEAL,
     collectMs: COLLECT,
+    // No speech-to-text in tests: boot must never invoke swiftc.
+    transcribe: null,
     flowDir: join(dir, 'flows'),
   })
   try {

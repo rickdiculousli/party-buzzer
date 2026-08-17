@@ -190,6 +190,14 @@ export class Hub {
       round.fragments = [...(round.fragments ?? []), data]
     } else if (name === 'revealAnswer' && typeof data === 'string') {
       round.answer = data
+    } else if (name === 'judgeWindow') {
+      // The judge's offer to the locked-in leader. {} is the open-ended window:
+      // present means "offer push-to-talk", and only `until` carries a countdown.
+      const d = data as { until?: number } | undefined
+      if (d) round.judge = typeof d.until === 'number' ? { until: d.until } : {}
+      else delete round.judge
+    } else if (name === 'spoken') {
+      round.spoken = (data ?? undefined) as State['round']['spoken']
     } else if (name === 'reading') {
       // Display-only progress from the reader. Undefined clears it.
       this.state.reading = (data ?? undefined) as State['reading']

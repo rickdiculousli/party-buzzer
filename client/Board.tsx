@@ -278,6 +278,13 @@ export function Board() {
           the marks down in the first place.
         */}
         <div class="board__above">
+          {/* What was said, as the judge heard it — the award's evidence while
+              the points are up, and the whole story while a rebound runs. */}
+          {round.spoken && (
+            <p class={round.spoken.hit ? 'board__spoken is-hit' : 'board__spoken is-miss'}>
+              “{round.spoken.transcript || 'no answer'}”
+            </p>
+          )}
           {/* The payoff. Stays up until the next question is armed, because the
               room looks at the board after the host scores it, not before. */}
           {leader && round.award && <p class="board__award">+{round.award.points}</p>}

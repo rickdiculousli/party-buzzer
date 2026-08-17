@@ -63,6 +63,17 @@ export type Round = {
    * needs to outlive the button press that caused it.
    */
   award?: { name: string; points: number }
+  /**
+   * The judge's offer to the locked-in leader. Present means push-to-talk is
+   * live; `until` is the server-domain deadline, absent means the host ends a
+   * stall by hand. Swept with the next arm; ended by any verdict.
+   */
+  judge?: { until?: number }
+  /**
+   * What the locked-in player said and how it scored. Kept through a rebound —
+   * the room heard it — and cleared on the next arm.
+   */
+  spoken?: { name: string; transcript: string; hit: boolean }
   /** Question text revealed so far, in order. Stripped from player views. */
   fragments?: string[]
   /** Revealed after scoring, if a question pack supplied one. Stripped from player views. */
@@ -195,6 +206,8 @@ export type State = {
   /** Whether players see round.fragments. Off for quizbowl: reading a whole
    *  sentence at its start beats hearing it word by word. */
   mirrorFragments: boolean
+  /** Seconds a locked-in player has to speak before silence scores wrong. 0 = no timeout. */
+  answerWindowSec: number
   reading?: ReadingState
 }
 
@@ -206,6 +219,7 @@ export type HostAction =
   | { a: 'resetRound' }
   | { a: 'undo' }
   | { a: 'setValue'; value: number }
+  | { a: 'setAnswerWindow'; sec: number }
   | { a: 'setScore'; key: ScoreKey; score: number }
   | { a: 'rename'; playerId: PlayerId; name: string }
   | { a: 'kick'; playerId: PlayerId }

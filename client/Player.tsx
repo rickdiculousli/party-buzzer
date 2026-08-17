@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
+import type { JSX } from 'preact'
 import { useOpen, useSocket } from './useSocket.ts'
+import { Recorder } from './recorder.ts'
+import { encodeWav } from './wav.ts'
 import { colorForPlayer, eligibleForDuel, standings } from './ui.ts'
 import { Votes } from './Votes.tsx'
 import type { State } from '../shared/protocol.ts'
@@ -59,6 +62,27 @@ function StandingsDial({ state }: { state: State }) {
   )
 }
 
+/** The judge's deadline, counted down in whole seconds on the synced clock. */
+function TalkCountdown({
+  until,
+  capSec,
+  now,
+}: {
+  until: number
+  capSec: number
+  now: () => number
+}) {
+  const [, tick] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => tick((n) => n + 1), 200)
+    return () => clearInterval(id)
+  }, [until])
+  // Same rule as the arm countdown: clamp to the most it can ever be, because
+  // an unclamped one once read 1.7 trillion ms.
+  const left = Math.min(capSec * 1000, Math.max(0, until - now()))
+  return <span>{Math.ceil(left / 1000)}s</span>
+}
+
 export function Player() {
   const { state, playerId, connected, now, send } = useSocket('player')
   const [name, setName] = useState(() => localStorage.getItem('playerName') ?? '')
@@ -68,6 +92,13 @@ export function Player() {
   const returning = !!localStorage.getItem('playerId')
   const audio = useRef<AudioContext | null>(null)
   const wakeLock = useRef<WakeLockSentinel | null>(null)
+  const micOk = useRef(false)
+  const micStream = useRef<MediaStream | null>(null)
+  const recorder = useRef<Recorder | null>(null)
+  const [talking, setTalking] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
+  const dragY = useRef(0)
+  const capTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   // Hold the screen awake while playing; re-acquire after the tab is hidden.
   useEffect(() => {
@@ -177,6 +208,38 @@ export function Player() {
     blip(audio.current, 180, 260)
   }, [barred, ready])
 
+  // This phone is the locked-in leader and the judge is listening. Derived
+  // here, above the join guard, because the capture effect below is a hook.
+  const talk = !!mine && mine.deltaMs === 0 && round?.phase === 'LOCKED' && !!round?.judge
+
+  // The mic opens on lock-in and closes with the window.
+  useEffect(() => {
+    if (!talk || !micOk.current) return
+    let dead = false
+    const rec = new Recorder()
+    recorder.current = rec
+    void navigator.mediaDevices.getUserMedia({ audio: true }).then(async (stream) => {
+      if (dead) {
+        for (const t of stream.getTracks()) t.stop()
+        return
+      }
+      micStream.current = stream
+      await rec.start(stream)
+      if (dead) rec.stop()
+    })
+    return () => {
+      dead = true
+      // A stray cap timer would fire sendAnswer into the next window's recorder.
+      clearTimeout(capTimer.current)
+      recorder.current = null
+      rec.stop()
+      for (const t of micStream.current?.getTracks() ?? []) t.stop()
+      micStream.current = null
+      setTalking(false)
+      setCancelling(false)
+    }
+  }, [talk])
+
   // The join tap doubles as the gesture that unlocks audio on iOS.
   const join = () => {
     const trimmed = name.trim()
@@ -184,6 +247,16 @@ export function Player() {
     localStorage.setItem('playerName', trimmed)
     audio.current = new AudioContext()
     void audio.current.resume()
+    // Mic permission, asked once up front inside the same mandatory tap. The
+    // stream itself opens on lock-in — this is only the dialog, so that the
+    // first answer of the night is not spent staring at it.
+    void navigator.mediaDevices
+      ?.getUserMedia({ audio: true })
+      .then((s) => {
+        micOk.current = true
+        for (const t of s.getTracks()) t.stop()
+      })
+      .catch(() => {})
     send({ t: 'hello', role: 'player', name: trimmed })
     setReady(true)
   }
@@ -218,6 +291,55 @@ export function Player() {
     setPressedFor(round?.armedAt ?? 0)
     navigator.vibrate?.(60)
     blip(audio.current)
+  }
+
+  const MAX_ANSWER_MS = 6000
+
+  const sendAnswer = () => {
+    const rec = recorder.current
+    if (!rec) return
+    const { samples, rate } = rec.cut()
+    // A tap is not an answer; a tenth of a second of room tone would only
+    // transcribe to garbage and cost the player their neg.
+    if (samples.length < rate * 0.25) return
+    void fetch(`/answer?player=${playerId}`, {
+      method: 'POST',
+      body: encodeWav(samples, rate),
+    })
+  }
+
+  const talkDown = (e: JSX.TargetedPointerEvent<HTMLButtonElement>) => {
+    // Capture the pointer: the drag-down cancel leaves the button, and the
+    // move/up events still have to land here.
+    e.currentTarget.setPointerCapture(e.pointerId)
+    dragY.current = e.clientY
+    recorder.current?.mark()
+    setTalking(true)
+    setCancelling(false)
+    clearTimeout(capTimer.current)
+    capTimer.current = setTimeout(() => {
+      // Six seconds is plenty for a quizbowl answer; past that, send what
+      // there is rather than holding the round hostage to a stuck finger.
+      setTalking(false)
+      setCancelling(false)
+      sendAnswer()
+    }, MAX_ANSWER_MS)
+  }
+
+  const talkMove = (e: JSX.TargetedPointerEvent<HTMLButtonElement>) => {
+    if (talking) setCancelling(e.clientY - dragY.current > 60)
+  }
+
+  const talkUp = () => {
+    if (!talking) return
+    setTalking(false)
+    clearTimeout(capTimer.current)
+    if (cancelling) {
+      // Drag-down cancelled; hold again to redo. That is the re-record.
+      setCancelling(false)
+      return
+    }
+    sendAnswer()
   }
 
   const fireItem = (itemId: string, targetId?: string) => {
@@ -377,14 +499,33 @@ export function Player() {
         </div>
       )}
 
-      <button
-        class={`buzzer ${mood}`}
-        onPointerDown={buzz}
-        disabled={!open || barred || pressed || frozen || spectator}
-      >
-        {label}
-        {sub && <span class="buzzer__sub">{sub}</span>}
-      </button>
+      {talk ? (
+        <button
+          class={`buzzer is-first buzzer--talk${talking ? ' is-talking' : ''}${cancelling ? ' is-cancelling' : ''}`}
+          onPointerDown={talkDown}
+          onPointerMove={talkMove}
+          onPointerUp={talkUp}
+          onPointerCancel={talkUp}
+        >
+          {talking ? (cancelling ? 'Let go to cancel' : 'Let go to send') : 'Hold to answer'}
+          <span class="buzzer__sub">
+            {talking && !cancelling
+              ? 'drag down to cancel'
+              : round?.judge?.until
+                ? <TalkCountdown until={round.judge.until} capSec={state?.answerWindowSec ?? 0} now={now} />
+                : 'answer when ready'}
+          </span>
+        </button>
+      ) : (
+        <button
+          class={`buzzer ${mood}`}
+          onPointerDown={buzz}
+          disabled={!open || barred || pressed || frozen || spectator}
+        >
+          {label}
+          {sub && <span class="buzzer__sub">{sub}</span>}
+        </button>
+      )}
 
       {itemCounts.length > 0 && (
         <div class="player__items">

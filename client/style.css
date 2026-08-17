@@ -453,6 +453,13 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   color: #201a03;
   border-radius: var(--r-sm);
 }
+/* The judge's transcript: brass when it scored, tally-red when it did not. */
+.board__spoken {
+  margin: 0 0 var(--s2);
+  font-size: var(--t-lg);
+}
+.board__spoken.is-hit { color: var(--brass); }
+.board__spoken.is-miss { color: var(--tally); }
 /* The question assembling on the wall, spoken fragment by spoken fragment. */
 .board__question {
   font-family: var(--display);
@@ -607,6 +614,14 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .host__controls { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: stretch; }
 .host__controls .btn--major { flex: 1 1 12rem; }
 .host__minor { display: flex; gap: var(--s2); flex-wrap: wrap; }
+
+/* The judge's transcript: brass when it scored, tally-red when it did not. */
+.host__spoken {
+  margin: var(--s3) 0 0;
+  color: var(--dim);
+}
+.host__spoken.is-hit { color: var(--brass); }
+.host__spoken.is-miss { color: var(--tally); }
 
 .flow__io {
   display: flex;
@@ -768,6 +783,14 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .buzzer.is-first { background: var(--brass); border-color: var(--brass); color: #201a03; }
 .buzzer.is-placed { background: var(--raise); border-color: var(--tungsten); color: var(--tungsten); }
 .buzzer.is-barred { background: #1c1210; border-color: #3a221e; color: #9c6a5c; }
+
+/* The push-to-talk zone: the buzzer, re-purposed while the judge listens.
+   `.buzzer` already carries the 2px --rule border, so the swap never shifts.
+   touch-action: none — a page scroll claiming the gesture mid-hold fires
+   pointercancel, and pointercancel must never read as release (= send). */
+.buzzer--talk { touch-action: none; }
+.buzzer--talk.is-talking { border-color: var(--brass); }
+.buzzer--talk.is-cancelling { border-color: var(--tally); color: var(--dim); }
 
 /* The phone gets the filament too, so the go cue is felt before it is read. */
 .player__filament { width: 100%; }

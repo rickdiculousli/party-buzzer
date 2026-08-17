@@ -99,6 +99,12 @@ no partial update.
 - `server/reader.ts` — the question loop. Drives the hub through a synthetic
   host connection, so it uses the same messages a socket client would and the
   hub grows no reader API.
+- `server/judge.ts` — spoken answers while the reader drives. Opens a window
+  when a round locks with a leader, transcribes via `server/stt/stt.swift`
+  (swiftc-built at boot, on-device), fuzzy-matches against the pack's answer
+  variants (`server/match.ts`), and returns the verdict through a synthetic
+  host connection — undo and rebound apply unchanged. Primed answers live in
+  memory only, never in State.
 - `server/speech.ts` — `say` pre-rendered to cached clips, played by `afplay`.
   Pause is SIGSTOP; the power boundary stays event-driven so pausing cannot
   desynchronise it.
@@ -185,6 +191,9 @@ the mode, the teams and the assignments in one step, reusing a team of that name
 if the room already has one and leaving the mode alone if it is already teams —
 `setMode` drops an open duel, so re-sending it to add one late player would
 cancel the window you were about to watch.
+`speak:Name=transcript` POSTs the transcript as `text/plain` into the judge's
+verdict path, so a whole spoken round is one command; real audio is the
+checklist's.
 
 In teams mode a vote may only name someone on the voter's own side: the seat
 takes one player per team, so nominating across the line is choosing your
