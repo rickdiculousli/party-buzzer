@@ -32,6 +32,7 @@
  *   next             clear the round
  *   reset | undo     reset the round / undo the last host action
  *   act:name[:data]  host-scoped act (fragment / powerEnds / revealAnswer)
+ *   speak:A=text     A's transcript, POSTed as text/plain into the judge
  *   teams:R=A,B/S=C  teams mode, those teams, those players on them
  *   duel:vote        open a heads-up duel under that rule id
  *   in:A,B | out:A   volunteer / back off, from those players' own sockets
@@ -64,7 +65,7 @@ async function main() {
     // The header comment is the manual; printing a second copy is a second
     // thing to keep true.
     log('\n  usage: npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@120 correct')
-    log('  steps: loop join value arm buzz correct wrong next reset undo act teams duel in out vote unvote seat cancel wait clear')
+    log('  steps: loop join value arm buzz correct wrong next reset undo act speak teams duel in out vote unvote seat cancel wait clear')
     log('  walks: npm run walk-duel   npm run walk-teams\n')
     return
   }
@@ -126,7 +127,10 @@ async function main() {
   for (let pass = 1; ; pass++) {
     if (looping) log(`  ── pass ${pass}`)
     for (const step of steps) {
-      const [verb, arg = ''] = step.split(':')
+      // First colon only — an act's data can itself hold colons.
+      const sep = step.indexOf(':')
+      const verb = sep < 0 ? step : step.slice(0, sep)
+      const arg = sep < 0 ? '' : step.slice(sep + 1)
       log(`  ${step}`)
 
       switch (verb) {
@@ -212,6 +216,32 @@ async function main() {
           // unit tests; probe's players have no inventory of their own.
           const [name, ...rest] = arg.split(':')
           host.send({ t: 'act', act: name, data: rest.join(':') || undefined })
+          break
+        }
+
+        // speak:Ada=green mountain state — the transcript POSTed as text/plain,
+        // skipping STT, so a whole spoken round is one command. Quote the step:
+        // npm run probe -- 'speak:Ada=green mountain state'
+        case 'speak': {
+          const [name, ...rest] = arg.split('=')
+          const text = rest.join('=')
+          if (!name || !text) throw new Error('speak needs Name=transcript')
+          const conn = player(name)
+          // Wait for the judge's window rather than assuming the lock: the
+          // round must have locked with this player first and the judge primed.
+          await host.waitFor(
+            (s) =>
+              s.round.phase === 'LOCKED' &&
+              !!s.round.judge &&
+              s.round.order[0]?.playerId === conn.playerId,
+            10_000,
+          )
+          const res = await fetch(`${URL}/answer?player=${conn.playerId}`, {
+            method: 'POST',
+            headers: { 'content-type': 'text/plain' },
+            body: text,
+          })
+          log(`  → ${res.status}`)
           break
         }
 

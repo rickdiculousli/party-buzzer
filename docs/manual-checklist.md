@@ -107,3 +107,19 @@ thing to watch, and the two columns are what make it obvious.
       caches; a re-read is instant)
 - [ ] Mirror setting matches the game: off for quizbowl, on only if the room
       cannot see the board
+
+### Spoken answers
+
+- [ ] First boot with the judge: no `[stt]` warning; if a "Terminal wants
+      Speech Recognition" dialog appeared, it was accepted once
+- [ ] `npm run probe -- join:Ada,Bo act:selectPack:<pack> act:read wait:4000 buzz:Ada@0 'speak:Ada=<a real variant>'` — 200, transcript in brass on the board, points awarded
+- [ ] Same with a wrong transcript — tally red, docked, rebound arms
+- [ ] Real phone: join tap prompts for the mic once; lock in, hold to answer,
+      release sends; the board shows what it heard within a second
+- [ ] Drag down while holding cancels; nothing is sent, hold again to redo
+- [ ] Drag-down cancel while a scrollable page could claim the gesture: pointercancel must not send a partial answer
+- [ ] Answer window at 0: no countdown, and silence costs nothing until the
+      host presses W
+- [ ] Answer window at 5: say nothing — the lapse scores a wrong on its own
+- [ ] Host W mid-answer: the judge's late verdict does not double-dock
+- [ ] A machine mistake is one undo away: Z restores the pre-verdict state
