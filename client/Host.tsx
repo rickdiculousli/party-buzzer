@@ -143,6 +143,14 @@ export function Host() {
           </button>
         </div>
 
+        {/* What the locked-in player said, as the judge heard it. The verdict
+            itself is the award above; this is the evidence for the undo. */}
+        {round.spoken && (
+          <p class={round.spoken.hit ? 'host__spoken is-hit' : 'host__spoken is-miss'}>
+            “{round.spoken.transcript || 'no answer'}” — {round.spoken.name}
+          </p>
+        )}
+
         {state.packs.length > 0 && (
           <div class="host__reader">
             <label class="field">
@@ -161,6 +169,21 @@ export function Host() {
                   <option key={p} value={p}>{p}</option>
                 ))}
               </select>
+            </label>
+
+            <label class="field">
+              Answer window
+              <input
+                class="input input--num"
+                type="number"
+                min={0}
+                max={120}
+                value={state.answerWindowSec}
+                onInput={(e) =>
+                  act({ a: 'setAnswerWindow', sec: Number((e.target as HTMLInputElement).value) })
+                }
+              />
+              <span class="muted">sec · 0 = you end a stall by hand</span>
             </label>
 
             {state.reading?.rendering ? (

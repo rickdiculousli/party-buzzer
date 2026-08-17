@@ -600,6 +600,14 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .host__controls .btn--major { flex: 1 1 12rem; }
 .host__minor { display: flex; gap: var(--s2); flex-wrap: wrap; }
 
+/* The judge's transcript: brass when it scored, tally-red when it did not. */
+.host__spoken {
+  margin: var(--s3) 0 0;
+  color: var(--dim);
+}
+.host__spoken.is-hit { color: var(--brass); }
+.host__spoken.is-miss { color: var(--tally); }
+
 .host__reader {
   display: flex;
   align-items: center;
