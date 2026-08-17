@@ -732,7 +732,10 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .buzzer.is-barred { background: #1c1210; border-color: #3a221e; color: #9c6a5c; }
 
 /* The push-to-talk zone: the buzzer, re-purposed while the judge listens.
-   `.buzzer` already carries the 2px --rule border, so the swap never shifts. */
+   `.buzzer` already carries the 2px --rule border, so the swap never shifts.
+   touch-action: none — a page scroll claiming the gesture mid-hold fires
+   pointercancel, and pointercancel must never read as release (= send). */
+.buzzer--talk { touch-action: none; }
 .buzzer--talk.is-talking { border-color: var(--brass); }
 .buzzer--talk.is-cancelling { border-color: var(--tally); color: var(--dim); }
 
