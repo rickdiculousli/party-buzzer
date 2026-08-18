@@ -95,17 +95,24 @@ func transcribe(fromMs: Int, toMs: Int) -> String? {
     return out
 }
 
+/// Line out, right now. `print` is line-buffered on a terminal and block-
+/// buffered on a pipe, which is the only way this is ever run for real — the
+/// answer would sit in a 4KB buffer while the caller waited for it and we
+/// waited for the caller's next question. Both processes then idle forever at
+/// zero CPU, which is what a deadlock looks like from the outside.
+func emit(_ s: String) {
+    FileHandle.standardOutput.write("\(s)\n".data(using: .utf8)!)
+}
+
 if probeMode {
-    // Line in, line out, in order. stdout is flushed per line so the caller can
-    // pipeline without waiting for the process to end.
     while let line = readLine(strippingNewline: true) {
         let parts = line.split(separator: " ")
         guard parts.count == 2, let from = Int(parts[0]), let to = Int(parts[1]) else {
             FileHandle.standardError.write("bad probe: \(line)\n".data(using: .utf8)!)
-            print("")
+            emit("")
             continue
         }
-        print(transcribe(fromMs: from, toMs: to) ?? "")
+        emit(transcribe(fromMs: from, toMs: to) ?? "")
     }
     exit(0)
 }
