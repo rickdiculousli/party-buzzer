@@ -7,6 +7,7 @@ import { Hub } from './hub.ts'
 import { newState } from './state.ts'
 import { Reader } from './reader.ts'
 import type { Speech } from './speech.ts'
+import { ARM_LEAD_MS, COLLECT_MS } from '../shared/protocol.ts'
 
 /** Speech that plays instantly and records what it was asked to say. */
 function fakeSpeech(): Speech & { spoken: string[] } {
@@ -120,6 +121,59 @@ test('pause kills the clip and resume replays that fragment, not the next one', 
   reader.stop()
   await reader.settled()
   assert.deepEqual(speech.spoken[1], 'First fragment.', 'the same fragment again')
+})
+
+test('a buzz cuts the clip at once, and the rest of the clue is never read', async () => {
+  const { hub, reader, speech } = rig(PACK)
+  let stopped = 0
+  speech.play = (path) => {
+    speech.spoken.push(path.replace('/fake/', ''))
+    let end = () => {}
+    return { done: new Promise<void>((r) => (end = r)), stop: () => { stopped++; end() } }
+  }
+  await reader.select('one.txt')
+  reader.start()
+  while (speech.spoken.length < 1) await new Promise((r) => setTimeout(r, 5))
+
+  const host = { id: 'h', role: 'host' as const, send: () => {} }
+  hub.handle({ id: 'p', role: 'player', playerId: 'p1', send: () => {} }, { t: 'hello', role: 'player', name: 'Ada', playerId: 'p1' })
+  await new Promise((r) => setTimeout(r, ARM_LEAD_MS + 20))
+  hub.handle({ id: 'p', role: 'player', playerId: 'p1', send: () => {} }, { t: 'buzz', at: Date.now() })
+  assert.equal(stopped, 1, 'the voice is killed on the buzz itself, not a tick later')
+
+  // Judged correct: the second fragment must never be spoken.
+  await new Promise((r) => setTimeout(r, 40))
+  hub.handle(host, { t: 'host', action: { a: 'correct' } })
+  await new Promise((r) => setTimeout(r, 40))
+  assert.deepEqual(speech.spoken, ['First fragment.'], 'the clue stops where the buzz did')
+
+  reader.stop()
+  await reader.settled()
+})
+
+test('a wrong answer rebounds and the interrupted fragment is re-read', async () => {
+  const { hub, reader, speech } = rig(PACK)
+  speech.play = (path) => {
+    speech.spoken.push(path.replace('/fake/', ''))
+    let end = () => {}
+    return { done: new Promise<void>((r) => (end = r)), stop: () => end() }
+  }
+  await reader.select('one.txt')
+  reader.start()
+  while (speech.spoken.length < 1) await new Promise((r) => setTimeout(r, 5))
+
+  const host = { id: 'h', role: 'host' as const, send: () => {} }
+  const ada = { id: 'p', role: 'player' as const, playerId: 'p1', send: () => {} }
+  hub.handle(ada, { t: 'hello', role: 'player', name: 'Ada', playerId: 'p1' })
+  await new Promise((r) => setTimeout(r, ARM_LEAD_MS + 20))
+  hub.handle(ada, { t: 'buzz', at: Date.now() })
+  await new Promise((r) => setTimeout(r, COLLECT_MS + 30))
+  hub.handle(host, { t: 'host', action: { a: 'wrong', neg: 0 } })
+
+  while (speech.spoken.length < 2) await new Promise((r) => setTimeout(r, 5))
+  reader.stop()
+  await reader.settled()
+  assert.equal(speech.spoken[1], 'First fragment.', 'the cut fragment, from its start')
 })
 
 test('stop halts the loop and clears reading progress', async () => {

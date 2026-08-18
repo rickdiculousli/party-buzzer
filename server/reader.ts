@@ -56,7 +56,10 @@ export class Reader {
   }
 
   /** Called from the hub's onChange. Wakes anything waiting on a condition. */
-  onStateChange(_state: State): void {
+  onStateChange(state: State): void {
+    // A buzz cuts the voice mid-word. The room is answering now, and a reader
+    // who keeps talking over the buzz is giving away the rest of the clue.
+    if (state.round.phase !== 'ARMED') this.playback?.stop()
     for (const w of [...this.waiters]) w()
   }
 
@@ -197,8 +200,11 @@ export class Reader {
         this.hub.send(this.conn, { t: 'act', act: 'fragment', data: text })
         pushed += 1
         this.publish({})
-        await this.speak(text)
+        const finished = await this.speak(text)
         if (!this.running || !stillMine()) return
+        // Someone buzzed and the question was scored while they held the floor.
+        // The rest of the clue is not read out — the host judges from here.
+        if (!finished) break
         if (powerAfter > 0 && f + 1 === powerAfter) {
           this.hub.send(this.conn, { t: 'act', act: 'powerEnds' })
         }
@@ -224,28 +230,43 @@ export class Reader {
   /**
    * Speak one fragment, holding here for as long as the host keeps us paused.
    *
-   * There is no seek: pause kills the clip and resume replays the fragment from
-   * its start. That is the whole cost of the stutter-free pause, and it is the
-   * right behaviour anyway — a human reader interrupted mid-clause re-reads the
-   * clause rather than picking up mid-word.
+   * There is no seek: an interruption kills the clip and the fragment is
+   * replayed from its start. That is the whole cost of the stutter-free pause,
+   * and it is the right behaviour anyway — a human reader interrupted
+   * mid-clause re-reads the clause rather than picking up mid-word.
+   *
+   * Two things interrupt: the host's pause, and a buzz. A buzz holds here until
+   * the question either rebounds (wrong answer, ARMED again — the fragment is
+   * re-read) or is done with (returns false, and the caller stops reading it).
    */
-  private async speak(text: string): Promise<void> {
+  private async speak(text: string): Promise<boolean> {
     const path = this.clips.get(text)
-    if (!path) return
+    if (!path) return true
     while (this.running) {
       if (this.paused) {
         // publish() on resume is what wakes this.
         await this.until(() => !this.paused)
         continue
       }
+      if (this.buzzed()) {
+        await this.until((s) => s.round.phase === 'ARMED' || s.round.phase === 'IDLE')
+        if (!this.running || this.buzzed()) return false
+        continue
+      }
       const pb = this.speech.play(path)
       this.playback = pb
       await pb.done
       this.playback = undefined
-      // Not paused means the clip reached its end; paused means pause() killed
-      // it, so loop round and wait to say it again.
-      if (!this.paused) return
+      // An untouched clip reached its own end; otherwise pause() or a buzz
+      // killed it, so loop round and wait to say it again.
+      if (!this.paused && !this.buzzed()) return true
     }
+    return true
+  }
+
+  /** Somebody has the floor: collecting, locked, or already judged. */
+  private buzzed(): boolean {
+    return this.hub.state.round.phase !== 'ARMED'
   }
 
   /** Wait until the state satisfies a predicate, or the reader stops. */
