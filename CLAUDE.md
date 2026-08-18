@@ -44,9 +44,12 @@ script globs `'server/*.test.ts'` for a reason.
   strips the types, there is no server build step. Relative imports therefore
   carry `.ts` extensions, and `enum`, `namespace`, and constructor parameter
   properties are unavailable.
-- **No CDN, no remote assets, anywhere.** Party WiFi has no route to the
-  internet. Fonts are self-hosted in `client/public/fonts`; anything new must be
-  vendored the same way.
+- **No CDN, no remote assets, anywhere.** Nothing a surface renders may be
+  fetched at play time — party WiFi is somebody's guest network and a font that
+  hangs is a black screen mid-question. Fonts are self-hosted in
+  `client/public/fonts`; anything new must be vendored the same way.
+  The one thing that does reach the internet is `server/cert.ts`, at boot, and
+  it degrades to plain http when it cannot. See **The certificate** below.
 - **Runtime dependencies are exactly `ws` and `qrcode`.** Client is `preact`.
   Everything else is dev-only. Adding a runtime dependency is a decision, not a
   detail.
@@ -106,8 +109,9 @@ no partial update.
   host connection — undo and rebound apply unchanged. Primed answers live in
   memory only, never in State.
 - `server/speech.ts` — `say` pre-rendered to cached clips, played by `afplay`.
-  Pause is SIGSTOP; the power boundary stays event-driven so pausing cannot
-  desynchronise it.
+  Pause kills the clip and re-reads the fragment from its start, and so does a
+  buzz — the reader must not talk over the room. The power boundary stays
+  event-driven so neither can desynchronise it.
 - `server/packs.ts` — pack files on disk. `State` carries filenames only.
 
 ### The parts that are load-bearing
@@ -148,6 +152,31 @@ memory while a pack is loaded and never enters `State` — only fragments the ro
 has already heard. That is what keeps a phone from seeing ahead, and it is why
 the mirror is safe to offer at all.
 
+**The certificate.** Push-to-talk needs `getUserMedia`, which browsers refuse
+outside a secure context — and a plain-http LAN address is not one. They do not
+merely refuse it: `navigator.mediaDevices` is left *undefined*, so the request
+for mic permission never prompts and every failure downstream is silent. No CA
+will issue a certificate to `192.168.x.x`, so `server/cert.ts` uses the public
+workaround: `local-ip.sh` resolves `192-168-0-74.local-ip.sh` to that address
+and publishes a real Let's Encrypt wildcard for `*.local-ip.sh` along with its
+private key. Published key, so it is worthless against a man in the middle —
+but it buys a secure context with no interstitial and nothing to install on a
+guest's phone, and the threat model on a living-room LAN is nobody.
+
+Consequences worth knowing before changing any of it:
+
+- **The QR encodes the hostname, not the IP.** The certificate covers the name;
+  the raw address would not match it. `npm start` prints the IP url too, because
+  if local-ip.sh's DNS is down that url is the only way anyone joins at all.
+- **It is cached in `.cert/` and refetched within 7 days of expiry.** A normal
+  90-day certificate, so it turns over four times a year. No internet at boot
+  and no cache means plain http, which means no microphone — the banner says so
+  rather than leaving you to discover it mid-question.
+- **Tests and `e2e.ts` pass `tls: false`.** Boot must never touch the network.
+- **The tools find the server themselves** — `reachable()` in `tools/conn.ts`
+  tries the https loopback name (`127-0-0-1.local-ip.sh`, covered by the same
+  wildcard) and then plain http. `URL=` overrides.
+
 ### Client gotchas
 
 - `now()` is server-domain time. The offset is seeded from the device clock so
@@ -158,6 +187,11 @@ the mirror is safe to offer at all.
   round state above their `if (!state)` guard for this reason.
 - `pointerdown`, never `click`. The AudioContext only unlocks inside a user
   gesture, which is why the join tap is mandatory even for a returning phone.
+- **One AudioContext per page, and the join tap is where it is unlocked.** The
+  `Recorder` borrows it rather than building its own, because a context created
+  in an effect has no gesture to unlock it with — it starts `suspended`, and a
+  suspended context never runs its worklet, so `process()` is simply not called
+  and the recording is an empty buffer that gets dropped without a word.
 
 ## Verifying
 

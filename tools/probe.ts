@@ -55,11 +55,11 @@
  * instead of landing one after another.
  */
 import { setTimeout as sleep } from 'node:timers/promises'
-import { connect, type Conn } from './conn.ts'
+import { connect, reachable, type Conn } from './conn.ts'
 import { ARM_LEAD_MS, COLLECT_MS } from '../shared/protocol.ts'
 
 const args = process.argv.slice(2)
-const URL = process.env.URL ?? 'http://localhost:8080'
+const URL = process.env.URL ?? (await reachable())
 
 const log = (s = '') => console.log(s)
 

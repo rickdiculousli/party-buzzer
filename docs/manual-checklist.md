@@ -129,6 +129,9 @@ npm run walk-flow
       caches; a re-read is instant)
 - [ ] Mirror setting matches the game: off for quizbowl, on only if the room
       cannot see the board
+- [ ] A buzz cuts the voice mid-word — no trailing syllable, and the rest of the
+      clue is not read after a correct answer
+- [ ] A wrong answer re-reads the fragment the buzz cut, from its start
 
 ### Spoken answers
 
@@ -136,8 +139,15 @@ npm run walk-flow
       Speech Recognition" dialog appeared, it was accepted once
 - [ ] `npm run probe -- join:Ada,Bo act:selectPack:<pack> act:read wait:4000 buzz:Ada@0 'speak:Ada=<a real variant>'` — 200, transcript in brass on the board, points awarded
 - [ ] Same with a wrong transcript — tally red, docked, rebound arms
+- [ ] The banner's join URL is the `local-ip.sh` name, and a phone opens it with
+      no certificate warning — a warning screen means the wildcard lapsed
 - [ ] Real phone: join tap prompts for the mic once; lock in, hold to answer,
       release sends; the board shows what it heard within a second
+- [ ] **No prompt at all means no secure context** — check the phone is on the
+      `local-ip.sh` url and not the raw IP. On http the talk button is replaced
+      by "Say it out loud", which is the correct fallback, not a bug
+- [ ] Kill the wifi's internet and reboot the server with `.cert/` deleted: it
+      says it is serving http without a mic, and the room still plays
 - [ ] Drag down while holding cancels; nothing is sent, hold again to redo
 - [ ] Drag-down cancel while a scrollable page could claim the gesture: pointercancel must not send a partial answer
 - [ ] Answer window at 0: no countdown, and silence costs nothing until the

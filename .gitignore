@@ -16,6 +16,11 @@ client/public/sounds/demo-*
 # not a source artifact.
 server/stt/stt
 
+# The local-ip.sh wildcard, cached at boot and refetched near expiry. Public
+# key material by design, but it turns over every 90 days — checking it in
+# would just be committing something guaranteed to go stale.
+.cert/
+
 # Isolated workspaces and agent scratch. Neither belongs in the repo.
 .worktrees/
 .superpowers/

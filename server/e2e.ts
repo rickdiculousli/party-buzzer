@@ -78,6 +78,8 @@ export async function withServer(fn: (url: string) => Promise<void>): Promise<vo
     collectMs: COLLECT,
     // No speech-to-text in tests: boot must never invoke swiftc.
     transcribe: null,
+    // Nor fetch a certificate: boot must never touch the network either.
+    tls: false,
     flowDir: join(dir, 'flows'),
   })
   try {

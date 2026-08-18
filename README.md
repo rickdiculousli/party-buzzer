@@ -1,7 +1,8 @@
 # party-buzzer
 
 A LAN buzzer for quizbowl, pub trivia, and Jeopardy nights. Host runs one
-command; players join by scanning a QR code. No internet required.
+command; players join by scanning a QR code. The game itself is pure LAN —
+nothing a phone renders is fetched from anywhere but the host.
 
 ## Run it
 
@@ -18,6 +19,20 @@ window to the TV. `NO_OPEN=1 npm start` if you would rather they didn't.
 
 If several networks are detected, the server says which one it chose. Override
 with `HOST_IP=192.168.1.42 npm start`. Change the port with `PORT=9000`.
+
+### Why the join URL is a domain name
+
+It reads `https://192-168-0-74.local-ip.sh:8080` rather than the bare address.
+Spoken answers need microphone access, browsers only grant that on a secure
+origin, and no certificate authority will issue for a LAN IP. `local-ip.sh`
+resolves that name straight back to `192.168.0.74` and publishes a real
+certificate for it, so phones get https with no warning screen and nothing to
+install.
+
+That needs working DNS **once, at startup** — the certificate is then cached in
+`.cert/` and the game plays entirely on the LAN. Without it the server falls
+back to plain http and says so: everything works except the microphone, and
+players answer out loud for the host to judge.
 
 ## How a question runs
 
@@ -45,9 +60,11 @@ mode is set per session; switching resets scores and the board.
 Powers and fragments are driven by the host reading a question pack: put
 `.txt` packs in `packs/`, pick one on the host screen, and press Read. Picking
 a pack pre-renders every fragment to an audio clip, which takes a few seconds
-the first time and is cached after that. **Pause** stops the voice at once and
-resumes by re-reading the interrupted fragment from its start; buzzers stay
-live throughout, because the usual reason to pause is that someone interrupted.
+the first time and is cached after that. A buzz cuts the voice mid-word and the rest of the clue is never read — a
+correct answer ends the question there, a wrong one rebounds and the
+interrupted fragment is re-read from its start. **Pause** does the same by
+hand; buzzers stay live throughout, because the usual reason to pause is that
+someone interrupted.
 Speech needs macOS (`say`, `afplay`); without it the fragments still appear,
 silently.
 

@@ -1,4 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
+import { createServer as createSecureServer } from 'node:https'
 import { readFile } from 'node:fs/promises'
 import { join, extname, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -11,6 +12,7 @@ import { Judge, type Transcribe } from './judge.ts'
 import { sttBinary, transcribe as sttTranscribe } from './stt.ts'
 import { render as renderClip } from './speech.ts'
 import { lanAddresses, pickAddress, banner, qrFor, qrSvg } from './net.ts'
+import { certHost, ensureCert } from './cert.ts'
 import type { ClientMsg } from '../shared/protocol.ts'
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
@@ -70,6 +72,8 @@ export async function startServer(opts: {
   /** Speech-to-text for the judge. Undefined builds the helper; null disables it. */
   transcribe?: Transcribe | null
   flowDir?: string
+  /** Serve https so phones get a secure context. False keeps tests off the network. */
+  tls?: boolean
 } = {}) {
   const port = opts.port ?? Number(process.env.PORT ?? 8080)
   const statePath = opts.statePath ?? join(ROOT, 'state.json')
@@ -119,7 +123,11 @@ export async function startServer(opts: {
 
   let joinUrl = ''
 
-  const http = createServer((req, res) => {
+  // Fetched before the server is built, because the certificate decides which
+  // kind of server it is. Null means http: the room still plays, without a mic.
+  const tls = (opts.tls ?? true) ? await ensureCert(join(ROOT, '.cert')) : null
+
+  const onRequest = (req: IncomingMessage, res: ServerResponse) => {
     if ((req.url ?? '').startsWith('/qr.svg')) {
       qrSvg(joinUrl).then(
         (svg) => res.writeHead(200, { 'content-type': 'image/svg+xml' }).end(svg),
@@ -154,7 +162,9 @@ export async function startServer(opts: {
       return
     }
     void serveStatic(req, res)
-  })
+  }
+
+  const http = tls ? createSecureServer(tls, onRequest) : createServer(onRequest)
 
   const wss = new WebSocketServer({ server: http, path: '/ws' })
 
@@ -186,10 +196,17 @@ export async function startServer(opts: {
 
   const actualPort = (http.address() as { port: number }).port
   const host = pickAddress(lanAddresses(), process.env.HOST_IP)
-  joinUrl = `http://${host}:${actualPort}`
+  // The certificate is for `*.local-ip.sh`, so the hostname has to be the one
+  // that resolves back to this address — the raw IP would not match it.
+  joinUrl = tls
+    ? `https://${certHost(host)}:${actualPort}`
+    : `http://${host}:${actualPort}`
 
   return {
     url: joinUrl,
+    /** The raw-IP url, which works whenever local-ip.sh's DNS does not. */
+    fallbackUrl: `http${tls ? 's' : ''}://${host}:${actualPort}`,
+    tls: !!tls,
     port: actualPort,
     hub,
     close: async () => {
@@ -215,18 +232,29 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
   console.log(banner(server.url, await qrFor(server.url)))
 
-  // The two screens the host always ends up opening by hand. Localhost rather
-  // than the LAN address: these are for the machine running the server, and the
-  // QR above is what everyone else scans. NO_OPEN=1 for a headless box, or when
-  // you are restarting the server every thirty seconds and do not want two more
-  // tabs each time.
+  // What the hostname buys and what it costs, in two lines, because both matter
+  // at the moment a phone will not join.
+  if (server.tls) {
+    console.log(`  Phones need this name, not the IP — it is what the certificate covers.`)
+    console.log(`  If it will not resolve, ${server.fallbackUrl} still plays (no mic).\n`)
+  } else {
+    console.log(`  No certificate: serving http, so phones cannot use the microphone.`)
+    console.log(`  Spoken answers need internet at startup to fetch one.\n`)
+  }
+
+  // The two screens the host always ends up opening by hand. NO_OPEN=1 for a
+  // headless box, or when you are restarting the server every thirty seconds
+  // and do not want two more tabs each time.
   if (!process.env.NO_OPEN) {
     const opener =
       process.platform === 'darwin' ? 'open'
       : process.platform === 'win32' ? 'start'
       : 'xdg-open'
+    // The join url rather than localhost: over https, `localhost` is not a name
+    // the certificate covers, so the host's own two tabs would open onto a
+    // warning interstitial.
     for (const path of ['/board', '/host'])
-      spawn(opener, [`http://localhost:${server.port}${path}`], {
+      spawn(opener, [`${server.url}${path}`], {
         stdio: 'ignore',
         detached: true,
         shell: process.platform === 'win32',

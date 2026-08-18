@@ -97,6 +97,8 @@ export function Player() {
   const recorder = useRef<Recorder | null>(null)
   const [talking, setTalking] = useState(false)
   const [cancelling, setCancelling] = useState(false)
+  /** Last send was too brief to transcribe. Cleared by the next hold. */
+  const [tooShort, setTooShort] = useState(false)
   const dragY = useRef(0)
   const capTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -214,7 +216,8 @@ export function Player() {
 
   // The mic opens on lock-in and closes with the window.
   useEffect(() => {
-    if (!talk || !micOk.current) return
+    const ctx = audio.current
+    if (!talk || !micOk.current || !ctx) return
     let dead = false
     const rec = new Recorder()
     recorder.current = rec
@@ -224,7 +227,7 @@ export function Player() {
         return
       }
       micStream.current = stream
-      await rec.start(stream)
+      await rec.start(stream, ctx)
       if (dead) rec.stop()
     })
     return () => {
@@ -237,6 +240,7 @@ export function Player() {
       micStream.current = null
       setTalking(false)
       setCancelling(false)
+      setTooShort(false)
     }
   }, [talk])
 
@@ -300,8 +304,14 @@ export function Player() {
     if (!rec) return
     const { samples, rate } = rec.cut()
     // A tap is not an answer; a tenth of a second of room tone would only
-    // transcribe to garbage and cost the player their neg.
-    if (samples.length < rate * 0.25) return
+    // transcribe to garbage and cost the player their neg. Say so on the button
+    // rather than dropping it — a send that vanishes silently is indisting-
+    // uishable from a broken mic, and the window is still open to try again.
+    if (samples.length < rate * 0.25) {
+      setTooShort(true)
+      return
+    }
+    setTooShort(false)
     void fetch(`/answer?player=${playerId}`, {
       method: 'POST',
       body: encodeWav(samples, rate),
@@ -316,6 +326,7 @@ export function Player() {
     recorder.current?.mark()
     setTalking(true)
     setCancelling(false)
+    setTooShort(false)
     clearTimeout(capTimer.current)
     capTimer.current = setTimeout(() => {
       // Six seconds is plenty for a quizbowl answer; past that, send what
@@ -499,7 +510,20 @@ export function Player() {
         </div>
       )}
 
-      {talk ? (
+      {talk && !micOk.current ? (
+        // No mic on this phone — denied, or the page is not on a secure origin,
+        // which is every plain-http LAN address. Offering a button that cannot
+        // record is worse than offering none: the player holds it, speaks, and
+        // watches the window lapse into a neg with nothing to explain why.
+        <div class="buzzer is-first buzzer--say">
+          Say it out loud
+          <span class="buzzer__sub">
+            {round?.judge?.until
+              ? <TalkCountdown until={round.judge.until} capSec={state?.answerWindowSec ?? 0} now={now} />
+              : 'the host is judging this one'}
+          </span>
+        </div>
+      ) : talk ? (
         <button
           class={`buzzer is-first buzzer--talk${talking ? ' is-talking' : ''}${cancelling ? ' is-cancelling' : ''}`}
           onPointerDown={talkDown}
@@ -507,13 +531,17 @@ export function Player() {
           onPointerUp={talkUp}
           onPointerCancel={talkUp}
         >
-          {talking ? (cancelling ? 'Let go to cancel' : 'Let go to send') : 'Hold to answer'}
+          {talking
+            ? (cancelling ? 'Let go to cancel' : 'Let go to send')
+            : (tooShort ? 'Hold a little longer' : 'Hold to answer')}
           <span class="buzzer__sub">
             {talking && !cancelling
               ? 'drag down to cancel'
-              : round?.judge?.until
-                ? <TalkCountdown until={round.judge.until} capSec={state?.answerWindowSec ?? 0} now={now} />
-                : 'answer when ready'}
+              : tooShort
+                ? 'that was too short to hear'
+                : round?.judge?.until
+                  ? <TalkCountdown until={round.judge.until} capSec={state?.answerWindowSec ?? 0} now={now} />
+                  : 'answer when ready'}
           </span>
         </button>
       ) : (

@@ -792,6 +792,14 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .buzzer--talk.is-talking { border-color: var(--brass); }
 .buzzer--talk.is-cancelling { border-color: var(--tally); color: var(--dim); }
 
+/* No mic on this phone: the same slab, but nothing to press. Dashed, because a
+   solid border on an inert surface reads as a button that stopped working. */
+.buzzer--say {
+  border-style: dashed;
+  color: var(--dim);
+  cursor: default;
+}
+
 /* The phone gets the filament too, so the go cue is felt before it is read. */
 .player__filament { width: 100%; }
 .player__lead-in { height: 6px; flex: none; }

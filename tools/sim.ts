@@ -18,7 +18,7 @@
  * Ctrl-C removes the bots on the way out, so your real game is left clean.
  */
 import { setTimeout as sleep } from 'node:timers/promises'
-import { connect, type Conn } from './conn.ts'
+import { connect, reachable, type Conn } from './conn.ts'
 import type { State } from '../shared/protocol.ts'
 
 const argv = process.argv.slice(2)
@@ -29,7 +29,7 @@ const positional = argv.filter((a, i) => a !== '--game' && i !== gi + 1)
 const [argRounds, argPace, argUrl] = positional
 const ROUNDS = Number(argRounds ?? process.env.ROUNDS ?? Infinity)
 const PACE = Number(argPace ?? process.env.PACE ?? 1)
-const URL = argUrl ?? process.env.URL ?? 'http://localhost:8080'
+const URL = argUrl ?? process.env.URL ?? (await reachable())
 
 /** Everything the eye needs time for is scaled by PACE; the buzzing is not. */
 const beat = (ms: number) => sleep(ms * PACE)

@@ -9,6 +9,30 @@
 import { setTimeout as sleep } from 'node:timers/promises'
 import type { ClientMsg, ServerMsg, State } from '../shared/protocol.ts'
 
+/**
+ * Where the tools look for a server, unless `URL=` says otherwise.
+ *
+ * The loopback spelling of the same name the phones use: `127-0-0-1.local-ip.sh`
+ * resolves to 127.0.0.1 and is covered by the wildcard the server serves, so it
+ * works against https without disabling verification. `npm start` falls back to
+ * plain http when it could not get a certificate — that is what the second
+ * entry is for, and why `reachable` tries them in order rather than picking one.
+ */
+export const URLS = ['https://127-0-0-1.local-ip.sh:8080', 'http://localhost:8080']
+
+/** The first of `URLS` with a server behind it. Saves every tool the same probe. */
+export async function reachable(): Promise<string> {
+  for (const url of URLS) {
+    try {
+      await fetch(`${url}/qr.svg`, { signal: AbortSignal.timeout(2500) })
+      return url
+    } catch {
+      // Next spelling. Both failing means no server, which `connect` reports.
+    }
+  }
+  return URLS[0]
+}
+
 export type Conn = {
   send: (msg: ClientMsg) => void
   state: () => State | null
