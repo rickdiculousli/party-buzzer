@@ -12,9 +12,10 @@ sounds/raw/
 # recipe that names one plays here and nowhere else.
 client/public/sounds/demo-*
 
-# Built by swiftc at server boot from server/stt/stt.swift — a machine binary,
-# not a source artifact.
+# Built by swiftc at server boot from the .swift beside them — machine
+# binaries, not source artifacts.
 server/stt/stt
+server/tts/tts
 
 # The local-ip.sh wildcard, cached at boot and refetched near expiry. Public
 # key material by design, but it turns over every 90 days — checking it in
