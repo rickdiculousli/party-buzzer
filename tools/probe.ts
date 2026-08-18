@@ -31,11 +31,20 @@
  *   wrong[:200]      dock the leader and lock them out, re-arming for a rebound
  *   next             clear the round
  *   reset | undo     reset the round / undo the last host action
+ *   pack:name.txt    pick a pack and wait out its synthesis
+ *   autoplay:on:4:2  autoplay on, payoff dwell, rebound pause (seconds)
+ *   rewind           forget where every pack got to, so a walkthrough repeats exactly
+ *   read             start the reader on the chosen pack or the block's
+ *   armed            wait for the buzzers to open — the reader arms, not you
+ *   game:trivia      pin the mode (resets scores, as a host mode switch does)
+ *   direct           drop any setlist — the one step that touches a flow probe did not set
  *   act:name[:data]  host-scoped act (fragment / powerEnds / revealAnswer)
  *   speak:A=text     A's transcript, POSTed as text/plain into the judge
  *   teams:R=A,B/S=C  teams mode, those teams, those players on them
- *   flow:t*2,q*1:v   setlist: mode*count blocks, a trailing :rule opens a duel
- *                    for the block it follows
+ *   flow:t*2@p.txt,q*1:v
+ *                    setlist: mode*count blocks, @pack the reader takes that
+ *                    block's questions from, a trailing :rule opens a duel for
+ *                    the block it follows
  *   jump:1           jump the flow to that block index
  *   duel:vote        open a heads-up duel under that rule id
  *   in:A,B | out:A   volunteer / back off, from those players' own sockets
@@ -68,8 +77,8 @@ async function main() {
     // The header comment is the manual; printing a second copy is a second
     // thing to keep true.
     log('\n  usage: npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@120 correct')
-    log('  steps: loop join value arm buzz correct wrong next reset undo act speak teams flow jump duel in out vote unvote seat cancel wait clear')
-    log('  walks: npm run walk-duel   npm run walk-teams   npm run walk-flow\n')
+    log('  steps: loop join value arm buzz correct wrong next reset undo pack game direct autoplay rewind read armed act speak teams flow jump duel in out vote unvote seat cancel wait clear')
+    log('  walks: npm run walk-duel   walk-teams   walk-flow   walk-read   walk-packs\n')
     return
   }
 
@@ -112,12 +121,20 @@ async function main() {
   const assigned = new Set<string>()
   let teamsAreOurs = false
   let flowIsOurs = false
+  let readIsOurs = false
+  let autoplayIsOurs = false
 
   const clear = () => {
-    // First: clearFlow is refused unless the round is IDLE. Resetting the
-    // round here, before anything IDLE-gated runs, is what makes a `clear`
-    // mid-question actually clear rather than leave the flow armed for the
-    // next `next`.
+    // The reader first: one still running would arm the next question straight
+    // back over the top of everything below, and autoplay would then walk the
+    // room on by itself while this function is still tidying up.
+    if (readIsOurs) host.send({ t: 'act', act: 'stopRead' })
+    if (autoplayIsOurs) {
+      host.send({ t: 'host', action: { a: 'setAutoplay', on: false, nextSec: 5, reboundSec: 2 } })
+    }
+    // Then the round: clearFlow is refused unless it is IDLE, so resetting here
+    // before anything IDLE-gated runs is what makes a `clear` mid-question
+    // actually clear rather than leave the flow armed for the next `next`.
     host.send({ t: 'host', action: { a: 'next' } })
     if (flowIsOurs) host.send({ t: 'host', action: { a: 'clearFlow' } })
     host.send({ t: 'host', action: { a: 'cancelDuel' } })
@@ -221,6 +238,81 @@ async function main() {
           host.send({ t: 'host', action: { a: 'undo' } })
           break
 
+        // pack:walk-a.txt — pick it and wait out the synthesis, so the step
+        // after this one is not racing a render that takes half a minute the
+        // first time it runs.
+        case 'pack': {
+          host.send({ t: 'act', act: 'selectPack', data: arg })
+          await host.waitFor((s) => s.reading?.pack === arg && !s.reading.rendering, 180_000)
+          readIsOurs = true
+          log(`  pack ${arg} (${host.state()?.reading?.qTotal} questions)`)
+          break
+        }
+
+        // autoplay:on:4:2 — on, four seconds on the payoff, two on a rebound.
+        case 'autoplay': {
+          const [on, next = '4', rebound = '2'] = arg.split(':')
+          host.send({
+            t: 'host',
+            action: {
+              a: 'setAutoplay',
+              on: on !== 'off',
+              nextSec: Number(next),
+              reboundSec: Number(rebound),
+            },
+          })
+          autoplayIsOurs = true
+          break
+        }
+
+        // game:trivia — pin the mode, because a walkthrough that scores 250 in
+        // one room and 200 in the next is not repeatable. Resets the scores,
+        // like the host's own mode switch does.
+        case 'game':
+          host.send({ t: 'host', action: { a: 'setGame', id: arg, options: {} } })
+          await host.waitFor((s) => s.game.id === arg, 3000)
+          break
+
+        // The one step that touches a setlist probe did not set: a direct-play
+        // script cannot run against a room in setlist mode, because the block
+        // is what names the pack. Destructive, and only ever asked for.
+        case 'direct':
+          host.send({ t: 'host', action: { a: 'clearFlow' } })
+          await host.waitFor((s) => !s.flow, 3000).catch(() => {})
+          break
+
+        // Forget where every pack got to, so a walkthrough starts from the same
+        // frame however the last one ended. Read normally resumes.
+        case 'rewind':
+          host.send({ t: 'act', act: 'rewindRead' })
+          break
+
+        case 'read':
+          host.send({ t: 'act', act: 'read' })
+          readIsOurs = true
+          // A reader with nothing to read stops immediately and says nothing,
+          // and the next `armed` then hangs for a minute on a question that is
+          // never coming. Name the cause here instead.
+          await host.waitFor((s) => !!s.reading?.running, 3000).catch(() => {
+            throw new Error(
+              'read did nothing — no pack is selected, or the setlist block the ' +
+                'room is on names none. `direct` first, or give the block a pack.',
+            )
+          })
+          break
+
+        // The reader arms, not you. Everything a buzz step measures is taken
+        // from the arm instant, so a scripted press against a read pack has to
+        // wait for the reader to get there first.
+        case 'armed':
+          // Generous, because a setlist renders every pack it names before its
+          // first question and the very first run on a machine is doing that
+          // from cold — minutes of `say`, once, and instant on every run after.
+          // `read` has already caught the common failure (nothing to read) in
+          // three seconds, so a long wait here only ever means a real stall.
+          await host.waitFor((s) => s.round.phase === 'ARMED', 300_000)
+          break
+
         case 'act': {
           // Host-scoped acts, the reader's channel: act:fragment:Some text,
           // act:powerEnds, act:revealAnswer:The answer. Item uses go through
@@ -294,15 +386,20 @@ async function main() {
           break
         }
 
-        // flow:trivia*3,quizbowl*2:vote  — mode*count, optionally :duelRule
+        // flow:trivia*3@walk-a.txt,quizbowl*2:vote — mode*count, optionally
+        // @pack for the reader to take that block's questions from, optionally
+        // :duelRule. Both suffixes are optional and either order of reading
+        // them is unambiguous: a pack name holds no colon and a rule id no @.
         case 'flow': {
           const blocks = arg.split(',').filter(Boolean).map((part) => {
             const [head, duel] = part.split(':')
-            const [game, count = '1'] = head.split('*')
+            const [spec, pack] = head.split('@')
+            const [game, count = '1'] = spec.split('*')
             return {
               game,
               options: {},
               count: Number(count),
+              ...(pack ? { pack } : {}),
               ...(duel ? { duel } : {}),
             }
           })

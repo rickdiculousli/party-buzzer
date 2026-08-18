@@ -1,0 +1,11 @@
+V: 200
+This element is the lightest of them all. / Its symbol is a single letter, H. / It is what the sun burns.
+A: hydrogen | H
+
+V: 300
+This ocean is the largest on Earth. / It touches both Asia and the Americas. / Magellan named it for its calm.
+A: the Pacific | Pacific Ocean | Pacific
+
+V: 400
+This planet is best known for its rings. / It is the sixth out from the sun. / Its largest moon is Titan.
+A: Saturn
