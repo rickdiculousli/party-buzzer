@@ -151,16 +151,17 @@ export function applyHostAction(state: State, action: HostAction): void {
       if (!leader || round.phase !== 'LOCKED') return
       const key = scoreKey(state, leader.playerId)
       const mod = moduleFor(state.game.id)
+      // Cleared first, stamped second: a penalty gets the award's mirror and it
+      // stays up through the rebound, where the next arm (or a correct) takes it
+      // down. The module owns its own penalty the way it owns its own payoff,
+      // so the clear has to happen before `onWrong`, not after it.
+      delete round.award
       if (mod.onWrong) {
         mod.onWrong(state, action.neg)
-        delete round.award
       } else {
         if (action.neg) bump(state, key, -action.neg)
         if (!round.lockedOut.includes(key)) round.lockedOut.push(key)
-        // A penalty gets the award's mirror: it stays up through the rebound,
-        // where the next arm (or a correct) takes it down.
         if (action.neg) round.award = { name: leader.name, points: -action.neg }
-        else delete round.award
       }
       // Rebound: reopen the buzzers for everyone not locked out. The question
       // is still live, so effects ride along under the new arm instant.

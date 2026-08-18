@@ -92,6 +92,9 @@ test('quizbowl wrong: configured neg, lockout, and an unpowered rebound', async 
     assert.equal(host.last.scores[amy.playerId], -50, 'the module neg wins over the button')
     assert.deepEqual(host.last.round.lockedOut, [amy.playerId])
     assert.equal(host.last.round.phase, 'ARMED', 'rebound')
+    // The module stamps its own penalty, the way it stamps its own payoff, and
+    // it rides the rebound so the room sees what the neg cost.
+    assert.deepEqual(host.last.round.award, { name: 'Amy', points: -50 })
 
     // The rebound is the same question: power has ended, so Bo's buzz is not
     // powered even though it is first.
@@ -101,6 +104,7 @@ test('quizbowl wrong: configured neg, lockout, and an unpowered rebound', async 
     host.send({ t: 'host', action: { a: 'correct' } })
     await sleep(60)
     assert.equal(host.last.scores[bo.playerId], 200, 'no power on a rebound')
+    assert.deepEqual(host.last.round.award, { name: 'Bo', points: 200 }, 'the payoff replaces it')
     // The grant machinery ran: someone holds an item now.
     assert.equal(Object.keys(host.last.items).length, 1)
 
