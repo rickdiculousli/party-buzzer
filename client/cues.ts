@@ -51,6 +51,165 @@ export const RECIPES = {
       "release": 40
     }
   ],
+  "type": [
+    {
+      "source": "noise",
+      "attack": 1,
+      "decay": 26,
+      "sustain": 0,
+      "hold": 0,
+      "release": 12,
+      "gain": 0.15,
+      "filter": {
+        "type": "highpass",
+        "freq": 2400
+      }
+    },
+    {
+      "source": "square",
+      "freq": 1900,
+      "freqTo": 1100,
+      "glide": "exp",
+      "attack": 1,
+      "decay": 20,
+      "sustain": 0,
+      "hold": 0,
+      "release": 10,
+      "gain": 0.05
+    }
+  ],
+  "award": [
+    {
+      "source": "sine",
+      "freq": 120,
+      "freqTo": 38,
+      "glide": "exp",
+      "attack": 2,
+      "decay": 190,
+      "sustain": 0,
+      "hold": 0,
+      "release": 60,
+      "gain": 1.035
+    },
+    {
+      "source": "noise",
+      "attack": 1,
+      "decay": 70,
+      "sustain": 0,
+      "hold": 0,
+      "release": 30,
+      "gain": 0.575,
+      "filter": {
+        "type": "lowpass",
+        "freq": 500
+      }
+    },
+    {
+      "source": "sine",
+      "freq": 90,
+      "freqTo": 40,
+      "glide": "exp",
+      "attack": 2,
+      "decay": 120,
+      "sustain": 0,
+      "hold": 0,
+      "release": 40,
+      "gain": 0.322,
+      "delay": 110
+    },
+    {
+      "source": "sine",
+      "freq": 880,
+      "attack": 20,
+      "decay": 900,
+      "sustain": 0,
+      "hold": 0,
+      "release": 500,
+      "gain": 0.253,
+      "delay": 260
+    },
+    {
+      "source": "sine",
+      "freq": 1318,
+      "attack": 16,
+      "decay": 750,
+      "sustain": 0,
+      "hold": 0,
+      "release": 420,
+      "gain": 0.115,
+      "delay": 300
+    }
+  ],
+  "penalty": [
+    {
+      "source": "sine",
+      "freq": 120,
+      "freqTo": 38,
+      "glide": "exp",
+      "attack": 2,
+      "decay": 190,
+      "sustain": 0,
+      "hold": 0,
+      "release": 60,
+      "gain": 1.035
+    },
+    {
+      "source": "noise",
+      "attack": 1,
+      "decay": 70,
+      "sustain": 0,
+      "hold": 0,
+      "release": 30,
+      "gain": 0.575,
+      "filter": {
+        "type": "lowpass",
+        "freq": 500
+      }
+    },
+    {
+      "source": "sine",
+      "freq": 90,
+      "freqTo": 40,
+      "glide": "exp",
+      "attack": 2,
+      "decay": 120,
+      "sustain": 0,
+      "hold": 0,
+      "release": 40,
+      "gain": 0.322,
+      "delay": 110
+    },
+    {
+      "source": "sawtooth",
+      "freq": 150,
+      "attack": 6,
+      "decay": 420,
+      "sustain": 0,
+      "hold": 0,
+      "release": 80,
+      "gain": 0.3,
+      "delay": 260,
+      "filter": {
+        "type": "lowpass",
+        "freq": 900
+      }
+    },
+    {
+      "source": "sawtooth",
+      "freq": 155,
+      "attack": 6,
+      "decay": 420,
+      "sustain": 0,
+      "hold": 0,
+      "release": 80,
+      "gain": 0.3,
+      "delay": 260,
+      "filter": {
+        "type": "lowpass",
+        "freq": 900
+      }
+    }
+  ],
   "leader": [
     {
       "source": {

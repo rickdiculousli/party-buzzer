@@ -75,7 +75,10 @@ export const quizbowl: GameModule = {
     // the module's configured neg wins over whatever the button said.
     state.scores[key] ??= 0
     const penalty = neg === 0 ? 0 : Number(state.game.options.neg ?? 0)
-    if (penalty) bump(state, key, -penalty)
+    if (penalty) {
+      bump(state, key, -penalty)
+      state.round.award = { name: leader.name, points: -penalty }
+    }
     if (state.game.options.bouncebacks !== false) {
       if (!state.round.lockedOut.includes(key)) state.round.lockedOut.push(key)
     }
