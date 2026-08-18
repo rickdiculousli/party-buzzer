@@ -23,7 +23,7 @@
 import { render } from 'preact'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { SCENARIOS, dialKey, recipeDials, type Dial } from './scenarios.tsx'
-import { play, prime, primeFile, unlock } from '../sound.ts'
+import { play, prime, primeFile, setDialled, unlock } from '../sound.ts'
 import { RECIPES, addLayer, getPath, removeLayer, setPath } from '../cues.ts'
 import { Layers } from './Layers.tsx'
 import { SoundList, usePreview } from './SoundList.tsx'
@@ -232,7 +232,12 @@ function Harness() {
   // Every cue this scenario fires. The draft, not the committed table, is what
   // the harness plays and draws — a sound tuned against the file while you
   // watch the slider would be tuning nothing.
-  const cues = [scenario.sound ?? []].flat()
+  const cues = [scenario.sound ?? [], scenario.tune ?? []].flat()
+
+  // Cues a component fires itself take no recipe argument; the draft is what
+  // they should sound like too, or the panel would tune one thing and play
+  // another.
+  useEffect(() => setDialled(draft), [draft])
 
   /**
    * The cue, on the same edge as the animation.

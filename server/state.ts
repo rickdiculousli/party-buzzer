@@ -153,9 +153,14 @@ export function applyHostAction(state: State, action: HostAction): void {
       const mod = moduleFor(state.game.id)
       if (mod.onWrong) {
         mod.onWrong(state, action.neg)
+        delete round.award
       } else {
         if (action.neg) bump(state, key, -action.neg)
         if (!round.lockedOut.includes(key)) round.lockedOut.push(key)
+        // A penalty gets the award's mirror: it stays up through the rebound,
+        // where the next arm (or a correct) takes it down.
+        if (action.neg) round.award = { name: leader.name, points: -action.neg }
+        else delete round.award
       }
       // Rebound: reopen the buzzers for everyone not locked out. The question
       // is still live, so effects ride along under the new arm instant.
@@ -163,7 +168,6 @@ export function applyHostAction(state: State, action: HostAction): void {
       round.armedAt = Date.now() + ARM_LEAD_MS
       round.order = []
       round.total = 0
-      delete round.award
       // Same: the verdict ended the window, but what was said rides the rebound.
       delete round.judge
       for (const e of state.effects) e.roundArmedAt = round.armedAt

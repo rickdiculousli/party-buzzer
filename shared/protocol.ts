@@ -60,7 +60,8 @@ export type Round = {
   /**
    * Set when a question has been scored, and cleared when the next one starts.
    * The board keeps the result up for as long as this is here — the payoff
-   * needs to outlive the button press that caused it.
+   * needs to outlive the button press that caused it. A penalized wrong
+   * answer stamps it negative, and it rides the rebound that follows.
    */
   award?: { name: string; points: number }
   /**

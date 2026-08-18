@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { useOpen, useSocket } from './useSocket.ts'
 import { colorForPlayer, lockedNames, standings, willSeat } from './ui.ts'
-import { markGap, playSpaced, prime, startBed, stopBed, unlock } from './sound.ts'
+import { markGap, play, playSpaced, prime, startBed, stopBed, unlock } from './sound.ts'
 import { Votes } from './Votes.tsx'
+import { Spoken } from './Spoken.tsx'
 import { COLLECT_MS, type BuzzEntry, type State } from '../shared/protocol.ts'
 
 type Mark = BuzzEntry & { lane: number }
@@ -151,7 +152,7 @@ export function Board() {
   useEffect(() => {
     const go = () => {
       unlock()
-      prime('stamp', 'leader')
+      prime('stamp', 'leader', 'award', 'penalty')
       setAudible(true)
     }
     document.addEventListener('pointerdown', go, { once: true })
@@ -229,6 +230,18 @@ export function Board() {
       playSpaced(i === 0 ? 'leader' : 'stamp')
   }, [buzzes])
 
+  /**
+   * The award's thud, fired the moment the points appear. Keyed on the award
+   * itself, so an undo-and-rejudge sounds again and a broadcast that changes
+   * nothing does not.
+   */
+  const award = state?.round.award
+  const awarded = useRef<typeof award>(undefined)
+  useEffect(() => {
+    if (award && award !== awarded.current) play(award.points < 0 ? 'penalty' : 'award')
+    awarded.current = award
+  }, [award])
+
   if (!state) return <main class="board"><p class="board__idle">Connecting</p></main>
 
   const { round } = state
@@ -281,19 +294,33 @@ export function Board() {
           {/* What was said, as the judge heard it — the award's evidence while
               the points are up, and the whole story while a rebound runs. */}
           {round.spoken && (
-            <p class={round.spoken.hit ? 'board__spoken is-hit' : 'board__spoken is-miss'}>
-              “{round.spoken.transcript || 'no answer'}”
+            <Spoken
+              prefix="board"
+              transcript={round.spoken.transcript}
+              hit={round.spoken.hit}
+            />
+          )}
+          {/* The payoff — or its mirror, a penalty stamped negative. Stays up
+              until the next question is armed, because the room looks at the
+              board after the host scores it, not before. A penalty's leader
+              is already gone to the rebound, so this gates on the award. */}
+          {round.award && (
+            <p class={round.award.points < 0 ? 'board__award is-neg' : 'board__award'}>
+              {round.award.points > 0 ? '+' : ''}
+              {round.award.points}
             </p>
           )}
-          {/* The payoff. Stays up until the next question is armed, because the
-              room looks at the board after the host scores it, not before. */}
-          {leader && round.award && <p class="board__award">+{round.award.points}</p>}
           {round.award && round.answer && <p class="board__answer">{round.answer}</p>}
         </div>
 
         <div class={leader ? 'board__mid' : 'board__mid board__mid--cue'}>
           {leader ? (
             <p class="board__hero">{leader.name}</p>
+          ) : round.award && round.award.points < 0 ? (
+            // A penalty keeps its name on stage through the rebound: the room
+            // reads the −400 against who it happened to. The filament and the
+            // live chip below still carry that the buzzers are open again.
+            <p class="board__hero">{round.award.name}</p>
           ) : state.duel && !state.duel.seated ? (
             <div class="board__noms">
               <p class="board__idle">Who plays?</p>
