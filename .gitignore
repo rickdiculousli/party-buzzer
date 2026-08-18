@@ -24,3 +24,5 @@ server/stt/stt
 # Isolated workspaces and agent scratch. Neither belongs in the repo.
 .worktrees/
 .superpowers/
+.claude/worktrees/
+.claude/settings.local.json
