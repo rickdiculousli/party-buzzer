@@ -5,8 +5,10 @@
  * source or the compiler every call degrades to null and the judge stays off,
  * the way speech.ts degrades to silence.
  */
+import { spawn } from 'node:child_process'
 import { existsSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import type { Probe } from './align.ts'
 import { run } from './speech.ts'
 
 /**
@@ -26,6 +28,54 @@ export async function sttBinary(dir: string): Promise<string | null> {
     }
   }
   return bin
+}
+
+/**
+ * A clip held open for questioning. The aligner asks one clip hundreds of
+ * ranges, and nine tenths of a one-shot run is process startup, so the process
+ * outlives the probe. Serial by construction: the bisection cannot ask its next
+ * question until this one is answered. Run whole questions concurrently to keep
+ * the machine busy — about four at once, past which the speech daemon
+ * serialises anyway.
+ */
+export function probeSession(bin: string, audioPath: string): {
+  probe: Probe
+  close(): void
+} {
+  const p = spawn(bin, ['--probe', audioPath])
+  p.stdout.setEncoding('utf8')
+
+  let buffered = ''
+  const waiting: ((line: string) => void)[] = []
+  p.stdout.on('data', (chunk: string) => {
+    buffered += chunk
+    let nl: number
+    while ((nl = buffered.indexOf('\n')) >= 0) {
+      const line = buffered.slice(0, nl)
+      buffered = buffered.slice(nl + 1)
+      waiting.shift()?.(line)
+    }
+  })
+  // A helper that dies mid-alignment must not hang the render: every question
+  // still queued gets an empty answer, which the aligner reads as "no word has
+  // finished" and turns into a fold at the end of the clip.
+  const drain = () => {
+    while (waiting.length) waiting.shift()?.('')
+  }
+  p.on('close', drain)
+  p.on('error', drain)
+
+  return {
+    probe: (fromMs, toMs) =>
+      new Promise<string[]>((resolve) => {
+        waiting.push((line) => resolve(line.split(/\s+/).filter(Boolean)))
+        p.stdin.write(`${Math.round(fromMs)} ${Math.round(toMs)}\n`)
+      }),
+    close: () => {
+      p.stdin.end()
+      p.kill()
+    },
+  }
 }
 
 /** One file in, one transcript out. Any failure is a null: the caller scores a miss. */
