@@ -25,6 +25,7 @@ import { COLLECT_MS } from '../../shared/protocol.ts'
 import type { Cue } from '../sound.ts'
 import { NUMERIC, type NumericField } from '../cues.ts'
 import { Votes } from '../Votes.tsx'
+import { Spoken } from '../Spoken.tsx'
 import type { Recipe } from '../synth.ts'
 
 /**
@@ -69,6 +70,12 @@ export type Scenario = {
    * event or two. Several are layers of one moment, fired together.
    */
   sound?: Cue | Cue[]
+  /**
+   * A cue the panel should show but the trigger should not fire, because the
+   * component fires it itself — `spoken` taps once per chunk as each lands,
+   * so a cue on `sound` would be one extra tap on top of the line's own.
+   */
+  tune?: Cue | Cue[]
   /** `lead` is the frame before the moment: everything but the new thing. */
   render: (lead: boolean) => preact.JSX.Element
 }
@@ -239,12 +246,32 @@ export const SCENARIOS: Scenario[] = [
       { var: '--strike-scale', label: 'From scale', min: 1, max: 3, step: 0.05, unit: '' },
       { var: '--strike-recoil', label: 'Recoil', min: 0.7, max: 1.1, step: 0.01, unit: '' },
     ],
-    // No cue. The award is silent until there is a sample that belongs to it —
-    // the third file turned out to be the welcome bed, which is music that runs
-    // rather than a sound that fires, and has no business on a moment.
+    sound: 'award',
     render: (lead) => (
       <Stage
         above={!lead && <p class="board__award">+400</p>}
+        mid={<p class="board__hero">Ada</p>}
+        below={<Timeline />}
+      />
+    ),
+  },
+  {
+    id: 'penalty',
+    label: 'The penalty',
+    note: 'A wrong answer that costs. Same stamp as the award, tally-red, and the room is already buzzing again below it.',
+    subject: '.board__award',
+    dials: [
+      { var: '--strike-dur', label: 'Strike', min: 80, max: 900, step: 10, unit: 'ms' },
+      { var: '--strike-scale', label: 'From scale', min: 1, max: 3, step: 0.05, unit: '' },
+      { var: '--strike-recoil', label: 'Recoil', min: 0.7, max: 1.1, step: 0.01, unit: '' },
+    ],
+    sound: 'penalty',
+    render: (lead) => (
+      // The frame the penalty belongs to: somebody answered. The board clears
+      // the name in the same broadcast that stamps the −400, but this is the
+      // stage the room reads the moment against.
+      <Stage
+        above={!lead && <p class="board__award is-neg">−400</p>}
         mid={<p class="board__hero">Ada</p>}
         below={<Timeline />}
       />
@@ -332,6 +359,28 @@ export const SCENARIOS: Scenario[] = [
             </ol>
           </div>
         }
+      />
+    ),
+  },
+  {
+    id: 'spoken',
+    label: 'The spoken verdict',
+    note: 'The judge has heard the leader and the transcript types itself out, a word or two a tap. The name and timeline are already up; only the line is new.',
+    subject: '.board__spoken',
+    dials: [
+      { var: '--type-chunk', label: 'Chunk pace', min: 60, max: 600, step: 10, unit: 'ms' },
+    ],
+    // Not `sound`: the taps are not one cue fired on the trigger but one per
+    // chunk, and Spoken fires them itself as each lands. `tune` puts the `type`
+    // recipe's layers and dials in the panel without a tap on the trigger.
+    tune: 'type',
+    render: (lead) => (
+      <Stage
+        above={
+          !lead && <Spoken prefix="board" transcript="the hundred years war" hit />
+        }
+        mid={<p class="board__hero">Ada</p>}
+        below={<Timeline />}
       />
     ),
   },

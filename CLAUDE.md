@@ -282,6 +282,28 @@ its own duration is tuning a copy of the CSS rather than the CSS. And never
 inline a number into an anchor keyframe: one the harness cannot reach is one
 nobody will tune.
 
+Bringing a new moment into the harness is four moves, and a moment is not
+done until all four are made:
+
+1. **The picture's numbers become custom properties** in `anim:tunables`. If
+   the animation is JS-driven rather than a keyframe (a `setInterval` reveal),
+   the number still lives there — read it with `parseTune` off the component's
+   *own element*, never `document.documentElement`: the harness applies dialled
+   values to its stage wrapper, and a property read at the root never sees them.
+   (`markGap` takes a scope for the same reason.)
+2. **The sound becomes a recipe** in `cue:recipes`, played with `play()` — not
+   a new sample, not a new playback path. Recipes are what the Sound panel can
+   show, and what Save can write back.
+3. **A scenario** in `client/anim/scenarios.tsx` renders the real component
+   inside its real container, with the lead-up frame holding everything but the
+   new thing, a `subject` naming the moment, and dials addressing the
+   properties from step 1 — never a number restated.
+4. **A cue the component fires itself** (per chunk, per step, anything other
+   than once on the trigger) goes on the scenario's `tune`, not its `sound`:
+   the panel shows the layers and dials, the trigger stays silent, and
+   `setDialled` makes the component's own `play()` calls follow the draft, so
+   what the taps sound like is what the panel says.
+
 The same page has a **Sound** panel. Cues named in `client/cues.ts` are
 synthesized rather than found: a recipe is a list of layers, each one source
 with an envelope, and the panel shows them as a DAW would — every layer of a

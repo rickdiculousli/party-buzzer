@@ -453,6 +453,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   color: #201a03;
   border-radius: var(--r-sm);
 }
+/* The penalty is the award's mirror: same stamp, tally-red. */
+.board__award.is-neg { background: var(--tally); color: #2a0704; }
 /* The judge's transcript: brass when it scored, tally-red when it did not. */
 .board__spoken {
   margin: 0 0 var(--s2);
@@ -1042,6 +1044,11 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   --cast-rise: 0.5em;
   --cast-flare-dur: 620ms;
   --cast-glow: 14px;
+
+  /* The spoken verdict typing itself out. Read by Spoken.tsx from JS, like
+     `--mark-stagger` is by sound.ts — the reveal is a timer, not a keyframe,
+     but its pace is a tunable all the same. */
+  --type-chunk: 120ms;
 
   /* No cue's sound lives here any more. A cue's gain, offset and envelope are
      fields on its layers in client/cues.ts, and the one cue still on the sample

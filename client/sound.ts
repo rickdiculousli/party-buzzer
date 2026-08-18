@@ -21,7 +21,7 @@
 import { recipeFor } from './cues.ts'
 import { onset, render, schedule, type Recipe } from './synth.ts'
 
-export type Cue = 'stamp' | 'leader' | 'welcome'
+export type Cue = 'stamp' | 'leader' | 'welcome' | 'type' | 'award' | 'penalty'
 
 /**
  * The sample path's files. A cue that is a recipe names its files in its
@@ -189,8 +189,18 @@ export function playRecipe(recipe: Recipe, rateScale = 1, offsetMs = 0): () => v
   return stop
 }
 
+/**
+ * The harness's dialled recipes, standing in for the committed ones. A cue a
+ * component fires itself (Spoken's per-chunk tap) takes no recipe argument,
+ * so this is how its sound follows the panel. Null outside the harness.
+ */
+let dialled: Record<string, Recipe> | null = null
+export function setDialled(recipes: Record<string, Recipe> | null): void {
+  dialled = recipes
+}
+
 export function play(cue: Cue, { rateScale = 1, offsetMs = 0, recipe }: PlayOpts = {}): void {
-  const r = recipe ?? recipeFor(cue)
+  const r = recipe ?? dialled?.[cue] ?? recipeFor(cue)
   if (r) {
     playRecipe(r, rateScale, offsetMs)
     return

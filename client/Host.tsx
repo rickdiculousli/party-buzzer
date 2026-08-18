@@ -4,6 +4,7 @@ import { colorForPlayer, standings } from './ui.ts'
 import { GameSettings } from './GameSettings.tsx'
 import { DuelPanel } from './DuelPanel.tsx'
 import { FlowPanel } from './FlowPanel.tsx'
+import { Spoken } from './Spoken.tsx'
 import type { HostAction, ScoreKey } from '../shared/protocol.ts'
 
 /**
@@ -174,9 +175,12 @@ export function Host() {
         {/* What the locked-in player said, as the judge heard it. The verdict
             itself is the award above; this is the evidence for the undo. */}
         {round.spoken && (
-          <p class={round.spoken.hit ? 'host__spoken is-hit' : 'host__spoken is-miss'}>
-            “{round.spoken.transcript || 'no answer'}” — {round.spoken.name}
-          </p>
+          <Spoken
+            prefix="host"
+            transcript={round.spoken.transcript}
+            hit={round.spoken.hit}
+            tail={` — ${round.spoken.name}`}
+          />
         )}
 
         {state.packs.length > 0 && (

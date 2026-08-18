@@ -12,6 +12,21 @@ export function colorFor(key: ScoreKey): string {
   return IDS[Math.abs(h) % IDS.length]
 }
 
+/**
+ * Words grouped for the typewriter reveal: mostly pairs, a single every third
+ * beat so the rhythm reads as a person typing rather than a metronome.
+ */
+export function chunks(text: string): string[] {
+  const words = text.split(/\s+/).filter(Boolean)
+  const out: string[] = []
+  for (let i = 0; i < words.length; ) {
+    const n = out.length % 3 === 0 ? 1 : 2
+    out.push(words.slice(i, i + n).join(' '))
+    i += n
+  }
+  return out
+}
+
 export type Standing = { key: ScoreKey; label: string; color: string; score: number }
 
 /** Whoever holds the score this game: teams in teams mode, players in solo. */
