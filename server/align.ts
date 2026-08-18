@@ -231,22 +231,44 @@ export function completed(src: string[], heard: string[]): number {
 const EPS_MS = 50
 
 /**
+ * How much audio to take before an interval starts. Cutting exactly at `loT`
+ * beheads whatever word was in progress, and a beheaded word is not recognised,
+ * so the count comes back short and every fold after it drifts late. The run-up
+ * carries the previous word — which we already know the identity of — so the
+ * transcript opens on something the matcher can lock onto instead of on a stub.
+ * Cost is linear in slice length and these slices are short, so this is a few
+ * milliseconds to buy back the resolution.
+ */
+const RUNUP_MS = 400
+
+/** The most words a run-up that long could plausibly have swept up. */
+const RUNUP_WORDS = 3
+
+/**
  * Times for every word boundary in the clip, by bisection on the oracle.
  *
  * `done[k]` is the moment the first k words are all finished — so it is both
  * the end of word k and the fold before word k+1, which is the boundary the
  * board actually needs.
  *
- * Each probe splits one interval into two independent ones, so the recursion
- * widens as it goes; a caller wanting the machine busy should run whole
- * questions concurrently rather than trying to parallelise inside one search.
+ * Two things make this cheap enough to run over a whole pack.
  *
- * ponytail: every probe transcribes from zero, so a probe late in a long
- * question re-reads the whole clip. Recognition runs ~50x realtime so this is
- * seconds per question, not minutes, and probing from the interval's own start
- * instead would risk clipping a word's onset and reporting it unfinished. If
- * pack load gets tiresome, pass `loK` down as a rolling anchor and transcribe
- * `[loT, mid]` against `src.slice(loK)`.
+ * Each interval is transcribed from its OWN start rather than from zero,
+ * against the words not yet accounted for. Probe cost is linear in the length
+ * of the slice and indifferent to where it begins — a 2s slice costs the same
+ * at 18s as at 0s, while a 20s slice costs seven times either — so probing
+ * from zero made every late probe re-read the whole question. Starting at
+ * `loT` can clip the onset of a word already in progress, which loses it from
+ * the transcript and places the fold later: the safe direction, so no margin
+ * is added to buy it back.
+ *
+ * And the search runs level by level rather than depth-first. Splitting an
+ * interval yields two that share nothing, so a whole level can be probed at
+ * once; a caller that supplies a `probe` backed by several helpers gets the
+ * depth of the search (~log2 of the clip over epsMs, so nine or ten rounds)
+ * instead of the count of its probes. That is what makes warming one question
+ * before the game starts worth doing — a pack can parallelise across
+ * questions, but the question the host is waiting on cannot.
  */
 export async function locate(
   j: Joined,
@@ -260,30 +282,55 @@ export async function locate(
   done[0] = 0
   exact[0] = true
 
-  const count = async (ms: number) => completed(src, await probe(0, ms))
+  type Span = { loT: number; hiT: number; loK: number; hiK: number }
+  let level: Span[] = [{ loT: 0, hiT: durationMs, loK: 0, hiK: src.length }]
 
-  const resolve = async (loT: number, hiT: number, loK: number, hiK: number) => {
-    if (hiK <= loK) return
-    if (hiT - loT <= epsMs) {
-      // Cannot separate them further. They all finish by hiT, which is the late
-      // end of the bracket and therefore the safe one.
-      for (let k = loK + 1; k <= hiK; k++) {
-        done[k] = hiT
-        exact[k] = hiK - loK === 1
+  while (level.length) {
+    const open: Span[] = []
+    for (const s of level) {
+      if (s.hiK <= s.loK) continue // no boundary in here to find
+      if (s.hiT - s.loT <= epsMs) {
+        // Cannot separate them further. They all finish by hiT, the late end of
+        // the bracket and therefore the safe one.
+        for (let k = s.loK + 1; k <= s.hiK; k++) {
+          done[k] = s.hiT
+          exact[k] = s.hiK - s.loK === 1
+        }
+        continue
       }
-      return
+      open.push(s)
     }
-    const mid = Math.round((loT + hiT) / 2)
-    // The oracle is monotonic in principle and approximately so in practice —
-    // endpointing can hold a short word back until its neighbour resolves.
-    // Clamping into the bracket keeps one odd answer from corrupting a range
-    // that two other probes already agreed on.
-    const c = Math.min(hiK, Math.max(loK, await count(mid)))
-    await resolve(loT, mid, loK, c)
-    await resolve(mid, hiT, c, hiK)
-  }
+    if (!open.length) break
 
-  await resolve(0, durationMs, 0, src.length)
+    const mids = open.map((s) => Math.round((s.loT + s.hiT) / 2))
+    const counts = await Promise.all(
+      open.map(async (s, i) => {
+        // Back up far enough to catch the word already in progress, so the
+        // transcript opens on a whole word rather than a half-syllable.
+        const from = Math.max(0, s.loT - RUNUP_MS)
+        const heard = await probe(from, mids[i])
+        // How far back the run-up actually reached depends on how fast the
+        // reader was going, so rather than assume it caught exactly one word,
+        // read the transcript from each plausible starting word and keep the
+        // reading that accounts for the most. They are all counts over the same
+        // transcript, so none can credit a word the audio did not contain.
+        let c = s.loK
+        for (let base = Math.max(0, s.loK - RUNUP_WORDS); base <= s.loK; base++) {
+          c = Math.max(c, base + completed(src.slice(base), heard))
+        }
+        // The oracle is monotonic in principle and approximately so in practice
+        // — endpointing can hold a short word back until its neighbour resolves
+        // — and clamping into the bracket keeps one odd answer from corrupting
+        // a range two other probes already agreed on.
+        return Math.min(s.hiK, Math.max(s.loK, c))
+      }),
+    )
+
+    level = open.flatMap((s, i) => [
+      { loT: s.loT, hiT: mids[i], loK: s.loK, hiK: counts[i] },
+      { loT: mids[i], hiT: s.hiT, loK: counts[i], hiK: s.hiK },
+    ])
+  }
 
   // A fold at `at` reveals every word starting before it — so its time is when
   // that many words have finished. Both lists are ascending, so this walks once

@@ -170,15 +170,20 @@ test('resync needs evidence, and a dropped word is not evidence of the next one'
   assert.equal(completed(src, ['alpha', 'zzzz', 'delta']), 1, 'and one is not two')
 })
 
-/** An oracle over a table of "word k finishes at ms", with no machine behind it. */
+/**
+ * An oracle over a table of "word k finishes at ms", with no machine behind it.
+ * A window contains the words that finished inside it, which is what the helper
+ * returns when asked for a range rather than a prefix.
+ */
 function oracle(text: string, endMs: number[]): { probe: Probe; calls: () => number } {
   const src = words(text).map((w) => w.word)
+  const doneBy = (ms: number) => endMs.filter((e) => e <= ms).length
   let calls = 0
   return {
     calls: () => calls,
-    probe: async (_from, to) => {
+    probe: async (from, to) => {
       calls++
-      return src.slice(0, endMs.filter((ms) => ms <= to).length)
+      return src.slice(doneBy(from), doneBy(to))
     },
   }
 }
@@ -214,10 +219,11 @@ test('an oracle that stutters cannot drag a fold earlier than its bracket', asyn
   let n = 0
   // Every third probe under-reports, the way endpointing holds a short word
   // back until its neighbour resolves.
-  const probe: Probe = async (_f, to) => {
-    const real = endMs.filter((ms) => ms <= to).length
+  const doneBy = (ms: number) => endMs.filter((e) => e <= ms).length
+  const probe: Probe = async (from, to) => {
+    const real = doneBy(to)
     n++
-    return src.slice(0, n % 3 === 0 ? Math.max(0, real - 1) : real)
+    return src.slice(doneBy(from), n % 3 === 0 ? Math.max(doneBy(from), real - 1) : real)
   }
 
   const folds = await locate(j, 3000, probe, 25)

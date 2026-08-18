@@ -78,6 +78,46 @@ export function probeSession(bin: string, audioPath: string): {
   }
 }
 
+/**
+ * Several sessions on one clip, handed out to whoever asks next. The aligner
+ * probes a whole level of its search at once, and a single session answers
+ * those one at a time; this is what turns the level into one round.
+ *
+ * Width past about four buys nothing — the speech daemon serialises beyond
+ * that however many processes ask — so the useful setting is small. Across a
+ * pack the same ceiling applies, which is why questions run concurrently at
+ * the same modest width rather than all at once.
+ */
+export function probePool(bin: string, audioPath: string, width = 4): {
+  probe: Probe
+  close(): void
+} {
+  const sessions = Array.from({ length: Math.max(1, width) }, () => probeSession(bin, audioPath))
+  const idle = [...sessions]
+  const queue: ((s: (typeof sessions)[number]) => void)[] = []
+
+  const take = () =>
+    new Promise<(typeof sessions)[number]>((resolve) => {
+      const free = idle.pop()
+      if (free) resolve(free)
+      else queue.push(resolve)
+    })
+
+  return {
+    probe: async (fromMs, toMs) => {
+      const s = await take()
+      try {
+        return await s.probe(fromMs, toMs)
+      } finally {
+        const next = queue.shift()
+        if (next) next(s)
+        else idle.push(s)
+      }
+    },
+    close: () => sessions.forEach((s) => s.close()),
+  }
+}
+
 /** One file in, one transcript out. Any failure is a null: the caller scores a miss. */
 export async function transcribe(bin: string, wavPath: string): Promise<string | null> {
   const { ok, stdout } = await run(bin, [wavPath])
