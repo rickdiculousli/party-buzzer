@@ -24,6 +24,19 @@ export function FlowPanel({
   const blocks = state.flow?.blocks ?? []
   const idle = state.round.phase === 'IDLE'
 
+  /**
+   * What a block asks for against what its pack can supply. Blocks sharing a
+   * pack share its questions, so the demand is counted across all of them —
+   * two blocks of five off an eight-question pack is short even though neither
+   * is on its own.
+   */
+  const demand = new Map<string, number>()
+  for (const b of blocks) {
+    if (b.pack) demand.set(b.pack, (demand.get(b.pack) ?? 0) + b.count)
+  }
+  const shortfall = (pack: string): number =>
+    Math.max(0, (demand.get(pack) ?? 0) - (state.packSizes[pack] ?? 0))
+
   const write = (next: FlowBlock[]) => act({ a: 'setFlow', blocks: next })
   const edit = (i: number, patch: Partial<FlowBlock>) =>
     write(blocks.map((b, j) => (j === i ? { ...b, ...patch } : b)))
@@ -51,6 +64,7 @@ export function FlowPanel({
   return (
     <section class="flow">
       <p class="eyebrow">Flow</p>
+
 
       <div class="flow__io">
         <select
@@ -146,6 +160,23 @@ export function FlowPanel({
               </label>
 
               <label class="field">
+                Pack
+                <select
+                  class="input"
+                  value={b.pack ?? ''}
+                  disabled={!idle}
+                  onChange={(e) =>
+                    edit(i, { pack: (e.target as HTMLSelectElement).value || undefined })
+                  }
+                >
+                  <option value="">You read it</option>
+                  {state.packs.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label class="field">
                 Duel
                 <select
                   class="input"
@@ -173,6 +204,13 @@ export function FlowPanel({
                   onChange={(v) => edit(i, { options: { ...b.options, [spec.key]: v } })}
                 />
               ))}
+
+              {b.pack && shortfall(b.pack) > 0 && (
+                <span class="flow__tally is-short">
+                  {b.pack} has {state.packSizes[b.pack] ?? 0} — the setlist asks it for{' '}
+                  {demand.get(b.pack)}. The reading stops when it runs out.
+                </span>
+              )}
 
               <span class="flow__acts">
                 <button

@@ -43,10 +43,13 @@ export class Reader {
   private opts: ReaderOpts
   private speech: Speech
   private conn: Conn
-  private questions: Question[] = []
+  /** Every pack loaded this session, by filename. A setlist may name several. */
+  private loaded = new Map<string, Question[]>()
+  /** Where each of them is up to, so a block returning to one picks up there. */
+  private pos = new Map<string, number>()
+  /** Clips are keyed by fragment text, so two packs sharing one share the clip. */
   private clips = new Map<string, string>()
   private pack = ''
-  private qIndex = 0
   private fragIndex = 0
   private paused = false
   private playback: Playback | undefined
@@ -74,18 +77,55 @@ export class Reader {
     return this.loop
   }
 
+  /** The pack being read right now, and how far into it we are. */
+  private get questions(): Question[] {
+    return this.loaded.get(this.pack) ?? []
+  }
+
+  private get qIndex(): number {
+    return this.pos.get(this.pack) ?? 0
+  }
+
+  private set qIndex(n: number) {
+    this.pos.set(this.pack, n)
+  }
+
+  /**
+   * Forget where every pack got to. Read normally resumes — stopping for the
+   * night and coming back should not lose your place — so this exists for the
+   * one caller that needs the opposite: a scripted walkthrough has to start
+   * from the same frame however the last run ended.
+   */
+  rewind(): void {
+    this.pos.clear()
+  }
+
+  /** The host picked a pack: stop, and start it from the top. */
   async select(name: string): Promise<void> {
     this.stop()
+    await this.ensure(name)
+    this.pack = name
+    this.qIndex = 0
+    this.fragIndex = 0
+    this.publish({})
+  }
+
+  /**
+   * Load and synthesise a pack if this session has not already. Packs stay in
+   * memory once rendered, which is what lets a setlist cross between them at a
+   * block boundary without a thirty-second stall in the middle of the night.
+   */
+  private async ensure(name: string): Promise<void> {
+    if (this.loaded.has(name)) return
     const { questions, errors } = loadPack(this.opts.packDir, name)
     for (const e of errors) console.warn(`[reader] ${name}: ${e}`)
     if (questions.length === 0) {
       throw new Error(`pack "${name}" has no valid questions`)
     }
-    this.questions = questions
-    this.pack = name
-    this.qIndex = 0
-    this.fragIndex = 0
-    this.clips.clear()
+    this.loaded.set(name, questions)
+    // Publishing needs a current pack to report against, and the first ensure
+    // of a session has none yet.
+    if (!this.pack) this.pack = name
 
     // Dedupe before rendering: two fragments with identical text would
     // otherwise land two workers on the same cache path at once, and
@@ -111,6 +151,14 @@ export class Reader {
 
   start(): void {
     if (this.running) return
+    // Read means read. A pack played to its end keeps its position past the
+    // last question — that is what makes a setlist stop there rather than wrap
+    // — so pressing Read is the boundary where every spent pack starts over.
+    // All of them, not just the current one: under a setlist the pack this
+    // press is about to reach is not necessarily the one it left off in.
+    for (const [name, questions] of this.loaded) {
+      if ((this.pos.get(name) ?? 0) >= questions.length) this.pos.set(name, 0)
+    }
     this.running = true
     this.paused = false
     // Flip the host screen to Pause the instant playback genuinely begins;
@@ -164,9 +212,37 @@ export class Reader {
     this.hub.send(this.conn, { t: 'act', act: 'reading', data: reading })
   }
 
+  /**
+   * Which pack the next question comes from. A setlist block names its own, so
+   * the reader follows the flow across pack boundaries; without a setlist it is
+   * whatever the host picked. Undefined means there is nothing to read — a
+   * spent setlist, or a block whose questions the host is reading aloud
+   * themselves — and the loop ends rather than reading the wrong pack.
+   */
+  private nextPack(): string | undefined {
+    const flow = this.hub.state.flow
+    if (!flow) return this.pack || undefined
+    return flow.blocks[flow.at]?.pack
+  }
+
   private async run(): Promise<void> {
-    for (; this.qIndex < this.questions.length && this.running; this.qIndex++) {
+    // Every pack the setlist names, rendered before the first question rather
+    // than at the block boundary where it would be thirty seconds of silence.
+    for (const b of this.hub.state.flow?.blocks ?? []) {
+      if (b.pack) await this.ensure(b.pack)
+      if (!this.running) return
+    }
+
+    while (this.running) {
+      const want = this.nextPack()
+      if (!want) break
+      if (want !== this.pack) {
+        await this.ensure(want)
+        if (!this.running) return
+        this.pack = want
+      }
       const q = this.questions[this.qIndex]
+      if (!q) break
       this.fragIndex = 0
       if (q.value !== undefined) {
         this.hub.send(this.conn, { t: 'host', action: { a: 'setValue', value: q.value } })
@@ -249,6 +325,16 @@ export class Reader {
       if (this.hub.state.round.award || deadAir) {
         this.hub.send(this.conn, { t: 'host', action: { a: 'next' } })
       }
+      // Done with this one. The `next` above may have rolled the setlist into a
+      // block with a different pack, which the top of the loop picks up.
+      this.qIndex += 1
+    }
+    // The pack is spent, so autoplay goes off with it. Leaving it on would hand
+    // the room back to a host whose next question advances itself out from
+    // under them; off, the game simply carries on by hand.
+    const auto = this.hub.state.autoplay
+    if (auto.on) {
+      this.hub.send(this.conn, { t: 'host', action: { ...auto, a: 'setAutoplay', on: false } })
     }
     this.stop()
   }

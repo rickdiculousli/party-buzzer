@@ -258,6 +258,120 @@ test('autoplay pauses before the clue picks up on a rebound', async () => {
   assert.equal(speech.spoken[1], 'First fragment.', 'then the cut fragment resumes')
 })
 
+test('the pack running out turns autoplay off, and leaves the dwells alone', async () => {
+  const { hub, state, reader } = rig('Only one.\nA: gold\n')
+  autoplay(hub, 0.1, 3)
+  await reader.select('one.txt')
+  reader.start()
+  await reader.settled()
+
+  assert.equal(state.autoplay.on, false, 'nothing advances itself after the last question')
+  assert.equal(state.autoplay.reboundSec, 3, 'the numbers survive for the next pack')
+  assert.equal(state.reading, undefined, 'and the reader is done')
+})
+
+test('a setlist reads each block from its own pack, and keeps each pack its place', async () => {
+  const packDir = mkdtempSync(join(tmpdir(), 'pb-reader-'))
+  writeFileSync(join(packDir, 'a.txt'), 'A one.\nA: a\n\nA two.\nA: a\n')
+  writeFileSync(join(packDir, 'b.txt'), 'B one.\nA: b\n')
+  const state = newState()
+  const hub = new Hub(state)
+  const speech = fakeSpeech()
+  const reader = new Reader(hub, { packDir, cacheDir: join(packDir, '.cache'), speech })
+  hub.setOnChange((s) => reader.onStateChange(s))
+
+  hub.handle({ id: 'h', role: 'host', send: () => {} }, {
+    t: 'host',
+    action: {
+      a: 'setFlow',
+      blocks: [
+        { game: 'trivia', options: {}, count: 1, pack: 'a.txt' },
+        { game: 'trivia', options: {}, count: 1, pack: 'b.txt' },
+        { game: 'trivia', options: {}, count: 1, pack: 'a.txt' },
+      ],
+    },
+  })
+  autoplay(hub, 0.1, 0)
+  reader.start()
+  await reader.settled()
+
+  // Block 3 returns to pack A and gets its second question, not its first.
+  assert.deepEqual(speech.spoken, ['A one.', 'B one.', 'A two.'])
+})
+
+test('a block with no pack ends the reading rather than reading the wrong one', async () => {
+  const { hub, reader, speech } = rig('One.\nA: gold\n\nTwo.\nA: silver\n')
+  hub.handle({ id: 'h', role: 'host', send: () => {} }, {
+    t: 'host',
+    action: {
+      a: 'setFlow',
+      blocks: [
+        { game: 'trivia', options: {}, count: 1, pack: 'one.txt' },
+        { game: 'trivia', options: {}, count: 1 },
+      ],
+    },
+  })
+  autoplay(hub, 0.1, 0)
+  reader.start()
+  await reader.settled()
+
+  assert.deepEqual(speech.spoken, ['One.'], 'it stopped at the block it cannot read')
+})
+
+test('Read after a pack is spent starts it again', async () => {
+  const { hub, reader, speech } = rig('Only one.\nA: gold\n')
+  autoplay(hub, 0.1, 0)
+  await reader.select('one.txt')
+  reader.start()
+  await reader.settled()
+  assert.deepEqual(speech.spoken, ['Only one.'])
+
+  reader.start()
+  while (speech.spoken.length < 2) await new Promise((r) => setTimeout(r, 5))
+  reader.stop()
+  await reader.settled()
+  assert.deepEqual(speech.spoken, ['Only one.', 'Only one.'], 'not a no-op button')
+})
+
+test('Read starts every spent pack over, not only the one it left off in', async () => {
+  const packDir = mkdtempSync(join(tmpdir(), 'pb-reader-'))
+  writeFileSync(join(packDir, 'a.txt'), 'A one.\nA: a\n')
+  writeFileSync(join(packDir, 'b.txt'), 'B one.\nA: b\n')
+  const state = newState()
+  const hub = new Hub(state)
+  const speech = fakeSpeech()
+  const reader = new Reader(hub, { packDir, cacheDir: join(packDir, '.cache'), speech })
+  hub.setOnChange((s) => reader.onStateChange(s))
+  hub.handle({ id: 'h', role: 'host', send: () => {} }, {
+    t: 'host',
+    action: {
+      a: 'setFlow',
+      blocks: [
+        { game: 'trivia', options: {}, count: 1, pack: 'a.txt' },
+        { game: 'trivia', options: {}, count: 1, pack: 'b.txt' },
+      ],
+    },
+  })
+  autoplay(hub, 0.1, 0)
+
+  reader.start()
+  await reader.settled()
+  assert.deepEqual(speech.spoken, ['A one.', 'B one.'])
+
+  // The run ended on b; a is spent too, and the setlist starts on it. Autoplay
+  // switched itself off when the reading ran out, so a second night turns it
+  // back on the same way the host would.
+  hub.handle({ id: 'h', role: 'host', send: () => {} }, { t: 'host', action: { a: 'flowJump', at: 0 } })
+  autoplay(hub, 0.1, 0)
+  reader.start()
+  await reader.settled()
+  assert.deepEqual(
+    speech.spoken,
+    ['A one.', 'B one.', 'A one.', 'B one.'],
+    'a second Read is the same night again, not a stall on a spent pack',
+  )
+})
+
 test('stop halts the loop and clears reading progress', async () => {
   const { state, reader } = rig(PACK)
   await reader.select('one.txt')

@@ -47,6 +47,15 @@ players answer out loud for the host to judge.
    player (or team) out, and reopens the buzzers for everyone else.
 4. **Next question** clears the lockouts.
 
+## Direct play or a setlist
+
+The host panel's Setup asks one question first, and shows only what the answer
+needs. **Direct play** is you picking the game and the pack and driving by hand.
+**Setlist** is a list of blocks, each carrying its own game, options, value,
+duel rule and pack — the room walks it a question at a time and the pickers
+disappear, because the block is what answers them. A block that names no pack
+is one you read aloud yourself.
+
 ## Game modes
 
 The host screen folds a Game section into "Game, players and teams": pick the

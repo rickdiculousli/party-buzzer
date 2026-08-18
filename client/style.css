@@ -632,6 +632,25 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .flow__io .input { flex: 1 1 10rem; min-width: 0; }
 .flow__io .btn { flex: none; }
 
+/* What the setlist asks for, against the pack that has to supply it. Tungsten
+   rather than tally: a short pack is something to notice before the night
+   starts, not something wrong with the room right now. */
+.flow__tally {
+  flex-basis: 100%;
+  color: var(--dim);
+  font-size: var(--t-sm);
+}
+.flow__tally.is-short { color: var(--tungsten); }
+
+/* The one choice that decides what the rest of setup may show. Two buttons
+   rather than a checkbox: neither is the default, and the pressed one is the
+   answer to a question the panel just asked. */
+.host__pick {
+  display: flex;
+  gap: var(--s3);
+  margin-bottom: var(--s2);
+}
+
 /* A block is a row, and rows on this surface sit on --panel behind a coloured
    left rule. Without the fill the fields read as loose form controls. */
 .flow__block {

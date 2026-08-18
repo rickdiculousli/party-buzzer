@@ -63,6 +63,14 @@ export function Host() {
   const judgeable = round.phase === 'LOCKED' && !!leader && !round.award
   judgeableRef.current = judgeable
 
+  // The night is run one of two ways, and the panel only ever offers one of
+  // them: freehand, where the host picks the game and the pack; or a setlist,
+  // where each block carries its own and the pickers would only fight it.
+  const setlist = !!state.flow
+  const block = state.flow?.blocks[state.flow.at]
+  // Something to read: the block's pack under a setlist, the chosen one without.
+  const readable = setlist ? !!block?.pack : !!state.reading?.pack
+
   return (
     <main class="host">
       <div class="host__bar">
@@ -179,96 +187,11 @@ export function Host() {
           </p>
         )}
 
+        {/* The transport only. Which pack, and how the reading behaves, are
+            setup and live below with the rest of it — what a host needs during
+            a question is play, pause and where we are. */}
         {state.packs.length > 0 && (
           <div class="host__reader">
-            <label class="field">
-              Pack
-              <select
-                class="input"
-                value={state.reading?.pack ?? ''}
-                disabled={round.phase !== 'IDLE'}
-                onChange={(e) => {
-                  const name = (e.target as HTMLSelectElement).value
-                  if (name) fire('selectPack', name)
-                }}
-              >
-                <option value="">Choose a pack…</option>
-                {state.packs.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-            </label>
-
-            <label class="field">
-              Answer window
-              <input
-                class="input input--num"
-                type="number"
-                min={0}
-                max={120}
-                value={state.answerWindowSec}
-                onInput={(e) =>
-                  act({ a: 'setAnswerWindow', sec: Number((e.target as HTMLInputElement).value) })
-                }
-              />
-              <span class="muted">sec · 0 = you end a stall by hand</span>
-            </label>
-
-            <label class="field">
-              Autoplay
-              <input
-                type="checkbox"
-                checked={state.autoplay.on}
-                onChange={(e) =>
-                  act({ ...state.autoplay, a: 'setAutoplay', on: (e.target as HTMLInputElement).checked })
-                }
-              />
-              <span class="muted">the reader presses N for you</span>
-            </label>
-
-            {state.autoplay.on && (
-              <>
-                <label class="field">
-                  Answer sits for
-                  <input
-                    class="input input--num"
-                    type="number"
-                    min={0}
-                    max={60}
-                    step={0.5}
-                    value={state.autoplay.nextSec}
-                    onInput={(e) =>
-                      act({
-                        ...state.autoplay,
-                        a: 'setAutoplay',
-                        nextSec: Number((e.target as HTMLInputElement).value),
-                      })
-                    }
-                  />
-                  <span class="muted">sec, then the next question arms</span>
-                </label>
-                <label class="field">
-                  Rebound pause
-                  <input
-                    class="input input--num"
-                    type="number"
-                    min={0}
-                    max={60}
-                    step={0.5}
-                    value={state.autoplay.reboundSec}
-                    onInput={(e) =>
-                      act({
-                        ...state.autoplay,
-                        a: 'setAutoplay',
-                        reboundSec: Number((e.target as HTMLInputElement).value),
-                      })
-                    }
-                  />
-                  <span class="muted">sec after a wrong answer, before the clue resumes</span>
-                </label>
-              </>
-            )}
-
             {state.reading?.rendering ? (
               <span class="chip chip--data">
                 Rendering {state.reading.rendering.done}/{state.reading.rendering.total}
@@ -280,18 +203,30 @@ export function Host() {
                     {state.reading.paused ? 'Resume' : 'Pause'}
                   </button>
                 ) : (
-                  <button class="btn btn--primary" onClick={() => fire('read')}>Read</button>
+                  <button class="btn btn--primary" disabled={!readable} onClick={() => fire('read')}>
+                    Read
+                  </button>
                 )}
                 <button class="btn btn--ghost" onClick={() => fire('stopRead')} disabled={!state.reading}>
                   Stop
                 </button>
-                {state.reading && (
+                {state.reading ? (
                   <span class="chip">
-                    Q{state.reading.qIndex + 1}/{state.reading.qTotal}
+                    {state.reading.pack} · Q{state.reading.qIndex + 1}/{state.reading.qTotal}
                     {state.reading.fragTotal > 0 &&
                       ` · fragment ${state.reading.fragIndex}/${state.reading.fragTotal}`}
                   </span>
+                ) : (
+                  !readable && (
+                    <span class="muted">
+                      {setlist ? 'This block names no pack — read it yourself' : 'No pack chosen'}
+                    </span>
+                  )
                 )}
+                {/* Autoplay changes what the room does without anyone touching
+                    it, so it is visible from the play surface, not only where
+                    it was switched on. */}
+                {state.autoplay.on && <span class="chip chip--armed">Autoplay</span>}
               </>
             )}
           </div>
@@ -367,17 +302,161 @@ export function Host() {
         </div>
       </section>
 
-      {/* Setup, not play. Folded away so the controls above stay the whole screen.
-          Four labelled blocks in the order a night is set up: what game, what
-          setlist, what room, who is in it. */}
+      {/* Setup, not play. Folded away so the controls above stay the whole
+          screen. How the night runs comes first, because it decides what the
+          rest of this panel is even allowed to show. */}
       <details class="host__manage">
         <summary>
-          Setup · {state.games.find((g) => g.id === state.game.id)?.name} ·{' '}
-          {state.players.length} joined
+          Setup · {setlist ? 'Setlist' : 'Direct play'} ·{' '}
+          {setlist
+            ? `${state.flow!.blocks.length} block${state.flow!.blocks.length === 1 ? '' : 's'}`
+            : state.games.find((g) => g.id === state.game.id)?.name}{' '}
+          · {state.players.length} joined
         </summary>
 
-        <GameSettings state={state} act={act} />
-        <FlowPanel state={state} act={act} fire={fire} />
+        <section>
+          <p class="eyebrow">How the night runs</p>
+          <div class="host__pick">
+            <button
+              class={setlist ? 'btn' : 'btn btn--primary'}
+              disabled={round.phase !== 'IDLE'}
+              onClick={() => act({ a: 'setFlow', blocks: [] })}
+            >
+              Direct play
+            </button>
+            <button
+              class={setlist ? 'btn btn--primary' : 'btn'}
+              disabled={round.phase !== 'IDLE'}
+              onClick={() =>
+                setlist ||
+                act({
+                  a: 'setFlow',
+                  blocks: [
+                    {
+                      game: state.game.id,
+                      options: state.game.options,
+                      count: 5,
+                      pack: state.reading?.pack ?? state.packs[0],
+                    },
+                  ],
+                })
+              }
+            >
+              Setlist
+            </button>
+          </div>
+          <p class="muted">
+            {setlist
+              ? 'Each block carries its own game and pack. Switching to direct play discards the setlist.'
+              : 'You pick the game and the pack, and drive the night by hand.'}
+          </p>
+        </section>
+
+        {setlist ? (
+          <FlowPanel state={state} act={act} fire={fire} />
+        ) : (
+          <>
+            <GameSettings state={state} act={act} />
+            {state.packs.length > 0 && (
+              <section>
+                <p class="eyebrow">Pack</p>
+                <select
+                  class="input"
+                  value={state.reading?.pack ?? ''}
+                  disabled={round.phase !== 'IDLE'}
+                  onChange={(e) => {
+                    const name = (e.target as HTMLSelectElement).value
+                    if (name) fire('selectPack', name)
+                  }}
+                >
+                  <option value="">Choose a pack…</option>
+                  {state.packs.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </section>
+            )}
+          </>
+        )}
+
+        {/* Reading behaviour, not the reading itself — true of whichever way
+            the night is running, so it sits outside the choice above. */}
+        {state.packs.length > 0 && (
+          <section>
+            <p class="eyebrow">Reading</p>
+            <div class="host__toggles">
+              <label class="field">
+                Answer window
+                <input
+                  class="input input--num"
+                  type="number"
+                  min={0}
+                  max={120}
+                  value={state.answerWindowSec}
+                  onInput={(e) =>
+                    act({ a: 'setAnswerWindow', sec: Number((e.target as HTMLInputElement).value) })
+                  }
+                />
+                <span class="muted">sec · 0 = you end a stall by hand</span>
+              </label>
+
+              <label class="field">
+                Autoplay
+                <input
+                  type="checkbox"
+                  checked={state.autoplay.on}
+                  onChange={(e) =>
+                    act({ ...state.autoplay, a: 'setAutoplay', on: (e.target as HTMLInputElement).checked })
+                  }
+                />
+                <span class="muted">the reader presses N for you</span>
+              </label>
+
+              {state.autoplay.on && (
+                <>
+                  <label class="field">
+                    Answer sits for
+                    <input
+                      class="input input--num"
+                      type="number"
+                      min={0}
+                      max={60}
+                      step={0.5}
+                      value={state.autoplay.nextSec}
+                      onInput={(e) =>
+                        act({
+                          ...state.autoplay,
+                          a: 'setAutoplay',
+                          nextSec: Number((e.target as HTMLInputElement).value),
+                        })
+                      }
+                    />
+                    <span class="muted">sec, then the next question arms</span>
+                  </label>
+                  <label class="field">
+                    Rebound pause
+                    <input
+                      class="input input--num"
+                      type="number"
+                      min={0}
+                      max={60}
+                      step={0.5}
+                      value={state.autoplay.reboundSec}
+                      onInput={(e) =>
+                        act({
+                          ...state.autoplay,
+                          a: 'setAutoplay',
+                          reboundSec: Number((e.target as HTMLInputElement).value),
+                        })
+                      }
+                    />
+                    <span class="muted">sec after a wrong answer, before the clue resumes</span>
+                  </label>
+                </>
+              )}
+            </div>
+          </section>
+        )}
 
         <section>
           <p class="eyebrow">Room</p>

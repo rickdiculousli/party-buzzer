@@ -102,6 +102,9 @@ export function sanitizeBlocks(
       options: typeof b.options === 'object' && b.options !== null ? b.options : {},
       count: Math.min(99, Math.max(1, Number.isFinite(count) ? Math.round(count) : 1)),
     }
+    // The pack is only a filename here; the reader is what discovers it does
+    // not exist, and says so the same way a hand-typed selectPack would.
+    if (typeof b.pack === 'string' && b.pack) block.pack = b.pack
     if (typeof b.value === 'number' && Number.isFinite(b.value)) block.value = b.value
     if (b.duel) block.duel = b.duel
     out.push(block)

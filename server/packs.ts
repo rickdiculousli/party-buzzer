@@ -23,6 +23,23 @@ export function listPacks(dir: string): string[] {
   }
 }
 
+/**
+ * How many questions each pack holds. A count, not content — it is what lets
+ * the setlist builder say a block asks for more than its pack can supply,
+ * which is the one thing about a pack worth knowing before you read it.
+ */
+export function packSizes(dir: string, names: string[]): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const name of names) {
+    try {
+      out[name] = loadPack(dir, name).questions.length
+    } catch {
+      out[name] = 0 // unreadable here is unreadable at Read time too
+    }
+  }
+  return out
+}
+
 export function loadPack(dir: string, name: string): { questions: Question[]; errors: string[] } {
   // The name arrives from a host message, so it is untrusted input naming a
   // path. A name that is not already its own basename is trying to traverse.

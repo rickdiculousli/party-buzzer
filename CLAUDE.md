@@ -20,6 +20,8 @@ npm run sim        # synthetic self-play against a running server
 npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@140 correct   # one scripted round
 npm run walk-duel / walk-teams      # the two paced duel walkthroughs, ~1 min each
 npm run walk-flow  # the paced setlist walkthrough, ~1 min
+npm run walk-read  # a pack read by the box, autoplay driving it, ~1 min
+npm run walk-packs # a setlist crossing two packs and back, ~2 min
 npm run motion     # the animation harness at /anim.html (dev only)
 npm run fakes -- add [n] / remove   # fake players with fake scores (ids fake-01..fake-99)
 npm run demo-sounds [clean]         # synthesized stand-ins so the sound library has entries
@@ -33,7 +35,9 @@ node --test --test-name-pattern="slow packet" 'server/*.test.ts'
 ```
 
 `node --test server/` (a bare directory) does not work on Node 26 — the npm
-script globs `'server/*.test.ts'` for a reason.
+script globs, and it globs five places, not one: `server/`, `server/modes/`,
+`client/`, `shared/`, `tools/`. Anything you run by hand against `server/*`
+alone skips the cue, waveform, protocol and library tests.
 
 **`npm start` serves `dist/`.** A client change is invisible until you
 `npm run build`. Server changes need the process restarted; there is no watch.
@@ -78,9 +82,16 @@ no partial update.
 - `server/state.ts` — `applyHostAction` (the round state machine) and the
   debounced snapshot to `state.json`.
 - `server/resolve.ts` — pure. Turns raw buzzes into a ranked order.
-- `server/modes/` — game modules. `GameModule` hooks (scoring, power, item
-  grants) are all optional; `trivia` defines none and is today's game.
-  Modes are fixed per session; `setGame` switches and resets.
+- `server/modes/` — game modules; the `GameModule` type itself lives in
+  `shared/modes/types.ts`, and `client/modes/` is where one may override a whole
+  surface. Hooks (scoring, power, item grants) are all optional; `trivia`
+  defines none and is today's game. A module has no mid-session lifecycle — no
+  start/stop hooks, no event bus — so switching games means a `setGame` reset,
+  which is exactly what a flow block does at its boundary (with `keepScores`).
+
+  **Two different things are called "mode".** `setMode` is solo vs teams.
+  `setGame` is the module. They are unrelated switches; say game or module when
+  you mean the second one.
 - `server/items.ts` — framework-level boons/sabotage (freeze, shield, steal),
   fired by players over the `act` channel and validated before they apply.
 - `server/duel.ts` — heads-up duels (two-player face-offs). Framework-level,
@@ -90,7 +101,10 @@ no partial update.
   which is the whole rebound mechanic.
 - `server/flow.ts` — the game flow: an ordered setlist of blocks. It advises
   and never arms — entering a block applies its setup and stops, so the host
-  still arms, judges and moves on.
+  still arms, judges and moves on. A block also names its own pack, which the
+  flow itself does nothing with: the reader reads `flow.blocks[at].pack` off
+  State each question, so crossing a block boundary switches packs without a
+  new action or a hook.
 - `server/flows.ts` — saved flows on disk, filenames in `State` like `packs`.
 - `server/index.ts` — HTTP + WebSocket, serves `dist/`, routes `/`, `/host`,
   `/board` to the same SPA shell.
@@ -101,10 +115,24 @@ no partial update.
 - `tools/sim.ts` — bots that play real questions over real sockets.
 - `server/reader.ts` — the question loop. Drives the hub through a synthetic
   host connection, so it uses the same messages a socket client would and the
-  hub grows no reader API. `state.autoplay` turns its two waits-on-the-host
-  into dwells — the payoff's N and the beat before a rebound resumes — and
-  passes a question nobody buzzed, which is the only way the loop can be left
-  unattended. The judgment itself is never automated here; that is the judge's.
+  hub grows no reader API. It holds every pack a session touches in memory at
+  once, with a read position per pack, which is what lets a setlist cross
+  between packs and come back to one where it left off; a setlist's packs are
+  all rendered before its first question, never at the boundary.
+  `state.autoplay` is a record, not a switch —
+  `{on, nextSec, reboundSec}` — and turns its two waits-on-the-host into dwells
+  of host-set length: the payoff's N and the beat before a rebound resumes. It
+  also passes a question nobody buzzed, which is the only way the loop can be
+  left unattended. The judgment itself is never automated here; that is the
+  judge's.
+
+  **It holds several packs at once.** Every pack read this session stays
+  rendered in memory with its own position, so a setlist whose blocks name
+  different packs (`FlowBlock.pack`) crosses between them at a block boundary
+  with no thirty-second synthesis stall mid-night, and a block returning to an
+  earlier pack picks up where it left off. Clips are keyed by fragment text, so
+  two packs sharing a line share the clip. Selecting a pack by hand still
+  starts it from the top.
 - `server/judge.ts` — spoken answers while the reader drives. Opens a window
   when a round locks with a leader, transcribes via `server/stt/stt.swift`
   (swiftc-built at boot, on-device), fuzzy-matches against the pack's answer
@@ -116,6 +144,19 @@ no partial update.
   buzz — the reader must not talk over the room. The power boundary stays
   event-driven so neither can desynchronise it.
 - `server/packs.ts` — pack files on disk. `State` carries filenames only.
+- `server/stt.ts` — spawns the Swift helper, one process per answer, and
+  degrades to null (judge off) when the source or `swiftc` is missing.
+- `server/net.ts` — LAN address discovery and the QR, filtering out docker
+  bridges and VPN tunnels so the printed url is the party WiFi's.
+- `client/{synth,peaks,wav,recorder}.ts` — the sound stack the harness below is
+  a UI for. `synth` is cues-as-data and splits at the only seam that matters
+  (`schedule` is arithmetic and testable in Node, `render` is WebAudio);
+  `peaks` reduces a waveform to one min/max pair per pixel column; `wav`
+  encodes mono 16-bit PCM because the browser codec lottery has no winner and
+  SFSpeech reads WAV directly; `recorder` is buffered push-to-talk capture.
+- `tools/sndlib.ts` — the pure half of the sound-library middleware: path
+  safety, name rules, and exactly what ffmpeg gets told. Touches no disk, which
+  is what keeps the Vite plugin over it a thin shell.
 
 ### The parts that are load-bearing
 
@@ -175,7 +216,9 @@ Consequences worth knowing before changing any of it:
   90-day certificate, so it turns over four times a year. No internet at boot
   and no cache means plain http, which means no microphone — the banner says so
   rather than leaving you to discover it mid-question.
-- **Tests and `e2e.ts` pass `tls: false`.** Boot must never touch the network.
+- **Boot must never touch the network from a test.** `e2e.ts` is the one caller
+  that passes `tls: false`; the unit tests never boot a server at all, driving
+  `Hub` directly. Anything new that does start one inherits the obligation.
 - **The tools find the server themselves** — `reachable()` in `tools/conn.ts`
   tries the https loopback name (`127-0-0-1.local-ip.sh`, covered by the same
   wildcard) and then plain http. `URL=` overrides.
@@ -249,6 +292,22 @@ retype: **`npm run walk-duel`** is ten players trading a nomination lead through
 switches and withdrawals until it changes hands twice, **`npm run walk-teams`**
 is the same in teams mode, where the seat has to reach past a same-team runner-up
 and a wrong answer locks out a whole side. Both end in a `clear`.
+
+**`npm run walk-read`** and **`npm run walk-packs`** are the reading pair, and
+the only walkthroughs where the box drives: the first is one pack under
+autoplay through a buzz that cuts the voice, a rebound, dead air and the pack
+running out; the second is a setlist crossing two packs and coming back to the
+first mid-pack. They read from `packs/walk-a.txt` and `packs/walk-b.txt`, which
+exist for them — short, and answer variants on every question.
+
+Both are repeatable rather than merely re-runnable, which took three things:
+`rewind` (the reader's read positions are per pack and survive a Stop, so a
+walkthrough has to forget them on purpose), `game:` (a mode left in quizbowl
+scores 250 where trivia scores 200), and `direct` (a direct-play script cannot
+run in a room that is in setlist mode). The scores are asserted in
+`docs/manual-checklist.md` — the same three numbers every run, or something
+moved.
+
 `docs/manual-checklist.md` says what to watch for in each.
 
 `join:Name` borrows a player of that name if one is already in the room (a
@@ -317,3 +376,19 @@ binary invoked through `child_process`; it is not and must not become an npm
 dependency.
 
 Before a real game night, walk `docs/manual-checklist.md`.
+
+## How to report back
+
+The repo is past the size where reviewing it line by line is worth anyone's
+time. Report outcomes, not diffs: what now works, what changed behaviourally,
+what you verified and how, and anything that needs a decision. Don't paste code
+blocks to explain a change already made, don't narrate the edit sequence, and
+don't walk through implementation choices that have no consequence outside the
+file. Name files and symbols so a change can be found; the code itself is in the
+diff.
+
+Exceptions, and they're real: show the code when the choice is genuinely a
+judgement call and you want it made at the top, when a snippet is the shortest
+honest way to say what a change does, or when asked. A tradeoff worth
+surfacing is worth the paragraph — the rule is against narration, not against
+substance.

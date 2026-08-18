@@ -145,6 +145,8 @@ export type FlowBlock = {
   options: Record<string, unknown>
   /** Questions in this block. */
   count: number
+  /** Pack the reader takes them from. Absent = nothing to read; you read it. */
+  pack?: string
   /** Round value for the block. Absent = leave whatever the host set. */
   value?: number
   /** Duel rule id, opened before every question in the block. */
@@ -216,6 +218,8 @@ export type State = {
   flows: string[]
   /** Pack filenames on disk. Filenames only — question content never enters State. */
   packs: string[]
+  /** Questions per pack. A count is not content, and the builder needs it. */
+  packSizes: Record<string, number>
   /** Whether players see round.fragments. Off for quizbowl: reading a whole
    *  sentence at its start beats hearing it word by word. */
   mirrorFragments: boolean

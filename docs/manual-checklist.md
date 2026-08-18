@@ -118,6 +118,44 @@ npm run walk-flow
 - [ ] Saving, clearing and loading the same flow returns the same blocks
 - [ ] `clear` leaves the room with no flow
 
+### Reading itself — `npm run walk-read`
+
+Three players, one pack, autoplay on. Nobody presses N all run. The first
+question is buzzed mid-clue, the second is missed and rebounds, and the third
+is one nobody touches at all.
+
+```bash
+npm run walk-read
+```
+
+- [ ] The voice **stops mid-word** on the buzz — no trailing syllable, and the
+      rest of that clue is never read after the correct answer
+- [ ] The payoff sits for four seconds and the next question arms itself
+- [ ] After the wrong answer there are three silent seconds before the clue
+      picks back up, from the start of the fragment the buzz cut
+- [ ] Nobody buzzes the third question: it reveals its answer and passes
+- [ ] The pack runs out, **autoplay switches itself off**, and the room is left
+      playable by hand
+- [ ] Scores end Ada 200, Bo −100, Cy 300 — the same three numbers every run
+
+### Two packs in one setlist — `npm run walk-packs`
+
+Five questions across three blocks and two packs: trivia from A, two quizbowl
+from B, then back to A. Nothing is read twice.
+
+```bash
+npm run walk-packs
+```
+
+- [ ] The mode changes at each block boundary and the standings survive it
+- [ ] The pack changes with it, and there is **no pause at the boundary** — both
+      were synthesised before question one
+- [ ] Block 3 returns to pack A and continues it: question two, not question one
+- [ ] The flow ends, the reader stops, and `clear` leaves no setlist and no
+      players behind
+- [ ] Run it twice back to back. The second run is identical to the first —
+      that is `rewind` doing its job
+
 ### Left over from either
 
 - [ ] Both finalists missing says so on the board rather than reading "Buzz"
@@ -139,6 +177,16 @@ npm run walk-flow
       before the voice starts again
 - [ ] Autoplay off: nothing advances without your N — the check that the dwells
       cannot leak into a hand-driven game
+- [ ] The pack running out switches autoplay off by itself, and the room still
+      plays by hand from there
+- [ ] A block asking for more questions than its pack holds says so in amber on
+      that block, and is still allowed to be built
+- [ ] Setup offers Direct play or Setlist and never both sets of controls: no
+      Game or Pack picker under a setlist, no Flow panel under direct play
+- [ ] A setlist whose blocks name two different packs reads each from its own,
+      with no pause at the boundary — both were rendered before question one
+- [ ] A block returning to an earlier pack continues it rather than restarting
+- [ ] A block naming no pack stops the reading and hands you the question
 
 ### Spoken answers
 

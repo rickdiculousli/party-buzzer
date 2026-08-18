@@ -4,7 +4,7 @@ import { applyHostAction, buzzBlockReason, lockedPlayerIds } from './state.ts'
 import { catalog, moduleFor } from './modes/index.ts'
 import { useItem } from './items.ts'
 import { duelAct, duelCatalog } from './duel.ts'
-import { listPacks } from './packs.ts'
+import { listPacks, packSizes } from './packs.ts'
 import { listFlows, readFlow, writeFlow } from './flows.ts'
 import { COLLECT_MS } from '../shared/protocol.ts'
 import type {
@@ -42,6 +42,7 @@ export type ReaderControls = {
   pause(): void
   resume(): void
   stop(): void
+  rewind(): void
 }
 
 export type HubOpts = {
@@ -82,6 +83,7 @@ export class Hub {
     // Filenames only, refreshed on boot for the same reason the catalog is: a
     // snapshot's copy is from whenever it was written.
     this.state.packs = opts.packDir ? listPacks(opts.packDir) : []
+    this.state.packSizes = opts.packDir ? packSizes(opts.packDir, this.state.packs) : {}
     // Same reasoning as packs: filenames only, refreshed on boot.
     this.flowDir = opts.flowDir
     this.state.flows = opts.flowDir ? listFlows(opts.flowDir) : []
@@ -213,6 +215,10 @@ export class Hub {
       this.reader?.resume()
     } else if (name === 'stopRead') {
       this.reader?.stop()
+    } else if (name === 'rewindRead') {
+      // No button: Read resumes on purpose. This is the scripted walkthroughs
+      // asking for a known starting frame, and it costs one line to give them.
+      this.reader?.rewind()
     } else if (name === 'saveFlow' && typeof data === 'string') {
       if (!this.flowDir || !this.state.flow) return
       try {

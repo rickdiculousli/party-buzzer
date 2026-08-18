@@ -30,6 +30,7 @@ export function newState(): State {
     duelRules: [],
     flows: [],
     packs: [],
+    packSizes: {},
     mirrorFragments: false,
     // Ten seconds of silence is a stall. Only ever read by the judge, which
     // only runs while the reader drives a pack, so host-read games never feel it.

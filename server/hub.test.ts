@@ -165,6 +165,7 @@ test('a selectPack that fails is logged, not thrown — the process must survive
       pause: () => {},
       resume: () => {},
       stop: () => {},
+      rewind: () => {},
     },
   })
   const host: Conn = { id: 'h', role: 'host', send: () => {} }
