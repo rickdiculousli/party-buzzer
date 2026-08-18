@@ -78,6 +78,17 @@ export class Reader {
    * puts the reader back on one clip per fragment.
    */
   private aligned = new Map<string, { clip: Clip; folds: Fold[] }>()
+  /**
+   * Text -> resolves once its clip (and its folds) are in hand. Rendering runs
+   * behind the game rather than in front of it, so this is what the loop waits
+   * on before a question it may have reached first.
+   */
+  private ready = new Map<string, Promise<void>>()
+  private resolvers = new Map<string, () => void>()
+  private queue: string[] = []
+  private renderers = 0
+  private rendered = 0
+  private renderTotal = 0
   private pack = ''
   private fragIndex = 0
   private paused = false
@@ -140,9 +151,25 @@ export class Reader {
   }
 
   /**
-   * Load and synthesise a pack if this session has not already. Packs stay in
-   * memory once rendered, which is what lets a setlist cross between them at a
-   * block boundary without a thirty-second stall in the middle of the night.
+   * What gets spoken for a question: one utterance when we can place the folds
+   * inside it, one per fragment when we cannot. Reading a whole question in a
+   * breath is the point — a fragment spoken alone gets sentence-final
+   * intonation even when it ends mid-sentence, which is what made the reader
+   * sound chopped.
+   */
+  private textsFor(q: Question): string[] {
+    return this.opts.align ? [joinFragments(q.fragments).text] : q.fragments
+  }
+
+  /**
+   * Load a pack if this session has not already, and queue its audio. Resolves
+   * once the *first* question is ready rather than the pack: a twenty-question
+   * pack is a minute of synthesis, and none of it but the first question is
+   * needed to start playing. The rest lands behind the game, which is safe
+   * because `waitFor` gates every question on its own audio.
+   *
+   * Packs stay in memory once rendered, which is what lets a setlist cross
+   * between them at a block boundary without a stall in the middle of the night.
    */
   private async ensure(name: string): Promise<void> {
     if (this.loaded.has(name)) return
@@ -156,53 +183,82 @@ export class Reader {
     // of a session has none yet.
     if (!this.pack) this.pack = name
 
-    // One utterance per question when we can place the folds inside it, one per
-    // fragment when we cannot. Reading a whole question in a breath is the
-    // point — a fragment spoken alone gets sentence-final intonation even when
-    // it ends mid-sentence, which is what made the reader sound chopped.
-    //
-    // Dedupe either way: two identical texts would otherwise land two workers
-    // on the same cache path at once, and `speech.render` has no lock of its
-    // own to protect that write.
-    const align = this.opts.align
-    const texts = align
-      ? [...new Set(questions.map((q) => joinFragments(q.fragments).text))]
-      : [...new Set(questions.flatMap((q) => q.fragments))]
-    this.publish({ rendering: { done: 0, total: texts.length } })
+    // Dedupe: two identical texts would otherwise land two workers on the same
+    // cache path at once, and `speech.render` has no lock of its own to protect
+    // that write. Deduped across packs too, so a shared line renders once ever.
+    const texts = [...new Set(questions.flatMap((q) => this.textsFor(q)))]
+    for (const text of texts) {
+      if (this.ready.has(text)) continue
+      this.ready.set(text, new Promise<void>((r) => this.resolvers.set(text, r)))
+      this.queue.push(text)
+      this.renderTotal += 1
+    }
+    this.pump()
+    await this.ready.get(texts[0])
+  }
 
-    // ponytail: four at a time. Serial is too slow for a long pack and
-    // unbounded floods the box; a queue with real backpressure if it matters.
-    // Alignment rides the same width, which is also about where the speech
-    // daemon stops going any faster however many ask it.
-    let done = 0
-    const queue = [...texts]
-    const worker = async () => {
-      for (let text = queue.shift(); text !== undefined; text = queue.shift()) {
+  /**
+   * ponytail: four at a time, FIFO. Serial is too slow for a long pack and
+   * unbounded floods the box; alignment rides the same width, which is about
+   * where the speech daemon stops going faster however many ask it. A pack
+   * queued while another is still rendering waits its turn — the order packs
+   * are ensured in is the order they are read in, so FIFO is the right guess.
+   */
+  private pump(): void {
+    while (this.renderers < 4 && this.queue.length) {
+      this.renderers += 1
+      void this.drain().finally(() => {
+        this.renderers -= 1
+        if (this.renderers === 0 && this.queue.length === 0) {
+          this.rendered = 0
+          this.renderTotal = 0
+          this.publish({ rendering: undefined })
+        }
+      })
+    }
+  }
+
+  private async drain(): Promise<void> {
+    for (let text = this.queue.shift(); text !== undefined; text = this.queue.shift()) {
+      try {
         const clip = await this.speech.render(this.opts.cacheDir, text, this.opts.voice)
         this.clips.set(text, clip.path)
-        if (align) {
+        if (this.opts.align) {
           // A question whose folds cannot be found is still read aloud in full;
           // its text simply lands when the clip ends, because the one thing
           // worse than a board that lags is a board that runs ahead.
-          const j = joinFragments(this.fragmentsFor(questions, text))
-          const folds = await align(j, clip).catch((e) => {
-            console.warn(`[reader] ${name}: alignment failed, reveal stays coarse — ${e}`)
+          const j = joinFragments(this.fragmentsFor(text))
+          const folds = await this.opts.align(j, clip).catch((e) => {
+            console.warn(`[reader] alignment failed, reveal stays coarse — ${e}`)
             return [] as Fold[]
           })
           this.aligned.set(text, { clip, folds })
         }
-        done += 1
-        this.publish({ rendering: { done, total: texts.length } })
+      } catch (e) {
+        // A text that cannot be rendered still has to release whoever is
+        // waiting on it; the question goes up on the board unspoken.
+        console.warn(`[reader] could not render — ${e}`)
+      } finally {
+        this.resolvers.get(text)?.()
+        this.resolvers.delete(text)
+        this.rendered += 1
+        this.publish({ rendering: { done: this.rendered, total: this.renderTotal } })
       }
     }
-    await Promise.all([worker(), worker(), worker(), worker()])
-    this.publish({ rendering: undefined })
+  }
+
+  /** Hold the loop until this question's audio exists. Usually already true. */
+  private async waitFor(q: Question): Promise<void> {
+    await Promise.all(this.textsFor(q).map((t) => this.ready.get(t)))
   }
 
   /** The fragments that joined to this text — needed to place their boundaries. */
-  private fragmentsFor(questions: Question[], joinedText: string): string[] {
-    const q = questions.find((x) => joinFragments(x.fragments).text === joinedText)
-    return q?.fragments ?? [joinedText]
+  private fragmentsFor(joinedText: string): string[] {
+    for (const questions of this.loaded.values()) {
+      const q = questions.find((x) => joinFragments(x.fragments).text === joinedText)
+      if (q) return q.fragments
+    }
+    return [joinedText]
   }
 
   start(): void {
@@ -282,11 +338,12 @@ export class Reader {
   }
 
   private async run(): Promise<void> {
-    // Every pack the setlist names, rendered before the first question rather
+    // Every pack the setlist names, queued before the first question rather
     // than at the block boundary where it would be thirty seconds of silence.
+    // Queued, not awaited: rendering runs behind the game now, in the order the
+    // blocks will be read, so the first question is not held up by the last.
     for (const b of this.hub.state.flow?.blocks ?? []) {
-      if (b.pack) await this.ensure(b.pack)
-      if (!this.running) return
+      if (b.pack) void this.ensure(b.pack).catch((e) => console.warn(`[reader] ${b.pack}: ${e}`))
     }
 
     while (this.running) {
@@ -299,6 +356,11 @@ export class Reader {
       }
       const q = this.questions[this.qIndex]
       if (!q) break
+      // The one place the warm start can bite: a room that outran the renderer.
+      // Wait here rather than arming onto a clip that does not exist yet, which
+      // would open the buzzers on silence.
+      await this.waitFor(q)
+      if (!this.running) return
       this.fragIndex = 0
       if (q.value !== undefined) {
         this.hub.send(this.conn, { t: 'host', action: { a: 'setValue', value: q.value } })

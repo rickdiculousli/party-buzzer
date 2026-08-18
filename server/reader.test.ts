@@ -47,6 +47,43 @@ test('selecting a pack renders every fragment and publishes progress', async () 
   assert.equal(state.reading?.rendering, undefined, 'rendering clears when done')
 })
 
+test('the host waits for the first question, not the whole pack', async () => {
+  const packDir = mkdtempSync(join(tmpdir(), 'pb-warm-'))
+  writeFileSync(packDir + '/one.txt', 'V: 100\nAlpha.\nA: a\n\nV: 100\nBeta.\nA: b\n')
+  const held: (() => void)[] = []
+  const state = newState()
+  const hub = new Hub(state)
+  const speech: Speech = {
+    // Alpha comes back at once; Beta hangs until the test lets it go.
+    render: async (_dir, text) => {
+      if (text.startsWith('Beta')) await new Promise<void>((r) => held.push(r))
+      return { path: `/fake/${text}`, durationMs: 10 }
+    },
+    play: () => ({ done: Promise.resolve(), started: Promise.resolve(), stop: () => {} }),
+  }
+  const reader = new Reader(hub, { packDir, cacheDir: packDir + '/.cache', speech })
+  hub.setOnChange((s) => reader.onStateChange(s))
+
+  await reader.select('one.txt') // would hang here before the warm start
+  assert.equal(state.reading?.qTotal, 2)
+  assert.deepEqual(state.reading?.rendering, { done: 1, total: 2 }, 'the rest is still coming')
+
+  reader.start()
+  while (!state.round.fragments?.length) await new Promise((r) => setTimeout(r, 5))
+  assert.deepEqual(state.round.fragments, ['Alpha.'], 'question one plays against a half-made pack')
+
+  // Question two must not arm onto a clip that does not exist yet.
+  hub.handle({ id: 'h', role: 'host', send: () => {} }, { t: 'host', action: { a: 'next' } })
+  await new Promise((r) => setTimeout(r, ARM_LEAD_MS + 40))
+  assert.equal(state.round.fragments?.length ?? 0, 0, 'nothing spoken while it is unrendered')
+
+  held.forEach((r) => r())
+  while (!state.round.fragments?.length) await new Promise((r) => setTimeout(r, 5))
+  assert.deepEqual(state.round.fragments, ['Beta.'], 'and it reads once the audio lands')
+  reader.stop()
+  await reader.settled()
+})
+
 test('reading a question arms it, speaks each fragment, and pushes them in order', async () => {
   const { state, reader, speech } = rig(PACK)
   await reader.select('one.txt')
