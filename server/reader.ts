@@ -22,12 +22,20 @@
  * event-driven for the same reason — scheduling it from a known clip duration
  * would desynchronise the moment anyone paused.
  */
+import { join as joinFragments, type Fold, type Joined } from './align.ts'
 import type { Hub, Conn } from './hub.ts'
 import { loadPack } from './packs.ts'
-import { render as realRender, play as realPlay, type Playback, type Speech } from './speech.ts'
+import { render as realRender, play as realPlay, type Clip, type Playback, type Speech } from './speech.ts'
 import type { Question } from '../shared/pack.ts'
 import type { State } from '../shared/protocol.ts'
 import type { Judge } from './judge.ts'
+
+/**
+ * Where the fragments and clauses fall inside a clip of the whole question.
+ * Injected rather than reached for, so the reader neither spawns anything nor
+ * knows that finding out involves speech recognition at all.
+ */
+export type Aligner = (joined: Joined, clip: Clip) => Promise<Fold[]>
 
 export type ReaderOpts = {
   packDir: string
@@ -36,7 +44,22 @@ export type ReaderOpts = {
   voice?: string
   /** The judge scores the spoken answer; absent, the host judges as always. */
   judge?: Judge
+  /**
+   * Absent, the reader speaks a fragment at a time as it always did. Present,
+   * it speaks the whole question in one breath and reveals it a clause at a
+   * time — which needs to know where the clauses are, which is this.
+   */
+  align?: Aligner
 }
+
+/**
+ * How far behind the voice the board is held, on top of fold times that already
+ * round late. Process start and the audio device both cost a few milliseconds,
+ * and the direction of that error is the one that matters: text arriving a beat
+ * after it is spoken reads as natural, text arriving a beat early is the leak.
+ * The knob to turn if the board feels ahead of the room.
+ */
+const REVEAL_LAG_MS = 120
 
 export class Reader {
   private hub: Hub
@@ -47,8 +70,14 @@ export class Reader {
   private loaded = new Map<string, Question[]>()
   /** Where each of them is up to, so a block returning to one picks up there. */
   private pos = new Map<string, number>()
-  /** Clips are keyed by fragment text, so two packs sharing one share the clip. */
+  /** Clips are keyed by the text spoken, so two packs sharing one share the clip. */
   private clips = new Map<string, string>()
+  /**
+   * A whole question's clip and where its fragments and clauses fall in it,
+   * keyed by the joined text. Empty when no aligner was supplied, which is what
+   * puts the reader back on one clip per fragment.
+   */
+  private aligned = new Map<string, { clip: Clip; folds: Fold[] }>()
   private pack = ''
   private fragIndex = 0
   private paused = false
@@ -127,26 +156,53 @@ export class Reader {
     // of a session has none yet.
     if (!this.pack) this.pack = name
 
-    // Dedupe before rendering: two fragments with identical text would
-    // otherwise land two workers on the same cache path at once, and
-    // `speech.render` has no lock of its own to protect that write.
-    const texts = [...new Set(questions.flatMap((q) => q.fragments))]
+    // One utterance per question when we can place the folds inside it, one per
+    // fragment when we cannot. Reading a whole question in a breath is the
+    // point — a fragment spoken alone gets sentence-final intonation even when
+    // it ends mid-sentence, which is what made the reader sound chopped.
+    //
+    // Dedupe either way: two identical texts would otherwise land two workers
+    // on the same cache path at once, and `speech.render` has no lock of its
+    // own to protect that write.
+    const align = this.opts.align
+    const texts = align
+      ? [...new Set(questions.map((q) => joinFragments(q.fragments).text))]
+      : [...new Set(questions.flatMap((q) => q.fragments))]
     this.publish({ rendering: { done: 0, total: texts.length } })
 
-    // ponytail: renders four at a time. Serial is too slow for a long pack and
+    // ponytail: four at a time. Serial is too slow for a long pack and
     // unbounded floods the box; a queue with real backpressure if it matters.
+    // Alignment rides the same width, which is also about where the speech
+    // daemon stops going any faster however many ask it.
     let done = 0
     const queue = [...texts]
     const worker = async () => {
       for (let text = queue.shift(); text !== undefined; text = queue.shift()) {
         const clip = await this.speech.render(this.opts.cacheDir, text, this.opts.voice)
         this.clips.set(text, clip.path)
+        if (align) {
+          // A question whose folds cannot be found is still read aloud in full;
+          // its text simply lands when the clip ends, because the one thing
+          // worse than a board that lags is a board that runs ahead.
+          const j = joinFragments(this.fragmentsFor(questions, text))
+          const folds = await align(j, clip).catch((e) => {
+            console.warn(`[reader] ${name}: alignment failed, reveal stays coarse — ${e}`)
+            return [] as Fold[]
+          })
+          this.aligned.set(text, { clip, folds })
+        }
         done += 1
         this.publish({ rendering: { done, total: texts.length } })
       }
     }
     await Promise.all([worker(), worker(), worker(), worker()])
     this.publish({ rendering: undefined })
+  }
+
+  /** The fragments that joined to this text — needed to place their boundaries. */
+  private fragmentsFor(questions: Question[], joinedText: string): string[] {
+    const q = questions.find((x) => joinFragments(x.fragments).text === joinedText)
+    return q?.fragments ?? [joinedText]
   }
 
   start(): void {
@@ -275,20 +331,65 @@ export class Reader {
           : (this.hub.state.round.fragments?.length ?? 0) >= pushed
 
       const powerAfter = Number(this.hub.state.game.options.powerAfterFragment ?? 0)
-      for (let f = 0; f < q.fragments.length && this.running; f++) {
-        if (!stillMine()) return
-        this.fragIndex = f + 1
-        const text = q.fragments[f]
-        this.hub.send(this.conn, { t: 'act', act: 'fragment', data: text })
-        pushed += 1
-        this.publish({})
-        const finished = await this.speak(text)
+      const j = joinFragments(q.fragments)
+      const whole = this.aligned.get(j.text)
+
+      if (whole) {
+        // One clip, revealed a clause at a time as the voice reaches each one.
+        let shown = 0 // characters of the joined text on the board
+        let frags = 0 // how many fragment entries that has taken
+        let powered = false
+
+        const revealTo = (upto: number) => {
+          if (upto <= shown || !stillMine()) return
+          shown = upto
+          for (let i = 0; i < q.fragments.length; i++) {
+            const start = j.fragmentAt[i]
+            if (upto <= start) break
+            const text = q.fragments[i].slice(0, Math.min(q.fragments[i].length, upto - start)).trimEnd()
+            if (!text) continue
+            if (i >= frags) {
+              // Crossing into a fragment starts a new entry, so `fragments`
+              // stays a list of fragments however finely it is revealed.
+              this.hub.send(this.conn, { t: 'act', act: 'fragment', data: text })
+              frags = i + 1
+              pushed += 1
+              this.fragIndex = i + 1
+              this.publish({})
+            } else if (i === frags - 1) {
+              this.hub.send(this.conn, { t: 'act', act: 'extend', data: text })
+            }
+          }
+          // The power boundary counts whole fragments, and a fragment is whole
+          // once the reveal has passed its last character.
+          if (powerAfter > 0 && !powered) {
+            const complete = q.fragments.filter((f, i) => upto >= j.fragmentAt[i] + f.length).length
+            if (complete >= powerAfter) {
+              powered = true
+              this.hub.send(this.conn, { t: 'act', act: 'powerEnds' })
+            }
+          }
+        }
+
+        const finished = await this.speakWhole(whole, j, revealTo, stillMine)
         if (!this.running || !stillMine()) return
-        // Someone buzzed and the question was scored while they held the floor.
-        // The rest of the clue is not read out — the host judges from here.
-        if (!finished) break
-        if (powerAfter > 0 && f + 1 === powerAfter) {
-          this.hub.send(this.conn, { t: 'act', act: 'powerEnds' })
+        if (finished) revealTo(j.text.length)
+      } else {
+        for (let f = 0; f < q.fragments.length && this.running; f++) {
+          if (!stillMine()) return
+          this.fragIndex = f + 1
+          const text = q.fragments[f]
+          this.hub.send(this.conn, { t: 'act', act: 'fragment', data: text })
+          pushed += 1
+          this.publish({})
+          const finished = await this.speak(text)
+          if (!this.running || !stillMine()) return
+          // Someone buzzed and the question was scored while they held the
+          // floor. The rest of the clue is not read out — the host judges.
+          if (!finished) break
+          if (powerAfter > 0 && f + 1 === powerAfter) {
+            this.hub.send(this.conn, { t: 'act', act: 'powerEnds' })
+          }
         }
       }
 
@@ -337,6 +438,76 @@ export class Reader {
       this.hub.send(this.conn, { t: 'host', action: { ...auto, a: 'setAutoplay', on: false } })
     }
     this.stop()
+  }
+
+  /**
+   * Speak a whole question, revealing it as the voice reaches each fold.
+   *
+   * The reveal is driven by timers rather than by the player reporting where it
+   * is, and the clock starts when playback actually begins rather than when the
+   * process spawns — a board keyed off the spawn would run ahead of the sound by
+   * however long the audio device took to open.
+   *
+   * Interruption still re-reads the clause, exactly as it re-read the fragment
+   * before: playback resumes at the last fold, which is precisely where the
+   * board's last reveal left off, so what is on screen and what is being said
+   * cannot disagree. Without a seeking player the resume starts the question
+   * over instead, and the reveal simply catches up.
+   */
+  private async speakWhole(
+    whole: { clip: Clip; folds: Fold[] },
+    j: Joined,
+    revealTo: (upto: number) => void,
+    ok: () => boolean,
+  ): Promise<boolean> {
+    const { clip, folds } = whole
+    const steps = [...folds].sort((a, b) => a.ms - b.ms)
+    let atMs = 0
+
+    while (this.running) {
+      if (this.paused) {
+        await this.until(() => !this.paused)
+        continue
+      }
+      if (this.buzzed()) {
+        await this.until((s) => s.round.phase === 'ARMED' || s.round.phase === 'IDLE')
+        if (!this.running || this.buzzed()) return false
+        const auto = this.hub.state.autoplay
+        if (auto.on) await this.until(() => false, auto.reboundSec * 1000)
+        if (!this.running || this.buzzed()) return false
+        continue
+      }
+
+      const pb = this.speech.play(clip.path, atMs)
+      this.playback = pb
+      await pb.started
+      const from = atMs
+      const t0 = Date.now()
+      const timers = steps
+        .filter((s) => s.ms >= from)
+        .map((s) => {
+          const t = setTimeout(
+            () => {
+              if (ok()) revealTo(s.at)
+            },
+            Math.max(0, s.ms - from) + REVEAL_LAG_MS,
+          )
+          t.unref?.()
+          return t
+        })
+
+      await pb.done
+      for (const t of timers) clearTimeout(t)
+      this.playback = undefined
+      if (!this.paused && !this.buzzed()) return true
+
+      // Back to the top of the clause that was in progress. Folds are the only
+      // places the board has moved, so this is always a point the room has both
+      // heard and seen.
+      const stoppedAt = from + (Date.now() - t0)
+      atMs = steps.reduce((best, s) => (s.ms <= stoppedAt && s.ms > best ? s.ms : best), 0)
+    }
+    return true
   }
 
   /**

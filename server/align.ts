@@ -24,8 +24,15 @@
  * this exists to prevent.
  */
 
-/** A boundary in the joined text: `at` characters in, `ms` into the clip. */
-export type Fold = { at: number; ms: number; kind: 'fragment' | 'clause'; sure: boolean }
+/**
+ * A boundary in the joined text: `at` characters in, `ms` into the clip.
+ *
+ * `fragment` and `clause` mark where something begins; `end` is the close of
+ * the question, which is a fold in its own right because the last fragment has
+ * no following fragment to reveal it, and without one it would sit blank until
+ * the clip ran out.
+ */
+export type Fold = { at: number; ms: number; kind: 'fragment' | 'clause' | 'end'; sure: boolean }
 
 /** The joined prose plus where each fragment sits inside it. */
 export type Joined = { text: string; fragmentAt: number[] }
@@ -53,8 +60,8 @@ export function join(fragments: string[]): Joined {
  *
  * Offset 0 is not a fold. Nothing precedes it, so there is nothing to reveal.
  */
-export function candidates(j: Joined): { at: number; kind: 'fragment' | 'clause' }[] {
-  const out: { at: number; kind: 'fragment' | 'clause' }[] = []
+export function candidates(j: Joined): { at: number; kind: Fold['kind'] }[] {
+  const out: { at: number; kind: Fold['kind'] }[] = []
   const frag = new Set(j.fragmentAt)
   for (let i = 1; i < j.text.length; i++) {
     if (frag.has(i)) {
@@ -68,6 +75,9 @@ export function candidates(j: Joined): { at: number; kind: 'fragment' | 'clause'
       if (at < j.text.length && !frag.has(at)) out.push({ at, kind: 'clause' })
     }
   }
+  // Closing the question is a fold too: a fragment reveals as its words finish,
+  // and the last one has no successor whose start would finish it.
+  if (j.text.length) out.push({ at: j.text.length, kind: 'end' })
   return out.sort((a, b) => a.at - b.at)
 }
 

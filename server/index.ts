@@ -9,7 +9,9 @@ import { Hub, type Conn } from './hub.ts'
 import { Reader } from './reader.ts'
 import { loadState, saveState, flushSave } from './state.ts'
 import { Judge, type Transcribe } from './judge.ts'
-import { sttBinary, transcribe as sttTranscribe } from './stt.ts'
+import { probePool, sttBinary, transcribe as sttTranscribe } from './stt.ts'
+import { locate } from './align.ts'
+import type { Aligner } from './reader.ts'
 import { render as renderClip } from './speech.ts'
 import { lanAddresses, pickAddress, banner, qrFor, qrSvg } from './net.ts'
 import { certHost, ensureCert } from './cert.ts'
@@ -100,7 +102,24 @@ export async function startServer(opts: {
   }
   const judge = new Judge(hub, { transcribe })
 
-  const reader = new Reader(hub, { packDir, cacheDir: join(packDir, '.cache'), judge })
+  // The same helper the judge uses, asked a different question: not what the
+  // room said, but where in a clip of the whole question each fragment and
+  // clause ends. Without it the reader falls back to a clip per fragment, which
+  // is how it always sounded.
+  const sttDir = join(ROOT, 'server/stt')
+  const alignBin = realStt ? await sttBinary(sttDir) : null
+  const align: Aligner | undefined = alignBin
+    ? async (joined, clip) => {
+        const pool = probePool(alignBin, clip.path)
+        try {
+          return await locate(joined, clip.durationMs, pool.probe)
+        } finally {
+          pool.close()
+        }
+      }
+    : undefined
+
+  const reader = new Reader(hub, { packDir, cacheDir: join(packDir, '.cache'), judge, align })
   hub.setReader(reader)
   // All three subscribers, now that all three exist: the snapshot, the
   // reader's waits, and the judge's window.

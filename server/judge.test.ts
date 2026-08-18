@@ -169,7 +169,7 @@ test('a transcription slower than the rebound does not score the new leader', as
 function fakeSpeech(): Speech {
   return {
     render: async (_dir, text) => ({ path: `/fake/${text}`, durationMs: 10 }),
-    play: () => ({ done: Promise.resolve(), stop: () => {} }),
+    play: () => ({ done: Promise.resolve(), started: Promise.resolve(), stop: () => {} }),
   }
 }
 

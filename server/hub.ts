@@ -190,6 +190,15 @@ export class Hub {
     const round = this.state.round
     if (name === 'fragment' && typeof data === 'string') {
       round.fragments = [...(round.fragments ?? []), data]
+    } else if (name === 'extend' && typeof data === 'string') {
+      // A fragment now arrives a clause at a time, so the board can lag the
+      // voice instead of printing a whole clue before it is spoken. Only ever
+      // the last entry, and only ever longer: `fragments` stays a list of
+      // fragments, which is what `fragTotal` and the power boundary count.
+      const f = round.fragments
+      if (f?.length && data.length > f[f.length - 1].length) {
+        round.fragments = [...f.slice(0, -1), data]
+      }
     } else if (name === 'revealAnswer' && typeof data === 'string') {
       round.answer = data
     } else if (name === 'judgeWindow') {

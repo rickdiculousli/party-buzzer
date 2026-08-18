@@ -15,7 +15,7 @@ client/public/sounds/demo-*
 # Built by swiftc at server boot from the .swift beside them — machine
 # binaries, not source artifacts.
 server/stt/stt
-server/tts/tts
+server/play/play
 
 # The local-ip.sh wildcard, cached at boot and refetched near expiry. Public
 # key material by design, but it turns over every 90 days — checking it in

@@ -12,17 +12,19 @@
  */
 import { spawn } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, renameSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, renameSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 export type Clip = { path: string; durationMs: number }
 export type Playback = {
   done: Promise<void>
+  /** Resolves when sound is actually coming out, not when the process spawned. */
+  started: Promise<void>
   stop(): void
 }
 export type Speech = {
   render(cacheDir: string, text: string, voice?: string): Promise<Clip>
-  play(path: string): Playback
+  play(path: string, fromMs?: number): Playback
 }
 
 export function clipPath(cacheDir: string, text: string, voice?: string): string {
@@ -72,21 +74,77 @@ export async function render(cacheDir: string, text: string, voice?: string): Pr
   return { path, durationMs: parseDuration(stdout) }
 }
 
-export function play(path: string): Playback {
-  const p = spawn('afplay', [path])
-  const done = new Promise<void>((resolve) => {
-    p.on('close', () => resolve())
-    p.on('error', () => resolve())
+/**
+ * The seeking player, built once per process. Null means swiftc or the source
+ * is missing, and playback falls back to `afplay` — which cannot seek, so a
+ * resume starts the question over rather than picking up where it stopped.
+ */
+let player: Promise<string | null> | undefined
+export function playerBinary(): Promise<string | null> {
+  if (!player) {
+    const dir = join(import.meta.dirname, 'play')
+    const src = join(dir, 'play.swift')
+    const bin = join(dir, 'play')
+    player = (async () => {
+      if (!existsSync(src)) return null
+      const fresh = existsSync(bin) && statSync(bin).mtimeMs >= statSync(src).mtimeMs
+      if (!fresh) {
+        const { ok } = await run('swiftc', ['-O', '-o', bin, src])
+        if (!ok) {
+          console.warn('[speech] swiftc build failed — a resumed question starts over')
+          return null
+        }
+      }
+      return bin
+    })()
+  }
+  return player
+}
+
+export function play(path: string, fromMs = 0): Playback {
+  let began = () => {}
+  const started = new Promise<void>((resolve) => {
+    began = resolve
   })
+  let child: ReturnType<typeof spawn> | undefined
+  let killed = false
+
+  const done = (async () => {
+    const bin = await playerBinary()
+    // Stopped before it ever started — a buzz landing in the moment between
+    // asking for the clip and getting it. Release `started` anyway: a caller
+    // waiting on sound that is never going to come waits forever.
+    if (killed) return began()
+    // No player and an offset to honour: starting over is wrong but audible,
+    // where silence would look like the reader had died.
+    const p = bin ? spawn(bin, [path, String(fromMs / 1000)]) : spawn('afplay', [path])
+    child = p
+    if (bin) {
+      // One line, then playback. Anything on stdout means sound is out.
+      p.stdout?.once('data', () => began())
+    } else {
+      began()
+    }
+    await new Promise<void>((resolve) => {
+      p.on('close', () => resolve())
+      p.on('error', () => resolve())
+    })
+    // A clip that never announced itself still has to release anything waiting.
+    began()
+  })()
+
   return {
     done,
+    started,
     // Killing is the only way to stop cleanly. SIGSTOP looks tidier and sounds
     // awful: a frozen afplay cannot refill CoreAudio's ring buffer, so the
     // device loops the last fraction of a second three or four times before it
     // finally goes quiet. The reader replays the fragment instead of seeking.
     stop: () => {
+      killed = true
+      began()
       try {
-        p.kill('SIGKILL')
+        child?.kill('SIGKILL')
       } catch {
         // Already gone. Nothing to stop.
       }

@@ -44,9 +44,14 @@ test('a clause never folds past the fragment it would cross into', () => {
 test('a decimal is not a clause break', () => {
   const j = join(['The population reached 1,200 in 1890, then fell.'])
   assert.deepEqual(
-    candidates(j).map((c) => c.at),
+    candidates(j).filter((c) => c.kind === 'clause').map((c) => c.at),
     [j.text.indexOf('then')],
     'only the comma with a space after it counts',
+  )
+  assert.deepEqual(
+    candidates(j).filter((c) => c.kind === 'end').map((c) => c.at),
+    [j.text.length],
+    'and the close of the question is always a fold',
   )
 })
 

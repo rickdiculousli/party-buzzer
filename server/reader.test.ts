@@ -17,7 +17,7 @@ function fakeSpeech(): Speech & { spoken: string[] } {
     render: async (_dir, text) => ({ path: `/fake/${text}`, durationMs: 10 }),
     play: (path) => {
       spoken.push(path.replace('/fake/', ''))
-      return { done: Promise.resolve(), stop: () => {} }
+      return { done: Promise.resolve(), started: Promise.resolve(), stop: () => {} }
     },
   }
 }
@@ -106,7 +106,7 @@ test('pause kills the clip and resume replays that fragment, not the next one', 
   speech.play = (path) => {
     speech.spoken.push(path.replace('/fake/', ''))
     let end = () => {}
-    return { done: new Promise<void>((r) => (end = r)), stop: () => end() }
+    return { done: new Promise<void>((r) => (end = r)), started: Promise.resolve(), stop: () => end() }
   }
   await reader.select('one.txt')
   reader.start()
@@ -129,7 +129,7 @@ test('a buzz cuts the clip at once, and the rest of the clue is never read', asy
   speech.play = (path) => {
     speech.spoken.push(path.replace('/fake/', ''))
     let end = () => {}
-    return { done: new Promise<void>((r) => (end = r)), stop: () => { stopped++; end() } }
+    return { done: new Promise<void>((r) => (end = r)), started: Promise.resolve(), stop: () => { stopped++; end() } }
   }
   await reader.select('one.txt')
   reader.start()
@@ -156,7 +156,7 @@ test('a wrong answer rebounds and the interrupted fragment is re-read', async ()
   speech.play = (path) => {
     speech.spoken.push(path.replace('/fake/', ''))
     let end = () => {}
-    return { done: new Promise<void>((r) => (end = r)), stop: () => end() }
+    return { done: new Promise<void>((r) => (end = r)), started: Promise.resolve(), stop: () => end() }
   }
   await reader.select('one.txt')
   reader.start()
@@ -235,7 +235,7 @@ test('autoplay pauses before the clue picks up on a rebound', async () => {
   speech.play = (path) => {
     speech.spoken.push(path.replace('/fake/', ''))
     let end = () => {}
-    return { done: new Promise<void>((r) => (end = r)), stop: () => end() }
+    return { done: new Promise<void>((r) => (end = r)), started: Promise.resolve(), stop: () => end() }
   }
   autoplay(hub, 5, 0.3)
   await reader.select('one.txt')
