@@ -11,6 +11,10 @@ import type {
 
 export { ARM_LEAD_MS }
 
+/** A dwell the host typed: tenths of a second, never negative, never a minute. */
+const secs = (n: number, fallback: number): number =>
+  Number.isFinite(n) ? Math.min(60, Math.max(0, Math.round(n * 10) / 10)) : fallback
+
 export function newState(): State {
   return {
     mode: 'solo',
@@ -30,6 +34,9 @@ export function newState(): State {
     // Ten seconds of silence is a stall. Only ever read by the judge, which
     // only runs while the reader drives a pack, so host-read games never feel it.
     answerWindowSec: 10,
+    // Off by default: a host who has not asked for it should never find the
+    // room moving on without them.
+    autoplay: { on: false, nextSec: 5, reboundSec: 2 },
     round: {
       value: 100,
       phase: 'IDLE',
@@ -260,6 +267,16 @@ export function applyHostAction(state: State, action: HostAction): void {
       state.mirrorFragments = action.on
       return
 
+    case 'setAutoplay':
+      // Clamped here rather than at the input: a number field is a text box
+      // with arrows on it, and a NaN dwell is a reader that never wakes up.
+      state.autoplay = {
+        on: action.on,
+        nextSec: secs(action.nextSec, 5),
+        reboundSec: secs(action.reboundSec, 2),
+      }
+      return
+
     case 'addTeam': {
       const team = { id: randomUUID(), name: action.name, color: action.color }
       state.teams.push(team)
@@ -433,6 +450,13 @@ export function loadState(path: string): State {
     if (!Array.isArray(loaded.packs)) loaded.packs = []
     if (typeof loaded.mirrorFragments !== 'boolean') loaded.mirrorFragments = false
     if (typeof loaded.answerWindowSec !== 'number') loaded.answerWindowSec = 10
+    // A snapshot from before autoplay existed, or one hand-edited into nonsense.
+    const auto = loaded.autoplay as Partial<State['autoplay']> | undefined
+    loaded.autoplay = {
+      on: auto?.on === true,
+      nextSec: secs(Number(auto?.nextSec), 5),
+      reboundSec: secs(Number(auto?.reboundSec), 2),
+    }
     loaded.game ??= { id: 'trivia', options: {}, moduleState: {} }
     if (!knownModule(loaded.game.id)) {
       console.error(

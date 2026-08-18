@@ -101,7 +101,10 @@ no partial update.
 - `tools/sim.ts` — bots that play real questions over real sockets.
 - `server/reader.ts` — the question loop. Drives the hub through a synthetic
   host connection, so it uses the same messages a socket client would and the
-  hub grows no reader API.
+  hub grows no reader API. `state.autoplay` turns its two waits-on-the-host
+  into dwells — the payoff's N and the beat before a rebound resumes — and
+  passes a question nobody buzzed, which is the only way the loop can be left
+  unattended. The judgment itself is never automated here; that is the judge's.
 - `server/judge.ts` — spoken answers while the reader drives. Opens a window
   when a round locks with a leader, transcribes via `server/stt/stt.swift`
   (swiftc-built at boot, on-device), fuzzy-matches against the pack's answer

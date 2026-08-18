@@ -60,7 +60,14 @@ mode is set per session; switching resets scores and the board.
 Powers and fragments are driven by the host reading a question pack: put
 `.txt` packs in `packs/`, pick one on the host screen, and press Read. Picking
 a pack pre-renders every fragment to an audio clip, which takes a few seconds
-the first time and is cached after that. A buzz cuts the voice mid-word and the rest of the clue is never read — a
+the first time and is cached after that. **Autoplay** takes the two keypresses either side of your judgment: the answer
+sits on the wall for however many seconds you set and then the next question
+arms itself, a rebound waits its own pause before the clue picks back up, and a
+question nobody buzzes passes on its own instead of hanging there. C and W are
+still yours — unless the spoken-answer judge is on, in which case the pack
+reads itself end to end.
+
+A buzz cuts the voice mid-word and the rest of the clue is never read — a
 correct answer ends the question there, a wrong one rebounds and the
 interrupted fragment is re-read from its start. **Pause** does the same by
 hand; buzzers stay live throughout, because the usual reason to pause is that

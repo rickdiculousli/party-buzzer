@@ -132,6 +132,13 @@ npm run walk-flow
 - [ ] A buzz cuts the voice mid-word — no trailing syllable, and the rest of the
       clue is not read after a correct answer
 - [ ] A wrong answer re-reads the fragment the buzz cut, from its start
+- [ ] Autoplay on: the answer sits for the dwell you set and the next question
+      arms with nobody touching the keyboard
+- [ ] Autoplay on: a question nobody buzzes passes itself rather than hanging
+- [ ] Autoplay on: the rebound pause is long enough to call the miss out loud
+      before the voice starts again
+- [ ] Autoplay off: nothing advances without your N — the check that the dwells
+      cannot leak into a hand-driven game
 
 ### Spoken answers
 

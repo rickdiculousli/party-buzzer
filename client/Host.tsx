@@ -214,6 +214,61 @@ export function Host() {
               <span class="muted">sec · 0 = you end a stall by hand</span>
             </label>
 
+            <label class="field">
+              Autoplay
+              <input
+                type="checkbox"
+                checked={state.autoplay.on}
+                onChange={(e) =>
+                  act({ ...state.autoplay, a: 'setAutoplay', on: (e.target as HTMLInputElement).checked })
+                }
+              />
+              <span class="muted">the reader presses N for you</span>
+            </label>
+
+            {state.autoplay.on && (
+              <>
+                <label class="field">
+                  Answer sits for
+                  <input
+                    class="input input--num"
+                    type="number"
+                    min={0}
+                    max={60}
+                    step={0.5}
+                    value={state.autoplay.nextSec}
+                    onInput={(e) =>
+                      act({
+                        ...state.autoplay,
+                        a: 'setAutoplay',
+                        nextSec: Number((e.target as HTMLInputElement).value),
+                      })
+                    }
+                  />
+                  <span class="muted">sec, then the next question arms</span>
+                </label>
+                <label class="field">
+                  Rebound pause
+                  <input
+                    class="input input--num"
+                    type="number"
+                    min={0}
+                    max={60}
+                    step={0.5}
+                    value={state.autoplay.reboundSec}
+                    onInput={(e) =>
+                      act({
+                        ...state.autoplay,
+                        a: 'setAutoplay',
+                        reboundSec: Number((e.target as HTMLInputElement).value),
+                      })
+                    }
+                  />
+                  <span class="muted">sec after a wrong answer, before the clue resumes</span>
+                </label>
+              </>
+            )}
+
             {state.reading?.rendering ? (
               <span class="chip chip--data">
                 Rendering {state.reading.rendering.done}/{state.reading.rendering.total}

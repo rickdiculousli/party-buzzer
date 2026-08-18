@@ -181,6 +181,19 @@ export type ReadingState = {
   rendering?: { done: number; total: number }
 }
 
+/**
+ * Autoplay: the two beats a human host provides by instinct and the reader
+ * otherwise waits on forever. `on` only removes keypresses — the host still
+ * judges, unless the spoken-answer judge is doing that too.
+ */
+export type Autoplay = {
+  on: boolean
+  /** Seconds the answer sits on the wall before the next question is armed. */
+  nextSec: number
+  /** Seconds of silence after a wrong answer before the clue picks back up. */
+  reboundSec: number
+}
+
 export type State = {
   mode: Mode
   players: Player[]
@@ -208,6 +221,8 @@ export type State = {
   mirrorFragments: boolean
   /** Seconds a locked-in player has to speak before silence scores wrong. 0 = no timeout. */
   answerWindowSec: number
+  /** Hands-off reading: the reader supplies its own N and paces the beats. */
+  autoplay: Autoplay
   reading?: ReadingState
 }
 
@@ -229,6 +244,8 @@ export type HostAction =
   /** `keepScores` is the flow crossing a block boundary; a host switch resets. */
   | { a: 'setGame'; id: string; options: Record<string, unknown>; keepScores?: boolean }
   | { a: 'setMirror'; on: boolean }
+  /** The whole triple every time: one edit, one undo step, no partial merge. */
+  | { a: 'setAutoplay'; on: boolean; nextSec: number; reboundSec: number }
   | { a: 'openDuel'; rule: string }
   /** ids = host override (and the only path for resolve:'host' rules); absent = resolve by rule. */
   | { a: 'closeDuel'; playerIds?: [PlayerId, PlayerId] }

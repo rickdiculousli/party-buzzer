@@ -10,6 +10,12 @@
  * The human host still judges. C and W on the host screen score the round as
  * always — a wrong answer re-arms for a rebound and the reader waits it out.
  *
+ * Autoplay removes the keypresses either side of that judgment, not the
+ * judgment: the payoff sits for `nextSec` and the reader presses N itself, a
+ * rebound waits `reboundSec` before the clue picks up, and a question nobody
+ * touched passes on its own rather than wedging the loop. With the spoken
+ * judge running too, that is a pack that reads itself end to end.
+ *
  * Pause holds the audio and nothing else: buzzers stay live and `powerEndsAt` is
  * untouched, because the reason to pause is usually that someone interrupted,
  * and that is exactly when a buzz should still land. The power boundary stays
@@ -212,17 +218,37 @@ export class Reader {
 
       // The host judges from here. Resolved means scored, or passed with nobody
       // left in the round.
-      await this.until(
-        (s) =>
-          s.round.phase === 'IDLE' &&
-          (!!s.round.award || (s.round.order.length === 0 && s.round.lockedOut.length === 0)),
-      )
+      const resolved = (s: State) =>
+        s.round.phase === 'IDLE' &&
+        (!!s.round.award || (s.round.order.length === 0 && s.round.lockedOut.length === 0))
+
+      // Dead air — the clue ran out and nobody pressed anything — has no
+      // resolution to wait for. A host passes it by hand; autoplay gives it the
+      // same dwell as a payoff and then moves on, since the alternative is a
+      // loop that waits forever on a room that has already stopped playing.
+      let deadAir = false
+      while (this.running && !resolved(this.hub.state)) {
+        await this.until(resolved, this.dwellMs())
+        const r = this.hub.state.round
+        // Only silence passes itself. Anything else still pending is somebody
+        // mid-answer, and their verdict is worth waiting out however long the
+        // host takes over it.
+        if (this.running && !resolved(this.hub.state) && r.phase === 'ARMED' && r.order.length === 0) {
+          deadAir = true
+          break
+        }
+      }
       if (!this.running) return
-      if (this.hub.state.round.award) {
+      if (this.hub.state.round.award || deadAir) {
         this.hub.send(this.conn, { t: 'act', act: 'revealAnswer', data: q.answer })
       }
-      // Let the payoff sit on the wall; the host's N clears it and releases us.
-      await this.until((s) => s.round.phase === 'IDLE' && !s.round.award)
+      // Let the payoff sit on the wall; the host's N clears it and releases us —
+      // under autoplay the reader presses N itself once the dwell is up.
+      await this.until((s) => s.round.phase === 'IDLE' && !s.round.award, this.dwellMs())
+      if (!this.running) return
+      if (this.hub.state.round.award || deadAir) {
+        this.hub.send(this.conn, { t: 'host', action: { a: 'next' } })
+      }
     }
     this.stop()
   }
@@ -251,6 +277,11 @@ export class Reader {
       if (this.buzzed()) {
         await this.until((s) => s.round.phase === 'ARMED' || s.round.phase === 'IDLE')
         if (!this.running || this.buzzed()) return false
+        // A rebound. Under autoplay nobody is talking over the gap, so the clue
+        // takes a beat before picking up rather than stepping on the miss.
+        const auto = this.hub.state.autoplay
+        if (auto.on) await this.until(() => false, auto.reboundSec * 1000)
+        if (!this.running || this.buzzed()) return false
         continue
       }
       const pb = this.speech.play(path)
@@ -269,16 +300,36 @@ export class Reader {
     return this.hub.state.round.phase !== 'ARMED'
   }
 
-  /** Wait until the state satisfies a predicate, or the reader stops. */
-  private until(ok: (s: State) => boolean): Promise<void> {
+  /**
+   * How long a wait for the host may run before the reader takes the decision
+   * itself, or undefined for the wait that never expires. Read fresh each time:
+   * the toggle is a live setting, so turning autoplay on mid-question takes
+   * effect on the next beat rather than the next pack.
+   */
+  private dwellMs(): number | undefined {
+    const auto = this.hub.state.autoplay
+    return auto.on ? auto.nextSec * 1000 : undefined
+  }
+
+  /** Wait until the state satisfies a predicate, the dwell runs out, or we stop. */
+  private until(ok: (s: State) => boolean, dwellMs?: number): Promise<void> {
     if (!this.running || ok(this.hub.state)) return Promise.resolve()
     return new Promise((resolve) => {
-      const check = () => {
-        if (this.running && !ok(this.hub.state)) return
+      let timer: NodeJS.Timeout | undefined
+      const done = () => {
         this.waiters.delete(check)
+        if (timer) clearTimeout(timer)
         resolve()
       }
+      const check = () => {
+        if (this.running && !ok(this.hub.state)) return
+        done()
+      }
       this.waiters.add(check)
+      if (dwellMs !== undefined) {
+        timer = setTimeout(done, dwellMs)
+        timer.unref?.()
+      }
     })
   }
 }

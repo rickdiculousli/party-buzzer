@@ -176,6 +176,88 @@ test('a wrong answer rebounds and the interrupted fragment is re-read', async ()
   assert.equal(speech.spoken[1], 'First fragment.', 'the cut fragment, from its start')
 })
 
+/** Turn autoplay on with dwells short enough to test against. */
+function autoplay(hub: Hub, nextSec: number, reboundSec: number): void {
+  hub.handle({ id: 'h', role: 'host', send: () => {} }, {
+    t: 'host',
+    action: { a: 'setAutoplay', on: true, nextSec, reboundSec },
+  })
+}
+
+test('autoplay presses N itself: the payoff sits, then the next question arms', async () => {
+  const { hub, state, reader, speech } = rig(
+    'One.\nA: gold\n\nTwo.\nA: silver\n',
+  )
+  // Long enough that the dead-air pass can't beat the buzz to it.
+  autoplay(hub, 1.5, 0)
+  await reader.select('one.txt')
+  reader.start()
+
+  const host = { id: 'h', role: 'host' as const, send: () => {} }
+  const ada = { id: 'p', role: 'player' as const, playerId: 'p1', send: () => {} }
+  hub.handle(ada, { t: 'hello', role: 'player', name: 'Ada', playerId: 'p1' })
+  await new Promise((r) => setTimeout(r, ARM_LEAD_MS + 30))
+  hub.handle(ada, { t: 'buzz', at: Date.now() })
+  await new Promise((r) => setTimeout(r, COLLECT_MS + 30))
+  hub.handle(host, { t: 'host', action: { a: 'correct' } })
+  assert.ok(state.round.award, 'the payoff is on the wall')
+
+  // Nobody presses N. The reader does.
+  while (speech.spoken.length < 2) await new Promise((r) => setTimeout(r, 5))
+  reader.stop()
+  await reader.settled()
+  assert.equal(speech.spoken[1], 'Two.', 'it moved on by itself')
+})
+
+test('autoplay passes a question nobody buzzed rather than waiting forever', async () => {
+  const { hub, reader, speech } = rig('One.\nA: gold\n\nTwo.\nA: silver\n')
+  autoplay(hub, 0.1, 0)
+  await reader.select('one.txt')
+  reader.start()
+  while (speech.spoken.length < 2) await new Promise((r) => setTimeout(r, 5))
+  reader.stop()
+  await reader.settled()
+  assert.deepEqual(speech.spoken, ['One.', 'Two.'], 'dead air passed on its own')
+})
+
+test('with autoplay off, dead air waits for the host and nothing advances', async () => {
+  const { reader, speech } = rig('One.\nA: gold\n\nTwo.\nA: silver\n')
+  await reader.select('one.txt')
+  reader.start()
+  await new Promise((r) => setTimeout(r, ARM_LEAD_MS + 200))
+  assert.deepEqual(speech.spoken, ['One.'], 'still holding on the host')
+  reader.stop()
+  await reader.settled()
+})
+
+test('autoplay pauses before the clue picks up on a rebound', async () => {
+  const { hub, reader, speech } = rig(PACK)
+  speech.play = (path) => {
+    speech.spoken.push(path.replace('/fake/', ''))
+    let end = () => {}
+    return { done: new Promise<void>((r) => (end = r)), stop: () => end() }
+  }
+  autoplay(hub, 5, 0.3)
+  await reader.select('one.txt')
+  reader.start()
+  while (speech.spoken.length < 1) await new Promise((r) => setTimeout(r, 5))
+
+  const host = { id: 'h', role: 'host' as const, send: () => {} }
+  const ada = { id: 'p', role: 'player' as const, playerId: 'p1', send: () => {} }
+  hub.handle(ada, { t: 'hello', role: 'player', name: 'Ada', playerId: 'p1' })
+  await new Promise((r) => setTimeout(r, ARM_LEAD_MS + 20))
+  hub.handle(ada, { t: 'buzz', at: Date.now() })
+  await new Promise((r) => setTimeout(r, COLLECT_MS + 30))
+  hub.handle(host, { t: 'host', action: { a: 'wrong', neg: 0 } })
+
+  await new Promise((r) => setTimeout(r, 150))
+  assert.equal(speech.spoken.length, 1, 'the beat is still running')
+  while (speech.spoken.length < 2) await new Promise((r) => setTimeout(r, 5))
+  reader.stop()
+  await reader.settled()
+  assert.equal(speech.spoken[1], 'First fragment.', 'then the cut fragment resumes')
+})
+
 test('stop halts the loop and clears reading progress', async () => {
   const { state, reader } = rig(PACK)
   await reader.select('one.txt')
