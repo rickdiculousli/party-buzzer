@@ -156,6 +156,8 @@ ever opens — the run stops on "no answer window for Ada" rather than hanging.
 - [ ] The clue does **not** flash back onto the stage while a transcript is
       typing. Bo's name holds the middle from his buzz through to his stamp,
       one continuous thing
+- [ ] Cy buzzing takes Bo's −300 stamp down with it, the same way it takes the
+      red transcript down. Nothing of the miss is left above Cy's name
 - [ ] Nobody buzzes the third question: it reveals its answer and passes
 - [ ] The pack runs out, **autoplay switches itself off**, and the room is left
       playable by hand

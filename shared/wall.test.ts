@@ -198,3 +198,29 @@ test('the phone: a question from second place, and the rebound', () => {
   assert.equal(phoneOf('answer:locked', { ...mine, won: true, frozen: true }).label, 'Frozen')
   assert.equal(phoneOf('answer:locked', { ...mine, won: true, barred: true }).label, 'Out')
 })
+
+test('a penalty comes down when someone takes the question over', () => {
+  // `wrong` re-stamps the award negative and leaves it standing through the
+  // rebound (server/state.ts), so an award can genuinely be up at LOCKED. The
+  // old board kept the stamp there for the rest of its dwell — which put the
+  // last player's −300 above the new answerer's name, the same shape as the
+  // transcript bug fixed in `Hub.buzz` and fixed there for the same reason.
+  //
+  // This is the one deliberate behaviour change in the board's conversion: the
+  // handover takes the stamp with it rather than waiting out a dwell.
+  const s = room()
+  s.round.phase = 'ARMED'
+  s.round.armedAt = 5000
+  s.round.award = { name: 'Bo', points: -300 }
+  const rebound = wallOf(s, { open: true, settled: true, retired: false })
+  assert.equal(rebound.moment, 'verdict:penalty')
+  assert.equal(rebound.award?.points, -300, 'up while nobody has taken it')
+
+  s.round.phase = 'LOCKED'
+  s.round.order = [{ playerId: 'a', name: 'Ada', at: 5200, deltaMs: 0 }]
+  const taken = wallOf(s, { open: true, settled: true, retired: false })
+  assert.equal(taken.moment, 'answer:locked')
+  assert.deepEqual(taken.hero, { name: 'Ada', tone: 'answering' })
+  assert.equal(taken.award, null, 'and gone the moment Ada is up')
+  oneOf(taken, 'the handover')
+})

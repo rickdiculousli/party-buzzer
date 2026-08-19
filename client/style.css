@@ -407,8 +407,10 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   text-transform: uppercase;
   overflow-wrap: anywhere;
 }
-/* The name a penalty cost. Not brass — brass is what a payoff looks like. */
-.board__hero.is-neg { color: var(--tally); }
+/* The name a penalty cost — the `penalised` tone `wallOf` names, mapped here
+   because that module says content, never appearance. Not brass; brass is what
+   a payoff looks like. */
+.board__hero.is-penalised { color: var(--tally); }
 .board__call {
   font-family: var(--display);
   font-size: var(--t-hero);
