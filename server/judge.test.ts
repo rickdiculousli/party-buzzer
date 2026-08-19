@@ -77,6 +77,68 @@ test('a miss is a wrong at full value, and the rebound re-arms', async () => {
   assert.deepEqual(state.round.spoken, { name: 'Ada', transcript: 'new hampshire', hit: false })
 })
 
+test('with the box driving, a miss holds the rebound shut until it is opened', async () => {
+  const { state, hub, judge, ada } = rig()
+  // The two halves of "the reader is in the loop and will open it".
+  state.autoplay = { on: true, nextSec: 5, reboundSec: 4 }
+  state.reading = {
+    pack: 'p.txt', qIndex: 0, qTotal: 1, fragIndex: 0, fragTotal: 1,
+    paused: false, running: true,
+  }
+  judge.prime(['Vermont'])
+  await lockIn(hub, ada)
+  await judge.submit(ada.playerId!, Buffer.from('new hampshire'), true)
+
+  assert.equal(state.round.held, true, 'held, not armed')
+  assert.equal(state.round.phase, 'LOCKED')
+  assert.equal(state.scores[ada.playerId!], -100, 'scored all the same')
+
+  // The caveat this exists for: the leader is gone, so the judge has nobody to
+  // re-offer the window to even though the phase is still LOCKED.
+  await sleep(20)
+  assert.equal(state.round.judge, undefined, 'no window reopens during the hold')
+
+  // And nobody may buzz into it. This was the whole point — the old rebound
+  // opened on the verdict, seconds before the room could know.
+  const bo: Conn = { id: 'b', role: 'player', send: () => {} }
+  hub.handle(bo, { t: 'hello', role: 'player', name: 'Bo' })
+  hub.handle(bo, { t: 'buzz', at: Date.now() })
+  assert.equal(state.round.order.length, 0, 'the buzz is refused')
+
+  // The transcript is the hold: it is what the room is looking at while the
+  // buzzers are shut, and it comes down when they open, because the clue
+  // resumes in the same instant and would otherwise be read under it in red.
+  assert.deepEqual(
+    state.round.spoken,
+    { name: 'Ada', transcript: 'new hampshire', hit: false },
+    'up for all of the hold',
+  )
+  hub.handle(hostConn, { t: 'host', action: { a: 'rebound' } })
+  assert.equal(state.round.phase, 'ARMED', 'now it opens')
+  assert.equal(state.round.held, undefined)
+  assert.ok(state.round.armedAt > Date.now(), 'and it is scheduled ahead, like any arm')
+  assert.equal(state.round.spoken, undefined, 'and the miss comes down with it')
+})
+
+test('a rebound nobody held keeps the transcript until someone takes the question', async () => {
+  // Autoplay off, or a host judging by hand: `wrong` re-arms in the same tick
+  // the judge published the transcript, so clearing it on the arm would mean
+  // the room never read it. It stays until Bo presses.
+  const { state, hub, judge, ada } = rig()
+  judge.prime(['Vermont'])
+  await lockIn(hub, ada)
+  await judge.submit(ada.playerId!, Buffer.from('new hampshire'), true)
+  assert.equal(state.round.phase, 'ARMED', 'rebound, unheld')
+  assert.equal(state.round.spoken?.transcript, 'new hampshire')
+
+  const bo: Conn = { id: 'b', role: 'player', send: () => {} }
+  hub.handle(bo, { t: 'hello', role: 'player', name: 'Bo' })
+  await sleep(ARM_LEAD_MS + 5)
+  hub.handle(bo, { t: 'buzz', at: Date.now() })
+  assert.equal(state.round.phase, 'COLLECTING', 'Bo is in')
+  assert.equal(state.round.spoken, undefined, 'and the miss goes with the handover')
+})
+
 test('silence past the window lapses to the same wrong', async () => {
   const { state, hub, judge, ada } = rig()
   // Sub-second, poked directly: the setAnswerWindow action is whole seconds,

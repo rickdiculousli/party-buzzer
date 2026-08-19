@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { useOpen, useSocket } from './useSocket.ts'
 import { colorForPlayer, lockedNames, standings, willSeat } from './ui.ts'
-import { markGap, play, playSpaced, prime, startBed, stopBed, unlock } from './sound.ts'
+import { markGap, parseTune, play, playSpaced, prime, startBed, stopBed, unlock } from './sound.ts'
 import { Votes } from './Votes.tsx'
 import { Spoken } from './Spoken.tsx'
 import { COLLECT_MS, type BuzzEntry, type State } from '../shared/protocol.ts'
@@ -132,6 +132,31 @@ function NomList({
   )
 }
 
+/**
+ * The question on the wall, laid out whole from the first frame.
+ *
+ * The board is given the entire question at the arm and renders all of it; only
+ * the part the voice has not reached is invisible. That is the difference
+ * between a line that assembles and one that jumps — with the words absent, the
+ * paragraph rewrapped on every clause, and every word already up moved
+ * sideways to make room. Invisible text still takes its space, so each word
+ * lands where it was always going to be and simply appears there.
+ *
+ * `shown` is a prefix of `whole` by construction — both are the same fragments
+ * joined the same way — so it can be sliced by length rather than matched.
+ * Without `whole` (a host reading by hand, an older snapshot) it degrades to
+ * printing what has been said, which is what this did before.
+ */
+function Question({ whole, shown }: { whole?: string; shown: string }) {
+  if (!whole) return <p class="board__question">{shown}</p>
+  return (
+    <p class="board__question">
+      {whole.slice(0, shown.length)}
+      <span class="board__unsaid">{whole.slice(shown.length)}</span>
+    </p>
+  )
+}
+
 export function Board() {
   const { state, now, connected } = useSocket('board')
   // The big screen is what the room watches, so it must not light up before
@@ -231,16 +256,85 @@ export function Board() {
   }, [buzzes])
 
   /**
-   * The award's thud, fired the moment the points appear. Keyed on the award
-   * itself, so an undo-and-rejudge sounds again and a broadcast that changes
-   * nothing does not.
+   * The verdict waits on the sentence. While the judge's transcript is still
+   * typing itself out the room has not finished reading it, so the award — its
+   * stamp, the name it lands on, the answer beneath it and the thud — is held
+   * back until `Spoken` says the line has landed and its hold has elapsed.
+   * Nothing spoken (a host judging by button) is nothing to wait for.
+   *
+   * Derived during render rather than latched by an effect. An effect runs a
+   * render too late, and the broadcast that carries the transcript carries the
+   * award with it — so the award got one frame on the wall before the hold
+   * could hide it, which is a flash of the answer at the worst possible moment.
+   */
+  const spoken = state?.round.spoken
+  const spokenKey = spoken ? `${spoken.name}:${spoken.hit}:${spoken.transcript}` : ''
+  const [settledKey, setSettledKey] = useState('')
+  const verdict = !spokenKey || settledKey === spokenKey
+
+  /**
+   * The award's thud, fired the moment the points appear.
+   *
+   * Keyed on what the award says, not on the object: every broadcast is a fresh
+   * `JSON.parse`, so an identity check re-thuds on each one while the points
+   * simply sit there.
+   *
+   * And on what it says *only* — the arm instant used to be in the key, which
+   * was fine until a penalty outlived its own arm. A rebound restamps
+   * `armedAt` while the −100 is still on the wall, so the key changed under a
+   * stamp that had not, and the penalty sounded a second time as the buzzers
+   * opened. The same stale key also un-retired the plaque and restarted its
+   * dwell, which is why it sat there long after it should have gone.
+   *
+   * An undo-and-rejudge to the same number still sounds, because undo takes the
+   * award away first: no award means an empty key, and an empty key forgets, so
+   * whatever comes back is new.
    */
   const award = state?.round.award
-  const awarded = useRef<typeof award>(undefined)
+  const awardKey = award ? `${award.name}:${award.points}` : ''
+  const thudded = useRef('')
   useEffect(() => {
-    if (award && award !== awarded.current) play(award.points < 0 ? 'penalty' : 'award')
-    awarded.current = award
-  }, [award])
+    if (!verdict) return
+    if (!awardKey) {
+      thudded.current = ''
+      return
+    }
+    if (awardKey === thudded.current) return
+    thudded.current = awardKey
+    play(award!.points < 0 ? 'penalty' : 'award')
+  }, [awardKey, verdict])
+
+  /**
+   * A penalty is a beat, not a state. It lands, the room reads the −100 against
+   * the name it cost, and then the stage goes back to the question — because a
+   * rebound is the same question with the buzzers open again and the clue still
+   * being read. Parking the stamp and the penalized name over that for the rest
+   * of the question left a result sitting on top of a question in progress.
+   *
+   * A payoff needs no retirement: nothing is running behind it, and the room
+   * looks at the board after the host scores rather than before.
+   */
+  const [retired, setRetired] = useState('')
+  useEffect(() => {
+    if (!verdict) return
+    // Forgotten the moment there is no penalty up, for the same reason the thud
+    // is: without the arm in the key, a retired "Ada −100" would otherwise
+    // retire the next identical one before the room ever saw it.
+    if (!award || award.points >= 0) {
+      setRetired('')
+      return
+    }
+    const dwell = parseTune(
+      getComputedStyle(document.documentElement).getPropertyValue('--penalty-dwell'),
+      2200,
+    )
+    const t = setTimeout(() => setRetired(awardKey), dwell)
+    return () => clearTimeout(t)
+  }, [awardKey, verdict])
+  // A held rebound overrides the dwell: the server is showing the miss until it
+  // opens the buzzers, so the board holds it exactly that long rather than
+  // running its own timer alongside and going dark in between.
+  const showAward = verdict && !!award && (retired !== awardKey || !!state?.round.held)
 
   if (!state) return <main class="board"><p class="board__idle">Connecting</p></main>
 
@@ -248,6 +342,9 @@ export function Board() {
   const leader = round.order[0]
   const armed = round.phase === 'ARMED' || round.phase === 'COLLECTING'
   const here = state.players.filter((p) => p.connected).length
+  // The box is driving, as opposed to selected-but-idle. Decides which of the
+  // two middle-band views this whole question gets.
+  const reading = !!state.reading?.running
   const barred = lockedNames(state)
   // `candidates` is only stamped at the arm, so between the host seating a pair
   // and opening the buzzers there is a gap the board used to spend saying
@@ -255,6 +352,15 @@ export function Board() {
   // announced. The seated pair carries it across that gap; once the arm stamps
   // candidates, that is the truer source, because a wrong answer narrows it.
   const seating = willSeat(state)
+  // A miss holding the stage. The rebound's arm has already happened by the
+  // time this is up — the judge re-arms the instant it says wrong — so the
+  // whole band below has to stay out of the way for the dwell, or the room
+  // reads a warm-up bar counting down under the name it just cost.
+  const missing = showAward && !!round.award && round.award.points < 0
+  // Whoever the wall still belongs to: a transcript that has not finished
+  // typing is a question still being answered, however the server has already
+  // scored it. Their name, or empty once the verdict has landed.
+  const answering = !verdict && spoken ? spoken.name : ''
   const finalistNames = (round.candidates ?? state.duel?.seated)?.map(
     (id) => state.players.find((p) => p.id === id)?.name ?? '?',
   )
@@ -298,29 +404,43 @@ export function Board() {
               prefix="board"
               transcript={round.spoken.transcript}
               hit={round.spoken.hit}
+              onSettled={() => setSettledKey(spokenKey)}
             />
           )}
           {/* The payoff — or its mirror, a penalty stamped negative. Stays up
               until the next question is armed, because the room looks at the
               board after the host scores it, not before. A penalty's leader
               is already gone to the rebound, so this gates on the award. */}
-          {round.award && (
+          {showAward && round.award && (
             <p class={round.award.points < 0 ? 'board__award is-neg' : 'board__award'}>
               {round.award.points > 0 ? '+' : ''}
               {round.award.points}
             </p>
           )}
-          {round.award && round.answer && <p class="board__answer">{round.answer}</p>}
+          {showAward && round.award && round.answer && (
+            <p class="board__answer">{round.answer}</p>
+          )}
         </div>
 
-        <div class={leader ? 'board__mid' : 'board__mid board__mid--cue'}>
+        <div class={leader || answering ? 'board__mid' : 'board__mid board__mid--cue'}>
           {leader ? (
             <p class="board__hero">{leader.name}</p>
-          ) : round.award && round.award.points < 0 ? (
+          ) : answering ? (
+            // The verdict cleared the order the instant it landed, but the room
+            // is still reading the transcript above — and the stage flicking
+            // back to the clue for those two seconds, only to be taken away
+            // again when the stamp arrives, is the question appearing to
+            // resume under an answer nobody has been told the result of. The
+            // name stays put, in the neutral colour, until its own verdict
+            // lands on it below.
+            <p class="board__hero">{answering}</p>
+          ) : missing && round.award ? (
             // A penalty keeps its name on stage through the rebound: the room
-            // reads the −400 against who it happened to. The filament and the
-            // live chip below still carry that the buzzers are open again.
-            <p class="board__hero">{round.award.name}</p>
+            // reads the −400 against who it happened to. Tally-red, the same
+            // colour as the stamp above it and the transcript above that, so
+            // the three parts of the miss read as one thing rather than a name
+            // in brass sitting under a red result.
+            <p class="board__hero is-neg">{round.award.name}</p>
           ) : state.duel && !state.duel.seated ? (
             <div class="board__noms">
               <p class="board__idle">Who plays?</p>
@@ -357,8 +477,14 @@ export function Board() {
             // fall-through below would otherwise invite the whole room to buzz
             // on a question nobody may answer.
             <p class="board__idle">Both missed — waiting for the host</p>
-          ) : round.fragments?.length ? (
-            <p class="board__question">{round.fragments.join(' ')}</p>
+          ) : reading || round.fragments?.length ? (
+            // The reading view and the buzz call are alternatives, not a
+            // sequence. While the box is driving, the question band owns the
+            // middle for the whole question — empty at the arm, filling as the
+            // voice reaches each clause. It used to show "Buzz" for the second
+            // before the first clause landed and then swap it for the text,
+            // which presented one question as two.
+            <Question whole={round.whole} shown={round.fragments?.join(' ') ?? ''} />
           ) : finalistNames?.length === 2 ? (
             // The face-off yields the stage to the question text while the
             // reader is speaking, and to the leader the moment someone buzzes.
@@ -387,7 +513,7 @@ export function Board() {
               {/* The slot is always here so the filament arriving does not
                   shove the value down a line. */}
               <div class="board__lead-in">
-                {armed && (
+                {armed && !missing && (
                   // Keyed on the arm instant so the warm-up restarts once per
                   // arm and not on every unrelated broadcast.
                   <div
@@ -397,7 +523,12 @@ export function Board() {
                   />
                 )}
               </div>
-              <p class="board__value">{round.value}</p>
+              {/* What is at stake, and only while there is something at stake.
+                  It used to sit there whatever the room was doing, so the end
+                  of a read — reader stopped, stage back to "Ready", nobody
+                  playing — left a bare 400 floating under it with nothing to
+                  be the value of. */}
+              {(armed || reading) && !missing && <p class="board__value">{round.value}</p>}
             </>
           )}
         </div>

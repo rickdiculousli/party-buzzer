@@ -40,6 +40,8 @@
  *   direct           drop any setlist — the one step that touches a flow probe did not set
  *   act:name[:data]  host-scoped act (fragment / powerEnds / revealAnswer)
  *   speak:A=text     A's transcript, POSTed as text/plain into the judge
+ *   say:A=words      the same, but spoken: `say` renders the words to a clip and
+ *                    the clip goes in as audio, so STT and the matcher both run
  *   teams:R=A,B/S=C  teams mode, those teams, those players on them
  *   flow:t*2@p.txt,q*1:v
  *                    setlist: mode*count blocks, @pack the reader takes that
@@ -64,7 +66,11 @@
  * instead of landing one after another.
  */
 import { setTimeout as sleep } from 'node:timers/promises'
+import { existsSync, mkdirSync, renameSync, rmSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { connect, reachable, type Conn } from './conn.ts'
+import { clipPath, run } from '../server/speech.ts'
 import { ARM_LEAD_MS, COLLECT_MS } from '../shared/protocol.ts'
 
 const args = process.argv.slice(2)
@@ -72,12 +78,46 @@ const URL = process.env.URL ?? (await reachable())
 
 const log = (s = '') => console.log(s)
 
+/**
+ * An answer, spoken. `say` renders the words to a clip and `say:` posts the
+ * clip, so the whole path a real phone takes — transcription, then the fuzzy
+ * matcher — runs on a walkthrough instead of being skipped by `speak:`'s
+ * text/plain shortcut.
+ *
+ * Cached beside the reader's own clips and by the same rule, so a walkthrough
+ * re-run costs nothing: the second run posts a file that is already there. WAV
+ * rather than the reader's AIFF because the extension is what tells `say` the
+ * container, and the judge writes what it receives to a `.wav` temp path.
+ *
+ * A voice of its own, because an answer in the reader's voice sounds like the
+ * box marking its own homework. Any macOS missing it falls back to the default
+ * rather than failing the walkthrough over a preference.
+ */
+const SPEAKER = process.env.SAY_VOICE ?? 'Samantha'
+async function sayClip(text: string): Promise<string> {
+  const dir = join(import.meta.dirname, '..', 'packs', '.cache')
+  mkdirSync(dir, { recursive: true })
+  const path = clipPath(dir, text, `answer:${SPEAKER}`).replace(/\.aiff$/, '.wav')
+  if (existsSync(path)) return path
+  const tmp = `${path}.tmp.wav`
+  const fmt = '--data-format=LEI16@22050'
+  const ok =
+    (await run('say', ['-v', SPEAKER, fmt, '-o', tmp, text])).ok ||
+    (await run('say', [fmt, '-o', tmp, text])).ok
+  if (!ok) {
+    rmSync(tmp, { force: true })
+    throw new Error(`say could not render "${text}" — no simulated speech on this box`)
+  }
+  renameSync(tmp, path)
+  return path
+}
+
 async function main() {
   if (args.length === 0) {
     // The header comment is the manual; printing a second copy is a second
     // thing to keep true.
     log('\n  usage: npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@120 correct')
-    log('  steps: loop join value arm buzz correct wrong next reset undo pack game direct autoplay rewind read armed act speak teams flow jump duel in out vote unvote seat cancel wait clear')
+    log('  steps: loop join value arm buzz correct wrong next reset undo pack game direct autoplay rewind read armed act speak say teams flow jump duel in out vote unvote seat cancel wait clear')
     log('  walks: npm run walk-duel   walk-teams   walk-flow   walk-read   walk-packs\n')
     return
   }
@@ -325,26 +365,37 @@ async function main() {
         // speak:Ada=green mountain state — the transcript POSTed as text/plain,
         // skipping STT, so a whole spoken round is one command. Quote the step:
         // npm run probe -- 'speak:Ada=green mountain state'
-        case 'speak': {
+        // say:Ada=the Pacific Ocean — the same, spoken. Quote it too.
+        case 'speak':
+        case 'say': {
           const [name, ...rest] = arg.split('=')
           const text = rest.join('=')
-          if (!name || !text) throw new Error('speak needs Name=transcript')
+          if (!name || !text) throw new Error(`${verb} needs Name=words`)
           const conn = player(name)
+          // Render before waiting: the clip is cached after the first run, but
+          // the first run must not spend the answer window on `say`.
+          const clip = verb === 'say' ? await sayClip(text) : ''
           // Wait for the judge's window rather than assuming the lock: the
           // round must have locked with this player first and the judge primed.
-          await host.waitFor(
-            (s) =>
-              s.round.phase === 'LOCKED' &&
-              !!s.round.judge &&
-              s.round.order[0]?.playerId === conn.playerId,
-            10_000,
-          )
+          // No window inside ten seconds means the judge is off — no `swiftc`,
+          // no speech source — and a spoken walkthrough cannot run without it.
+          await host
+            .waitFor(
+              (s) =>
+                s.round.phase === 'LOCKED' &&
+                !!s.round.judge &&
+                s.round.order[0]?.playerId === conn.playerId,
+              10_000,
+            )
+            .catch(() => {
+              throw new Error(`no answer window for ${name} — is the judge on? (see [stt] at boot)`)
+            })
           const res = await fetch(`${URL}/answer?player=${conn.playerId}`, {
             method: 'POST',
-            headers: { 'content-type': 'text/plain' },
-            body: text,
+            headers: { 'content-type': clip ? 'audio/wav' : 'text/plain' },
+            body: clip ? await readFile(clip) : text,
           })
-          log(`  → ${res.status}`)
+          log(`  → ${res.status} ${JSON.stringify(await res.json().catch(() => ({})))}`)
           break
         }
 

@@ -12,7 +12,8 @@
  *
  * Autoplay removes the keypresses either side of that judgment, not the
  * judgment: the payoff sits for `nextSec` and the reader presses N itself, a
- * rebound waits `reboundSec` before the clue picks up, and a question nobody
+ * rebound holds the miss for `reboundSec` with the buzzers shut and then opens
+ * itself, and a question nobody
  * touched passes on its own rather than wedging the loop. With the spoken
  * judge running too, that is a pack that reads itself end to end.
  *
@@ -53,13 +54,16 @@ export type ReaderOpts = {
 }
 
 /**
- * How far behind the voice the board is held, on top of fold times that already
- * round late. Process start and the audio device both cost a few milliseconds,
- * and the direction of that error is the one that matters: text arriving a beat
- * after it is spoken reads as natural, text arriving a beat early is the leak.
- * The knob to turn if the board feels ahead of the room.
+ * How far behind the voice the board is held. Negative, deliberately: a clause
+ * is meant to be up as the reader starts saying it, and every estimate feeding
+ * it rounds late — the bisection brackets to the far end, the oracle counts
+ * pessimistically, and the audio device costs a few more milliseconds on top.
+ * This cancels that, so "as it is spoken" does not drift into "just after".
+ *
+ * The knob for how far ahead the board runs. Toward zero to hold it back to the
+ * voice; further negative to have the line waiting when the clause begins.
  */
-const REVEAL_LAG_MS = 120
+const REVEAL_LAG_MS = -80
 
 export class Reader {
   private hub: Hub
@@ -394,6 +398,10 @@ export class Reader {
 
       const powerAfter = Number(this.hub.state.game.options.powerAfterFragment ?? 0)
       const j = joinFragments(q.fragments)
+      // The board needs the shape of the whole question before it says any of
+      // it, or every line it has already put up moves when the next one lands.
+      // Players never see this — the hub strips it.
+      this.hub.send(this.conn, { t: 'act', act: 'whole', data: j.text })
       const whole = this.aligned.get(j.text)
 
       if (whole) {
@@ -511,10 +519,12 @@ export class Reader {
    * however long the audio device took to open.
    *
    * Interruption still re-reads the clause, exactly as it re-read the fragment
-   * before: playback resumes at the last fold, which is precisely where the
-   * board's last reveal left off, so what is on screen and what is being said
-   * cannot disagree. Without a seeking player the resume starts the question
-   * over instead, and the reveal simply catches up.
+   * before: playback resumes at the last clause or fragment fold, so the room
+   * hears a whole clause rather than being dropped between two words. The board
+   * may already be a few words ahead of that point — the reveal never rewinds —
+   * which is the same thing a human reader backing up a clause does. Without a
+   * seeking player the resume starts the question over instead, and the reveal
+   * simply catches up.
    */
   private async speakWhole(
     whole: { clip: Clip; folds: Fold[] },
@@ -532,11 +542,7 @@ export class Reader {
         continue
       }
       if (this.buzzed()) {
-        await this.until((s) => s.round.phase === 'ARMED' || s.round.phase === 'IDLE')
-        if (!this.running || this.buzzed()) return false
-        const auto = this.hub.state.autoplay
-        if (auto.on) await this.until(() => false, auto.reboundSec * 1000)
-        if (!this.running || this.buzzed()) return false
+        if (!(await this.waitOutBuzz())) return false
         continue
       }
 
@@ -594,13 +600,7 @@ export class Reader {
         continue
       }
       if (this.buzzed()) {
-        await this.until((s) => s.round.phase === 'ARMED' || s.round.phase === 'IDLE')
-        if (!this.running || this.buzzed()) return false
-        // A rebound. Under autoplay nobody is talking over the gap, so the clue
-        // takes a beat before picking up rather than stepping on the miss.
-        const auto = this.hub.state.autoplay
-        if (auto.on) await this.until(() => false, auto.reboundSec * 1000)
-        if (!this.running || this.buzzed()) return false
+        if (!(await this.waitOutBuzz())) return false
         continue
       }
       const pb = this.speech.play(path)
@@ -615,6 +615,42 @@ export class Reader {
   }
 
   /** Somebody has the floor: collecting, locked, or already judged. */
+  /**
+   * Held here from the moment someone buzzes until the question is either the
+   * reader's again or gone. False means gone — scored, stopped, or replaced —
+   * and the caller stops reading it.
+   *
+   * A held rebound is the reader's to open. The miss sits on the board with the
+   * buzzers shut for the rebound beat, and only then does the arm go out, so
+   * the room and the phones learn the question is live again at the same
+   * moment. The beat used to run on the far side of the arm: buzzers open for
+   * the whole of it while nothing was being read and the wall was showing a
+   * result, which made buzzing on the verdict itself the dominant strategy and
+   * a race on a signal only the phones had.
+   *
+   * An unheld rebound — a host judging by hand while the box reads — keeps the
+   * old shape, because they opened it themselves when they pressed W.
+   */
+  private async waitOutBuzz(): Promise<boolean> {
+    await this.until(
+      (s) => s.round.phase === 'ARMED' || s.round.phase === 'IDLE' || !!s.round.held,
+    )
+    if (!this.running) return false
+    const auto = this.hub.state.autoplay
+    if (this.hub.state.round.held) {
+      // Ends early if anything else takes the round — a host arming, an undo.
+      await this.until((s) => !s.round.held, auto.reboundSec * 1000)
+      if (!this.running) return false
+      if (this.hub.state.round.held) {
+        this.hub.send(this.conn, { t: 'host', action: { a: 'rebound' } })
+      }
+      return this.running && !this.buzzed()
+    }
+    if (this.buzzed()) return false
+    if (auto.on) await this.until(() => false, auto.reboundSec * 1000)
+    return this.running && !this.buzzed()
+  }
+
   private buzzed(): boolean {
     return this.hub.state.round.phase !== 'ARMED'
   }

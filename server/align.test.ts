@@ -37,7 +37,6 @@ test('a clause never folds past the fragment it would cross into', () => {
     j.text.indexOf(',') > j.fragmentAt[1],
     'the clause break really does sit past the first fragment boundary',
   )
-  assert.equal(c[0].at, 42, 'nothing is revealed between the start and the first fragment boundary')
   assert.ok(!c.some((x) => x.kind === 'clause'), 'and the comma, landing on a fragment start, is not folded twice')
 })
 
@@ -193,7 +192,7 @@ function oracle(text: string, endMs: number[]): { probe: Probe; calls: () => num
   }
 }
 
-test('bisection finds every boundary, and never places one early', async () => {
+test('a clause goes up as the voice begins it, not when it finishes it', async () => {
   const j = join(['One two three.', 'Four five six.'])
   const src = words(j.text)
   // Deliberately uneven, so a linear guess would be wrong everywhere.
@@ -204,17 +203,46 @@ test('bisection finds every boundary, and never places one early', async () => {
   const folds = await locate(j, 3000, probe, 25)
   assert.ok(calls() > 0 && calls() < 200, `probe count stays sane, got ${calls()}`)
 
-  for (const f of folds) {
-    const heard = src.filter((w) => w.at < f.at).length
-    assert.ok(
-      f.ms >= endMs[heard - 1],
-      `fold at ${f.at} fires at ${f.ms}, before word ${heard} finished at ${endMs[heard - 1]}`,
-    )
-    assert.ok(
-      f.ms - endMs[heard - 1] <= 60,
-      `fold at ${f.at} lags ${f.ms - endMs[heard - 1]}ms, further than the resolution explains`,
-    )
+  // Two folds: the first fragment, then the close. Each reveals one clause.
+  assert.deepEqual(folds.map((f) => f.at), [15, 29])
+  // The first clause is on the board before a word of it has been said.
+  assert.equal(folds[0].ms, 0, 'the question opens with its first clause already up')
+  // The second goes up as "Four" begins — which is the instant "three" ended,
+  // not the instant "six" did. Firing on the last word was the old behaviour
+  // and left the line a whole clause behind the reader.
+  assert.ok(
+    Math.abs(folds[1].ms - endMs[2]) <= 25,
+    `second clause fires at ${folds[1].ms}, not as "Four" begins at ${endMs[2]}`,
+  )
+  assert.ok(folds[1].ms < endMs[5], 'and nowhere near when the clause finishes')
+})
+
+test('words the search cannot separate are spread across the gap, not lumped at its end', async () => {
+  // An oracle that only ever admits words in pairs — it will not credit the
+  // first of a pair until the second is done. That is what the real one's
+  // pessimism does, and left alone it lands both at the moment the second
+  // finished: measured against real speech, "It is what the" arrived in one
+  // lump a full second after "It" was spoken. There is no more measuring to be
+  // done, only the knowledge that the words are in order and share the gap.
+  const j = join(['One two three, four five six.'])
+  const src = words(j.text).map((w) => w.word)
+  const endMs = [500, 1000, 1500, 2000, 2500, 3000]
+  const doneBy = (ms: number) => {
+    const n = endMs.filter((e) => e <= ms).length
+    return n - (n % 2)
   }
+  const probe: Probe = async (from, to) => src.slice(doneBy(from), doneBy(to))
+
+  const folds = await locate(j, 3500, probe, 25)
+  assert.deepEqual(folds.map((f) => f.at), [15, 29], 'the clause break and the close')
+  assert.equal(folds[0].ms, 0)
+  // "four" opens the second clause. It is the first of its pair, so the search
+  // could only place it with its partner at 2000 — half a second late. Sharing
+  // the gap since the last time we trust puts it back at its onset.
+  assert.ok(
+    Math.abs(folds[1].ms - 1500) <= 60,
+    `second clause fires at ${folds[1].ms}, not as "four" begins at 1500`,
+  )
 })
 
 test('an oracle that stutters cannot drag a fold earlier than its bracket', async () => {
@@ -232,11 +260,16 @@ test('an oracle that stutters cannot drag a fold earlier than its bracket', asyn
   }
 
   const folds = await locate(j, 3000, probe, 25)
+  // A fold fires as the clause it reveals begins — so never before every word
+  // of the clause BEFORE it has been said. That is the floor a stuttering
+  // oracle must not drag it under.
+  let prevK = 0
   for (const f of folds) {
-    const heard = words(j.text).filter((w) => w.at < f.at).length
+    const floor = prevK === 0 ? 0 : endMs[prevK - 1]
     assert.ok(
-      f.ms >= endMs[heard - 1],
-      `a stuttering oracle pulled a fold to ${f.ms}, before ${endMs[heard - 1]}`,
+      f.ms >= floor,
+      `a stuttering oracle pulled a fold to ${f.ms}, before the voice reached ${floor}`,
     )
+    prevK = words(j.text).filter((w) => w.at < f.at).length
   }
 })

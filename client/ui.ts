@@ -47,6 +47,92 @@ export function colorForPlayer(state: State, playerId: string): string {
   return team?.color ?? colorFor(playerId)
 }
 
+/**
+ * What the phone's big button says, in priority order.
+ *
+ * Pure, and out here rather than inline in `Player`, because the ordering is
+ * the whole of it and the ordering is what keeps going wrong. Every bug in it
+ * so far has been the same shape: a branch that matched in a state its author
+ * was not thinking about, because the state before it had stopped matching. A
+ * list of cases is easy to read and hard to reason about; a test that walks one
+ * question end to end catches the next one.
+ *
+ * Two rules hold it together. Only the player actually answering gets a screen
+ * of their own — everyone else is some flavour of "not you", and flavouring it
+ * further just puts information on a phone whose job right now is to be quiet.
+ * And the phone never learns anything the room has not been told: `viewFor`
+ * redacts the buzz order down to your own entry, so there is no name to show
+ * even if it wanted to.
+ */
+export type Face = { label: string; sub: string; mood: string }
+export function buzzerFace(f: {
+  frozen: boolean
+  barred: boolean
+  /** A duel where both finalists missed. */
+  dead: boolean
+  /** A duel this player is not in. */
+  spectator: boolean
+  finalistNames?: string[]
+  /** This player is first in the order. */
+  won: boolean
+  /** Their margin behind first, when they buzzed and did not win. */
+  deltaMs?: number
+  /** The round is LOCKED: somebody is answering. */
+  answering: boolean
+  /** A miss is up and its rebound has not opened yet. */
+  held: boolean
+  /** This phone has pressed for this arm. Local, not from the order. */
+  pressed: boolean
+  /** ARMED or COLLECTING — the round is live. */
+  armed: boolean
+  /** Past the arm instant: the buzzers are actually open. */
+  open: boolean
+}): Face {
+  if (f.frozen) {
+    return { label: 'Frozen', sub: 'A freeze item shut you out of this question', mood: 'is-barred' }
+  }
+  if (f.barred) {
+    return {
+      label: 'Out',
+      sub: 'Wrong answer — you sit out the rest of this question',
+      mood: 'is-barred',
+    }
+  }
+  if (f.dead) return { label: 'Duel', sub: 'Both missed — waiting for the host', mood: 'is-barred' }
+  if (f.spectator) {
+    return {
+      label: 'Duel',
+      sub: `${f.finalistNames?.join(' vs ')} — you sit this one out`,
+      mood: 'is-barred',
+    }
+  }
+  if (f.won && f.answering) return { label: 'You’re up', sub: 'Answer it', mood: 'is-first' }
+  // The press has gone but the window is still filling, and the room learns
+  // nothing for a whole second.
+  //
+  // `armed`, not "not locked". `pressed` is keyed on the arm, so it stays true
+  // for the whole question however that question ends — and a scored one ends
+  // IDLE, which is neither armed nor locked. Second place kept falling back
+  // through to "In" the moment the host pressed C. Gating on the round still
+  // being live covers every way it can stop being live.
+  if (f.pressed && f.armed) {
+    return { label: 'In', sub: 'Counting the rest of the field', mood: 'is-placed' }
+  }
+  // Second place is locked too. It used to get a placement readout of its own,
+  // which is a result on a screen whose only job is to say "not you" — and the
+  // margin is on the board, in front of the whole room, already.
+  if (f.answering || f.held) {
+    return {
+      label: 'Locked',
+      sub: f.held ? 'Reopening in a moment' : f.deltaMs ? `+${f.deltaMs} ms` : '',
+      mood: 'is-barred',
+    }
+  }
+  if (f.open) return { label: 'Buzz', sub: '', mood: 'is-open' }
+  if (f.armed) return { label: 'Wait', sub: 'Any moment', mood: '' }
+  return { label: 'Wait', sub: 'The host has not armed yet', mood: '' }
+}
+
 /** Locked-out score keys as the names the room recognises. */
 export function lockedNames(state: State): string[] {
   return state.round.lockedOut.map(

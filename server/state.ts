@@ -37,7 +37,11 @@ export function newState(): State {
     answerWindowSec: 10,
     // Off by default: a host who has not asked for it should never find the
     // room moving on without them.
-    autoplay: { on: false, nextSec: 5, reboundSec: 2 },
+    // The rebound beat is long enough for the board to finish the miss: the
+    // transcript types out, holds, the penalty stamps and dwells, and only then
+    // does the clue pick up. At two seconds the voice came back while the −400
+    // was still landing, which is two things happening at once.
+    autoplay: { on: false, nextSec: 5, reboundSec: 4 },
     round: {
       value: 100,
       phase: 'IDLE',
@@ -97,6 +101,21 @@ function sameSetup(a: FlowBlock, b: FlowBlock): boolean {
   return ak.every((k) => a.options[k] === b.options[k])
 }
 
+/**
+ * The rebound proper: same question, buzzers open again for everyone not
+ * locked out, scheduled the same way any arm is. The question is still live, so
+ * effects ride along under the new arm instant.
+ */
+function openRebound(state: State): void {
+  const round = state.round
+  delete round.held
+  round.phase = 'ARMED'
+  round.armedAt = Date.now() + ARM_LEAD_MS
+  round.order = []
+  round.total = 0
+  for (const e of state.effects) e.roundArmedAt = round.armedAt
+}
+
 export function applyHostAction(state: State, action: HostAction): void {
   const round = state.round
   const leader = round.order[0]
@@ -111,7 +130,9 @@ export function applyHostAction(state: State, action: HostAction): void {
       round.order = []
       round.total = 0
       delete round.award
+      delete round.held
       delete round.fragments
+      delete round.whole
       delete round.answer
       delete round.judge
       delete round.spoken
@@ -156,6 +177,7 @@ export function applyHostAction(state: State, action: HostAction): void {
       // down. The module owns its own penalty the way it owns its own payoff,
       // so the clear has to happen before `onWrong`, not after it.
       delete round.award
+      delete round.held
       if (mod.onWrong) {
         mod.onWrong(state, action.neg)
       } else {
@@ -163,18 +185,45 @@ export function applyHostAction(state: State, action: HostAction): void {
         if (!round.lockedOut.includes(key)) round.lockedOut.push(key)
         if (action.neg) round.award = { name: leader.name, points: -action.neg }
       }
-      // Rebound: reopen the buzzers for everyone not locked out. The question
-      // is still live, so effects ride along under the new arm instant.
-      round.phase = 'ARMED'
-      round.armedAt = Date.now() + ARM_LEAD_MS
-      round.order = []
-      round.total = 0
       // Same: the verdict ended the window, but what was said rides the rebound.
       delete round.judge
-      for (const e of state.effects) e.roundArmedAt = round.armedAt
+      // Nobody is answering any more, whether the rebound opens now or waits.
+      // Emptying the order is also what keeps the judge quiet through a held
+      // one: its window needs a leader, and between the miss and the arm there
+      // isn't one.
+      round.order = []
+      round.total = 0
+
+      // Who opens the rebound. With the box driving, the room reads the miss
+      // first and the reader arms it after its rebound beat — otherwise the
+      // buzzers were open for that whole beat while nothing was being read and
+      // the wall was showing a result, which made buzzing on the verdict a race
+      // on a signal only the phones had.
+      //
+      // A host judging by hand keeps the instant rebound: they pressed W when
+      // they were ready, and there is no reader to arm it for them. The
+      // `reading.running` half of the check is what makes that safe — autoplay
+      // left on with nobody reading would otherwise hold a round nothing ever
+      // opens.
+      if (state.autoplay.on && state.reading?.running) round.held = true
+      else openRebound(state)
       duelOnWrong(state, leader.playerId)
       return
     }
+
+    case 'rebound':
+      // Only ever opens a rebound that is being held. A stray one — a double
+      // tap, a reader waking on a round that already moved — changes nothing.
+      if (!round.held) return
+      // The hold *was* the room's look at the miss. Opening it hands the wall
+      // back to the clue, and the clue resumes in the same instant — so the
+      // transcript goes with the hold rather than sitting over the next two
+      // sentences in red. Not in `openRebound`: a rebound nobody held opens in
+      // the same tick the judge published the transcript, and clearing it there
+      // would mean the room never read it at all.
+      delete round.spoken
+      openRebound(state)
+      return
 
     case 'next':
     case 'resetRound': {
@@ -187,7 +236,9 @@ export function applyHostAction(state: State, action: HostAction): void {
       round.total = 0
       round.lockedOut = []
       delete round.award
+      delete round.held
       delete round.fragments
+      delete round.whole
       delete round.answer
       delete round.judge
       delete round.spoken
@@ -235,7 +286,9 @@ export function applyHostAction(state: State, action: HostAction): void {
       round.total = 0
       round.lockedOut = []
       delete round.award
+      delete round.held
       delete round.fragments
+      delete round.whole
       delete round.answer
       return
     }
@@ -279,7 +332,7 @@ export function applyHostAction(state: State, action: HostAction): void {
       state.autoplay = {
         on: action.on,
         nextSec: secs(action.nextSec, 5),
-        reboundSec: secs(action.reboundSec, 2),
+        reboundSec: secs(action.reboundSec, 4),
       }
       return
 
@@ -461,7 +514,7 @@ export function loadState(path: string): State {
     loaded.autoplay = {
       on: auto?.on === true,
       nextSec: secs(Number(auto?.nextSec), 5),
-      reboundSec: secs(Number(auto?.reboundSec), 2),
+      reboundSec: secs(Number(auto?.reboundSec), 4),
     }
     loaded.game ??= { id: 'trivia', options: {}, moduleState: {} }
     if (!knownModule(loaded.game.id)) {
@@ -477,7 +530,9 @@ export function loadState(path: string): State {
     loaded.round.order = []
     loaded.round.total = 0
     delete loaded.round.award
+    delete loaded.round.held
     delete loaded.round.fragments
+    delete loaded.round.whole
     delete loaded.round.answer
     // A reader is never mid-pack on a fresh boot — the Reader instance that
     // would drive it is built fresh too. Without this, a stale `running: true`

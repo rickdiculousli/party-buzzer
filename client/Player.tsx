@@ -3,7 +3,7 @@ import type { JSX } from 'preact'
 import { useOpen, useSocket } from './useSocket.ts'
 import { Recorder } from './recorder.ts'
 import { encodeWav } from './wav.ts'
-import { colorForPlayer, eligibleForDuel, standings } from './ui.ts'
+import { buzzerFace, colorForPlayer, eligibleForDuel, standings } from './ui.ts'
 import { Votes } from './Votes.tsx'
 import type { State } from '../shared/protocol.ts'
 
@@ -360,49 +360,21 @@ export function Player() {
 
   // deltaMs is computed before redaction, so 0 means first across the whole field.
   const won = !!mine && mine.deltaMs === 0
-  // The award keeps the result on screen after the host scores it, the same way
-  // the board does.
-  const settled = round?.phase === 'LOCKED' || !!round?.award
 
-  let label = 'Wait'
-  let sub = 'The host has not armed yet'
-  let mood = ''
-  if (frozen) {
-    label = 'Frozen'
-    sub = 'A freeze item shut you out of this question'
-    mood = 'is-barred'
-  } else if (barred) {
-    label = 'Out'
-    sub = 'Wrong answer — you sit out the rest of this question'
-    mood = 'is-barred'
-  } else if (dead) {
-    label = 'Duel'
-    sub = 'Both missed — waiting for the host'
-    mood = 'is-barred'
-  } else if (spectator) {
-    label = 'Duel'
-    sub = `${finalistNames?.join(' vs ')} — you sit this one out`
-    mood = 'is-barred'
-  } else if (mine && settled) {
-    label = won ? 'You’re up' : `+${mine.deltaMs} ms`
-    sub = won ? 'Answer it' : 'Someone beat you to it'
-    mood = won ? 'is-first' : 'is-placed'
-  } else if (pressed) {
-    label = 'In'
-    // The round closed without this buzz in the order: it landed after the
-    // window shut. Say so instead of counting a field that no longer exists.
-    sub = settled
-      ? 'Too late — the round closed first'
-      : 'Counting the rest of the field'
-    mood = 'is-placed'
-  } else if (open) {
-    label = 'Buzz'
-    sub = ''
-    mood = 'is-open'
-  } else if (armed) {
-    label = 'Wait'
-    sub = 'Any moment'
-  }
+  const { label, sub, mood } = buzzerFace({
+    frozen,
+    barred,
+    dead,
+    spectator,
+    finalistNames,
+    won,
+    deltaMs: mine?.deltaMs,
+    answering: round?.phase === 'LOCKED',
+    held: !!round?.held,
+    pressed,
+    armed,
+    open,
+  })
 
   const me = state?.players.find((p) => p.id === playerId)
 

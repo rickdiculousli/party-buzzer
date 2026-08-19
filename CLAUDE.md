@@ -11,7 +11,8 @@ system — that document is the source of truth for anything visual, and
 
 ```bash
 npm start          # serve dist/ on :8080, print the QR, open /host and /board
-                   # (NO_OPEN=1 to keep the tabs shut)
+                   # (NO_OPEN=1 to keep the tabs shut; Ctrl-C closes any Chrome
+                   #  tab on the server's url — macOS/Chrome only, no-op elsewhere)
 npm run dev        # Vite HMR; run `npm start` alongside it for the API
 npm run build      # vite build -> dist/  (npm start serves this, not client/)
 npm test           # node:test
@@ -20,7 +21,7 @@ npm run sim        # synthetic self-play against a running server
 npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@140 correct   # one scripted round
 npm run walk-duel / walk-teams      # the two paced duel walkthroughs, ~1 min each
 npm run walk-flow  # the paced setlist walkthrough, ~1 min
-npm run walk-read  # a pack read by the box, autoplay driving it, ~1 min
+npm run walk-read  # a pack read by the box, spoken answers judged, ~90s
 npm run walk-packs # a setlist crossing two packs and back, ~2 min
 npm run motion     # the animation harness at /anim.html (dev only)
 npm run fakes -- add [n] / remove   # fake players with fake scores (ids fake-01..fake-99)
@@ -121,7 +122,11 @@ no partial update.
   all rendered before its first question, never at the boundary.
   `state.autoplay` is a record, not a switch —
   `{on, nextSec, reboundSec}` — and turns its two waits-on-the-host into dwells
-  of host-set length: the payoff's N and the beat before a rebound resumes. It
+  of host-set length: the payoff's N and the beat a miss holds the wall before
+  its rebound opens. That second one is the reader's to open, not the verdict's
+  — `wrong` sets `round.held` while the box is driving and the reader sends
+  `rebound` after the beat, so the buzzers reopen when the room can see it
+  rather than seconds earlier on a signal only the phones had. It
   also passes a question nobody buzzed, which is the only way the loop can be
   left unattended. The judgment itself is never automated here; that is the
   judge's.
@@ -296,9 +301,17 @@ and a wrong answer locks out a whole side. Both end in a `clear`.
 **`npm run walk-read`** and **`npm run walk-packs`** are the reading pair, and
 the only walkthroughs where the box drives: the first is one pack under
 autoplay through a buzz that cuts the voice, a rebound, dead air and the pack
-running out; the second is a setlist crossing two packs and coming back to the
-first mid-pack. They read from `packs/walk-a.txt` and `packs/walk-b.txt`, which
-exist for them — short, and answer variants on every question.
+running out, every answer spoken aloud and judged by machine; the second is a
+setlist crossing two packs and coming back to the first mid-pack, judged by
+hand. They read from `packs/walk-c.txt` and `packs/walk-{a,b}.txt`, which exist
+for them — short, and answer variants on every question. `walk-c` is the
+multi-sentence one, long enough that its second question can be missed and then
+taken two sentences into the rebound.
+
+`say:Ada=the Pacific Ocean` is what makes walk-read spoken: `say` renders the
+words to a cached clip and probe posts the clip as audio, so STT and
+`server/match.ts` both run. `speak:` is still the text/plain shortcut past
+them. Nothing renders twice — the clips cache like the reader's.
 
 Both are repeatable rather than merely re-runnable, which took three things:
 `rewind` (the reader's read positions are per pack and survive a Stop, so a

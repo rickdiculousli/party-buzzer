@@ -97,6 +97,23 @@ test('players see mirrored fragments only when the mirror is on', () => {
   assert.equal(on.round.answer, 'gold')
 })
 
+test('the unspoken remainder never reaches a phone, mirror or no mirror', () => {
+  const { state, hub, conn } = rig()
+  const phone = conn('player')
+  hub.handle(phone, { t: 'hello', role: 'player', name: 'Ada' })
+  state.round.fragments = ['First fragment.']
+  state.round.whole = 'First fragment. And the half nobody has heard yet.'
+
+  assert.equal(hub.viewFor(phone).round.whole, undefined, 'off')
+  state.mirrorFragments = true
+  assert.equal(hub.viewFor(phone).round.whole, undefined, 'on — the mirror is only what was said')
+  assert.equal(
+    hub.viewFor(conn('board')).round.whole,
+    state.round.whole,
+    'the board gets all of it, to lay out',
+  )
+})
+
 test('the mirror never widens the buzz-order redaction', () => {
   const { state, hub, conn } = rig()
   const a = conn('player')

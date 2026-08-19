@@ -365,10 +365,11 @@ export const SCENARIOS: Scenario[] = [
   {
     id: 'spoken',
     label: 'The spoken verdict',
-    note: 'The judge has heard the leader and the transcript types itself out, a word or two a tap. The name and timeline are already up; only the line is new.',
+    note: 'The judge has heard the leader and the transcript types itself out, a word or two a tap, in the colour it was said in. It holds, and only then turns brass or red — on the board the award stamp lands on that same instant. The name and timeline are already up; only the line is new.',
     subject: '.board__spoken',
     dials: [
       { var: '--type-chunk', label: 'Chunk pace', min: 60, max: 600, step: 10, unit: 'ms' },
+      { var: '--verdict-hold', label: 'Verdict hold', min: 0, max: 1500, step: 50, unit: 'ms' },
     ],
     // Not `sound`: the taps are not one cue fired on the trigger but one per
     // chunk, and Spoken fires them itself as each lands. `tune` puts the `type`
