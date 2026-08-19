@@ -78,6 +78,29 @@ State flows one way. Clients send `ClientMsg`, the server mutates, then
 broadcasts a whole `State` to everyone. There is no client-side game logic and
 no partial update.
 
+`shared/wall.ts` is the other half of the contract — not what the server says,
+but what a surface may show while it says it. `Moment` is thirteen named states
+in five families (`answer:` `verdict:` `duel:` `buzz:` `idle:`), returned in
+priority order, and `wallOf` / `phoneOf` project it into what the big screen and
+a phone each render. Three rules, all load-bearing:
+
+- **Nothing in it reads `round.order`.** `viewFor` redacts that to the
+  recipient's own entry, so a moment derived from it would differ per phone —
+  and the one guarantee the file exists to give is that the wall and the phones
+  never disagree about where the question is. `server/hub.test.ts` holds that
+  with a parity test against a real `Hub`.
+- **Nothing in it reads the clock or the DOM.** The three time-dependent facts
+  (`open`, `settled`, `retired`) arrive as `Local`, which is what keeps it
+  runnable under `node:test`.
+- **Content and identity, never appearance.** A tone is `penalised`, not `red`;
+  the stylesheet maps it.
+
+`Wall`'s invariant is the point: exactly one of `hero`, `clue`, `nominations`,
+`faceoff`, `call` is non-null. It replaced a seven-branch ternary and six
+overlapping booleans on the board, which is where every display bug of
+2026-08 came from. `shared/wall.test.ts` asserts it at every step of a walked
+question. Design: `docs/superpowers/specs/2026-08-18-wall-boundary-design.md`.
+
 - `server/hub.ts` — connections, buzz collection, broadcast, undo. Owns all
   round timing.
 - `server/state.ts` — `applyHostAction` (the round state machine) and the
