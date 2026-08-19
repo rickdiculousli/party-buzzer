@@ -166,7 +166,7 @@ test('idle:welcome ends at the first arm, not at the first buzz', () => {
 
 test('the phone: a question from second place, and the rebound', () => {
   const mine = {
-    frozen: false, barred: false, spectator: false,
+    frozen: false, barred: false, spectator: false, dead: false,
     won: false, pressed: false, armed: false, open: false,
   }
   assert.equal(phoneOf('idle:ready', mine).label, 'Wait')
@@ -182,7 +182,14 @@ test('the phone: a question from second place, and the rebound', () => {
   // the question is live again and this phone may press.
   assert.equal(phoneOf('answer:judging', { ...mine, armed: true, open: true }).label, 'Buzz')
 
-  assert.equal(phoneOf('duel:dead', mine).label, 'Duel')
+  // `dead` is the phone's own, not the moment: a dead duel outranks the answer
+  // states here, where on the wall a miss still being read outranks it.
+  assert.equal(phoneOf('duel:dead', { ...mine, dead: true }).label, 'Duel')
+  assert.equal(
+    phoneOf('verdict:hold', { ...mine, dead: true }).sub,
+    'Both missed — waiting for the host',
+    'not "reopening in a moment" — nothing is going to reopen',
+  )
   assert.equal(
     phoneOf('buzz:open', { ...mine, spectator: true, finalistNames: ['Ada', 'Bo'] }).sub,
     'Ada vs Bo — you sit this one out',

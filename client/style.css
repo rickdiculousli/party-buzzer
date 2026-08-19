@@ -825,6 +825,10 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   opacity: 0.75;
 }
 
+/* The five moods `phoneOf` returns, one selector each. `waiting` is the resting
+   slab `.buzzer` already paints, so it restates nothing — it is named so that
+   every mood has somewhere to land and a sixth would be visibly missing. */
+.buzzer.is-waiting { /* the base */ }
 .buzzer.is-open { background: var(--tally); border-color: var(--tally); color: var(--hot); }
 .buzzer.is-open:active { background: #ff6a5f; }
 .buzzer.is-first { background: var(--brass); border-color: var(--brass); color: #201a03; }

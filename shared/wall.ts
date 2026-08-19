@@ -210,6 +210,17 @@ export type Mine = {
   barred: boolean
   /** A duel this player is not in. */
   spectator: boolean
+  /**
+   * Both finalists missed: `candidates` is `[]` and nobody at all may buzz.
+   *
+   * Public, so it could have been the moment `duel:dead` — but the wall and the
+   * phone want it at different priorities, and neither is wrong. The wall
+   * narrates, so a miss still being read outranks the duel being over. The
+   * phone answers "may I press", and to that question "nobody may, ever" beats
+   * "reopening in a moment" — which during a dead duel is a promise nothing
+   * will keep.
+   */
+  dead: boolean
   finalistNames?: string[]
   /** This player is first in the order. */
   won: boolean
@@ -240,7 +251,8 @@ export function phoneOf(m: Moment, f: Mine): Phone {
   if (f.barred) {
     return { label: 'Out', sub: 'Wrong answer — you sit out the rest of this question', mood: 'barred' }
   }
-  if (m === 'duel:dead') {
+  // Above the answer states, unlike on the wall. See `Mine.dead`.
+  if (f.dead) {
     return { label: 'Duel', sub: 'Both missed — waiting for the host', mood: 'barred' }
   }
   if (f.spectator) {
