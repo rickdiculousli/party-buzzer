@@ -5,6 +5,7 @@ import { GameSettings } from './GameSettings.tsx'
 import { DuelPanel } from './DuelPanel.tsx'
 import { FlowPanel } from './FlowPanel.tsx'
 import { Spoken } from './Spoken.tsx'
+import { momentOf } from '../shared/wall.ts'
 import type { HostAction, ScoreKey } from '../shared/protocol.ts'
 
 /**
@@ -61,7 +62,23 @@ export function Host() {
   // Judging waits for LOCKED even though the leader shows early: scoring
   // mid-collection would strand buzzes still in the air, so the buttons stay
   // dead until the window closes. The server enforces the same rule.
-  const judgeable = round.phase === 'LOCKED' && !!leader && !round.award
+  //
+  // The host is a desk, not a stage, so both `settled` and `retired` are
+  // already true. `<Spoken>` below does type its transcript out — it types on
+  // every surface — but the desk passes it no `onSettled` and gates nothing on
+  // the reveal, which is what those two flags actually mean: whether this
+  // surface is still waiting to act. Only the board waits. `settled: false`
+  // would put the desk in `answer:judging` and take the judging buttons away at
+  // the one moment they are wanted.
+  //
+  // The two extra terms are not `answer:locked` restated. A penalty survives
+  // into the rebound it caused, so the moment after a hand-judged miss is
+  // genuinely `answer:locked` with a stale award up — and the buttons have
+  // always been dead there. Same for a lock with nobody in the order.
+  const judgeable =
+    momentOf(state, { open, settled: true, retired: true }) === 'answer:locked' &&
+    !!leader &&
+    !round.award
   judgeableRef.current = judgeable
 
   // The night is run one of two ways, and the panel only ever offers one of
