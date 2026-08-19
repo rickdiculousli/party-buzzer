@@ -31,8 +31,13 @@ export function momentOf(state: State, local: Local): Moment   // every surface
 export function wallOf(state: State, local: Local): Wall       // the big screen
 export function phoneOf(moment: Moment, mine: Mine): Phone     // the small one
 
-type Local = { settled: boolean; retired: boolean }
+type Local = { open: boolean; settled: boolean; retired: boolean }
 ```
+
+`open` joined `Local` during implementation. Whether the buzzers have actually
+opened is a countdown against `armedAt` on the client's synced clock, so
+reading it here would mean reading the clock — the one thing rule 2 forbids.
+Both surfaces already compute it (`useOpen`), so passing it costs nothing.
 
 `Moment` is the shared notion — one word for where a question is. `Wall` and
 `Phone` are what each surface renders, already decided. Neither surface keeps
@@ -75,20 +80,27 @@ today (`Board.tsx:426-500`), which is the one arrangement known to be right.
 
 ```ts
 export type Moment =
-  | 'answer:judging'  | 'answer:locked'
-  | 'verdict:hold'    | 'verdict:penalty' | 'verdict:award'
-  | 'duel:nominating' | 'duel:dead'       | 'duel:faceoff'
-  | 'buzz:collecting' | 'buzz:open'       | 'buzz:arming'
+  | 'answer:judging'
+  | 'verdict:hold'    | 'answer:locked'
+  | 'verdict:penalty' | 'verdict:award'
+  | 'duel:nominating' | 'duel:dead'  | 'duel:faceoff'
+  | 'buzz:collecting' | 'buzz:open'  | 'buzz:arming'
   | 'idle:ready'      | 'idle:welcome'
 ```
+
+**`verdict:hold` must sit above `answer:locked`,** which an earlier draft of
+this document got backwards. A hold keeps the phase at `LOCKED` — that is how
+it shuts the buzzers — so `answer:locked` first would swallow it and a hold
+could never be reached. The board escaped this by testing `order[0]`, which is
+emptied during a hold; nothing here may do that, because `order` is redacted.
 
 | Moment | True when | On the wall | Left by |
 |---|---|---|---|
 | `answer:judging` | a transcript is up and has not settled | Speaker's name, neutral, transcript typing above | `Spoken` finishes typing and holds `--verdict-hold` |
-| `answer:locked` | `LOCKED` with a leader | Leader's name, timeline below | A verdict lands |
 | `verdict:hold` | `round.held` | The miss: transcript, stamp, penalised name. Buzzers shut | The reader's `rebound`, after `reboundSec` |
+| `answer:locked` | `LOCKED` with a leader | Leader's name, timeline below | A verdict lands |
 | `verdict:penalty` | award up, settled, negative, not held | Stamp, penalised tone, name it cost | The `--penalty-dwell` retire |
-| `verdict:award` | award up, settled, positive | Stamp, revealed answer, name in scored tone | The next arm |
+| `verdict:award` | award up, settled, positive | Stamp and revealed answer, over whatever the middle band already held | The next arm |
 | `duel:nominating` | `duel && !duel.seated` | The pool, a column per side in teams | The host closes the window |
 | `duel:dead` | `candidates` is `[]`, not absent | "Both missed — waiting for the host" | The host resets or moves on |
 | `duel:faceoff` | a pair is seated, not yet armed | "Ada vs Eve" | The host arms |
@@ -138,7 +150,7 @@ list.
 ```ts
 export type Wall = {
   moment: Moment
-  hero: { name: string; tone: 'answering' | 'scored' | 'penalised' } | null
+  hero: { name: string; tone: 'answering' | 'penalised' } | null
   clue: { whole?: string; shown: string } | null
   nominations: 'solo' | 'teams' | null
   faceoff: [string, string] | null
@@ -175,12 +187,19 @@ export type Mine = {
   won: boolean
   pressed: boolean
   deltaMs?: number
+  armed: boolean
+  open: boolean
 }
 ```
 
-`buzzerFace`'s eleven parameters become a moment plus six. The six that go —
-`dead`, `answering`, `held`, `armed`, `open`, and half of `spectator` — are the
-moment. What remains is genuinely per-player.
+`buzzerFace`'s eleven parameters become a moment plus nine. Three go — `dead`,
+`answering` and `held` — and they were the three the moment names.
+
+`armed` and `open` stay, which an earlier draft assumed they would not. They
+are what separates "the buzzers are shut because somebody is answering" from
+"a transcript is typing over a rebound that is already open". The phone must
+say **Buzz** in the second case, and only the live flags distinguish them —
+`answer:judging` spans both.
 
 `mood` today returns CSS class names (`'is-barred'`, `'is-first'`) directly
 from `client/ui.ts`. That is precisely the drift rule 1 forbids, so the

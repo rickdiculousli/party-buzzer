@@ -4,36 +4,34 @@ Spec: `../specs/2026-08-18-wall-boundary-design.md`. Read it for *why*; this is
 only the order of work. Each step ends green: `npm test && npm run typecheck`.
 No behaviour change is intended at any step.
 
-## 1. `shared/wall.ts`
+## 1. `shared/wall.ts` — done
 
-- [ ] `Moment` — 13 states, union written in priority order (spec's table)
-- [ ] `Local = { settled: boolean; retired: boolean }`
-- [ ] `momentOf(state, local)` — first match wins, ordered as the union
-- [ ] `idle:welcome` keys off `armedAt`, **not** `order.length` (redacted)
-- [ ] `Wall` type — 5 exclusive middle fields, 5 free
-- [ ] `wallOf(state, local)`
-- [ ] `Phone` + `Mood` + `Mine`; `phoneOf(moment, mine)` — body lifted from `buzzerFace`
-- [ ] Doc comment carries the two rules: content-not-appearance; no clock, no DOM
-- [ ] Typed family predicates
+- [x] `Moment` — 13 states, union written in priority order
+- [x] `Local = { open: boolean; settled: boolean; retired: boolean }`
+- [x] `momentOf(state, local)` — first match wins, ordered as the union
+- [x] `idle:welcome` keys off `armedAt`, **not** `order.length` (redacted)
+- [x] `Wall` type — 5 exclusive middle fields, 5 free
+- [x] `wallOf(state, local)`
+- [x] `Phone` + `Mood` + `Mine`; `phoneOf(moment, mine)`
+- [x] Doc comment carries the two rules: content-not-appearance; no clock, no DOM
+- [x] Typed family predicate `isFamily(m, 'verdict')`
 
 ```ts
 type Verdict = Extract<Moment, `verdict:${string}`>
 const isVerdict = (m: Moment): m is Verdict => m.startsWith('verdict:')
 ```
 
-## 2. `shared/wall.test.ts`
+## 2. `shared/wall.test.ts` — done
 
-- [ ] `oneOf(w)` helper — counts non-null among `hero/clue/nominations/faceoff/call`, fails on ≠ 1
-- [ ] Walk one question, asserting `moment` + `oneOf` at every step:
-      arm → open → buzz → lock → typing → settled → wrong → hold → rebound →
-      clue resumes → second buzz → correct
-- [ ] Regression lines for this month's three: transcript over resumed clue;
-      transcript above the rebounder; clue flashing back during typing
+- [x] `oneOf(w)` helper — fails on ≠ 1 middle-band occupant
+- [x] Walk one question, asserting `moment` + `oneOf` at every step
+- [x] Regression lines for this month's three
+- [x] Duel walk; `idle:welcome` boundary; the phone's priority order
 
-## 3. Redaction parity — `server/hub.test.ts`
+## 3. Redaction parity — `server/hub.test.ts` — done
 
-- [ ] Step a question through `Hub`; at each step assert
-      `momentOf(hub.state, l) === momentOf(hub.viewFor(playerConn), l)`
+- [x] Steps a real question through `Hub`, comparing `momentOf(hub.state)`
+      against a buzzing phone's view and a never-buzzing phone's view
 
 ## 4. `client/Player.tsx` + `client/ui.ts` + `client/style.css`
 
