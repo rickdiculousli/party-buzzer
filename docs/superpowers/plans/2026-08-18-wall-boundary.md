@@ -33,34 +33,34 @@ const isVerdict = (m: Moment): m is Verdict => m.startsWith('verdict:')
 - [x] Steps a real question through `Hub`, comparing `momentOf(hub.state)`
       against a buzzing phone's view and a never-buzzing phone's view
 
-## 4. `client/Player.tsx` + `client/ui.ts` + `client/style.css`
+## 4. `client/Player.tsx` — done + `client/ui.ts` + `client/style.css`
 
 Smallest first; its existing tests are the canary.
 
-- [ ] `buzzerFace` → `phoneOf`; delete `Face` and the 11-field bag
-- [ ] `mood` returns semantic tokens, not CSS class names
+- [x] `buzzerFace` → `phoneOf`; delete `Face` and the 11-field bag
+- [x] `mood` returns semantic tokens, not CSS class names
 
 ```ts
 type Mood = 'waiting' | 'open' | 'placed' | 'first' | 'barred'
 ```
 
-- [ ] `style.css` maps the 5 tokens (`.player__btn--barred` etc.)
-- [ ] `client/ui.test.ts` — existing two `buzzerFace` cases pass with new args
+- [x] `style.css` maps the 5 tokens (`.player__btn--barred` etc.)
+- [x] `client/ui.test.ts` — existing two `buzzerFace` cases pass with new args
 
-## 5. `client/Host.tsx`
+## 5. `client/Host.tsx` — done
 
-- [ ] `judgeable` (`Host.tsx:64`) → `momentOf(...) === 'answer:locked'`
-- [ ] Nothing else. Host takes `momentOf` only — no `Desk`
+- [x] `judgeable` (`Host.tsx:64`) → `momentOf(...) === 'answer:locked'`
+- [x] Nothing else. Host takes `momentOf` only — no `Desk`
 
-## 6. `client/Board.tsx`
+## 6. `client/Board.tsx` — done
 
 Largest. Behaviour-preserving; `npm run build` required to see it.
 
-- [ ] Board keeps its two timers, passes them as `local`
-- [ ] Delete the derivation cluster (`Board.tsx:341-366`):
+- [x] Board keeps its two timers, passes them as `local`
+- [x] Delete the derivation cluster (`Board.tsx:341-366`):
       `verdict` `showAward` `missing` `answering` `armed` `reading` `seating` `finalistNames`
-- [ ] `board__above` / `board__mid` / `board__below` → flat reads off `Wall`
-- [ ] No `&&` terms left in JSX beyond `{w.x && …}`
+- [x] `board__above` / `board__mid` / `board__below` → flat reads off `Wall`
+- [x] No `&&` terms left in JSX beyond `{w.x && …}`
 
 ```tsx
 const w = wallOf(state, { settled, retired })
@@ -69,13 +69,28 @@ const w = wallOf(state, { settled, retired })
 {w.clue && <Question {...w.clue} />}
 ```
 
-- [ ] `style.css` maps `--answering / --scored / --penalised` (replaces `is-neg`)
+- [x] `style.css` maps `--answering / --scored / --penalised` (replaces `is-neg`)
 
 ## 7. Close out
 
-- [ ] `npm run build`
-- [ ] `CLAUDE.md` — one line under Architecture for `shared/wall.ts`
-- [ ] Delete `willSeat`'s board caller if `wallOf` absorbs it; keep the host's
+- [x] `npm run build`
+- [x] `CLAUDE.md` — one line under Architecture for `shared/wall.ts`
+- [x] `willSeat` keeps both callers: `Wall` decides what shows, not how a pool
+      is laid out, so the board still owns the nomination JSX
+
+## What the conversion turned up
+
+- **`verdict:hold` must outrank `answer:locked`** — a hold *is* LOCKED. The
+  board only escaped this by testing `order[0]`, which `shared/` may not read.
+- **`dead` stays on `Mine`.** The wall narrates, so a miss still being read
+  outranks a dead duel; the phone answers "may I press", where nothing-reopens
+  outranks the miss. Both are right, so it is not the moment.
+- **The host cannot judge a rebound after a penalised miss** without pressing N
+  first — `!round.award` in `judgeable` and a penalty that survives the
+  rebound. Pre-existing, untouched, wants a decision.
+- **A penalty now comes down when someone takes the question over**, instead of
+  sitting above the new answerer's name for the rest of its dwell. The one
+  intended behaviour change; same fix as the transcript's.
 
 ## Out of scope
 
