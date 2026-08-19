@@ -75,8 +75,28 @@ export type Round = {
    * the room heard it — and cleared on the next arm.
    */
   spoken?: { name: string; transcript: string; hit: boolean }
+  /**
+   * A miss is on the board and its rebound has not opened yet. Set only when
+   * the reader is driving, cleared by the `rebound` that opens it.
+   *
+   * The phase stays `LOCKED` while this is true, which is already "nobody may
+   * buzz" everywhere it matters, and `order` is emptied — so there is no leader
+   * for the judge to re-offer its window to either.
+   */
+  held?: boolean
   /** Question text revealed so far, in order. Stripped from player views. */
   fragments?: string[]
+  /**
+   * The whole question, sent at the arm so the board can lay it out before a
+   * word of it is spoken — the revealed prefix is `fragments.join(' ')`, and
+   * what is past that renders invisible rather than absent, which is what stops
+   * every line reflowing as the next clause lands.
+   *
+   * Never reaches a player. `viewFor` strips it unconditionally, including when
+   * `mirrorFragments` is on: the mirror is a record of what the room has
+   * already heard, and this is the opposite of that.
+   */
+  whole?: string
   /** Revealed after scoring, if a question pack supplied one. Stripped from player views. */
   answer?: string
 }
@@ -235,6 +255,8 @@ export type HostAction =
   | { a: 'arm' }
   | { a: 'correct' }
   | { a: 'wrong'; neg: number }
+  /** Opens a rebound the miss is still holding. No-op if none is held. */
+  | { a: 'rebound' }
   | { a: 'next' }
   | { a: 'resetRound' }
   | { a: 'undo' }

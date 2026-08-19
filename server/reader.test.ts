@@ -319,8 +319,15 @@ test('a penalty rides the rebound without the reader calling the question over',
   hub.handle(host, { t: 'host', action: { a: 'wrong', neg: 10 } })
 
   assert.deepEqual(state.round.award, { name: 'Ada', points: -10 }, 'the penalty is up')
-  assert.equal(state.round.phase, 'ARMED', 'and the buzzers are open again')
+  // Held, not open: with the box driving, the rebound waits out `reboundSec`
+  // behind shut buzzers so the room reads the miss before it is racing on it.
+  // This one is set to 0, so the reader opens it on its next turn.
+  assert.equal(state.round.held, true, 'the rebound is the reader’s to open')
+  assert.equal(state.round.phase, 'LOCKED', 'nobody may buzz on the verdict itself')
   assert.equal(state.round.answer, undefined, 'the answer is not revealed mid-rebound')
+
+  while (hub.state.round.phase !== 'ARMED') await new Promise((r) => setTimeout(r, 5))
+  assert.equal(state.round.held, undefined, 'and then the buzzers are open again')
 
   // The clue picks up where the buzz cut it rather than the reader moving on.
   while (speech.spoken.length < 2) await new Promise((r) => setTimeout(r, 5))

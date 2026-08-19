@@ -85,14 +85,21 @@ test('the whole question is one utterance, with no separator in it', async () =>
   reader.stop()
 })
 
-test('a clause appears only once spoken, and never crosses into the next fragment', async () => {
+test('a clause goes up as it begins, and never crosses into the next fragment', async () => {
   const { state, reader } = rig(foldsFor())
   await reader.select('one.txt')
   reader.start()
   await reachArm(state)
 
-  // Before any fold has come round, nothing of the question is on the board.
-  assert.equal(state.round.fragments ?? undefined, undefined, 'nothing shown before it is said')
+  // The opening clause is on the board as the reader starts saying it, not
+  // after — that is the whole point of folding on a clause's first word. What
+  // must never be up is a fragment the voice has not reached at all.
+  const early = state.round.fragments ?? []
+  assert.equal(early.length, 1, 'the fragment in progress, and no other')
+  assert.ok(
+    FRAGMENTS[0].startsWith(early[0]),
+    `what is shown is a prefix of the first fragment, got ${JSON.stringify(early[0])}`,
+  )
 
   await settle(400)
   const shown = state.round.fragments ?? []

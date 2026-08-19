@@ -2,7 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Hub, type Conn } from './hub.ts'
 import { newState } from './state.ts'
-import type { Role, ServerMsg, State } from '../shared/protocol.ts'
+import { ARM_LEAD_MS, COLLECT_MS, type Role, type ServerMsg, type State } from '../shared/protocol.ts'
+import { momentOf, type Local } from '../shared/wall.ts'
 
 function rig() {
   const state = newState()
@@ -95,6 +96,23 @@ test('players see mirrored fragments only when the mirror is on', () => {
   const on = hub.viewFor(phone)
   assert.deepEqual(on.round.fragments, ['First fragment.'], 'on: the phone mirrors the board')
   assert.equal(on.round.answer, 'gold')
+})
+
+test('the unspoken remainder never reaches a phone, mirror or no mirror', () => {
+  const { state, hub, conn } = rig()
+  const phone = conn('player')
+  hub.handle(phone, { t: 'hello', role: 'player', name: 'Ada' })
+  state.round.fragments = ['First fragment.']
+  state.round.whole = 'First fragment. And the half nobody has heard yet.'
+
+  assert.equal(hub.viewFor(phone).round.whole, undefined, 'off')
+  state.mirrorFragments = true
+  assert.equal(hub.viewFor(phone).round.whole, undefined, 'on — the mirror is only what was said')
+  assert.equal(
+    hub.viewFor(conn('board')).round.whole,
+    state.round.whole,
+    'the board gets all of it, to lay out',
+  )
 })
 
 test('the mirror never widens the buzz-order redaction', () => {
@@ -227,4 +245,46 @@ test('the duel pool is visible in player views', () => {
   }
   assert.equal(hub.viewFor(phone).duel?.pool.length, 1, 'the room sees the pool')
   assert.equal(hub.viewFor(conn('host')).duel?.pool.length, 1)
+})
+
+test('the wall and the phones never disagree about the moment', async () => {
+  // The whole point of putting `Moment` in shared/: `viewFor` redacts `order`,
+  // `whole`, `fragments` and `answer`, so a moment derived from any of them
+  // would differ per phone. Stepping a real question through the hub is the
+  // check that none of them crept in.
+  const { state, hub, conn, lastState } = rig()
+  const host = conn('host')
+  const ada = conn('player')
+  const watcher = conn('player')
+  joinAs(hub, ada, 'Ada')
+  joinAs(hub, watcher, 'Cy')
+
+  const l: Local = { open: false, settled: true, retired: false }
+  const agree = (why: string) => {
+    // lastState(1) is Ada, who buzzes; lastState(2) is Cy, who never does —
+    // the redaction gap is widest between those two.
+    assert.equal(momentOf(hub.state, l), momentOf(lastState(1), l), `${why}: Ada`)
+    assert.equal(momentOf(hub.state, l), momentOf(lastState(2), l), `${why}: Cy`)
+  }
+
+  agree('idle')
+  hub.handle(host, { t: 'act', act: 'fragment', data: 'A clue.' })
+  agree('a fragment only the wall can read')
+
+  hub.handle(host, { t: 'host', action: { a: 'arm' } })
+  agree('armed')
+  await new Promise((r) => setTimeout(r, ARM_LEAD_MS + 5))
+  hub.handle(ada, { t: 'buzz', at: Date.now() })
+  agree('collecting, before the reveal')
+  await new Promise((r) => setTimeout(r, COLLECT_MS + 60))
+  agree('locked, with an order only the wall sees whole')
+
+  hub.handle(host, { t: 'host', action: { a: 'wrong', neg: 100 } })
+  agree('the penalty and its rebound')
+  // Refused: nobody has buzzed the rebound, so this changes nothing — and a
+  // moment that stayed in step through a no-op is the one that would have
+  // drifted if it read `order`.
+  hub.handle(host, { t: 'host', action: { a: 'correct' } })
+  agree('a verdict refused for want of a leader')
+  assert.equal(state.round.phase, 'ARMED', 'the rebound is still open')
 })

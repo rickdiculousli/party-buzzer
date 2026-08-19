@@ -241,6 +241,48 @@ export async function startServer(opts: {
   }
 }
 
+/**
+ * Ctrl-C takes the tabs with it — every Chrome tab pointing at this server,
+ * which is the two `npm start` opened plus any the host duplicated.
+ *
+ * Matched by url rather than remembered from the spawn, because `open` hands
+ * the url to the browser and never tells us which tab it became. That also
+ * makes it right rather than merely convenient: a stale `/board` left over
+ * from the last run is exactly as dead as the one we opened.
+ *
+ * macOS and Chrome only. Everywhere else this is a no-op and the tabs stay,
+ * which is what happens today — nothing regresses by not knowing AppleScript.
+ * The `pgrep` is load-bearing: `tell application` launches Chrome, so without
+ * it quitting the server would *start* a browser to close nothing.
+ */
+function closeTabs(url: string): Promise<void> {
+  if (process.platform !== 'darwin') return Promise.resolve()
+  // Backwards: closing a tab renumbers the ones after it.
+  const lines = [
+    'tell application "Google Chrome"',
+    'repeat with w in windows',
+    'set i to count of tabs of w',
+    'repeat while i > 0',
+    `if URL of tab i of w starts with ${JSON.stringify(url)} then close tab i of w`,
+    'set i to i - 1',
+    'end repeat',
+    'end repeat',
+    'end tell',
+  ]
+  const step = (cmd: string, args: string[]) =>
+    new Promise<boolean>((resolve) => {
+      const p = spawn(cmd, args, { stdio: 'ignore' })
+      // Ctrl-C must exit. An unresponsive Chrome is worth a leftover tab, not
+      // a server that will not quit.
+      const t = setTimeout(() => p.kill('SIGKILL'), 1500)
+      p.on('close', (code) => (clearTimeout(t), resolve(code === 0)))
+      p.on('error', () => (clearTimeout(t), resolve(false)))
+    })
+  return step('pgrep', ['-qx', 'Google Chrome'])
+    .then((running) => (running ? step('osascript', lines.flatMap((l) => ['-e', l])) : false))
+    .then(() => {})
+}
+
 // Only run the banner when launched directly, so tests can import cleanly.
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const server = await startServer()
@@ -283,6 +325,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
 
   process.on('SIGINT', () => {
-    void server.close().then(() => process.exit(0))
+    void closeTabs(server.url).then(() =>
+      server.close().then(() => process.exit(0)),
+    )
   })
 }

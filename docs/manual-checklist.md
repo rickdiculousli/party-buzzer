@@ -120,23 +120,56 @@ npm run walk-flow
 
 ### Reading itself — `npm run walk-read`
 
-Three players, one pack, autoplay on. Nobody presses N all run. The first
-question is buzzed mid-clue, the second is missed and rebounds, and the third
-is one nobody touches at all.
+Three players, one pack (`packs/walk-c.txt`), autoplay on. Nobody presses N and
+nobody judges: every answer is **spoken out loud** and scored by the judge, so
+this is the one walkthrough that exercises `say` → STT → the fuzzy matcher end
+to end. Roughly a minute and a half.
+
+Answers are rendered by `say` in a voice of its own and cached beside the
+reader's clips, so the first run pays for three short clips and every run after
+posts files that are already there.
 
 ```bash
 npm run walk-read
 ```
 
+**It needs the judge.** No `swiftc`, no `server/stt/stt.swift`, and no window
+ever opens — the run stops on "no answer window for Ada" rather than hanging.
+
 - [ ] The voice **stops mid-word** on the buzz — no trailing syllable, and the
       rest of that clue is never read after the correct answer
+- [ ] Ada says "the Pacific Ocean" — a whole phrase, in a different voice from
+      the reader's. The board shows what it heard, in brass, and scores it
 - [ ] The payoff sits for four seconds and the next question arms itself
-- [ ] After the wrong answer there are three silent seconds before the clue
-      picks back up, from the start of the fragment the buzz cut
+- [ ] Bo answers "Rosalind Franklin" on the Curie question. The transcript goes
+      up in red and the matcher refuses it — the machine is doing the judging
+- [ ] After that wrong answer the miss holds the wall — red name, red stamp, no
+      filament, no value — with **the buzzers shut** for three seconds. Nothing
+      opens on the verdict itself
+- [ ] During that hold the host's Correct button reads **Reopen now**. Pressing
+      it (or R, or C) opens the rebound early; leaving it alone lets the reader
+      open it on its own beat, exactly as before
+- [ ] Cy's answer is judgeable **by hand** — C and W are live on the retake even
+      though Bo's −300 is still on State. Judging it with the mouse scores the
+      same as letting the machine do it
+- [ ] Then the filament runs, and the clue picks back up from the start of the
+      fragment the buzz cut *as* the buzzers open, not seconds after
+- [ ] Cy lets **two more sentences** go by before buzzing, and says "Marie
+      Curie". That gap is the point: a rebound is a live question again, not a
+      handover
+- [ ] Bo's red transcript is up for the whole hold and **comes down as the
+      buzzers open** — the clue resumes on a clean wall, not underneath it
+- [ ] The clue does **not** flash back onto the stage while a transcript is
+      typing. Bo's name holds the middle from his buzz through to his stamp,
+      one continuous thing
+- [ ] Cy buzzing takes Bo's −300 stamp down with it, the same way it takes the
+      red transcript down. Nothing of the miss is left above Cy's name
 - [ ] Nobody buzzes the third question: it reveals its answer and passes
 - [ ] The pack runs out, **autoplay switches itself off**, and the room is left
       playable by hand
-- [ ] Scores end Ada 200, Bo −100, Cy 300 — the same three numbers every run
+- [ ] Scores end Ada 200, Bo −300, Cy 300 — the same three numbers every run.
+      Different numbers with the same words spoken means STT drifted, and the
+      transcripts on the board say which one
 
 ### Two packs in one setlist — `npm run walk-packs`
 
@@ -174,7 +207,10 @@ npm run walk-packs
       arms with nobody touching the keyboard
 - [ ] Autoplay on: a question nobody buzzes passes itself rather than hanging
 - [ ] Autoplay on: the rebound pause is long enough to call the miss out loud
-      before the voice starts again
+      before the voice starts again, and the buzzers stay shut for all of it —
+      a phone tapped during the miss gets nothing
+- [ ] Autoplay **off** (or reading by hand): a wrong answer still rebounds
+      instantly, the way it always did. The hold is the reader's, not the rule
 - [ ] Autoplay off: nothing advances without your N — the check that the dwells
       cannot leak into a hand-driven game
 - [ ] The pack running out switches autoplay off by itself, and the room still

@@ -407,6 +407,10 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   text-transform: uppercase;
   overflow-wrap: anywhere;
 }
+/* The name a penalty cost — the `penalised` tone `wallOf` names, mapped here
+   because that module says content, never appearance. Not brass; brass is what
+   a payoff looks like. */
+.board__hero.is-penalised { color: var(--tally); }
 .board__call {
   font-family: var(--display);
   font-size: var(--t-hero);
@@ -455,10 +459,23 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 /* The penalty is the award's mirror: same stamp, tally-red. */
 .board__award.is-neg { background: var(--tally); color: #2a0704; }
-/* The judge's transcript: brass when it scored, tally-red when it did not. */
+/*
+ * The judge's transcript. Dim while it is still typing — it is being read, not
+ * yet judged, which is exactly what --dim is for — and brass or tally-red once
+ * the verdict lands. The turn is the moment, so it eases rather than snapping.
+ *
+ * On the stage, in stage type. It sat at a fixed 1.5rem in the body face while
+ * everything around it was --display and scaled with the viewport, so across a
+ * room it read as a footnote to the question it had just replaced.
+ */
 .board__spoken {
   margin: 0 0 var(--s2);
-  font-size: var(--t-lg);
+  font-family: var(--display);
+  font-size: var(--t-xl);
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--dim);
+  transition: color 180ms ease-out;
 }
 .board__spoken.is-hit { color: var(--brass); }
 .board__spoken.is-miss { color: var(--tally); }
@@ -474,6 +491,17 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   text-align: center;
   color: var(--tungsten);
 }
+/*
+ * The part the voice has not reached. Hidden, not absent — it holds its space,
+ * which is what fixes every line break and every word's position for the whole
+ * question. Text that was added rather than revealed rewrapped the paragraph on
+ * each clause and slid the words already up sideways to make room.
+ *
+ * `visibility`, not `opacity: 0` or a transparent colour: those still hand the
+ * text to a screen reader and to Select All, and this is a question the room is
+ * about to be asked.
+ */
+.board__unsaid { visibility: hidden; }
 /* The answer, named once the points are on the board. */
 .board__answer {
   font-family: var(--display);
@@ -799,6 +827,10 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   opacity: 0.75;
 }
 
+/* The five moods `phoneOf` returns, one selector each. `waiting` is the resting
+   slab `.buzzer` already paints, so it restates nothing — it is named so that
+   every mood has somewhere to land and a sixth would be visibly missing. */
+.buzzer.is-waiting { /* the base */ }
 .buzzer.is-open { background: var(--tally); border-color: var(--tally); color: var(--hot); }
 .buzzer.is-open:active { background: #ff6a5f; }
 .buzzer.is-first { background: var(--brass); border-color: var(--brass); color: #201a03; }
@@ -1068,6 +1100,14 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
      `--mark-stagger` is by sound.ts — the reveal is a timer, not a keyframe,
      but its pace is a tunable all the same. */
   --type-chunk: 120ms;
+  /* The beat between the last chunk landing and the verdict — the colour on
+     the line, the stamp above it and its thud, all on one instant. Long
+     enough that the room finishes reading before it is told. */
+  --verdict-hold: 500ms;
+  /* How long a penalty stamp stays on the stage before it retires and gives the
+     question back. A payoff has no equivalent: it sits until the next arm,
+     because nothing is running behind it. */
+  --penalty-dwell: 2200ms;
 
   /* No cue's sound lives here any more. A cue's gain, offset and envelope are
      fields on its layers in client/cues.ts, and the one cue still on the sample

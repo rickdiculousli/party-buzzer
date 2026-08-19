@@ -5,7 +5,18 @@ import { Recorder } from './recorder.ts'
 import { encodeWav } from './wav.ts'
 import { colorForPlayer, eligibleForDuel, standings } from './ui.ts'
 import { Votes } from './Votes.tsx'
+import { momentOf, phoneOf } from '../shared/wall.ts'
+import type { Mood } from '../shared/wall.ts'
 import type { State } from '../shared/protocol.ts'
+
+/** `phoneOf` names the mood; the stylesheet is where it becomes a colour. */
+const MOOD_CLASS: Record<Mood, string> = {
+  waiting: 'is-waiting',
+  open: 'is-open',
+  placed: 'is-placed',
+  first: 'is-first',
+  barred: 'is-barred',
+}
 
 // Mirror of server/items.ts — ids, display names, targeting. The wire carries
 // only ids, and three items do not justify a catalog channel.
@@ -157,10 +168,6 @@ export function Player() {
   const inCount = duel?.pool.filter((e) => e.in).length ?? 0
   const finalist = !!playerId && !!round?.candidates?.includes(playerId)
   const spectator = !!round?.candidates && !finalist && !!playerId
-  // Both finalists missed: candidates is `[]`, still truthy, so the two checks
-  // above alone would call every player (finalists included) a spectator of a
-  // duel with nobody named in it. Dead is its own state.
-  const dead = round?.candidates?.length === 0
   const nameOf = (id: string) => state?.players.find((p) => p.id === id)?.name ?? '?'
   const finalistNames = round?.candidates?.map(nameOf)
   const seatedNames = duel?.seated?.map(nameOf)
@@ -360,49 +367,28 @@ export function Player() {
 
   // deltaMs is computed before redaction, so 0 means first across the whole field.
   const won = !!mine && mine.deltaMs === 0
-  // The award keeps the result on screen after the host scores it, the same way
-  // the board does.
-  const settled = round?.phase === 'LOCKED' || !!round?.award
 
-  let label = 'Wait'
-  let sub = 'The host has not armed yet'
-  let mood = ''
-  if (frozen) {
-    label = 'Frozen'
-    sub = 'A freeze item shut you out of this question'
-    mood = 'is-barred'
-  } else if (barred) {
-    label = 'Out'
-    sub = 'Wrong answer — you sit out the rest of this question'
-    mood = 'is-barred'
-  } else if (dead) {
-    label = 'Duel'
-    sub = 'Both missed — waiting for the host'
-    mood = 'is-barred'
-  } else if (spectator) {
-    label = 'Duel'
-    sub = `${finalistNames?.join(' vs ')} — you sit this one out`
-    mood = 'is-barred'
-  } else if (mine && settled) {
-    label = won ? 'You’re up' : `+${mine.deltaMs} ms`
-    sub = won ? 'Answer it' : 'Someone beat you to it'
-    mood = won ? 'is-first' : 'is-placed'
-  } else if (pressed) {
-    label = 'In'
-    // The round closed without this buzz in the order: it landed after the
-    // window shut. Say so instead of counting a field that no longer exists.
-    sub = settled
-      ? 'Too late — the round closed first'
-      : 'Counting the rest of the field'
-    mood = 'is-placed'
-  } else if (open) {
-    label = 'Buzz'
-    sub = ''
-    mood = 'is-open'
-  } else if (armed) {
-    label = 'Wait'
-    sub = 'Any moment'
-  }
+  // `settled` and `retired` are both already true here: the phone renders no
+  // transcript and no award stamp, so it has no reveal to wait on — neither
+  // dwell exists on this surface for the moment to sit through.
+  const moment = state
+    ? momentOf(state, { open, settled: true, retired: true })
+    : ('idle:welcome' as const)
+  const { label, sub, mood } = phoneOf(moment, {
+    frozen,
+    barred,
+    spectator,
+    // Not taken from the moment: `verdict:hold` outranks `duel:dead` on the
+    // wall, and telling a phone "reopening in a moment" when both finalists
+    // have missed is a promise nothing will keep.
+    dead: state?.round.candidates?.length === 0,
+    finalistNames,
+    won,
+    deltaMs: mine?.deltaMs,
+    pressed,
+    armed,
+    open,
+  })
 
   const me = state?.players.find((p) => p.id === playerId)
 
@@ -546,7 +532,7 @@ export function Player() {
         </button>
       ) : (
         <button
-          class={`buzzer ${mood}`}
+          class={`buzzer ${MOOD_CLASS[mood]}`}
           onPointerDown={buzz}
           disabled={!open || barred || pressed || frozen || spectator}
         >

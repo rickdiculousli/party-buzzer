@@ -58,6 +58,12 @@ export function join(fragments: string[]): Joined {
  * break inside one. Clause breaks come from punctuation in the source, so the
  * candidates cost nothing to find — probing only ever supplies their times.
  *
+ * A clause, not a word. Word-level folds were tried and are genuinely worse to
+ * watch: the line grows a word at a time under your eye while you are trying to
+ * read it, which is fine in a karaoke bar and headache-inducing on a question
+ * you are about to buzz on. A clause is the unit the room reads in, so it is
+ * the unit that should arrive.
+ *
  * Offset 0 is not a fold. Nothing precedes it, so there is nothing to reveal.
  */
 export function candidates(j: Joined): { at: number; kind: Fold['kind'] }[] {
@@ -75,8 +81,8 @@ export function candidates(j: Joined): { at: number; kind: Fold['kind'] }[] {
       if (at < j.text.length && !frag.has(at)) out.push({ at, kind: 'clause' })
     }
   }
-  // Closing the question is a fold too: a fragment reveals as its words finish,
-  // and the last one has no successor whose start would finish it.
+  // Closing the question is a fold too: a clause goes up as it begins, and the
+  // last one has no successor whose start would put it there.
   if (j.text.length) out.push({ at: j.text.length, kind: 'end' })
   return out.sort((a, b) => a.at - b.at)
 }
@@ -342,15 +348,69 @@ export async function locate(
     ])
   }
 
-  // A fold at `at` reveals every word starting before it — so its time is when
-  // that many words have finished. Both lists are ascending, so this walks once
-  // rather than rescanning the text per candidate.
+  /*
+   * Words the search could not separate all carry their bracket's late end, so
+   * a run of them lands together at the moment the LAST of them finished. It is
+   * the dominant lag by a mile: measured against real speech, "It is what the"
+   * arrived in one lump a full second after "It" was said, while every word the
+   * search did separate sat within ~100ms of its true place.
+   *
+   * The cause is the oracle's pessimism, which is deliberate and worth keeping —
+   * a probe that cannot place a word reports fewer, so the word gets pushed into
+   * the later half of the split, and a few levels of that squeezes several words
+   * into one narrow bracket at the end.
+   *
+   * Nothing more can be measured about a run, but two things are known without
+   * measuring: the words are in order, and they occupy the gap since the last
+   * time we do trust. Speech inside a second is close enough to even, so give
+   * each its share of that gap. Interpolation, not more probing — it costs
+   * nothing and it is what turns a line arriving in lumps behind the voice into
+   * one that keeps pace with it.
+   */
+  for (let k = 1; k <= src.length; ) {
+    let end = k
+    // Within the resolution of the search, not merely equal: two words that
+    // came out of adjacent brackets 26ms apart are just as unseparated as two
+    // that shared one, and the room hears them a third of a second apart.
+    // Measured against the run's start, so a run cannot drift open a word at a
+    // time across a whole sentence.
+    while (end < src.length && done[end + 1] - done[k] <= epsMs) end++
+    const run = end - k + 1
+    if (run > 1) {
+      const from = done[k - 1]
+      const to = done[end]
+      for (let i = 0; i < run; i++) done[k + i] = Math.round(from + ((to - from) * (i + 1)) / run)
+    }
+    k = end + 1
+  }
+
+  /*
+   * A fold reveals the clause ending at `at`, and fires when the voice BEGINS
+   * that clause rather than when it finishes it — so the words are on the board
+   * as the room hears the first of them, and the line never trails the voice.
+   *
+   * That is `done[prevK]`: the moment every word before this clause is done,
+   * which is the moment its own first word starts. Firing on the clause's last
+   * word instead — the obvious reading of "reveal what has been said" — put the
+   * whole line up a clause behind the reader, which is what this used to do.
+   *
+   * The tradeoff is deliberate and it is the one the file was written against:
+   * the room can now read a clause slightly ahead of hearing it. On a buzzer
+   * question that is real, and it is the price of a board that keeps pace. It
+   * is still bounded by the clause — nothing beyond the sentence in progress is
+   * ever on screen.
+   *
+   * Both lists are ascending, so this walks once rather than rescanning the
+   * text per candidate.
+   */
   const starts = words(j.text).map((w) => w.at)
   const folds: Fold[] = []
   let k = 0
+  let prevK = 0
   for (const { at, kind } of candidates(j)) {
+    folds.push({ at, ms: done[prevK], kind, sure: exact[prevK] })
     while (k < starts.length && starts[k] < at) k++
-    folds.push({ at, ms: done[k], kind, sure: exact[k] })
+    prevK = k
   }
   return folds
 }

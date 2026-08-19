@@ -5,6 +5,7 @@ import { GameSettings } from './GameSettings.tsx'
 import { DuelPanel } from './DuelPanel.tsx'
 import { FlowPanel } from './FlowPanel.tsx'
 import { Spoken } from './Spoken.tsx'
+import { momentOf } from '../shared/wall.ts'
 import type { HostAction, ScoreKey } from '../shared/protocol.ts'
 
 /**
@@ -29,6 +30,7 @@ export function Host() {
   const value = useRef(0)
   value.current = state?.round.value ?? 0
   const judgeableRef = useRef(false)
+  const reopenableRef = useRef(false)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -43,9 +45,22 @@ export function Host() {
         if (judgeableRef.current) act({ a: 'wrong', neg: value.current })
         return
       }
+      if (key === 'r') {
+        e.preventDefault()
+        if (reopenableRef.current) act({ a: 'rebound' })
+        return
+      }
       const hit = KEYS[key]
       if (!hit) return
       e.preventDefault()
+      // C follows whatever is in that slot. During a hold the button there says
+      // Reopen, and a host's hand goes to the key it has gone to all night; the
+      // action is a no-op unless a rebound is actually being held, so this
+      // cannot misfire into anything.
+      if (hit.a === 'correct' && reopenableRef.current) {
+        act({ a: 'rebound' })
+        return
+      }
       // Same guard the buttons carry: a scored question cannot be scored again.
       if (hit.a === 'correct' && !judgeableRef.current) return
       act(hit)
@@ -61,8 +76,41 @@ export function Host() {
   // Judging waits for LOCKED even though the leader shows early: scoring
   // mid-collection would strand buzzes still in the air, so the buttons stay
   // dead until the window closes. The server enforces the same rule.
-  const judgeable = round.phase === 'LOCKED' && !!leader && !round.award
+  //
+  // The host is a desk, not a stage, so both `settled` and `retired` are
+  // already true. `<Spoken>` below does type its transcript out — it types on
+  // every surface — but the desk passes it no `onSettled` and gates nothing on
+  // the reveal, which is what those two flags actually mean: whether this
+  // surface is still waiting to act. Only the board waits. `settled: false`
+  // would put the desk in `answer:judging` and take the judging buttons away at
+  // the one moment they are wanted.
+  //
+  // The two extra terms are not `answer:locked` restated. A lock with nobody in
+  // the order is reachable if a freeze lands mid-window, and there is nothing to
+  // judge there.
+  //
+  // The award term asks "has this question already paid out", and it used to ask
+  // it as `!round.award` — which was wrong for the whole of a rebound. A penalty
+  // deliberately survives into the rebound it caused (`openRebound` leaves it up
+  // so the wall keeps saying why the question is still open), so the retake
+  // locked with a stale −400 on State and the desk went dead: a human host could
+  // not score the very question the room was waiting on, and had to spend an N.
+  // The machine judge never hit it, because a synthetic host connection goes
+  // straight to `applyHostAction` and never reads this. The server's own rule is
+  // just leader-and-LOCKED, and a negative award means the question is still
+  // live, not scored.
+  const judgeable =
+    momentOf(state, { open, settled: true, retired: true }) === 'answer:locked' &&
+    !!leader &&
+    !(round.award && round.award.points >= 0)
   judgeableRef.current = judgeable
+
+  // A miss is up and the box has not opened its rebound yet. Nobody is
+  // answering, so `Correct` has nothing to score — the slot is free, and the
+  // host gets the one control they otherwise lack: skipping the beat rather
+  // than waiting out `reboundSec`.
+  const reopenable = !!round.held
+  reopenableRef.current = reopenable
 
   // The night is run one of two ways, and the panel only ever offers one of
   // them: freehand, where the host picks the game and the pack; or a setlist,
@@ -160,9 +208,15 @@ export function Host() {
           <button class="btn btn--major btn--primary" onClick={() => act({ a: 'arm' })} disabled={open}>
             {open ? 'Buzzers open' : 'Arm'}<span class="key">Space</span>
           </button>
-          <button class="btn btn--major btn--go" onClick={() => act({ a: 'correct' })} disabled={!judgeable}>
-            Correct +{round.value}<span class="key">C</span>
-          </button>
+          {reopenable ? (
+            <button class="btn btn--major btn--go" onClick={() => act({ a: 'rebound' })}>
+              Reopen now<span class="key">R</span>
+            </button>
+          ) : (
+            <button class="btn btn--major btn--go" onClick={() => act({ a: 'correct' })} disabled={!judgeable}>
+              Correct +{round.value}<span class="key">C</span>
+            </button>
+          )}
           <button
             class="btn btn--major btn--no"
             onClick={() => act({ a: 'wrong', neg: round.value })}

@@ -4,9 +4,27 @@ import { colorForPlayer, lockedNames, standings, willSeat } from './ui.ts'
 import { markGap, play, playSpaced, prime, startBed, stopBed, unlock } from './sound.ts'
 import { Votes } from './Votes.tsx'
 import { Spoken } from './Spoken.tsx'
+import { wallOf, type Wall } from '../shared/wall.ts'
+import { useReveal } from './useReveal.ts'
 import { COLLECT_MS, type BuzzEntry, type State } from '../shared/protocol.ts'
 
 type Mark = BuzzEntry & { lane: number }
+
+/** `wallOf` names the tone; the stylesheet is where it becomes a colour. */
+const HERO_CLASS: Record<NonNullable<Wall['hero']>['tone'], string> = {
+  answering: 'board__hero',
+  // Not brass — brass is what a payoff looks like. Same tally-red as the stamp
+  // above it, so the three parts of a miss read as one thing.
+  penalised: 'board__hero is-penalised',
+}
+
+/** The middle band when nobody owns it: what the room is being told to do. */
+const CALL_TEXT: Record<NonNullable<Wall['call']>, string> = {
+  buzz: 'Buzz',
+  standby: 'Stand by',
+  ready: 'Ready',
+  dead: 'Both missed — waiting for the host',
+}
 
 /**
  * How much rail a mark's labels need, as a percentage of the rail.
@@ -132,6 +150,31 @@ function NomList({
   )
 }
 
+/**
+ * The question on the wall, laid out whole from the first frame.
+ *
+ * The board is given the entire question at the arm and renders all of it; only
+ * the part the voice has not reached is invisible. That is the difference
+ * between a line that assembles and one that jumps — with the words absent, the
+ * paragraph rewrapped on every clause, and every word already up moved
+ * sideways to make room. Invisible text still takes its space, so each word
+ * lands where it was always going to be and simply appears there.
+ *
+ * `shown` is a prefix of `whole` by construction — both are the same fragments
+ * joined the same way — so it can be sliced by length rather than matched.
+ * Without `whole` (a host reading by hand, an older snapshot) it degrades to
+ * printing what has been said, which is what this did before.
+ */
+function Question({ whole, shown }: { whole?: string; shown: string }) {
+  if (!whole) return <p class="board__question">{shown}</p>
+  return (
+    <p class="board__question">
+      {whole.slice(0, shown.length)}
+      <span class="board__unsaid">{whole.slice(shown.length)}</span>
+    </p>
+  )
+}
+
 export function Board() {
   const { state, now, connected } = useSocket('board')
   // The big screen is what the room watches, so it must not light up before
@@ -230,21 +273,21 @@ export function Board() {
       playSpaced(i === 0 ? 'leader' : 'stamp')
   }, [buzzes])
 
-  /**
-   * The award's thud, fired the moment the points appear. Keyed on the award
-   * itself, so an undo-and-rejudge sounds again and a broadcast that changes
-   * nothing does not.
-   */
-  const award = state?.round.award
-  const awarded = useRef<typeof award>(undefined)
-  useEffect(() => {
-    if (award && award !== awarded.current) play(award.points < 0 ? 'penalty' : 'award')
-    awarded.current = award
-  }, [award])
+  // Two clocks the room reads on but `State` knows nothing about: how long a
+  // transcript takes to type and how long a penalty sits. `wallOf` wants the
+  // answers, not the apparatus.
+  const { settled, retired, onSettled } = useReveal(state?.round)
 
   if (!state) return <main class="board"><p class="board__idle">Connecting</p></main>
 
   const { round } = state
+  /**
+   * What the wall shows, decided once in `shared/wall.ts` rather than by six
+   * overlapping booleans across three JSX blocks. The board keeps only the
+   * three clocks the module is not allowed to read: the countdown to `armedAt`,
+   * the transcript having settled, and the penalty dwell having elapsed.
+   */
+  const w = wallOf(state, { open, settled, retired })
   const leader = round.order[0]
   const armed = round.phase === 'ARMED' || round.phase === 'COLLECTING'
   const here = state.players.filter((p) => p.connected).length
@@ -255,9 +298,6 @@ export function Board() {
   // announced. The seated pair carries it across that gap; once the arm stamps
   // candidates, that is the truer source, because a wrong answer narrows it.
   const seating = willSeat(state)
-  const finalistNames = (round.candidates ?? state.duel?.seated)?.map(
-    (id) => state.players.find((p) => p.id === id)?.name ?? '?',
-  )
 
   return (
     <main class="board">
@@ -293,38 +333,37 @@ export function Board() {
         <div class="board__above">
           {/* What was said, as the judge heard it — the award's evidence while
               the points are up, and the whole story while a rebound runs. */}
-          {round.spoken && (
+          {w.transcript && (
             <Spoken
               prefix="board"
-              transcript={round.spoken.transcript}
-              hit={round.spoken.hit}
+              transcript={w.transcript.text}
+              hit={w.transcript.hit}
+              onSettled={onSettled}
             />
           )}
           {/* The payoff — or its mirror, a penalty stamped negative. Stays up
               until the next question is armed, because the room looks at the
               board after the host scores it, not before. A penalty's leader
               is already gone to the rebound, so this gates on the award. */}
-          {round.award && (
-            <p class={round.award.points < 0 ? 'board__award is-neg' : 'board__award'}>
-              {round.award.points > 0 ? '+' : ''}
-              {round.award.points}
+          {w.award && (
+            <p class={w.award.points < 0 ? 'board__award is-neg' : 'board__award'}>
+              {w.award.points > 0 ? '+' : ''}
+              {w.award.points}
             </p>
           )}
-          {round.award && round.answer && <p class="board__answer">{round.answer}</p>}
+          {w.award?.answer && <p class="board__answer">{w.award.answer}</p>}
         </div>
 
-        <div class={leader ? 'board__mid' : 'board__mid board__mid--cue'}>
-          {leader ? (
-            <p class="board__hero">{leader.name}</p>
-          ) : round.award && round.award.points < 0 ? (
-            // A penalty keeps its name on stage through the rebound: the room
-            // reads the −400 against who it happened to. The filament and the
-            // live chip below still carry that the buzzers are open again.
-            <p class="board__hero">{round.award.name}</p>
-          ) : state.duel && !state.duel.seated ? (
+        {/* The cue escalates through three sizes and the reserved line is what
+            keeps the band from growing under it; a name owning the stage does
+            not need it. Only the neutral hero — a penalty's name is a beat over
+            a question still in progress, and the band it sits in is the cue's. */}
+        <div class={w.hero?.tone === 'answering' ? 'board__mid' : 'board__mid board__mid--cue'}>
+          {w.hero && <p class={HERO_CLASS[w.hero.tone]}>{w.hero.name}</p>}
+          {w.nominations && (
             <div class="board__noms">
               <p class="board__idle">Who plays?</p>
-              {state.mode === 'teams' ? (
+              {w.nominations === 'teams' ? (
                 // A column per side, because that is the shape of the decision:
                 // two rooms picking one name each, and the seat takes the top of
                 // each column. One merged list made the close look like it was
@@ -349,45 +388,36 @@ export function Board() {
                   ))}
                 </div>
               ) : (
-                <NomList state={state} seating={seating} entries={state.duel.pool} />
+                <NomList state={state} seating={seating} entries={state.duel!.pool} />
               )}
             </div>
-          ) : round.candidates?.length === 0 ? (
-            // Both finalists missed: candidates is `[]`, not absent, so the
-            // fall-through below would otherwise invite the whole room to buzz
-            // on a question nobody may answer.
-            <p class="board__idle">Both missed — waiting for the host</p>
-          ) : round.fragments?.length ? (
-            <p class="board__question">{round.fragments.join(' ')}</p>
-          ) : finalistNames?.length === 2 ? (
-            // The face-off yields the stage to the question text while the
-            // reader is speaking, and to the leader the moment someone buzzes.
+          )}
+          {w.clue && <Question {...w.clue} />}
+          {/* The face-off yields the stage to the question text while the
+              reader is speaking, and to the leader the moment someone buzzes. */}
+          {w.faceoff && (
             <p class="board__faceoff">
-              <span class="board__hero">{finalistNames[0]}</span>
+              <span class="board__hero">{w.faceoff[0]}</span>
               <span class="board__idle">vs</span>
-              <span class="board__hero">{finalistNames[1]}</span>
+              <span class="board__hero">{w.faceoff[1]}</span>
             </p>
-          ) : (
-            <p class={open ? 'board__call' : 'board__idle'}>
-              {open ? 'Buzz' : armed ? 'Stand by' : 'Ready'}
-            </p>
+          )}
+          {w.call && (
+            <p class={w.call === 'buzz' ? 'board__call' : 'board__idle'}>{CALL_TEXT[w.call]}</p>
           )}
         </div>
 
         <div class="board__below">
-          {leader ? (
-            // `seen` still holds the previous count during render — the effect
-            // that advances it runs after. That is exactly the number a mark
-            // needs to know whether it arrived alone or in a crowd.
-            round.order.length > 1 && (
-              <Timeline state={state} round={round} enter={enter.current} />
-            )
-          ) : (
+          {/* `seen` still holds the previous count during render — the effect
+              that advances it runs after. That is exactly the number a mark
+              needs to know whether it arrived alone or in a crowd. */}
+          {w.timeline && <Timeline state={state} round={round} enter={enter.current} />}
+          {!leader && (
             <>
               {/* The slot is always here so the filament arriving does not
                   shove the value down a line. */}
               <div class="board__lead-in">
-                {armed && (
+                {w.filament && (
                   // Keyed on the arm instant so the warm-up restarts once per
                   // arm and not on every unrelated broadcast.
                   <div
@@ -397,7 +427,12 @@ export function Board() {
                   />
                 )}
               </div>
-              <p class="board__value">{round.value}</p>
+              {/* What is at stake, and only while there is something at stake.
+                  It used to sit there whatever the room was doing, so the end
+                  of a read — reader stopped, stage back to "Ready", nobody
+                  playing — left a bare 400 floating under it with nothing to
+                  be the value of. */}
+              {w.value !== null && <p class="board__value">{w.value}</p>}
             </>
           )}
         </div>

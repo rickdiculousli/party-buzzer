@@ -199,6 +199,10 @@ export class Hub {
       if (f?.length && data.length > f[f.length - 1].length) {
         round.fragments = [...f.slice(0, -1), data]
       }
+    } else if (name === 'whole' && typeof data === 'string') {
+      // Layout, not content: the board holds it invisible until the voice gets
+      // there. Redacted for players in viewFor, which is what keeps it safe.
+      round.whole = data
     } else if (name === 'revealAnswer' && typeof data === 'string') {
       round.answer = data
     } else if (name === 'judgeWindow') {
@@ -311,6 +315,12 @@ export class Hub {
 
     if (round.phase === 'ARMED') {
       round.phase = 'COLLECTING'
+      // The first press of a window ends the previous one's story. A miss's
+      // transcript is deliberately left up through the rebound — while nobody
+      // has buzzed it, the red line is the only thing on the wall saying why
+      // the question is still open — but the moment someone takes the question
+      // over it is the last player's wrong answer sitting above the new name.
+      delete round.spoken
       this.revealTimer = setTimeout(() => this.reveal(), this.revealMs)
       this.revealTimer.unref?.()
       this.timer = setTimeout(() => this.settle(), this.collectMs)
@@ -430,6 +440,8 @@ export class Hub {
         ...round,
         order: round.order.filter((b) => b.playerId === conn.playerId),
         fragments: this.state.mirrorFragments ? round.fragments : undefined,
+        // Unconditional, mirror or not: this is the unspoken remainder.
+        whole: undefined,
         answer: this.state.mirrorFragments ? round.answer : undefined,
       },
       reading: undefined,
