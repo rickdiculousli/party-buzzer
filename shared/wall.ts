@@ -130,10 +130,55 @@ export type Wall = {
   value: number | null
 }
 
+/**
+ * The middle band's one occupant, as a one-key object.
+ *
+ * The type is the invariant: a `Middle` cannot name two occupants, so
+ * "exactly one of five" is enforced by the compiler rather than asserted in a
+ * comment and hoped for. Four `let`s initialised to null and assigned in a
+ * branch said the same thing and guaranteed none of it.
+ */
+type Middle =
+  | { hero: NonNullable<Wall['hero']> }
+  | { clue: NonNullable<Wall['clue']> }
+  | { nominations: NonNullable<Wall['nominations']> }
+  | { faceoff: NonNullable<Wall['faceoff']> }
+  | { call: NonNullable<Wall['call']> }
+
+const EMPTY_MIDDLE = {
+  hero: null,
+  clue: null,
+  nominations: null,
+  faceoff: null,
+  call: null,
+} satisfies Pick<Wall, 'hero' | 'clue' | 'nominations' | 'faceoff' | 'call'>
+
+/**
+ * Priority order, and it is the board's own, ported: a nomination window and a
+ * dead duel outrank the clue, a faceoff yields to it.
+ */
+function middleOf(state: State, m: Moment, hero: Wall['hero'], reading: boolean): Middle {
+  const r = state.round
+  if (hero) return { hero }
+  if (m === 'duel:nominating') return { nominations: state.mode === 'teams' ? 'teams' : 'solo' }
+  if (m === 'duel:dead') return { call: 'dead' }
+  // The reading view and the buzz call are alternatives, not a sequence. While
+  // the box is driving, the question owns the middle for the whole question —
+  // empty at the arm, filling as the voice reaches each clause.
+  if (reading || r.fragments?.length) {
+    return { clue: { whole: r.whole, shown: r.fragments?.join(' ') ?? '' } }
+  }
+  const seated = r.candidates ?? state.duel?.seated
+  if (seated?.length === 2) {
+    const nameOf = (id: string) => state.players.find((p) => p.id === id)?.name ?? '?'
+    return { faceoff: [nameOf(seated[0]), nameOf(seated[1])] }
+  }
+  return { call: m === 'buzz:open' ? 'buzz' : isFamily(m, 'buzz') ? 'standby' : 'ready' }
+}
+
 export function wallOf(state: State, local: Local): Wall {
   const r = state.round
   const m = momentOf(state, local)
-  const nameOf = (id: string) => state.players.find((p) => p.id === id)?.name ?? '?'
 
   // A payoff stays until the next arm; a penalty is a beat, and the room goes
   // back to the question after it. A held rebound overrides that dwell, because
@@ -161,34 +206,12 @@ export function wallOf(state: State, local: Local): Wall {
           { name: r.award.name, tone: 'penalised' }
         : null
 
-  const seated = r.candidates ?? state.duel?.seated
   const reading = !!state.reading?.running
-
-  // Middle band, one occupant. The order is the board's own, ported: a
-  // nomination window and a dead duel outrank the clue, a faceoff yields to it.
-  let clue: Wall['clue'] = null
-  let nominations: Wall['nominations'] = null
-  let faceoff: Wall['faceoff'] = null
-  let call: Wall['call'] = null
-  if (!hero) {
-    if (m === 'duel:nominating') nominations = state.mode === 'teams' ? 'teams' : 'solo'
-    else if (m === 'duel:dead') call = 'dead'
-    else if (reading || r.fragments?.length) {
-      // The reading view and the buzz call are alternatives, not a sequence.
-      // While the box is driving, the question owns the middle for the whole
-      // question — empty at the arm, filling as the voice reaches each clause.
-      clue = { whole: r.whole, shown: r.fragments?.join(' ') ?? '' }
-    } else if (seated?.length === 2) faceoff = [nameOf(seated[0]), nameOf(seated[1])]
-    else call = m === 'buzz:open' ? 'buzz' : isFamily(m, 'buzz') ? 'standby' : 'ready'
-  }
 
   return {
     moment: m,
-    hero,
-    clue,
-    nominations,
-    faceoff,
-    call,
+    ...EMPTY_MIDDLE,
+    ...middleOf(state, m, hero, reading),
     transcript: r.spoken
       ? { name: r.spoken.name, text: r.spoken.transcript, hit: r.spoken.hit }
       : null,

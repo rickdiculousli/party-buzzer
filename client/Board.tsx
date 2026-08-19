@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { useOpen, useSocket } from './useSocket.ts'
 import { colorForPlayer, lockedNames, standings, willSeat } from './ui.ts'
-import { markGap, parseTune, play, playSpaced, prime, startBed, stopBed, unlock } from './sound.ts'
+import { markGap, play, playSpaced, prime, startBed, stopBed, unlock } from './sound.ts'
 import { Votes } from './Votes.tsx'
 import { Spoken } from './Spoken.tsx'
 import { wallOf, type Wall } from '../shared/wall.ts'
+import { useReveal } from './useReveal.ts'
 import { COLLECT_MS, type BuzzEntry, type State } from '../shared/protocol.ts'
 
 type Mark = BuzzEntry & { lane: number }
@@ -272,82 +273,11 @@ export function Board() {
       playSpaced(i === 0 ? 'leader' : 'stamp')
   }, [buzzes])
 
-  /**
-   * The verdict waits on the sentence. While the judge's transcript is still
-   * typing itself out the room has not finished reading it, so the award — its
-   * stamp, the name it lands on, the answer beneath it and the thud — is held
-   * back until `Spoken` says the line has landed and its hold has elapsed.
-   * Nothing spoken (a host judging by button) is nothing to wait for.
-   *
-   * Derived during render rather than latched by an effect. An effect runs a
-   * render too late, and the broadcast that carries the transcript carries the
-   * award with it — so the award got one frame on the wall before the hold
-   * could hide it, which is a flash of the answer at the worst possible moment.
-   */
-  const spoken = state?.round.spoken
-  const spokenKey = spoken ? `${spoken.name}:${spoken.hit}:${spoken.transcript}` : ''
-  const [settledKey, setSettledKey] = useState('')
-  const verdict = !spokenKey || settledKey === spokenKey
+  // Two clocks the room reads on but `State` knows nothing about: how long a
+  // transcript takes to type and how long a penalty sits. `wallOf` wants the
+  // answers, not the apparatus.
+  const { settled, retired, onSettled } = useReveal(state?.round)
 
-  /**
-   * The award's thud, fired the moment the points appear.
-   *
-   * Keyed on what the award says, not on the object: every broadcast is a fresh
-   * `JSON.parse`, so an identity check re-thuds on each one while the points
-   * simply sit there.
-   *
-   * And on what it says *only* — the arm instant used to be in the key, which
-   * was fine until a penalty outlived its own arm. A rebound restamps
-   * `armedAt` while the −100 is still on the wall, so the key changed under a
-   * stamp that had not, and the penalty sounded a second time as the buzzers
-   * opened. The same stale key also un-retired the plaque and restarted its
-   * dwell, which is why it sat there long after it should have gone.
-   *
-   * An undo-and-rejudge to the same number still sounds, because undo takes the
-   * award away first: no award means an empty key, and an empty key forgets, so
-   * whatever comes back is new.
-   */
-  const award = state?.round.award
-  const awardKey = award ? `${award.name}:${award.points}` : ''
-  const thudded = useRef('')
-  useEffect(() => {
-    if (!verdict) return
-    if (!awardKey) {
-      thudded.current = ''
-      return
-    }
-    if (awardKey === thudded.current) return
-    thudded.current = awardKey
-    play(award!.points < 0 ? 'penalty' : 'award')
-  }, [awardKey, verdict])
-
-  /**
-   * A penalty is a beat, not a state. It lands, the room reads the −100 against
-   * the name it cost, and then the stage goes back to the question — because a
-   * rebound is the same question with the buzzers open again and the clue still
-   * being read. Parking the stamp and the penalized name over that for the rest
-   * of the question left a result sitting on top of a question in progress.
-   *
-   * A payoff needs no retirement: nothing is running behind it, and the room
-   * looks at the board after the host scores rather than before.
-   */
-  const [retired, setRetired] = useState('')
-  useEffect(() => {
-    if (!verdict) return
-    // Forgotten the moment there is no penalty up, for the same reason the thud
-    // is: without the arm in the key, a retired "Ada −100" would otherwise
-    // retire the next identical one before the room ever saw it.
-    if (!award || award.points >= 0) {
-      setRetired('')
-      return
-    }
-    const dwell = parseTune(
-      getComputedStyle(document.documentElement).getPropertyValue('--penalty-dwell'),
-      2200,
-    )
-    const t = setTimeout(() => setRetired(awardKey), dwell)
-    return () => clearTimeout(t)
-  }, [awardKey, verdict])
   if (!state) return <main class="board"><p class="board__idle">Connecting</p></main>
 
   const { round } = state
@@ -357,7 +287,7 @@ export function Board() {
    * three clocks the module is not allowed to read: the countdown to `armedAt`,
    * the transcript having settled, and the penalty dwell having elapsed.
    */
-  const w = wallOf(state, { open, settled: verdict, retired: retired === awardKey })
+  const w = wallOf(state, { open, settled, retired })
   const leader = round.order[0]
   const armed = round.phase === 'ARMED' || round.phase === 'COLLECTING'
   const here = state.players.filter((p) => p.connected).length
@@ -408,7 +338,7 @@ export function Board() {
               prefix="board"
               transcript={w.transcript.text}
               hit={w.transcript.hit}
-              onSettled={() => setSettledKey(spokenKey)}
+              onSettled={onSettled}
             />
           )}
           {/* The payoff — or its mirror, a penalty stamped negative. Stays up
