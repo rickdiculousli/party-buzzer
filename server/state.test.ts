@@ -400,3 +400,26 @@ test('setFlow routes through sanitizeBlocks: an unknown game is dropped, a NaN c
   assert.equal(state.flow!.blocks[0].game, 'trivia')
   assert.equal(state.flow!.blocks[0].count, 1, 'the NaN count clamped to 1')
 })
+
+test('a stray rebound changes nothing, and a penalised question is still judgeable', () => {
+  // Both halves of the host desk's rebound fix lean on this. The Reopen button
+  // takes over the Correct slot during a hold, and C follows it there — safe
+  // only because `rebound` is inert when nothing is held. And the desk now
+  // judges a retake that locked with the previous miss's award still up, which
+  // the server has always allowed.
+  const state = newState()
+  const id = withPlayer(state)
+  state.round.phase = 'ARMED'
+  state.round.order = [{ playerId: id, name: 'Ada', at: 1, deltaMs: 0 }]
+
+  const before = structuredClone(state.round)
+  applyHostAction(state, { a: 'rebound' })
+  assert.deepEqual(state.round, before, 'no hold, no change')
+
+  // A miss's award rides the rebound; the retake locks with it still standing.
+  state.round.phase = 'LOCKED'
+  state.round.award = { name: 'Bo', points: -400 }
+  applyHostAction(state, { a: 'correct' })
+  assert.equal(state.scores[id], 300 + state.round.value, 'the retake scores')
+  assert.equal(state.round.award?.name, 'Ada', 'and the award is hers now')
+})

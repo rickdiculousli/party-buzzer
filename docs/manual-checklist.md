@@ -146,6 +146,12 @@ ever opens — the run stops on "no answer window for Ada" rather than hanging.
 - [ ] After that wrong answer the miss holds the wall — red name, red stamp, no
       filament, no value — with **the buzzers shut** for three seconds. Nothing
       opens on the verdict itself
+- [ ] During that hold the host's Correct button reads **Reopen now**. Pressing
+      it (or R, or C) opens the rebound early; leaving it alone lets the reader
+      open it on its own beat, exactly as before
+- [ ] Cy's answer is judgeable **by hand** — C and W are live on the retake even
+      though Bo's −300 is still on State. Judging it with the mouse scores the
+      same as letting the machine do it
 - [ ] Then the filament runs, and the clue picks back up from the start of the
       fragment the buzz cut *as* the buzzers open, not seconds after
 - [ ] Cy lets **two more sentences** go by before buzzing, and says "Marie
