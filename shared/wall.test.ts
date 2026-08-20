@@ -20,7 +20,7 @@ function room(): State {
     effects: [],
     games: [],
     duelRules: [],
-    flows: [],
+    setlists: [],
     packs: [],
     packSizes: {},
     mirrorFragments: false,

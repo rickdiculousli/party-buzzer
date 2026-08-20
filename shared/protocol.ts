@@ -159,7 +159,7 @@ export type ActiveEffect = {
 }
 
 /** One stretch of the night: N questions of one mode, optionally as duels. */
-export type FlowBlock = {
+export type SetlistBlock = {
   /** Module id, into the same catalog the host settings form renders from. */
   game: string
   /** Values for that module's option schema; sanitized when applied. */
@@ -178,9 +178,9 @@ export type FlowBlock = {
  * The setlist and where the room is in it. Rides State, so snapshot, undo and
  * broadcast come free — the same bargain `duel` and `items` take.
  */
-export type FlowState = {
-  blocks: FlowBlock[]
-  /** Index of the running block. Equals blocks.length when the flow is spent. */
+export type SetlistState = {
+  blocks: SetlistBlock[]
+  /** Index of the running block. Equals blocks.length when the setlist is spent. */
   at: number
   /** Questions gone by inside the current block. */
   done: number
@@ -234,9 +234,9 @@ export type State = {
   /** Static rule catalog. Refreshed at startup beside `games`. */
   duelRules: DuelRuleInfo[]
   /** The setlist, if the host built one. Absent = the host is driving freehand. */
-  flow?: FlowState
-  /** Saved flow filenames on disk. Filenames only, like `packs`. */
-  flows: string[]
+  setlist?: SetlistState
+  /** Saved setlist filenames on disk. Filenames only, like `packs`. */
+  setlists: string[]
   /** Pack filenames on disk. Filenames only — question content never enters State. */
   packs: string[]
   /** Questions per pack. A count is not content, and the builder needs it. */
@@ -268,7 +268,7 @@ export type HostAction =
   | { a: 'setGrouping'; grouping: Grouping }
   | { a: 'addTeam'; name: string; color: string }
   | { a: 'assign'; playerId: PlayerId; teamId?: TeamId }
-  /** `keepScores` is the flow crossing a block boundary; a host switch resets. */
+  /** `keepScores` is the setlist crossing a block boundary; a host switch resets. */
   | { a: 'setMode'; id: string; options: Record<string, unknown>; keepScores?: boolean }
   | { a: 'setMirror'; on: boolean }
   /** The whole triple every time: one edit, one undo step, no partial merge. */
@@ -278,9 +278,9 @@ export type HostAction =
   | { a: 'closeDuel'; playerIds?: [PlayerId, PlayerId] }
   | { a: 'cancelDuel' }
   /** The builder writes the whole array: one edit, one undo step. Empty clears. */
-  | { a: 'setFlow'; blocks: FlowBlock[] }
-  | { a: 'flowJump'; at: number }
-  | { a: 'clearFlow' }
+  | { a: 'setSetlist'; blocks: SetlistBlock[] }
+  | { a: 'setlistJump'; at: number }
+  | { a: 'clearSetlist' }
 
 export type ClientMsg =
   | { t: 'hello'; role: Role; playerId?: PlayerId; name?: string }

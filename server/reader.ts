@@ -330,15 +330,15 @@ export class Reader {
 
   /**
    * Which pack the next question comes from. A setlist block names its own, so
-   * the reader follows the flow across pack boundaries; without a setlist it is
+   * the reader follows the setlist across pack boundaries; without a setlist it is
    * whatever the host picked. Undefined means there is nothing to read — a
    * spent setlist, or a block whose questions the host is reading aloud
    * themselves — and the loop ends rather than reading the wrong pack.
    */
   private nextPack(): string | undefined {
-    const flow = this.hub.state.flow
-    if (!flow) return this.pack || undefined
-    return flow.blocks[flow.at]?.pack
+    const setlist = this.hub.state.setlist
+    if (!setlist) return this.pack || undefined
+    return setlist.blocks[setlist.at]?.pack
   }
 
   private async run(): Promise<void> {
@@ -346,7 +346,7 @@ export class Reader {
     // than at the block boundary where it would be thirty seconds of silence.
     // Queued, not awaited: rendering runs behind the game now, in the order the
     // blocks will be read, so the first question is not held up by the last.
-    for (const b of this.hub.state.flow?.blocks ?? []) {
+    for (const b of this.hub.state.setlist?.blocks ?? []) {
       if (b.pack) void this.ensure(b.pack).catch((e) => console.warn(`[reader] ${b.pack}: ${e}`))
     }
 

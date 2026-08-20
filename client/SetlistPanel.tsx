@@ -1,5 +1,5 @@
 import { useState } from 'preact/hooks'
-import type { FlowBlock, HostAction, State } from '../shared/protocol.ts'
+import type { SetlistBlock, HostAction, State } from '../shared/protocol.ts'
 import { OptionField, defaultsOf } from './GameSettings.tsx'
 
 /**
@@ -11,7 +11,7 @@ import { OptionField, defaultsOf } from './GameSettings.tsx'
  * Every edit sends the whole array. Add, move, remove and edit are all array
  * work the client can do, and one action means one undo step for one edit.
  */
-export function FlowPanel({
+export function SetlistPanel({
   state,
   act,
   fire,
@@ -21,7 +21,7 @@ export function FlowPanel({
   fire: (name: string, data?: unknown) => void
 }) {
   const [saveAs, setSaveAs] = useState('')
-  const blocks = state.flow?.blocks ?? []
+  const blocks = state.setlist?.blocks ?? []
   const idle = state.round.phase === 'IDLE'
 
   /**
@@ -37,8 +37,8 @@ export function FlowPanel({
   const shortfall = (pack: string): number =>
     Math.max(0, (demand.get(pack) ?? 0) - (state.packSizes[pack] ?? 0))
 
-  const write = (next: FlowBlock[]) => act({ a: 'setFlow', blocks: next })
-  const edit = (i: number, patch: Partial<FlowBlock>) =>
+  const write = (next: SetlistBlock[]) => act({ a: 'setSetlist', blocks: next })
+  const edit = (i: number, patch: Partial<SetlistBlock>) =>
     write(blocks.map((b, j) => (j === i ? { ...b, ...patch } : b)))
   const move = (i: number, by: number) => {
     const next = [...blocks]
@@ -62,23 +62,23 @@ export function FlowPanel({
   }
 
   return (
-    <section class="flow">
-      <p class="eyebrow">Flow</p>
+    <section class="setlist">
+      <p class="eyebrow">Setlist</p>
 
 
-      <div class="flow__io">
+      <div class="setlist__io">
         <select
           class="input"
           value=""
-          disabled={!idle || state.flows.length === 0}
+          disabled={!idle || state.setlists.length === 0}
           onChange={(e) => {
             const name = (e.target as HTMLSelectElement).value
-            if (name) fire('loadFlow', name)
+            if (name) fire('loadSetlist', name)
             ;(e.target as HTMLSelectElement).value = ''
           }}
         >
-          <option value="">Load a flow…</option>
-          {state.flows.map((f) => (
+          <option value="">Load a setlist…</option>
+          {state.setlists.map((f) => (
             <option key={f} value={f}>{f.replace(/\.json$/, '')}</option>
           ))}
         </select>
@@ -92,7 +92,7 @@ export function FlowPanel({
           class="btn"
           disabled={!saveAs.trim() || blocks.length === 0}
           onClick={() => {
-            fire('saveFlow', saveAs.trim())
+            fire('saveSetlist', saveAs.trim())
             setSaveAs('')
           }}
         >
@@ -101,13 +101,13 @@ export function FlowPanel({
       </div>
 
       {blocks.length === 0 ? (
-        <p class="muted">No flow. The host drives freehand — add a block to plan the night.</p>
+        <p class="muted">No setlist. The host drives freehand — add a block to plan the night.</p>
       ) : (
         blocks.map((b, i) => {
           const info = state.games.find((g) => g.id === b.game)
           return (
-            <div key={i} class={i === state.flow?.at ? 'flow__block is-here' : 'flow__block'}>
-              <span class="flow__n">{i + 1}</span>
+            <div key={i} class={i === state.setlist?.at ? 'setlist__block is-here' : 'setlist__block'}>
+              <span class="setlist__n">{i + 1}</span>
               <label class="field">
                 Mode
                 <select
@@ -206,13 +206,13 @@ export function FlowPanel({
               ))}
 
               {b.pack && shortfall(b.pack) > 0 && (
-                <span class="flow__tally is-short">
+                <span class="setlist__tally is-short">
                   {b.pack} has {state.packSizes[b.pack] ?? 0} — the setlist asks it for{' '}
                   {demand.get(b.pack)}. The reading stops when it runs out.
                 </span>
               )}
 
-              <span class="flow__acts">
+              <span class="setlist__acts">
                 <button
                   class="btn btn--ghost"
                   title="Move up"
@@ -246,12 +246,12 @@ export function FlowPanel({
       <div class="host__minor">
         <button class="btn" disabled={!idle} onClick={add}>+ block</button>
         {blocks.length > 0 && (
-          <button class="btn btn--ghost" disabled={!idle} onClick={() => act({ a: 'clearFlow' })}>
-            Clear flow
+          <button class="btn btn--ghost" disabled={!idle} onClick={() => act({ a: 'clearSetlist' })}>
+            Clear setlist
           </button>
         )}
       </div>
-      {!idle && <p class="muted">The flow unlocks between questions.</p>}
+      {!idle && <p class="muted">The setlist unlocks between questions.</p>}
     </section>
   )
 }

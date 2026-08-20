@@ -37,17 +37,17 @@
  *   read             start the reader on the chosen pack or the block's
  *   armed            wait for the buzzers to open — the reader arms, not you
  *   mode:trivia      pin the mode (resets scores, as a host mode switch does)
- *   direct           drop any setlist — the one step that touches a flow probe did not set
+ *   direct           drop any setlist — the one step that touches a setlist probe did not set
  *   act:name[:data]  host-scoped act (fragment / powerEnds / revealAnswer)
  *   speak:A=text     A's transcript, POSTed as text/plain into the judge
  *   say:A=words      the same, but spoken: `say` renders the words to a clip and
  *                    the clip goes in as audio, so STT and the matcher both run
  *   teams:R=A,B/S=C  teams grouping, those teams, those players on them
- *   flow:t*2@p.txt,q*1:v
+ *   setlist:t*2@p.txt,q*1:v
  *                    setlist: mode*count blocks, @pack the reader takes that
  *                    block's questions from, a trailing :rule opens a duel for
  *                    the block it follows
- *   jump:1           jump the flow to that block index
+ *   jump:1           jump the setlist to that block index
  *   duel:vote        open a heads-up duel under that rule id
  *   in:A,B | out:A   volunteer / back off, from those players' own sockets
  *   vote:A=B,C=B     A votes for B, C votes for B (`=`, not `>`: no quoting)
@@ -117,8 +117,8 @@ async function main() {
     // The header comment is the manual; printing a second copy is a second
     // thing to keep true.
     log('\n  usage: npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@120 correct')
-    log('  steps: loop join value arm buzz correct wrong next reset undo pack mode direct autoplay rewind read armed act speak say teams flow jump duel in out vote unvote seat cancel wait clear')
-    log('  walks: npm run walk-duel   walk-teams   walk-flow   walk-read   walk-packs\n')
+    log('  steps: loop join value arm buzz correct wrong next reset undo pack mode direct autoplay rewind read armed act speak say teams setlist jump duel in out vote unvote seat cancel wait clear')
+    log('  walks: npm run walk-duel   walk-teams   walk-setlist   walk-read   walk-packs\n')
     return
   }
 
@@ -160,7 +160,7 @@ async function main() {
    */
   const assigned = new Set<string>()
   let teamsAreOurs = false
-  let flowIsOurs = false
+  let setlistIsOurs = false
   let readIsOurs = false
   let autoplayIsOurs = false
 
@@ -172,11 +172,11 @@ async function main() {
     if (autoplayIsOurs) {
       host.send({ t: 'host', action: { a: 'setAutoplay', on: false, nextSec: 5, reboundSec: 2 } })
     }
-    // Then the round: clearFlow is refused unless it is IDLE, so resetting here
+    // Then the round: clearSetlist is refused unless it is IDLE, so resetting here
     // before anything IDLE-gated runs is what makes a `clear` mid-question
-    // actually clear rather than leave the flow armed for the next `next`.
+    // actually clear rather than leave the setlist armed for the next `next`.
     host.send({ t: 'host', action: { a: 'next' } })
-    if (flowIsOurs) host.send({ t: 'host', action: { a: 'clearFlow' } })
+    if (setlistIsOurs) host.send({ t: 'host', action: { a: 'clearSetlist' } })
     host.send({ t: 'host', action: { a: 'cancelDuel' } })
     // Before the kick: an assign for a player who is already gone does nothing.
     for (const playerId of assigned) host.send({ t: 'host', action: { a: 'assign', playerId } })
@@ -193,7 +193,7 @@ async function main() {
   for (let pass = 1; ; pass++) {
     if (looping) log(`  ── pass ${pass}`)
     for (const step of steps) {
-      // First colon only: `flow:trivia*2,quizbowl*1:vote` has to keep the
+      // First colon only: `setlist:trivia*2,quizbowl*1:vote` has to keep the
       // duel rule attached, and an act's data can itself hold colons — a full
       // split-and-take-two would silently drop everything past the second one.
       const sep = step.indexOf(':')
@@ -317,8 +317,8 @@ async function main() {
         // script cannot run against a room in setlist mode, because the block
         // is what names the pack. Destructive, and only ever asked for.
         case 'direct':
-          host.send({ t: 'host', action: { a: 'clearFlow' } })
-          await host.waitFor((s) => !s.flow, 3000).catch(() => {})
+          host.send({ t: 'host', action: { a: 'clearSetlist' } })
+          await host.waitFor((s) => !s.setlist, 3000).catch(() => {})
           break
 
         // Forget where every pack got to, so a walkthrough starts from the same
@@ -437,11 +437,11 @@ async function main() {
           break
         }
 
-        // flow:trivia*3@walk-a.txt,quizbowl*2:vote — mode*count, optionally
+        // setlist:trivia*3@walk-a.txt,quizbowl*2:vote — mode*count, optionally
         // @pack for the reader to take that block's questions from, optionally
         // :duelRule. Both suffixes are optional and either order of reading
         // them is unambiguous: a pack name holds no colon and a rule id no @.
-        case 'flow': {
+        case 'setlist': {
           const blocks = arg.split(',').filter(Boolean).map((part) => {
             const [head, duel] = part.split(':')
             const [spec, pack] = head.split('@')
@@ -454,15 +454,15 @@ async function main() {
               ...(duel ? { duel } : {}),
             }
           })
-          host.send({ t: 'host', action: { a: 'setFlow', blocks } })
-          await host.waitFor((s) => s.flow?.blocks.length === blocks.length)
-          flowIsOurs = true
-          log(`  flow ${blocks.length} blocks`)
+          host.send({ t: 'host', action: { a: 'setSetlist', blocks } })
+          await host.waitFor((s) => s.setlist?.blocks.length === blocks.length)
+          setlistIsOurs = true
+          log(`  setlist ${blocks.length} blocks`)
           break
         }
 
         case 'jump':
-          host.send({ t: 'host', action: { a: 'flowJump', at: Number(arg) } })
+          host.send({ t: 'host', action: { a: 'setlistJump', at: Number(arg) } })
           break
 
         case 'duel':

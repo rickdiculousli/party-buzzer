@@ -185,7 +185,7 @@
 }
 
 /* Explanatory text in the panel: what a control will do, what an empty list
-   means. In flow, and wrapping, unlike the stage caption above. */
+   means. Inline, and wrapping, unlike the stage caption above. */
 .harness__hint {
   margin: var(--s2) 0;
   font-size: var(--t-xs);

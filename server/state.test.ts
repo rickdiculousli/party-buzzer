@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { applyHostAction, buzzBlockReason, loadState, newState } from './state.ts'
-import type { FlowBlock, State } from '../shared/protocol.ts'
+import type { SetlistBlock, State } from '../shared/protocol.ts'
 
 function withPlayer(state: State): string {
   state.players.push({ id: 'p1', name: 'Ada', connected: true })
@@ -198,7 +198,7 @@ test('next clears both', () => {
   assert.equal(state.round.spoken, undefined)
 })
 
-test('setMode keeps the standings when the flow asks it to', () => {
+test('setMode keeps the standings when the setlist asks it to', () => {
   const state = newState()
   state.scores = { ada: 300 }
   state.items = { ada: ['shield'] }
@@ -216,7 +216,7 @@ test('a host switching modes by hand still wipes the standings', () => {
   assert.deepEqual(state.scores, {})
 })
 
-const flowBlocks: FlowBlock[] = [
+const setlistBlocks: SetlistBlock[] = [
   { game: 'trivia', options: {}, count: 2, value: 100 },
   { game: 'quizbowl', options: {}, count: 1, duel: 'vote' },
 ]
@@ -229,19 +229,19 @@ function playRound(state: State): void {
 
 test('next spends a question; a second next on a dead round spends nothing', () => {
   const state = newState()
-  applyHostAction(state, { a: 'setFlow', blocks: flowBlocks })
+  applyHostAction(state, { a: 'setSetlist', blocks: setlistBlocks })
   playRound(state)
-  assert.deepEqual([state.flow!.at, state.flow!.done], [0, 1])
+  assert.deepEqual([state.setlist!.at, state.setlist!.done], [0, 1])
   applyHostAction(state, { a: 'next' })
-  assert.deepEqual([state.flow!.at, state.flow!.done], [0, 1])
+  assert.deepEqual([state.setlist!.at, state.setlist!.done], [0, 1])
 })
 
 test('resetRound takes a question back rather than spending it', () => {
   const state = newState()
-  applyHostAction(state, { a: 'setFlow', blocks: flowBlocks })
+  applyHostAction(state, { a: 'setSetlist', blocks: setlistBlocks })
   applyHostAction(state, { a: 'arm' })
   applyHostAction(state, { a: 'resetRound' })
-  assert.equal(state.flow!.done, 0)
+  assert.equal(state.setlist!.done, 0)
 })
 
 test('rolling into a duel block switches the mode and opens the duel', () => {
@@ -251,10 +251,10 @@ test('rolling into a duel block switches the mode and opens the duel', () => {
     { id: 'b', name: 'Bo', connected: true },
   ]
   state.scores = { a: 300 }
-  applyHostAction(state, { a: 'setFlow', blocks: flowBlocks })
+  applyHostAction(state, { a: 'setSetlist', blocks: setlistBlocks })
   playRound(state)
   playRound(state)
-  assert.equal(state.flow!.at, 1)
+  assert.equal(state.setlist!.at, 1)
   assert.equal(state.game.id, 'quizbowl')
   assert.equal(state.duel?.rule, 'vote')
   assert.deepEqual(state.scores, { a: 300 }, 'the standings cross the boundary')
@@ -262,53 +262,53 @@ test('rolling into a duel block switches the mode and opens the duel', () => {
 
 test('editing the setlist mid-block keeps the position', () => {
   const state = newState()
-  applyHostAction(state, { a: 'setFlow', blocks: flowBlocks })
+  applyHostAction(state, { a: 'setSetlist', blocks: setlistBlocks })
   playRound(state)
-  const longer: FlowBlock[] = [{ ...flowBlocks[0], count: 5 }, flowBlocks[1]]
-  applyHostAction(state, { a: 'setFlow', blocks: longer })
-  assert.deepEqual([state.flow!.at, state.flow!.done], [0, 1])
+  const longer: SetlistBlock[] = [{ ...setlistBlocks[0], count: 5 }, setlistBlocks[1]]
+  applyHostAction(state, { a: 'setSetlist', blocks: longer })
+  assert.deepEqual([state.setlist!.at, state.setlist!.done], [0, 1])
 })
 
-test('setFlow that changes the mode of the currently-played block re-applies it', () => {
+test('setSetlist that changes the mode of the currently-played block re-applies it', () => {
   const state = newState()
-  applyHostAction(state, { a: 'setFlow', blocks: flowBlocks })
+  applyHostAction(state, { a: 'setSetlist', blocks: setlistBlocks })
   assert.equal(state.game.id, 'trivia')
   assert.equal(state.round.value, 100)
-  const changed: FlowBlock[] = [
+  const changed: SetlistBlock[] = [
     { game: 'quizbowl', options: {}, count: 2, value: 250 },
-    flowBlocks[1],
+    setlistBlocks[1],
   ]
-  applyHostAction(state, { a: 'setFlow', blocks: changed })
+  applyHostAction(state, { a: 'setSetlist', blocks: changed })
   assert.equal(state.game.id, 'quizbowl', 'the play strip and the room agree')
   assert.equal(state.round.value, 250)
-  assert.deepEqual([state.flow!.at, state.flow!.done], [0, 0], 'position untouched')
+  assert.deepEqual([state.setlist!.at, state.setlist!.done], [0, 0], 'position untouched')
 })
 
-test('setFlow that changes only a later block does not re-apply anything', () => {
+test('setSetlist that changes only a later block does not re-apply anything', () => {
   const state = newState()
-  applyHostAction(state, { a: 'setFlow', blocks: flowBlocks })
+  applyHostAction(state, { a: 'setSetlist', blocks: setlistBlocks })
   playRound(state)
-  const laterChanged: FlowBlock[] = [
-    flowBlocks[0],
-    { ...flowBlocks[1], value: 999 },
+  const laterChanged: SetlistBlock[] = [
+    setlistBlocks[0],
+    { ...setlistBlocks[1], value: 999 },
   ]
-  applyHostAction(state, { a: 'setFlow', blocks: laterChanged })
+  applyHostAction(state, { a: 'setSetlist', blocks: laterChanged })
   assert.equal(state.game.id, 'trivia', 'still on the untouched current block')
   assert.equal(state.round.value, 100)
   assert.equal(state.duel, undefined, 'the later block\'s duel did not fire early')
-  assert.deepEqual([state.flow!.at, state.flow!.done], [0, 1])
+  assert.deepEqual([state.setlist!.at, state.setlist!.done], [0, 1])
 })
 
-test('setFlow that changes the current block while a duel is open does not touch the duel', () => {
+test('setSetlist that changes the current block while a duel is open does not touch the duel', () => {
   const state = newState()
   state.players = [
     { id: 'a', name: 'Ada', connected: true },
     { id: 'b', name: 'Bo', connected: true },
   ]
-  const duelBlocks: FlowBlock[] = [
+  const duelBlocks: SetlistBlock[] = [
     { game: 'quizbowl', options: {}, count: 3, duel: 'vote' },
   ]
-  applyHostAction(state, { a: 'setFlow', blocks: duelBlocks })
+  applyHostAction(state, { a: 'setSetlist', blocks: duelBlocks })
   assert.equal(state.duel?.rule, 'vote')
   state.duel!.pool.push({ playerId: 'a', votes: ['b'], in: true })
   // Tweaking count while the nomination window is open — the finding's own
@@ -316,89 +316,89 @@ test('setFlow that changes the current block while a duel is open does not touch
   // the duel at all: no re-applied setMode (which would itself cancel an
   // unseated duel, same as any host-driven mode resave) and no re-fired
   // openDuel (which would hand back a fresh, empty pool).
-  const changed: FlowBlock[] = [{ ...duelBlocks[0], count: 5 }]
-  applyHostAction(state, { a: 'setFlow', blocks: changed })
+  const changed: SetlistBlock[] = [{ ...duelBlocks[0], count: 5 }]
+  applyHostAction(state, { a: 'setSetlist', blocks: changed })
   assert.deepEqual(
     state.duel!.pool,
     [{ playerId: 'a', votes: ['b'], in: true }],
     'the pool survives an unrelated tweak',
   )
-  assert.deepEqual([state.flow!.at, state.flow!.done], [0, 0])
+  assert.deepEqual([state.setlist!.at, state.setlist!.done], [0, 0])
 })
 
 test('a setlist too short for the position restarts it', () => {
   const state = newState()
-  applyHostAction(state, { a: 'setFlow', blocks: flowBlocks })
+  applyHostAction(state, { a: 'setSetlist', blocks: setlistBlocks })
   playRound(state)
   playRound(state)
-  assert.equal(state.flow!.at, 1)
-  applyHostAction(state, { a: 'setFlow', blocks: [flowBlocks[0]] })
-  assert.deepEqual([state.flow!.at, state.flow!.done], [0, 0])
+  assert.equal(state.setlist!.at, 1)
+  applyHostAction(state, { a: 'setSetlist', blocks: [setlistBlocks[0]] })
+  assert.deepEqual([state.setlist!.at, state.setlist!.done], [0, 0])
 })
 
-test('flowJump clamps, resets the count, and re-enters the block', () => {
+test('setlistJump clamps, resets the count, and re-enters the block', () => {
   const state = newState()
-  applyHostAction(state, { a: 'setFlow', blocks: flowBlocks })
-  applyHostAction(state, { a: 'flowJump', at: 99 })
-  assert.deepEqual([state.flow!.at, state.flow!.done], [2, 0], 'clamped to the end')
-  applyHostAction(state, { a: 'flowJump', at: 0 })
+  applyHostAction(state, { a: 'setSetlist', blocks: setlistBlocks })
+  applyHostAction(state, { a: 'setlistJump', at: 99 })
+  assert.deepEqual([state.setlist!.at, state.setlist!.done], [2, 0], 'clamped to the end')
+  applyHostAction(state, { a: 'setlistJump', at: 0 })
   assert.equal(state.game.id, 'trivia')
   assert.equal(state.round.value, 100)
 })
 
-test('clearFlow drops the setlist and leaves the game alone', () => {
+test('clearSetlist drops the setlist and leaves the game alone', () => {
   const state = newState()
-  applyHostAction(state, { a: 'setFlow', blocks: flowBlocks })
-  applyHostAction(state, { a: 'flowJump', at: 1 })
+  applyHostAction(state, { a: 'setSetlist', blocks: setlistBlocks })
+  applyHostAction(state, { a: 'setlistJump', at: 1 })
   assert.equal(state.game.id, 'quizbowl')
   const valueBefore = state.round.value
-  applyHostAction(state, { a: 'clearFlow' })
-  assert.equal(state.flow, undefined)
+  applyHostAction(state, { a: 'clearSetlist' })
+  assert.equal(state.setlist, undefined)
   assert.equal(state.game.id, 'quizbowl', 'clearing the setlist is not a mode change')
   assert.equal(state.duel?.rule, 'vote', 'nor a reason to cancel an open duel')
   assert.equal(state.round.value, valueBefore, 'nor a reason to reset the round value')
 })
 
-test('an empty setFlow is a clearFlow', () => {
+test('an empty setSetlist is a clearSetlist', () => {
   const state = newState()
-  applyHostAction(state, { a: 'setFlow', blocks: flowBlocks })
-  applyHostAction(state, { a: 'setFlow', blocks: [] })
-  assert.equal(state.flow, undefined)
+  applyHostAction(state, { a: 'setSetlist', blocks: setlistBlocks })
+  applyHostAction(state, { a: 'setSetlist', blocks: [] })
+  assert.equal(state.setlist, undefined)
 })
 
-test('the flow actions are refused mid-question, the way setMode is', () => {
+test('the setlist actions are refused mid-question, the way setMode is', () => {
   const state = newState()
   applyHostAction(state, { a: 'arm' })
-  applyHostAction(state, { a: 'setFlow', blocks: flowBlocks })
-  assert.equal(state.flow, undefined)
+  applyHostAction(state, { a: 'setSetlist', blocks: setlistBlocks })
+  assert.equal(state.setlist, undefined)
 })
 
-test('setFlow onto a spent setlist restarts at 0/0 and enters the first block fresh', () => {
+test('setSetlist onto a spent setlist restarts at 0/0 and enters the first block fresh', () => {
   const state = newState()
-  applyHostAction(state, { a: 'setFlow', blocks: [{ game: 'trivia', options: {}, count: 1 }] })
+  applyHostAction(state, { a: 'setSetlist', blocks: [{ game: 'trivia', options: {}, count: 1 }] })
   playRound(state)
-  assert.equal(state.flow!.at, 1, 'the one-block flow is spent')
-  const next: FlowBlock[] = [
+  assert.equal(state.setlist!.at, 1, 'the one-block setlist is spent')
+  const next: SetlistBlock[] = [
     { game: 'quizbowl', options: {}, count: 1 },
     { game: 'trivia', options: {}, count: 1 },
   ]
-  applyHostAction(state, { a: 'setFlow', blocks: next })
-  assert.deepEqual([state.flow!.at, state.flow!.done], [0, 0])
+  applyHostAction(state, { a: 'setSetlist', blocks: next })
+  assert.deepEqual([state.setlist!.at, state.setlist!.done], [0, 0])
   assert.equal(state.game.id, 'quizbowl', 'the first block of the new setlist was actually entered')
 })
 
-test('setFlow routes through sanitizeBlocks: an unknown game is dropped, a NaN count clamps to 1', () => {
+test('setSetlist routes through sanitizeBlocks: an unknown game is dropped, a NaN count clamps to 1', () => {
   const state = newState()
   applyHostAction(state, {
-    a: 'setFlow',
+    a: 'setSetlist',
     blocks: [
       { game: 'nope', options: {}, count: 1 },
       { game: 'trivia', options: {}, count: NaN },
-    ] as unknown as FlowBlock[],
+    ] as unknown as SetlistBlock[],
   })
-  assert.equal(state.flow!.blocks.length, 1, 'the unknown-game block was dropped')
-  assert.equal(state.flow!.blocks[0].game, 'trivia')
-  assert.equal(state.flow!.blocks[0].count, 1, 'the NaN count clamped to 1')
+  assert.equal(state.setlist!.blocks.length, 1, 'the unknown-game block was dropped')
+  assert.equal(state.setlist!.blocks[0].game, 'trivia')
+  assert.equal(state.setlist!.blocks[0].count, 1, 'the NaN count clamped to 1')
 })
 
 test('a stray rebound changes nothing, and a penalised question is still judgeable', () => {

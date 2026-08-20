@@ -1,5 +1,5 @@
 /**
- * The game flow: an ordered setlist of blocks, walked one question at a time.
+ * The game setlist: an ordered setlist of blocks, walked one question at a time.
  *
  * It advises rather than plays. Entering a block applies its setup — the mode,
  * its options, the round value, a duel if the block wants one — and stops. The
@@ -10,13 +10,13 @@
  * applyHostAction, which would be a cycle. That also makes every rule here
  * testable against a recording fake.
  */
-import type { FlowBlock, HostAction, State } from '../shared/protocol.ts'
+import type { SetlistBlock, HostAction, State } from '../shared/protocol.ts'
 
 export type Apply = (action: HostAction) => void
 
 /**
  * The block's mode, its options and its round value. Split out from
- * `enterBlock` so `setFlow` can re-apply setup alone when the block at a kept
+ * `enterBlock` so `setSetlist` can re-apply setup alone when the block at a kept
  * position changed shape, without also re-firing the duel half below (that
  * would blow away an in-flight nomination pool for a tweak that has nothing
  * to do with it).
@@ -27,8 +27,8 @@ export type Apply = (action: HostAction) => void
  * this only runs when the caller says the block itself is fresh.
  */
 export function applySetup(state: State, apply: Apply): void {
-  const flow = state.flow
-  const block = flow?.blocks[flow.at]
+  const setlist = state.setlist
+  const block = setlist?.blocks[setlist.at]
   if (!block) return
   apply({ a: 'setMode', id: block.game, options: block.options, keepScores: true })
   if (block.value !== undefined) apply({ a: 'setValue', value: block.value })
@@ -36,14 +36,14 @@ export function applySetup(state: State, apply: Apply): void {
 
 /** The block's duel, if it declares one — a duel block is a duel per question. */
 export function applyDuel(state: State, apply: Apply): void {
-  const flow = state.flow
-  const block = flow?.blocks[flow.at]
+  const setlist = state.setlist
+  const block = setlist?.blocks[setlist.at]
   if (!block) return
   if (block.duel) apply({ a: 'openDuel', rule: block.duel })
 }
 
 /**
- * Set up the block the flow is on. `fresh` means the block itself changed, so
+ * Set up the block the setlist is on. `fresh` means the block itself changed, so
  * the mode and the value are re-applied; a duel opens either way, because a
  * duel block is a duel per question.
  */
@@ -54,17 +54,17 @@ export function enterBlock(state: State, apply: Apply, fresh: boolean): void {
 
 /**
  * One question has gone by. Spends it against the current block and rolls over
- * when the count runs out. A spent flow sits at its end rather than wrapping —
+ * when the count runs out. A spent setlist sits at its end rather than wrapping —
  * the host reads the position off the board and decides whether to jump back.
  */
-export function advanceFlow(state: State, apply: Apply): void {
-  const flow = state.flow
-  if (!flow || !flow.blocks[flow.at]) return
-  flow.done += 1
+export function advanceSetlist(state: State, apply: Apply): void {
+  const setlist = state.setlist
+  if (!setlist || !setlist.blocks[setlist.at]) return
+  setlist.done += 1
   let fresh = false
-  if (flow.done >= flow.blocks[flow.at].count) {
-    flow.at += 1
-    flow.done = 0
+  if (setlist.done >= setlist.blocks[setlist.at].count) {
+    setlist.at += 1
+    setlist.done = 0
     fresh = true
   }
   enterBlock(state, apply, fresh)
@@ -80,24 +80,24 @@ export function sanitizeBlocks(
   raw: unknown,
   knownGame: (id: string) => boolean,
   knownRule: (id: string) => boolean,
-): FlowBlock[] {
+): SetlistBlock[] {
   if (!Array.isArray(raw)) return []
-  const out: FlowBlock[] = []
+  const out: SetlistBlock[] = []
   for (const entry of raw) {
     if (typeof entry !== 'object' || entry === null) continue
-    const b = entry as Partial<FlowBlock>
+    const b = entry as Partial<SetlistBlock>
     if (typeof b.game !== 'string' || !knownGame(b.game)) {
-      console.warn(`[flow] block names unknown game "${String(b.game)}" — dropped`)
+      console.warn(`[setlist] block names unknown game "${String(b.game)}" — dropped`)
       continue
     }
     if (b.duel !== undefined && (typeof b.duel !== 'string' || !knownRule(b.duel))) {
-      console.warn(`[flow] block names unknown duel rule "${String(b.duel)}" — dropped`)
+      console.warn(`[setlist] block names unknown duel rule "${String(b.duel)}" — dropped`)
       continue
     }
     // ponytail: options ride through unchecked. setMode sanitizes them against
     // the module's schema on the way in, which is the only place that knows it.
     const count = Number(b.count)
-    const block: FlowBlock = {
+    const block: SetlistBlock = {
       game: b.game,
       options: typeof b.options === 'object' && b.options !== null ? b.options : {},
       count: Math.min(99, Math.max(1, Number.isFinite(count) ? Math.round(count) : 1)),

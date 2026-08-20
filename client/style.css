@@ -634,7 +634,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .host__spacer { flex: 1; }
 
 /* The play strip: position, above the fold, never competing with the controls. */
-.host__flow {
+.host__setlist {
   display: flex;
   align-items: center;
   gap: var(--s3);
@@ -653,24 +653,24 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .host__spoken.is-hit { color: var(--brass); }
 .host__spoken.is-miss { color: var(--tally); }
 
-.flow__io {
+.setlist__io {
   display: flex;
   flex-wrap: wrap;
   gap: var(--s3);
   margin-bottom: var(--s3);
 }
-.flow__io .input { flex: 1 1 10rem; min-width: 0; }
-.flow__io .btn { flex: none; }
+.setlist__io .input { flex: 1 1 10rem; min-width: 0; }
+.setlist__io .btn { flex: none; }
 
 /* What the setlist asks for, against the pack that has to supply it. Tungsten
    rather than tally: a short pack is something to notice before the night
    starts, not something wrong with the room right now. */
-.flow__tally {
+.setlist__tally {
   flex-basis: 100%;
   color: var(--dim);
   font-size: var(--t-sm);
 }
-.flow__tally.is-short { color: var(--tungsten); }
+.setlist__tally.is-short { color: var(--tungsten); }
 
 /* The one choice that decides what the rest of setup may show. Two buttons
    rather than a checkbox: neither is the default, and the pressed one is the
@@ -683,7 +683,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 
 /* A block is a row, and rows on this surface sit on --panel behind a coloured
    left rule. Without the fill the fields read as loose form controls. */
-.flow__block {
+.setlist__block {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -697,15 +697,15 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 /* Reorder and remove are one cluster, not three equidistant buttons. `auto`
    rather than a spacer element: a spacer only pushes right while it shares a
    line, so a block with few fields left its buttons hanging at the left. */
-.flow__acts { display: flex; gap: var(--s1); flex: none; margin-left: auto; }
+.setlist__acts { display: flex; gap: var(--s1); flex: none; margin-left: auto; }
 
 /* Where the room actually is, in the same brass the board rails a leader with. */
-.flow__block.is-here {
+.setlist__block.is-here {
   border-left-color: var(--brass);
   background: #241d0c;
 }
 
-.flow__n {
+.setlist__n {
   font-variant-numeric: tabular-nums;
   color: var(--dim);
 }

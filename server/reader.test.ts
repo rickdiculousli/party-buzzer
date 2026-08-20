@@ -363,7 +363,7 @@ test('a setlist reads each block from its own pack, and keeps each pack its plac
   hub.handle({ id: 'h', role: 'host', send: () => {} }, {
     t: 'host',
     action: {
-      a: 'setFlow',
+      a: 'setSetlist',
       blocks: [
         { game: 'trivia', options: {}, count: 1, pack: 'a.txt' },
         { game: 'trivia', options: {}, count: 1, pack: 'b.txt' },
@@ -384,7 +384,7 @@ test('a block with no pack ends the reading rather than reading the wrong one', 
   hub.handle({ id: 'h', role: 'host', send: () => {} }, {
     t: 'host',
     action: {
-      a: 'setFlow',
+      a: 'setSetlist',
       blocks: [
         { game: 'trivia', options: {}, count: 1, pack: 'one.txt' },
         { game: 'trivia', options: {}, count: 1 },
@@ -425,7 +425,7 @@ test('Read starts every spent pack over, not only the one it left off in', async
   hub.handle({ id: 'h', role: 'host', send: () => {} }, {
     t: 'host',
     action: {
-      a: 'setFlow',
+      a: 'setSetlist',
       blocks: [
         { game: 'trivia', options: {}, count: 1, pack: 'a.txt' },
         { game: 'trivia', options: {}, count: 1, pack: 'b.txt' },
@@ -441,7 +441,7 @@ test('Read starts every spent pack over, not only the one it left off in', async
   // The run ended on b; a is spent too, and the setlist starts on it. Autoplay
   // switched itself off when the reading ran out, so a second night turns it
   // back on the same way the host would.
-  hub.handle({ id: 'h', role: 'host', send: () => {} }, { t: 'host', action: { a: 'flowJump', at: 0 } })
+  hub.handle({ id: 'h', role: 'host', send: () => {} }, { t: 'host', action: { a: 'setlistJump', at: 0 } })
   autoplay(hub, 0.1, 0)
   reader.start()
   await reader.settled()

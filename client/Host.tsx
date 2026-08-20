@@ -3,7 +3,7 @@ import { useOpen, useSocket } from './useSocket.ts'
 import { colorForPlayer, standings } from './ui.ts'
 import { GameSettings } from './GameSettings.tsx'
 import { DuelPanel } from './DuelPanel.tsx'
-import { FlowPanel } from './FlowPanel.tsx'
+import { SetlistPanel } from './SetlistPanel.tsx'
 import { Spoken } from './Spoken.tsx'
 import { momentOf } from '../shared/wall.ts'
 import type { HostAction, ScoreKey } from '../shared/protocol.ts'
@@ -115,8 +115,8 @@ export function Host() {
   // The night is run one of two ways, and the panel only ever offers one of
   // them: freehand, where the host picks the game and the pack; or a setlist,
   // where each block carries its own and the pickers would only fight it.
-  const setlist = !!state.flow
-  const block = state.flow?.blocks[state.flow.at]
+  const setlist = !!state.setlist
+  const block = state.setlist?.blocks[state.setlist.at]
   // Something to read: the block's pack under a setlist, the chosen one without.
   const readable = setlist ? !!block?.pack : !!state.reading?.pack
 
@@ -177,27 +177,27 @@ export function Host() {
       </div>
 
       <section>
-        {state.flow && (() => {
-          const at = state.flow.at
-          const block = state.flow.blocks[at]
+        {state.setlist && (() => {
+          const at = state.setlist.at
+          const block = state.setlist.blocks[at]
           const name = state.games.find((g) => g.id === block?.game)?.name
           return (
-            <div class="host__flow">
+            <div class="host__setlist">
               {block ? (
                 <>
-                  <span class="chip chip--data">Block {at + 1} of {state.flow.blocks.length}</span>
+                  <span class="chip chip--data">Block {at + 1} of {state.setlist.blocks.length}</span>
                   <span class="row__label">{name}</span>
-                  <span class="chip">Q{state.flow.done + 1} of {block.count}</span>
+                  <span class="chip">Q{state.setlist.done + 1} of {block.count}</span>
                   {block.duel && <span class="chip chip--armed">duel</span>}
                 </>
               ) : (
-                <span class="chip chip--data">Flow complete</span>
+                <span class="chip chip--data">Setlist complete</span>
               )}
               <span class="host__spacer" />
               <button
                 class="btn btn--ghost"
-                disabled={round.phase !== 'IDLE' || at >= state.flow.blocks.length}
-                onClick={() => act({ a: 'flowJump', at: at + 1 })}
+                disabled={round.phase !== 'IDLE' || at >= state.setlist.blocks.length}
+                onClick={() => act({ a: 'setlistJump', at: at + 1 })}
               >
                 Skip block
               </button>
@@ -367,7 +367,7 @@ export function Host() {
         <summary>
           Setup · {setlist ? 'Setlist' : 'Direct play'} ·{' '}
           {setlist
-            ? `${state.flow!.blocks.length} block${state.flow!.blocks.length === 1 ? '' : 's'}`
+            ? `${state.setlist!.blocks.length} block${state.setlist!.blocks.length === 1 ? '' : 's'}`
             : state.games.find((g) => g.id === state.game.id)?.name}{' '}
           · {state.players.length} joined
         </summary>
@@ -378,7 +378,7 @@ export function Host() {
             <button
               class={setlist ? 'btn' : 'btn btn--primary'}
               disabled={round.phase !== 'IDLE'}
-              onClick={() => act({ a: 'setFlow', blocks: [] })}
+              onClick={() => act({ a: 'setSetlist', blocks: [] })}
             >
               Direct play
             </button>
@@ -388,7 +388,7 @@ export function Host() {
               onClick={() =>
                 setlist ||
                 act({
-                  a: 'setFlow',
+                  a: 'setSetlist',
                   blocks: [
                     {
                       game: state.game.id,
@@ -411,7 +411,7 @@ export function Host() {
         </section>
 
         {setlist ? (
-          <FlowPanel state={state} act={act} fire={fire} />
+          <SetlistPanel state={state} act={act} fire={fire} />
         ) : (
           <>
             <GameSettings state={state} act={act} />
