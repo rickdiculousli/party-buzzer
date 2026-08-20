@@ -102,10 +102,17 @@ export function Host() {
   // scored. `isPenalty`, not the sign: a no-penalty wrong now stamps points of
   // zero, and `>= 0` read that as a payoff and took the desk dead on the retake
   // it caused — the same failure as the stale −400, one value further along.
+  //
+  // Written once and read twice — the sentence below needs the same fact, and
+  // this predicate is the last one in the repo that should be typed out a second
+  // time. `refuses(state, { a: 'correct' }) === 'already-scored'` is exactly it,
+  // but only from LOCKED with a leader: the table answers `no-leader` first
+  // everywhere else, so asking it here would report the wrong reason.
+  const scored = !!round.award && !isPenalty(round.award)
   const judgeable =
     momentOf(state, { open, settled: true, retired: true }) === 'answer:locked' &&
     !!leader &&
-    !(round.award && !isPenalty(round.award))
+    !scored
   judgeableRef.current = judgeable
 
   // A miss is up and the box has not opened its rebound yet. Nobody is
@@ -137,15 +144,23 @@ export function Host() {
   // one is a fact about the moment and one about the hold, neither is a rule
   // about what the host may press, and the table would be lying if it claimed to
   // know either.
+  //
+  // The last branch is the catch-all and says the one thing true of every state
+  // that reaches it: there is a leader, and the round is not locked. It used to
+  // say the window was still filling, which is only COLLECTING — the honest
+  // spread also includes the odd shapes (an order left standing on an IDLE
+  // round) where "filling" is a sentence about a window that has closed. It gets
+  // no branch of its own because it is not a state a host can act on
+  // differently: the answer either way is wait for the lock.
   const judgeReason = judgeable
     ? null
-    : round.award && !isPenalty(round.award)
+    : scored
       ? REFUSAL_TEXT['already-scored']
       : reopenable
         ? 'A miss is up and the buzzers are shut — Reopen puts the question back to the room.'
         : !leader
           ? REFUSAL_TEXT['no-leader']
-          : 'The buzz window is still filling — judging waits for it to close.'
+          : 'Nothing is locked in yet — judging waits for the buzz window to close.'
 
   // The night is run one of two ways, and the panel only ever offers one of
   // them: freehand, where the host picks the game and the pack; or a setlist,

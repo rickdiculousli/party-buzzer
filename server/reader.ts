@@ -493,7 +493,12 @@ export class Reader {
             }
           }
 
-          const finished = await this.speakWhole(whole, j, revealTo, stillMine, sig)
+          // Both scopes, not just the question's: a fold timer due in the window
+          // between `stop()` and the `clearTimeout` after `pb.done` would
+          // otherwise reveal into a dead session, which is the class this file
+          // was converted to kill still alive inside one callback.
+          const live = () => !sig.aborted && stillMine()
+          const finished = await this.speakWhole(whole, j, revealTo, live, sig)
           if (finished) revealTo(j.text.length)
         } else {
           for (let f = 0; f < q.fragments.length; f++) {

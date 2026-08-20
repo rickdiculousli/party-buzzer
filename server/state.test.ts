@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { applyHostAction, buzzBlockReason, loadState, newState } from './state.ts'
+import { duelCatalog } from './duel.ts'
 import { refuses } from '../shared/legality.ts'
 import type { HostAction, SetlistBlock, State } from '../shared/protocol.ts'
 
@@ -497,6 +498,20 @@ const ROOMS: Record<string, () => State> = {
     s.round.buzzable = ['p1', 'p2']
     return s
   },
+  // A seated pair with the question in flight — the room that exercises the
+  // order `shared/legality.ts` comments on: `closeDuel` here refuses for being
+  // seated rather than for the phase, and both are true. Without it neither
+  // direction of the parity test ever sees the two rules at once.
+  'duel seated mid-question': () => {
+    const s = room()
+    s.duel = { rule: 'vote', pool: [], missed: [], seated: ['p1', 'p2'] }
+    s.round.phase = 'LOCKED'
+    s.round.armedAt = 1000
+    s.round.buzzable = ['p1', 'p2']
+    s.round.order = [{ playerId: 'p1', name: 'Ada', at: 1100, deltaMs: 0 }]
+    s.round.total = 1
+    return s
+  },
   // The only room the three setlist actions are live in, which is the point of
   // its being here: without it they refuse everywhere and go unchecked.
   setlist: () => {
@@ -516,6 +531,10 @@ const ROOMS: Record<string, () => State> = {
 
 function room(): State {
   const s = newState()
+  // The catalogs the hub fills in at boot. `newState` ships them empty and the
+  // table treats empty as "no opinion", so a room without them would let an
+  // unknown rule or game past the check that is supposed to catch it here.
+  s.duelRules = duelCatalog()
   s.players = [
     { id: 'p1', name: 'Ada', connected: true },
     { id: 'p2', name: 'Bo', connected: true },
@@ -557,6 +576,10 @@ const ACTIONS: HostAction[] = [
   // 'host-pick' rather than 'random': an instant rule seats (or deletes itself)
   // on the spot, which makes what the action did depend on the draw.
   { a: 'openDuel', rule: 'host-pick' },
+  // The bad-argument case, and the only one in this list: the table refuses an
+  // unknown rule, so the server must too. Before it did, this was a direction-1
+  // failure — the table allowed it and `applyHostAction` dropped it silently.
+  { a: 'openDuel', rule: 'nonsense' },
   { a: 'closeDuel', playerIds: ['p1', 'p2'] },
   { a: 'cancelDuel' },
   { a: 'setSetlist', blocks: [{ game: 'quizbowl', options: {}, count: 3 }] },

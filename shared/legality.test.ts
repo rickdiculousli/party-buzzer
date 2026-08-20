@@ -142,6 +142,18 @@ const REFUSED: [Refusal, State, HostAction][] = [
     s.duel = { rule: 'vote', pool: [], missed: [], seated: ['a', 'b'] }
     return s
   })(), { a: 'closeDuel' }],
+  // Seated *and* mid-question: both rules bite and the seated one wins, because
+  // that is the half the host can do something about.
+  ['duel-seated', (() => {
+    const s = locked(room())
+    s.duel = { rule: 'vote', pool: [], missed: [], seated: ['a', 'b'] }
+    return s
+  })(), { a: 'closeDuel' }],
+  ['unknown-duel-rule', (() => {
+    const s = room()
+    s.duelRules = [{ id: 'vote', name: 'Room votes', entry: 'vote', resolve: 'votes' }]
+    return s
+  })(), { a: 'openDuel', rule: 'arm-wrestle' }],
   ['unknown-mode', (() => {
     const s = room()
     s.games = [{ id: 'trivia', name: 'Trivia', options: [] }]

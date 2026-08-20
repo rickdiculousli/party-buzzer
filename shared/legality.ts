@@ -25,6 +25,17 @@
  * incidental: it is what stops a legality rule from being expressible in terms
  * the client cannot evaluate. Anything that needs the duel catalog or the module
  * registry is a *lookup* rather than a precondition and stays at its call site.
+ *
+ * **This table is host-side truth, and only the host may ask it.** It is not
+ * `shared/wall.ts` in that one respect, so do not carry that file's first rule
+ * across: `correct`/`wrong` read `r.order[0]`, and `Hub.viewFor` redacts `order`
+ * down to the recipient's own entry. On a player's State the same question gets
+ * a different answer — `no-leader` for everyone who did not win the buzz, and
+ * for the winner a `null` that means "I am first" rather than "there is a
+ * leader". The wall may not read `order` because the two surfaces must agree;
+ * this may, because only one surface asks. Call it from the host surfaces and
+ * from the server, never from a phone. If a phone ever needs it, that is a
+ * `viewFor` question first, not a change here.
  */
 import { isPenalty } from './protocol.ts'
 import type { HostAction, State } from './protocol.ts'
@@ -49,6 +60,7 @@ export type Refusal =
   | 'no-duel'
   | 'duel-seated'
   | 'unknown-mode'
+  | 'unknown-duel-rule'
   | 'no-setlist'
 
 export function refuses(s: State, a: HostAction): Refusal | null {
@@ -100,8 +112,17 @@ export function refuses(s: State, a: HostAction): Refusal | null {
       return null
 
     // Seating happens before the question opens, so `buzzable` stamps at the arm.
+    // The rule id is checked the same way and for the same reason as `setMode`'s
+    // game id: `state.duelRules` is the catalog beside `state.games`, both
+    // refreshed at boot, so an unknown rule is expressible here rather than being
+    // dropped with a shrug in `server/state.ts`. Same empty-catalog escape as
+    // `setMode` — see the ponytail note above.
     case 'openDuel':
-      return idle
+      if (idle) return idle
+      if (s.duelRules.length > 0 && !s.duelRules.some((r) => r.id === a.rule)) {
+        return 'unknown-duel-rule'
+      }
+      return null
 
     // Order matters only for which sentence the host reads: a seated duel
     // mid-question is refused for being seated rather than for the phase,

@@ -119,6 +119,12 @@ function openRebound(state: State): void {
 
 export function applyHostAction(state: State, action: HostAction): void {
   const round = state.round
+  // Used unnarrowed by `correct` and `wrong`, and that is not an oversight the
+  // compiler is missing: `refuses` returns `no-leader` for both unless
+  // `r.order[0]` is there, and the `return` below is what makes it a guarantee.
+  // It only typechecks because `noUncheckedIndexedAccess` is off, so the
+  // guarantor is a different file now — name it rather than leave it looking
+  // like luck.
   const leader = round.order[0]
   // The setlist applies its blocks through this same function: entering a block is
   // exactly the actions a host would press, so every validation still runs.
@@ -356,9 +362,11 @@ export function applyHostAction(state: State, action: HostAction): void {
     }
 
     case 'openDuel': {
-      // A lookup, not a precondition: the catalog lives in `server/duel.ts`,
-      // which `shared/legality.ts` may not import, so the table has no opinion
-      // on a rule id and this stays the one place a bad one is dropped.
+      // A lookup, and only a lookup: the table refuses an unknown rule against
+      // `state.duelRules` now, so this is fetching the `entry`/`resolve` the
+      // case is about to read, not ruling on legality. It still returns on a
+      // miss because the catalog it reads is `server/duel.ts`'s and the table's
+      // is State's copy — the same pair as `knownModule` and `state.games`.
       const rule = duelRule(action.rule)
       if (!rule) return
       state.duel = { rule: rule.id, pool: [], missed: [] }
