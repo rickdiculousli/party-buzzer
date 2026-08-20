@@ -8,7 +8,7 @@
 import { spawn } from 'node:child_process'
 import { existsSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import type { Probe } from './align.ts'
+import type { Transcriber } from './align.ts'
 import { run } from './speech.ts'
 
 /**
@@ -33,16 +33,16 @@ export async function sttBinary(dir: string): Promise<string | null> {
 /**
  * A clip held open for questioning. The aligner asks one clip hundreds of
  * ranges, and nine tenths of a one-shot run is process startup, so the process
- * outlives the probe. Serial by construction: the bisection cannot ask its next
+ * outlives the question it answered. Serial by construction: the bisection cannot ask its next
  * question until this one is answered. Run whole questions concurrently to keep
  * the machine busy — about four at once, past which the speech daemon
  * serialises anyway.
  */
-export function probeSession(bin: string, audioPath: string): {
-  probe: Probe
+export function transcribeSession(bin: string, audioPath: string): {
+  transcribe: Transcriber
   close(): void
 } {
-  const p = spawn(bin, ['--probe', audioPath])
+  const p = spawn(bin, ['--session', audioPath])
   p.stdout.setEncoding('utf8')
 
   let buffered = ''
@@ -66,7 +66,7 @@ export function probeSession(bin: string, audioPath: string): {
   p.on('error', drain)
 
   return {
-    probe: (fromMs, toMs) =>
+    transcribe: (fromMs, toMs) =>
       new Promise<string[]>((resolve) => {
         waiting.push((line) => resolve(line.split(/\s+/).filter(Boolean)))
         p.stdin.write(`${Math.round(fromMs)} ${Math.round(toMs)}\n`)
@@ -79,8 +79,7 @@ export function probeSession(bin: string, audioPath: string): {
 }
 
 /**
- * Several sessions on one clip, handed out to whoever asks next. The aligner
- * probes a whole level of its search at once, and a single session answers
+ * Several sessions on one clip, handed out to whoever asks next.  * transcribes a whole level of its search at once, and a single session answers
  * those one at a time; this is what turns the level into one round.
  *
  * Width past about four buys nothing — the speech daemon serialises beyond
@@ -88,11 +87,11 @@ export function probeSession(bin: string, audioPath: string): {
  * pack the same ceiling applies, which is why questions run concurrently at
  * the same modest width rather than all at once.
  */
-export function probePool(bin: string, audioPath: string, width = 4): {
-  probe: Probe
+export function transcribePool(bin: string, audioPath: string, width = 4): {
+  transcribe: Transcriber
   close(): void
 } {
-  const sessions = Array.from({ length: Math.max(1, width) }, () => probeSession(bin, audioPath))
+  const sessions = Array.from({ length: Math.max(1, width) }, () => transcribeSession(bin, audioPath))
   const idle = [...sessions]
   const queue: ((s: (typeof sessions)[number]) => void)[] = []
 
@@ -104,10 +103,10 @@ export function probePool(bin: string, audioPath: string, width = 4): {
     })
 
   return {
-    probe: async (fromMs, toMs) => {
+    transcribe: async (fromMs, toMs) => {
       const s = await take()
       try {
-        return await s.probe(fromMs, toMs)
+        return await s.transcribe(fromMs, toMs)
       } finally {
         const next = queue.shift()
         if (next) next(s)

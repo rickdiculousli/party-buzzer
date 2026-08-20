@@ -1,15 +1,15 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
-import { ARM_LEAD_MS } from '../shared/protocol.ts'
+import { ARM_DELAY_MS } from '../shared/protocol.ts'
 import { knownModule, moduleFor, sanitizeOptions } from './modes/index.ts'
 import { executeGrants } from './items.ts'
 import { duelOnArm, duelOnWrong, duelRule, resolveDuel, seatDuel } from './duel.ts'
-import { advanceFlow, applySetup, enterBlock, sanitizeBlocks } from './flow.ts'
+import { advanceSetlist, applySetup, enterBlock, sanitizeBlocks } from './setlist.ts'
 import type {
-  FlowBlock, HostAction, PlayerId, ScoreKey, State,
+  SetlistBlock, HostAction, PlayerId, ScoreKey, State,
 } from '../shared/protocol.ts'
 
-export { ARM_LEAD_MS }
+export { ARM_DELAY_MS }
 
 /** A dwell the host typed: tenths of a second, never negative, never a minute. */
 const secs = (n: number, fallback: number): number =>
@@ -17,7 +17,7 @@ const secs = (n: number, fallback: number): number =>
 
 export function newState(): State {
   return {
-    mode: 'solo',
+    grouping: 'solo',
     players: [],
     teams: [],
     scores: {},
@@ -28,7 +28,7 @@ export function newState(): State {
     effects: [],
     games: [],
     duelRules: [],
-    flows: [],
+    setlists: [],
     packs: [],
     packSizes: {},
     mirrorFragments: false,
@@ -53,10 +53,10 @@ export function newState(): State {
   }
 }
 
-/** Scores attach to the team in teams mode, otherwise to the player. */
+/** Scores attach to the team in a teams grouping, otherwise to the player. */
 export function scoreKey(state: State, playerId: PlayerId): ScoreKey {
   const player = state.players.find((p) => p.id === playerId)
-  if (state.mode === 'teams' && player?.teamId) return player.teamId
+  if (state.grouping === 'teams' && player?.teamId) return player.teamId
   return playerId
 }
 
@@ -93,7 +93,7 @@ export function bump(state: State, key: ScoreKey, delta: number): void {
  * deep-equal-but-different object would false-negative here — but options
  * arrive from the builder's own form, which never produces that shape.
  */
-function sameSetup(a: FlowBlock, b: FlowBlock): boolean {
+function sameSetup(a: SetlistBlock, b: SetlistBlock): boolean {
   if (a.game !== b.game || a.value !== b.value) return false
   const ak = Object.keys(a.options)
   const bk = Object.keys(b.options)
@@ -110,7 +110,7 @@ function openRebound(state: State): void {
   const round = state.round
   delete round.held
   round.phase = 'ARMED'
-  round.armedAt = Date.now() + ARM_LEAD_MS
+  round.armedAt = Date.now() + ARM_DELAY_MS
   round.order = []
   round.total = 0
   for (const e of state.effects) e.roundArmedAt = round.armedAt
@@ -119,14 +119,14 @@ function openRebound(state: State): void {
 export function applyHostAction(state: State, action: HostAction): void {
   const round = state.round
   const leader = round.order[0]
-  // The flow applies its blocks through this same function: entering a block is
+  // The setlist applies its blocks through this same function: entering a block is
   // exactly the actions a host would press, so every validation still runs.
   const apply = (a: HostAction) => applyHostAction(state, a)
 
   switch (action.a) {
     case 'arm': {
       round.phase = 'ARMED'
-      round.armedAt = Date.now() + ARM_LEAD_MS
+      round.armedAt = Date.now() + ARM_DELAY_MS
       round.order = []
       round.total = 0
       delete round.award
@@ -136,7 +136,7 @@ export function applyHostAction(state: State, action: HostAction): void {
       delete round.answer
       delete round.judge
       delete round.spoken
-      delete round.candidates
+      delete round.buzzable
       // A fresh question: sweep effects stamped to the last one, stamp the
       // live ones (a freeze fired between questions lands here).
       state.effects = state.effects.filter((e) => e.roundArmedAt === undefined)
@@ -242,14 +242,14 @@ export function applyHostAction(state: State, action: HostAction): void {
       delete round.answer
       delete round.judge
       delete round.spoken
-      delete round.candidates
+      delete round.buzzable
       // A duel is one question. The host re-opens (or rematches by arming
       // before next) rather than the pair leaking into the next round.
       delete state.duel
       // After the reset, never before: the block's `openDuel` needs an IDLE
       // round and a cleared duel to land on. `resetRound` is the host taking a
       // question back, so it spends nothing.
-      if (action.a === 'next' && played) advanceFlow(state, apply)
+      if (action.a === 'next' && played) advanceSetlist(state, apply)
       return
     }
 
@@ -257,7 +257,7 @@ export function applyHostAction(state: State, action: HostAction): void {
       // Handled by the hub, which owns the snapshot stack.
       return
 
-    case 'setGame': {
+    case 'setMode': {
       // Modes are fixed per session; switching is a fresh game, refused mid-question.
       if (round.phase !== 'IDLE') return
       // A pool was built under the old game's room; a seated pair is a
@@ -275,7 +275,7 @@ export function applyHostAction(state: State, action: HostAction): void {
         return
       }
       state.game = { id: mod.id, options, moduleState: mod.init(options) }
-      // A host switching modes is starting a fresh game. The flow crossing a
+      // A host switching modes is starting a fresh game. The setlist crossing a
       // block boundary is not — erasing the standings at block 2 would be the
       // worst thing this feature could do.
       if (!action.keepScores) state.scores = {}
@@ -316,9 +316,9 @@ export function applyHostAction(state: State, action: HostAction): void {
       delete state.scores[action.playerId]
       return
 
-    case 'setMode':
-      state.mode = action.mode
-      // Teams constraints shape the pool; re-open under the new mode.
+    case 'setGrouping':
+      state.grouping = action.grouping
+      // Teams constraints shape the pool; re-open under the new grouping.
       if (state.duel && !state.duel.seated) delete state.duel
       return
 
@@ -352,7 +352,7 @@ export function applyHostAction(state: State, action: HostAction): void {
     }
 
     case 'openDuel': {
-      // Seating happens before the question opens so candidates stamp at arm.
+      // Seating happens before the question opens so buzzable stamps at arm.
       if (round.phase !== 'IDLE') return
       const rule = duelRule(action.rule)
       if (!rule) return
@@ -385,18 +385,18 @@ export function applyHostAction(state: State, action: HostAction): void {
     case 'cancelDuel':
       delete state.duel
       // Mid-round cancel reopens the floor for the question in flight.
-      delete round.candidates
+      delete round.buzzable
       return
 
-    case 'setFlow': {
-      // Setup, not play — refused mid-question the way setGame is.
+    case 'setSetlist': {
+      // Setup, not play — refused mid-question the way setMode is.
       if (round.phase !== 'IDLE') return
       const blocks = sanitizeBlocks(action.blocks, knownModule, (id) => !!duelRule(id))
       if (blocks.length === 0) {
-        delete state.flow
+        delete state.setlist
         return
       }
-      const prev = state.flow
+      const prev = state.setlist
       // Editing block 4 during block 2 must not restart the night; a setlist
       // too short for where the room is has to start over — and so does a
       // spent one: `prev.at === prev.blocks.length` was never a block anyone
@@ -411,28 +411,28 @@ export function applyHostAction(state: State, action: HostAction): void {
       // re-open a duel here: that is a per-question event, not a per-edit one,
       // and firing it on a settings tweak would wipe an in-flight vote pool.
       const changed = keep && !sameSetup(prev.blocks[at], blocks[at])
-      state.flow = { blocks, at, done }
+      state.setlist = { blocks, at, done }
       if (!keep) enterBlock(state, apply, true)
       else if (changed) applySetup(state, apply)
       return
     }
 
-    case 'flowJump': {
+    case 'setlistJump': {
       if (round.phase !== 'IDLE') return
-      const flow = state.flow
-      if (!flow) return
+      const setlist = state.setlist
+      if (!setlist) return
       const at = Number.isFinite(action.at) ? Math.round(action.at) : 0
-      flow.at = Math.min(Math.max(0, at), flow.blocks.length)
-      flow.done = 0
+      setlist.at = Math.min(Math.max(0, at), setlist.blocks.length)
+      setlist.done = 0
       enterBlock(state, apply, true)
       return
     }
 
-    case 'clearFlow':
+    case 'clearSetlist':
       if (round.phase !== 'IDLE') return
       // The setlist goes; the game in progress stays. Clearing a plan is not a
       // reason to change the mode or cancel a duel the room is already voting on.
-      delete state.flow
+      delete state.setlist
       return
   }
 }
@@ -488,24 +488,24 @@ export function loadState(path: string): State {
     loaded.items ??= {}
     loaded.effects ??= []
     loaded.duelRules ??= []
-    if (!Array.isArray(loaded.flows)) loaded.flows = []
+    if (!Array.isArray(loaded.setlists)) loaded.setlists = []
     // A setlist written by another build may name modules this one does not
-    // register. Drop what we cannot run rather than booting into a flow that
+    // register. Drop what we cannot run rather than booting into a setlist that
     // silently misbehaves at block 3.
-    if (loaded.flow) {
-      loaded.flow.blocks = sanitizeBlocks(loaded.flow.blocks, knownModule, (id) => !!duelRule(id))
-      if (loaded.flow.blocks.length === 0) delete loaded.flow
+    if (loaded.setlist) {
+      loaded.setlist.blocks = sanitizeBlocks(loaded.setlist.blocks, knownModule, (id) => !!duelRule(id))
+      if (loaded.setlist.blocks.length === 0) delete loaded.setlist
       else {
-        loaded.flow.at = Math.min(Math.max(0, loaded.flow.at | 0), loaded.flow.blocks.length)
-        loaded.flow.done = Math.max(0, loaded.flow.done | 0)
+        loaded.setlist.at = Math.min(Math.max(0, loaded.setlist.at | 0), loaded.setlist.blocks.length)
+        loaded.setlist.done = Math.max(0, loaded.setlist.done | 0)
       }
     }
     // A duel mid-setup can't survive a restart: the pool was voted under a
-    // room that may not be back. Fresh boot, no duel — and round.candidates
+    // room that may not be back. Fresh boot, no duel — and round.buzzable
     // goes with it, since without the duel it is just two ids that can buzz
     // for a reason nobody can see anymore.
     delete loaded.duel
-    delete loaded.round.candidates
+    delete loaded.round.buzzable
     if (!Array.isArray(loaded.packs)) loaded.packs = []
     if (typeof loaded.mirrorFragments !== 'boolean') loaded.mirrorFragments = false
     if (typeof loaded.answerWindowSec !== 'number') loaded.answerWindowSec = 10

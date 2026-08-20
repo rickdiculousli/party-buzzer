@@ -145,7 +145,7 @@ export function Player() {
   // broken. Keyed on the arm so it clears itself for the next question.
   const [pressedFor, setPressedFor] = useState(0)
   const key =
-    state?.mode === 'teams'
+    state?.grouping === 'teams'
       ? state.players.find((p) => p.id === playerId)?.teamId ?? playerId
       : playerId
   const barred = !!key && !!round?.lockedOut.includes(key)
@@ -166,10 +166,10 @@ export function Player() {
   const myDuelEntry = duel?.pool.find((e) => e.playerId === playerId)
   const myVoteFor = duel?.pool.find((e) => e.votes.includes(playerId ?? ''))?.playerId
   const inCount = duel?.pool.filter((e) => e.in).length ?? 0
-  const finalist = !!playerId && !!round?.candidates?.includes(playerId)
-  const spectator = !!round?.candidates && !finalist && !!playerId
+  const buzzable = !!playerId && !!round?.buzzable?.includes(playerId)
+  const spectator = !!round?.buzzable && !buzzable && !!playerId
   const nameOf = (id: string) => state?.players.find((p) => p.id === id)?.name ?? '?'
-  const finalistNames = round?.candidates?.map(nameOf)
+  const buzzableNames = round?.buzzable?.map(nameOf)
   const seatedNames = duel?.seated?.map(nameOf)
 
   /**
@@ -182,7 +182,7 @@ export function Player() {
    * directions, so a player with no team is told why their card is empty
    * rather than voting into a duel they cannot be part of.
    *
-   * Your own side only, in teams mode. The seat takes one player from each
+   * Your own side only, in a teams grouping. The seat takes one player from each
    * team, so the nomination you are being asked for is your team's — picking
    * from the other side is choosing your opponent's champion, which is either
    * a courtesy or sabotage and never an answer to the question. The server
@@ -192,10 +192,10 @@ export function Player() {
   const myTeam = state?.players.find((p) => p.id === playerId)?.teamId
   const nominees = state
     ? eligibleForDuel(state).filter(
-        (p) => p.id !== playerId && (state.mode !== 'teams' || p.teamId === myTeam),
+        (p) => p.id !== playerId && (state.grouping !== 'teams' || p.teamId === myTeam),
       )
     : []
-  const canNominate = state?.mode !== 'teams' || !!myTeam
+  const canNominate = state?.grouping !== 'teams' || !!myTeam
   const [targetFor, setTargetFor] = useState<string | null>(null)
   const score = key ? state?.scores[key] ?? 0 : 0
   const armed = round?.phase === 'ARMED' || round?.phase === 'COLLECTING'
@@ -203,7 +203,7 @@ export function Player() {
 
   // The go cue. Lower than the buzz blip so the two never get confused, and
   // skipped for players who are locked out and cannot act on it.
-  const { open, lead } = useOpen(round, now, () => {
+  const { open, delay } = useOpen(round, now, () => {
     if (barred || frozen || spectator) return
     navigator.vibrate?.([40, 40, 40])
     blip(audio.current, 440)
@@ -319,7 +319,7 @@ export function Player() {
       return
     }
     setTooShort(false)
-    void fetch(`/answer?player=${playerId}`, {
+    void fetch(`/spoken?player=${playerId}`, {
       method: 'POST',
       body: encodeWav(samples, rate),
     })
@@ -379,10 +379,10 @@ export function Player() {
     barred,
     spectator,
     // Not taken from the moment: `verdict:hold` outranks `duel:dead` on the
-    // wall, and telling a phone "reopening in a moment" when both finalists
+    // wall, and telling a phone "reopening in a moment" when both seated players
     // have missed is a promise nothing will keep.
-    dead: state?.round.candidates?.length === 0,
-    finalistNames,
+    dead: state?.round.buzzable?.length === 0,
+    buzzableNames,
     won,
     deltaMs: mine?.deltaMs,
     pressed,
@@ -414,20 +414,20 @@ export function Player() {
 
       {/* Reserved whether or not the filament is in it. Otherwise arming
           shrinks the buzzer under the thumb that is about to press it. */}
-      <div class="player__lead-in">
+      <div class="player__countdown">
         {armed && !barred && (
           <div
             key={round?.armedAt}
             class={open ? 'filament is-hot player__filament' : 'filament player__filament'}
-            style={{ '--lead': `${lead}ms` }}
+            style={{ '--delay': `${delay}ms` }}
           />
         )}
       </div>
 
       {/* Seated, not yet armed. The buzzer below still says "Wait" for everyone,
           which is the one moment it means two different things — so say which
-          one it is here rather than letting a finalist find out by pressing. */}
-      {duel?.seated && !round?.candidates && (
+          one it is here rather than letting a seated player find out by pressing. */}
+      {duel?.seated && !round?.buzzable && (
         <div class="player__duel">
           <p class="eyebrow">Heads-up</p>
           <p class="player__faceoff">
@@ -470,7 +470,7 @@ export function Player() {
                     <button
                       key={p.id}
                       class={myVoteFor === p.id ? 'btn nom-btn is-mine' : 'btn nom-btn'}
-                      // The identity rail, which in teams mode is the team's
+                      // The identity rail, which in a teams grouping is the team's
                       // colour — the only thing on this list that says which
                       // side a name is on, and it matches the colour this
                       // phone's own name carries in the bar above.
@@ -487,7 +487,7 @@ export function Player() {
                 <p class="muted">
                   {myVoteFor
                     ? 'Tap them again to take your vote back'
-                    : state?.mode === 'teams'
+                    : state?.grouping === 'teams'
                       ? 'One vote each — your team picks its own'
                       : 'One vote each'}
                 </p>

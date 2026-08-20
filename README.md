@@ -126,5 +126,10 @@ step. Relative imports therefore carry `.ts` extensions.
 
 Game state lives in `state.json` beside the repo. Delete it to start fresh.
 
+**Upgrading across the rename.** A batch of names changed — `flow` became
+`setlist` throughout, among others — and neither the snapshot nor the saved
+files migrate themselves. Delete `state.json`, and rename a saved `flows/`
+directory to `setlists/`; the files inside it are unchanged.
+
 Before a real game night, walk `docs/manual-checklist.md` — it covers what no
 automated test can reach.

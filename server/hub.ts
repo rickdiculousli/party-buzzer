@@ -5,7 +5,7 @@ import { catalog, moduleFor } from './modes/index.ts'
 import { useItem } from './items.ts'
 import { duelAct, duelCatalog } from './duel.ts'
 import { listPacks, packSizes } from './packs.ts'
-import { listFlows, readFlow, writeFlow } from './flows.ts'
+import { listSetlists, readSetlist, writeSetlist } from './setlists.ts'
 import { COLLECT_MS } from '../shared/protocol.ts'
 import type {
   ClientMsg, PlayerId, Role, ServerMsg, State,
@@ -53,8 +53,8 @@ export type HubOpts = {
   onChange?: (state: State) => void
   /** Question packs live here. Filenames only enter State; omit for no packs. */
   packDir?: string
-  /** Saved flows live here. Filenames only enter State; omit for no flows. */
-  flowDir?: string
+  /** Saved setlists live here. Filenames only enter State; omit for no setlists. */
+  setlistDir?: string
   reader?: ReaderControls
 }
 
@@ -71,7 +71,7 @@ export class Hub {
   private collectMs: number
   private onChange: (state: State) => void
   private reader: ReaderControls | undefined
-  private flowDir: string | undefined
+  private setlistDir: string | undefined
 
   constructor(state: State, opts: HubOpts = {}) {
     this.state = state
@@ -85,8 +85,8 @@ export class Hub {
     this.state.packs = opts.packDir ? listPacks(opts.packDir) : []
     this.state.packSizes = opts.packDir ? packSizes(opts.packDir, this.state.packs) : {}
     // Same reasoning as packs: filenames only, refreshed on boot.
-    this.flowDir = opts.flowDir
-    this.state.flows = opts.flowDir ? listFlows(opts.flowDir) : []
+    this.setlistDir = opts.setlistDir
+    this.state.setlists = opts.setlistDir ? listSetlists(opts.setlistDir) : []
     this.revealMs = opts.revealMs ?? REVEAL_MS
     this.collectMs = opts.collectMs ?? COLLECT_MS
     this.onChange = opts.onChange ?? (() => {})
@@ -217,7 +217,7 @@ export class Hub {
       // Display-only progress from the reader. Undefined clears it.
       this.state.reading = (data ?? undefined) as State['reading']
     } else if (name === 'selectPack' && typeof data === 'string') {
-      // Mid-question would cut the room off; refuse it the way setGame does.
+      // Mid-question would cut the room off; refuse it the way setMode does.
       if (this.state.round.phase !== 'IDLE') return
       this.reader?.select(data).catch((e) => console.warn(`[hub] selectPack failed: ${e}`))
     } else if (name === 'read') {
@@ -232,22 +232,22 @@ export class Hub {
       // No button: Read resumes on purpose. This is the scripted walkthroughs
       // asking for a known starting frame, and it costs one line to give them.
       this.reader?.rewind()
-    } else if (name === 'saveFlow' && typeof data === 'string') {
-      if (!this.flowDir || !this.state.flow) return
+    } else if (name === 'saveSetlist' && typeof data === 'string') {
+      if (!this.setlistDir || !this.state.setlist) return
       try {
-        writeFlow(this.flowDir, data, this.state.flow.blocks)
+        writeSetlist(this.setlistDir, data, this.state.setlist.blocks)
       } catch (e) {
-        console.warn(`[hub] saveFlow failed: ${e}`)
+        console.warn(`[hub] saveSetlist failed: ${e}`)
         return
       }
-      this.state.flows = listFlows(this.flowDir)
-    } else if (name === 'loadFlow' && typeof data === 'string') {
-      if (!this.flowDir) return
+      this.state.setlists = listSetlists(this.setlistDir)
+    } else if (name === 'loadSetlist' && typeof data === 'string') {
+      if (!this.setlistDir) return
       let blocks
       try {
-        blocks = readFlow(this.flowDir, data)
+        blocks = readSetlist(this.setlistDir, data)
       } catch (e) {
-        console.warn(`[hub] loadFlow failed: ${e}`)
+        console.warn(`[hub] loadSetlist failed: ${e}`)
         return
       }
       if (blocks.length === 0) return
@@ -255,7 +255,7 @@ export class Hub {
       // own edits — same snapshot push the host path takes.
       this.history.push(structuredClone(this.state))
       if (this.history.length > UNDO_DEPTH) this.history.shift()
-      applyHostAction(this.state, { a: 'setFlow', blocks })
+      applyHostAction(this.state, { a: 'setSetlist', blocks })
     } else {
       const handled = moduleFor(this.state.game.id).onAct?.(this.state, name, data) ?? false
       if (!handled) {
@@ -299,13 +299,13 @@ export class Hub {
     if (round.phase !== 'ARMED' && round.phase !== 'COLLECTING') return
 
     const arrivedAt = Date.now()
-    // Arming is scheduled ahead, so ARMED includes a lead-in nobody may buzz
+    // Arming is scheduled ahead, so ARMED includes a countdown nobody may buzz
     // during. Arrival time is server truth, so this needs no clock tolerance:
     // a packet that landed before the arm instant was sent before it.
     if (arrivedAt < round.armedAt) return
 
-    // A duel narrows the field to its finalists for this arm.
-    if (round.candidates && !round.candidates.includes(conn.playerId)) return
+    // A duel narrows the field to the seated pair for this arm.
+    if (round.buzzable && !round.buzzable.includes(conn.playerId)) return
 
     // Framework effects (freeze) and the module's own rules both live behind
     // this one question.

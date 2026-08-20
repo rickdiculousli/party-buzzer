@@ -7,6 +7,10 @@ a QR code. See `README.md` for running it and `docs/design.md` for the design
 system — that document is the source of truth for anything visual, and
 `client/tokens.css` is what the components actually read.
 
+**Before you name anything, read the glossary** — §9 of `docs/design.md`. One
+word per thing, one thing per word; when prose there and code disagree, the code
+is what gets renamed.
+
 ## Commands
 
 ```bash
@@ -20,7 +24,7 @@ npm run typecheck
 npm run sim        # synthetic self-play against a running server
 npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@140 correct   # one scripted round
 npm run walk-duel / walk-teams      # the two paced duel walkthroughs, ~1 min each
-npm run walk-flow  # the paced setlist walkthrough, ~1 min
+npm run walk-setlist # the paced setlist walkthrough, ~1 min
 npm run walk-read  # a pack read by the box, spoken answers judged, ~90s
 npm run walk-packs # a setlist crossing two packs and back, ~2 min
 npm run motion     # the animation harness at /anim.html (dev only)
@@ -71,7 +75,7 @@ alone skips the cue, waveform, protocol and library tests.
 ## Architecture
 
 `shared/protocol.ts` is the contract — every message type, the `State` shape,
-and the two timing constants (`ARM_LEAD_MS`, `COLLECT_MS`) that both sides count
+and the two timing constants (`ARM_DELAY_MS`, `COLLECT_MS`) that both sides count
 against. Read it first; it explains more than any other single file.
 
 State flows one way. Clients send `ClientMsg`, the server mutates, then
@@ -110,26 +114,24 @@ question. Design: `docs/superpowers/specs/2026-08-18-wall-boundary-design.md`.
   `shared/modes/types.ts`, and `client/modes/` is where one may override a whole
   surface. Hooks (scoring, power, item grants) are all optional; `trivia`
   defines none and is today's game. A module has no mid-session lifecycle — no
-  start/stop hooks, no event bus — so switching games means a `setGame` reset,
-  which is exactly what a flow block does at its boundary (with `keepScores`).
-
-  **Two different things are called "mode".** `setMode` is solo vs teams.
-  `setGame` is the module. They are unrelated switches; say game or module when
-  you mean the second one.
+  start/stop hooks, no event bus — so switching games means a `setMode` reset,
+  which is exactly what a setlist block does at its boundary (with `keepScores`).
+  Solo vs teams is the `grouping`, a different switch entirely.
 - `server/items.ts` — framework-level boons/sabotage (freeze, shield, steal),
   fired by players over the `act` channel and validated before they apply.
 - `server/duel.ts` — heads-up duels (two-player face-offs). Framework-level,
   composes with any mode: selection rules are data in a catalog, entry rides
-  the `act` channel, and enforcement is one `round.candidates` check at the
-  hub's buzz gate. A wrong answer narrows candidates to the other finalist,
-  which is the whole rebound mechanic.
-- `server/flow.ts` — the game flow: an ordered setlist of blocks. It advises
+  the `act` channel, and enforcement is one `round.buzzable` check at the
+  hub's buzz gate. A wrong answer narrows the buzzable to the other seated
+  player, which is the whole rebound mechanic.
+- `server/setlist.ts` — the setlist: an ordered list of blocks. It advises
   and never arms — entering a block applies its setup and stops, so the host
   still arms, judges and moves on. A block also names its own pack, which the
-  flow itself does nothing with: the reader reads `flow.blocks[at].pack` off
-  State each question, so crossing a block boundary switches packs without a
-  new action or a hook.
-- `server/flows.ts` — saved flows on disk, filenames in `State` like `packs`.
+  setlist itself does nothing with: the reader reads `setlist.blocks[at].pack`
+  off State each question, so crossing a block boundary switches packs without
+  a new action or a hook.
+- `server/setlists.ts` — saved setlists on disk, filenames in `State` like
+  `packs`.
 - `server/index.ts` — HTTP + WebSocket, serves `dist/`, routes `/`, `/host`,
   `/board` to the same SPA shell.
 - `client/useSocket.ts` — the socket, the clock sync, and `useOpen`. Every
@@ -156,7 +158,7 @@ question. Design: `docs/superpowers/specs/2026-08-18-wall-boundary-design.md`.
 
   **It holds several packs at once.** Every pack read this session stays
   rendered in memory with its own position, so a setlist whose blocks name
-  different packs (`FlowBlock.pack`) crosses between them at a block boundary
+  different packs (`SetlistBlock.pack`) crosses between them at a block boundary
   with no thirty-second synthesis stall mid-night, and a block returning to an
   earlier pack picks up where it left off. Clips are keyed by fragment text, so
   two packs sharing a line share the clip. Selecting a pack by hand still
@@ -194,7 +196,7 @@ own packet. That one line neutralises both a badly synced clock and a
 hand-edited timestamp, and it is why ordering is by press time rather than
 arrival. Do not loosen it.
 
-**Scheduled arming.** `arm` sets `armedAt = Date.now() + ARM_LEAD_MS`; every
+**Scheduled arming.** `arm` sets `armedAt = Date.now() + ARM_DELAY_MS`; every
 surface counts down to that instant on its own synced clock, so all phones open
 together however late their packet landed. Buzzes arriving before `armedAt` are
 dropped outright — arrival time is server truth, so this needs no tolerance.
@@ -295,30 +297,30 @@ Probe also drives a whole duel — `duel:` opens one, `vote:Bo=Ada` and
 host connection is dropped, which is the rule worth exercising rather than
 routing around), `unvote:` takes a vote back so you can watch a tally count
 down, and `seat`/`cancel` close the window. `teams:Red=Ada,Bo/Blue=Cy,Dee` sets
-the mode, the teams and the assignments in one step, reusing a team of that name
-if the room already has one and leaving the mode alone if it is already teams —
-`setMode` drops an open duel, so re-sending it to add one late player would
+the grouping, the teams and the assignments in one step, reusing a team of that name
+if the room already has one and leaving the grouping alone if it is already teams —
+`setGrouping` drops an open duel, so re-sending it to add one late player would
 cancel the window you were about to watch.
 `speak:Name=transcript` POSTs the transcript as `text/plain` into the judge's
 verdict path, so a whole spoken round is one command; real audio is the
 checklist's.
 
-In teams mode a vote may only name someone on the voter's own side: the seat
+In a teams grouping a vote may only name someone on the voter's own side: the seat
 takes one player per team, so nominating across the line is choosing your
 opponent's champion. `duelAct` refuses it, the phone's roster shows only your
 team, and the board splits the pool into a column per side.
 
-`flow:trivia*2,quizbowl*1:vote` builds a setlist of `mode*count` blocks; a
+`setlist:trivia*2,quizbowl*1:vote` builds a setlist of `mode*count` blocks; a
 trailing `:rule` opens a duel each question for the block it follows, not
-necessarily the last one. `jump:1` moves the flow to that block index. `clear`
-drops a flow only when probe is the one that set it, the same rule as teams —
-a host's own setlist survives a probe run against it.
+necessarily the last one. `jump:1` moves the setlist to that block index.
+`clear` drops a setlist only when probe is the one that set it, the same rule as
+teams — a host's own setlist survives a probe run against it.
 
 With `wait:` between the steps that is a paced walkthrough you can watch on a
 phone, and the two worth keeping are npm scripts rather than a paragraph to
 retype: **`npm run walk-duel`** is ten players trading a nomination lead through
 switches and withdrawals until it changes hands twice, **`npm run walk-teams`**
-is the same in teams mode, where the seat has to reach past a same-team runner-up
+is the same in a teams grouping, where the seat has to reach past a same-team runner-up
 and a wrong answer locks out a whole side. Both end in a `clear`.
 
 **`npm run walk-read`** and **`npm run walk-packs`** are the reading pair, and
@@ -338,7 +340,7 @@ them. Nothing renders twice — the clips cache like the reader's.
 
 Both are repeatable rather than merely re-runnable, which took three things:
 `rewind` (the reader's read positions are per pack and survive a Stop, so a
-walkthrough has to forget them on purpose), `game:` (a mode left in quizbowl
+walkthrough has to forget them on purpose), `mode:` (a mode left in quizbowl
 scores 250 where trivia scores 200), and `direct` (a direct-play script cannot
 run in a room that is in setlist mode). The scores are asserted in
 `docs/manual-checklist.md` — the same three numbers every run, or something

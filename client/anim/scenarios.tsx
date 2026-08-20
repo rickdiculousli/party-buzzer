@@ -90,8 +90,8 @@ const FIELD: Record<NumericField, { max: number; step: number; unit: string }> =
   freqTo: { max: 4000, step: 10, unit: 'Hz' },
   attack: { max: 400, step: 1, unit: 'ms' },
   decay: { max: 2000, step: 5, unit: 'ms' },
-  sustain: { max: 1, step: 0.05, unit: '' },
-  hold: { max: 4000, step: 20, unit: 'ms' },
+  level: { max: 1, step: 0.05, unit: '' },
+  sustain: { max: 4000, step: 20, unit: 'ms' },
   release: { max: 2000, step: 5, unit: 'ms' },
   gain: { max: 1.5, step: 0.05, unit: '' },
   delay: { max: 600, step: 5, unit: 'ms' },
@@ -190,7 +190,7 @@ function Stage({
   below?: preact.JSX.Element | false
 }) {
   return (
-    <section class="board__stage">
+    <section class="board__wall">
       <div class="board__above">{above}</div>
       <div class="board__mid">{mid}</div>
       <div class="board__below">{below}</div>
@@ -291,8 +291,8 @@ export const SCENARIOS: Scenario[] = [
         mid={lead ? <p class="board__idle">Stand by</p> : <p class="board__call">Buzz</p>}
         below={
           <>
-            <div class="board__lead-in">
-              <div class={lead ? 'filament' : 'filament is-hot'} style={{ '--lead': '900ms' }} />
+            <div class="board__countdown">
+              <div class={lead ? 'filament' : 'filament is-hot'} style={{ '--delay': '900ms' }} />
             </div>
             <p class="board__value">400</p>
           </>
@@ -316,7 +316,7 @@ export const SCENARIOS: Scenario[] = [
           </span>
           <span class="player__score readout">400</span>
         </div>
-        <div class="player__lead-in" />
+        <div class="player__countdown" />
         <button class={lead ? 'buzzer is-open' : 'buzzer is-placed'}>
           {lead ? 'Buzz' : 'In'}
           {!lead && <span class="buzzer__sub">Counting the rest of the field</span>}

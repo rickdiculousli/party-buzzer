@@ -2,12 +2,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { schedule, onset, GAIN_FLOOR, type Recipe } from './synth.ts'
 
-/** A layer with every envelope stage non-zero, so nothing is hidden by a default. */
+/** A layer with every envelope segment non-zero, so nothing is hidden by a default. */
 const FULL: Recipe = [
-  { source: 'sine', freq: 400, attack: 20, decay: 80, sustain: 0.5, hold: 100, release: 40 },
+  { source: 'sine', freq: 400, attack: 20, decay: 80, level: 0.5, sustain: 100, release: 40 },
 ]
 
-test('an envelope ends at the sum of its stages', () => {
+test('an envelope ends at the sum of its segments', () => {
   const [v] = schedule(FULL)
   // 20 + 80 + 100 + 40 = 240ms, in seconds.
   assert.equal(v.stop, 0.24)
@@ -61,7 +61,7 @@ test('a zero-length envelope never stops before it starts', () => {
 // to silence is the natural thing to write. Every exponential step floors.
 test('no exponential step targets zero', () => {
   const r: Recipe = [
-    { source: 'sine', freq: 400, attack: 5, decay: 100, sustain: 0, hold: 0, release: 50 },
+    { source: 'sine', freq: 400, attack: 5, decay: 100, level: 0, sustain: 0, release: 50 },
   ]
   for (const v of schedule(r))
     for (const s of [...v.gain, ...v.freq])

@@ -9,7 +9,7 @@ import { Hub, type Conn } from './hub.ts'
 import { Reader } from './reader.ts'
 import { loadState, saveState, flushSave } from './state.ts'
 import { Judge, type Transcribe } from './judge.ts'
-import { probePool, sttBinary, transcribe as sttTranscribe } from './stt.ts'
+import { transcribePool, sttBinary, transcribe as sttTranscribe } from './stt.ts'
 import { locate } from './align.ts'
 import type { Aligner } from './reader.ts'
 import { render as renderClip } from './speech.ts'
@@ -73,7 +73,7 @@ export async function startServer(opts: {
   packDir?: string
   /** Speech-to-text for the judge. Undefined builds the helper; null disables it. */
   transcribe?: Transcribe | null
-  flowDir?: string
+  setlistDir?: string
   /** Serve https so phones get a secure context. False keeps tests off the network. */
   tls?: boolean
 } = {}) {
@@ -81,13 +81,13 @@ export async function startServer(opts: {
   const statePath = opts.statePath ?? join(ROOT, 'state.json')
 
   const packDir = opts.packDir ?? join(ROOT, 'packs')
-  const flowDir = opts.flowDir ?? join(ROOT, 'flows')
+  const setlistDir = opts.setlistDir ?? join(ROOT, 'setlists')
   const state = loadState(statePath)
   const hub = new Hub(state, {
     revealMs: opts.revealMs,
     collectMs: opts.collectMs,
     packDir,
-    flowDir,
+    setlistDir,
     onChange: (s) => saveState(statePath, s),
   })
 
@@ -110,9 +110,9 @@ export async function startServer(opts: {
   const alignBin = realStt ? await sttBinary(sttDir) : null
   const align: Aligner | undefined = alignBin
     ? async (joined, clip) => {
-        const pool = probePool(alignBin, clip.path)
+        const pool = transcribePool(alignBin, clip.path)
         try {
-          return await locate(joined, clip.durationMs, pool.probe)
+          return await locate(joined, clip.durationMs, pool.transcribe)
         } finally {
           pool.close()
         }
@@ -154,7 +154,7 @@ export async function startServer(opts: {
       )
       return
     }
-    if (req.method === 'POST' && (req.url ?? '').startsWith('/answer')) {
+    if (req.method === 'POST' && (req.url ?? '').startsWith('/spoken')) {
       const player = new URL(req.url ?? '/', 'http://localhost').searchParams.get('player') ?? ''
       // text/plain is the transcript itself — probe's speak: step and tests.
       // Anything else is a recording to transcribe.

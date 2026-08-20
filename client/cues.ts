@@ -9,12 +9,12 @@
  * That buys the waveform editor without changing a sample of what plays today,
  * because the envelope is deliberately a no-op: no attack and no decay means `schedule`'s first two
  * steps land on the same instant, so gain is at full from the file's first
- * sample; `sustain: 1` keeps the sustain level *at* full rather than at
- * `GAIN_FLOOR`, which is what an omitted sustain would mean and would be
- * silence; `hold` is the file's own length in ms, so the gate never closes
+ * sample; `level: 1` keeps the level *at* full rather than at
+ * `GAIN_FLOOR`, which is what an omitted level would mean and would be
+ * silence; `sustain` is the file's own length in ms, so the gate never closes
  * early; and the 40ms release runs entirely past the end of the buffer, where
- * there is nothing left to fade. Change `hold` if you re-cut a file — a layer
- * whose stages are shorter than its file is a truncated cue.
+ * there is nothing left to fade. Change `sustain` if you re-cut a file — a layer
+ * whose segments are shorter than its file is a truncated cue.
  *
  * `leader` is two layers because it is two sounds: a drop and a buzzer under
  * it, one moment. They were two separate cues fired together until the editor
@@ -46,8 +46,8 @@ export const RECIPES = {
         "file": "/sounds/stamp.wav"
       },
       "gain": 0.8,
-      "sustain": 1,
-      "hold": 216,
+      "level": 1,
+      "sustain": 216,
       "release": 40
     }
   ],
@@ -56,8 +56,8 @@ export const RECIPES = {
       "source": "noise",
       "attack": 1,
       "decay": 26,
+      "level": 0,
       "sustain": 0,
-      "hold": 0,
       "release": 12,
       "gain": 0.15,
       "filter": {
@@ -72,8 +72,8 @@ export const RECIPES = {
       "glide": "exp",
       "attack": 1,
       "decay": 20,
+      "level": 0,
       "sustain": 0,
-      "hold": 0,
       "release": 10,
       "gain": 0.05
     }
@@ -86,8 +86,8 @@ export const RECIPES = {
       "glide": "exp",
       "attack": 2,
       "decay": 190,
+      "level": 0,
       "sustain": 0,
-      "hold": 0,
       "release": 60,
       "gain": 1.035
     },
@@ -95,8 +95,8 @@ export const RECIPES = {
       "source": "noise",
       "attack": 1,
       "decay": 70,
+      "level": 0,
       "sustain": 0,
-      "hold": 0,
       "release": 30,
       "gain": 0.575,
       "filter": {
@@ -111,8 +111,8 @@ export const RECIPES = {
       "glide": "exp",
       "attack": 2,
       "decay": 120,
+      "level": 0,
       "sustain": 0,
-      "hold": 0,
       "release": 40,
       "gain": 0.322,
       "delay": 110
@@ -122,8 +122,8 @@ export const RECIPES = {
       "freq": 880,
       "attack": 20,
       "decay": 900,
+      "level": 0,
       "sustain": 0,
-      "hold": 0,
       "release": 500,
       "gain": 0.253,
       "delay": 260
@@ -133,8 +133,8 @@ export const RECIPES = {
       "freq": 1318,
       "attack": 16,
       "decay": 750,
+      "level": 0,
       "sustain": 0,
-      "hold": 0,
       "release": 420,
       "gain": 0.115,
       "delay": 300
@@ -148,8 +148,8 @@ export const RECIPES = {
       "glide": "exp",
       "attack": 2,
       "decay": 190,
+      "level": 0,
       "sustain": 0,
-      "hold": 0,
       "release": 60,
       "gain": 1.035
     },
@@ -157,8 +157,8 @@ export const RECIPES = {
       "source": "noise",
       "attack": 1,
       "decay": 70,
+      "level": 0,
       "sustain": 0,
-      "hold": 0,
       "release": 30,
       "gain": 0.575,
       "filter": {
@@ -173,8 +173,8 @@ export const RECIPES = {
       "glide": "exp",
       "attack": 2,
       "decay": 120,
+      "level": 0,
       "sustain": 0,
-      "hold": 0,
       "release": 40,
       "gain": 0.322,
       "delay": 110
@@ -184,8 +184,8 @@ export const RECIPES = {
       "freq": 150,
       "attack": 6,
       "decay": 420,
+      "level": 0,
       "sustain": 0,
-      "hold": 0,
       "release": 80,
       "gain": 0.3,
       "delay": 260,
@@ -199,8 +199,8 @@ export const RECIPES = {
       "freq": 155,
       "attack": 6,
       "decay": 420,
+      "level": 0,
       "sustain": 0,
-      "hold": 0,
       "release": 80,
       "gain": 0.3,
       "delay": 260,
@@ -216,8 +216,8 @@ export const RECIPES = {
         "file": "/sounds/leader.wav"
       },
       "gain": 0.8,
-      "sustain": 1,
-      "hold": 841,
+      "level": 1,
+      "sustain": 841,
       "release": 40
     },
     {
@@ -225,8 +225,8 @@ export const RECIPES = {
         "file": "/sounds/leader2.wav"
       },
       "gain": 0.8,
-      "sustain": 1,
-      "hold": 3040,
+      "level": 1,
+      "sustain": 3040,
       "release": 40
     }
   ]
@@ -245,7 +245,7 @@ export function getPath(
 
 /** Every numeric field a dial may address. A path naming anything else is junk. */
 export const NUMERIC = [
-  'freq', 'freqTo', 'attack', 'decay', 'sustain', 'hold', 'release', 'gain', 'delay', 'head',
+  'freq', 'freqTo', 'attack', 'decay', 'level', 'sustain', 'release', 'gain', 'delay', 'head',
 ] as const satisfies readonly (keyof Layer)[]
 
 export type NumericField = (typeof NUMERIC)[number]
@@ -290,7 +290,7 @@ export function setPath(
  */
 export function span(recipe: Recipe): number {
   const ends = recipe.map(
-    (l) => (l.delay ?? 0) + (l.attack ?? 0) + (l.decay ?? 0) + (l.hold ?? 0) + (l.release ?? 0),
+    (l) => (l.delay ?? 0) + (l.attack ?? 0) + (l.decay ?? 0) + (l.sustain ?? 0) + (l.release ?? 0),
   )
   return Math.max(1, ...ends)
 }
@@ -303,7 +303,7 @@ export function span(recipe: Recipe): number {
  * the buffer knows.
  */
 export function clampField(field: NumericField, value: number, maxHead = Infinity): number {
-  if (field === 'sustain') return Math.min(1, Math.max(0, Number(value.toFixed(2))))
+  if (field === 'level') return Math.min(1, Math.max(0, Number(value.toFixed(2))))
   if (field === 'gain') return Math.max(0, Number(value.toFixed(2)))
   if (field === 'head') return Math.min(Math.max(0, Math.round(value)), Math.max(0, Math.round(maxHead)))
   return Math.max(0, Math.round(value))
@@ -312,8 +312,8 @@ export function clampField(field: NumericField, value: number, maxHead = Infinit
 /**
  * A layer, with an envelope that makes it audible on arrival.
  *
- * A file layer is gated like any other, so one written with no stages is
- * silent (see the `ponytail:` note on `Source`) — the whole-duration `hold` is
+ * A file layer is gated like any other, so one written with no segments is
+ * silent (see the `ponytail:` note on `Source`) — the whole-duration `sustain` is
  * the default that stops the front door from handing you a silent layer.
  * `durationMs` is the decoded buffer's real length; zero when nothing is
  * decoded yet, which is a layer you can still see and drag.
@@ -321,8 +321,8 @@ export function clampField(field: NumericField, value: number, maxHead = Infinit
 export function addLayer(recipe: Recipe, source: Source, durationMs = 0): Recipe {
   const layer: Layer =
     typeof source === 'object'
-      ? { source, sustain: 1, hold: Math.round(durationMs), release: 40 }
-      : { source, freq: 440, attack: 2, decay: 160, sustain: 0, hold: 0, release: 40, gain: 0.6 }
+      ? { source, level: 1, sustain: Math.round(durationMs), release: 40 }
+      : { source, freq: 440, attack: 2, decay: 160, level: 0, sustain: 0, release: 40, gain: 0.6 }
   return [...recipe, layer]
 }
 

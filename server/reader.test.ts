@@ -7,7 +7,7 @@ import { Hub } from './hub.ts'
 import { newState } from './state.ts'
 import { Reader } from './reader.ts'
 import type { Speech } from './speech.ts'
-import { ARM_LEAD_MS, COLLECT_MS } from '../shared/protocol.ts'
+import { ARM_DELAY_MS, COLLECT_MS } from '../shared/protocol.ts'
 
 /** Speech that plays instantly and records what it was asked to say. */
 function fakeSpeech(): Speech & { spoken: string[] } {
@@ -74,7 +74,7 @@ test('the host waits for the first question, not the whole pack', async () => {
 
   // Question two must not arm onto a clip that does not exist yet.
   hub.handle({ id: 'h', role: 'host', send: () => {} }, { t: 'host', action: { a: 'next' } })
-  await new Promise((r) => setTimeout(r, ARM_LEAD_MS + 40))
+  await new Promise((r) => setTimeout(r, ARM_DELAY_MS + 40))
   assert.equal(state.round.fragments?.length ?? 0, 0, 'nothing spoken while it is unrendered')
 
   held.forEach((r) => r())
@@ -89,7 +89,7 @@ test('reading a question arms it, speaks each fragment, and pushes them in order
   await reader.select('one.txt')
   reader.start()
   // Nothing judges this question — real quizbowl leaves it ARMED so a late
-  // buzz still lands. fakeSpeech is instant, but arming has a lead-in, so
+  // buzz still lands. fakeSpeech is instant, but arming has a countdown, so
   // poll for both fragments rather than guess a delay.
   while (speech.spoken.length < 2) await new Promise((r) => setTimeout(r, 5))
   reader.stop()
@@ -104,7 +104,7 @@ test('power closes after the configured fragment', async () => {
   const { hub, state, reader } = rig(PACK)
   hub.handle({ id: 'h', role: 'host', send: () => {} }, {
     t: 'host',
-    action: { a: 'setGame', id: 'quizbowl', options: { powerAfterFragment: 1 } },
+    action: { a: 'setMode', id: 'quizbowl', options: { powerAfterFragment: 1 } },
   })
   await reader.select('one.txt')
   reader.start()
@@ -174,7 +174,7 @@ test('a buzz cuts the clip at once, and the rest of the clue is never read', asy
 
   const host = { id: 'h', role: 'host' as const, send: () => {} }
   hub.handle({ id: 'p', role: 'player', playerId: 'p1', send: () => {} }, { t: 'hello', role: 'player', name: 'Ada', playerId: 'p1' })
-  await new Promise((r) => setTimeout(r, ARM_LEAD_MS + 20))
+  await new Promise((r) => setTimeout(r, ARM_DELAY_MS + 20))
   hub.handle({ id: 'p', role: 'player', playerId: 'p1', send: () => {} }, { t: 'buzz', at: Date.now() })
   assert.equal(stopped, 1, 'the voice is killed on the buzz itself, not a tick later')
 
@@ -202,7 +202,7 @@ test('a wrong answer rebounds and the interrupted fragment is re-read', async ()
   const host = { id: 'h', role: 'host' as const, send: () => {} }
   const ada = { id: 'p', role: 'player' as const, playerId: 'p1', send: () => {} }
   hub.handle(ada, { t: 'hello', role: 'player', name: 'Ada', playerId: 'p1' })
-  await new Promise((r) => setTimeout(r, ARM_LEAD_MS + 20))
+  await new Promise((r) => setTimeout(r, ARM_DELAY_MS + 20))
   hub.handle(ada, { t: 'buzz', at: Date.now() })
   await new Promise((r) => setTimeout(r, COLLECT_MS + 30))
   hub.handle(host, { t: 'host', action: { a: 'wrong', neg: 0 } })
@@ -233,7 +233,7 @@ test('autoplay presses N itself: the payoff sits, then the next question arms', 
   const host = { id: 'h', role: 'host' as const, send: () => {} }
   const ada = { id: 'p', role: 'player' as const, playerId: 'p1', send: () => {} }
   hub.handle(ada, { t: 'hello', role: 'player', name: 'Ada', playerId: 'p1' })
-  await new Promise((r) => setTimeout(r, ARM_LEAD_MS + 30))
+  await new Promise((r) => setTimeout(r, ARM_DELAY_MS + 30))
   hub.handle(ada, { t: 'buzz', at: Date.now() })
   await new Promise((r) => setTimeout(r, COLLECT_MS + 30))
   hub.handle(host, { t: 'host', action: { a: 'correct' } })
@@ -261,7 +261,7 @@ test('with autoplay off, dead air waits for the host and nothing advances', asyn
   const { reader, speech } = rig('One.\nA: gold\n\nTwo.\nA: silver\n')
   await reader.select('one.txt')
   reader.start()
-  await new Promise((r) => setTimeout(r, ARM_LEAD_MS + 200))
+  await new Promise((r) => setTimeout(r, ARM_DELAY_MS + 200))
   assert.deepEqual(speech.spoken, ['One.'], 'still holding on the host')
   reader.stop()
   await reader.settled()
@@ -282,7 +282,7 @@ test('autoplay pauses before the clue picks up on a rebound', async () => {
   const host = { id: 'h', role: 'host' as const, send: () => {} }
   const ada = { id: 'p', role: 'player' as const, playerId: 'p1', send: () => {} }
   hub.handle(ada, { t: 'hello', role: 'player', name: 'Ada', playerId: 'p1' })
-  await new Promise((r) => setTimeout(r, ARM_LEAD_MS + 20))
+  await new Promise((r) => setTimeout(r, ARM_DELAY_MS + 20))
   hub.handle(ada, { t: 'buzz', at: Date.now() })
   await new Promise((r) => setTimeout(r, COLLECT_MS + 30))
   hub.handle(host, { t: 'host', action: { a: 'wrong', neg: 0 } })
@@ -313,7 +313,7 @@ test('a penalty rides the rebound without the reader calling the question over',
   const host = { id: 'h', role: 'host' as const, send: () => {} }
   const ada = { id: 'p', role: 'player' as const, playerId: 'p1', send: () => {} }
   hub.handle(ada, { t: 'hello', role: 'player', name: 'Ada', playerId: 'p1' })
-  await new Promise((r) => setTimeout(r, ARM_LEAD_MS + 20))
+  await new Promise((r) => setTimeout(r, ARM_DELAY_MS + 20))
   hub.handle(ada, { t: 'buzz', at: Date.now() })
   await new Promise((r) => setTimeout(r, COLLECT_MS + 30))
   hub.handle(host, { t: 'host', action: { a: 'wrong', neg: 10 } })
@@ -363,7 +363,7 @@ test('a setlist reads each block from its own pack, and keeps each pack its plac
   hub.handle({ id: 'h', role: 'host', send: () => {} }, {
     t: 'host',
     action: {
-      a: 'setFlow',
+      a: 'setSetlist',
       blocks: [
         { game: 'trivia', options: {}, count: 1, pack: 'a.txt' },
         { game: 'trivia', options: {}, count: 1, pack: 'b.txt' },
@@ -384,7 +384,7 @@ test('a block with no pack ends the reading rather than reading the wrong one', 
   hub.handle({ id: 'h', role: 'host', send: () => {} }, {
     t: 'host',
     action: {
-      a: 'setFlow',
+      a: 'setSetlist',
       blocks: [
         { game: 'trivia', options: {}, count: 1, pack: 'one.txt' },
         { game: 'trivia', options: {}, count: 1 },
@@ -425,7 +425,7 @@ test('Read starts every spent pack over, not only the one it left off in', async
   hub.handle({ id: 'h', role: 'host', send: () => {} }, {
     t: 'host',
     action: {
-      a: 'setFlow',
+      a: 'setSetlist',
       blocks: [
         { game: 'trivia', options: {}, count: 1, pack: 'a.txt' },
         { game: 'trivia', options: {}, count: 1, pack: 'b.txt' },
@@ -441,7 +441,7 @@ test('Read starts every spent pack over, not only the one it left off in', async
   // The run ended on b; a is spent too, and the setlist starts on it. Autoplay
   // switched itself off when the reading ran out, so a second night turns it
   // back on the same way the host would.
-  hub.handle({ id: 'h', role: 'host', send: () => {} }, { t: 'host', action: { a: 'flowJump', at: 0 } })
+  hub.handle({ id: 'h', role: 'host', send: () => {} }, { t: 'host', action: { a: 'setlistJump', at: 0 } })
   autoplay(hub, 0.1, 0)
   reader.start()
   await reader.settled()

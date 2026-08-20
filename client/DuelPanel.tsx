@@ -23,7 +23,7 @@ function closeBlockReason(
         ? [...eligibleIds]
         : duel.pool.filter((e) => e.in && eligibleIds.has(e.playerId)).map((e) => e.playerId)
     if (source.length < 2) return 'Fewer than two are in — closing now resolves nothing.'
-    if (state.mode === 'teams' && new Set(source.map((id) => teamOf(state, id))).size < 2) {
+    if (state.grouping === 'teams' && new Set(source.map((id) => teamOf(state, id))).size < 2) {
       return 'Everyone still in is on one team — closing now resolves nothing.'
     }
   }
@@ -32,9 +32,9 @@ function closeBlockReason(
 
 /**
  * Heads-up duels: open a window (or seat instantly), watch the pool, close it
- * into two finalists. Everything here is a projection of state.duel — the
+ * into the seated pair. Everything here is a projection of state.duel — the
  * resolution itself is server-side (server/duel.ts). The pool below is sorted
- * for display only; ties and the teams-mode one-per-team rule are settled by
+ * for display only; ties and the teams one-per-team rule are settled by
  * the server when the window closes.
  */
 export function DuelPanel({ state, act }: { state: State; act: (a: HostAction) => void }) {
@@ -53,14 +53,14 @@ export function DuelPanel({ state, act }: { state: State; act: (a: HostAction) =
   }, [duel])
 
   if (!duel) {
-    const teams = state.mode === 'teams' ? new Set(eligible.map((p) => p.teamId)) : null
+    const teams = state.grouping === 'teams' ? new Set(eligible.map((p) => p.teamId)) : null
     return (
       <section>
         <p class="eyebrow">Heads-up</p>
         <div class="host__minor">
           {state.duelRules.map((r) => {
             // The only rule that seats instantly on open (entry:'none',
-            // resolve:'random'); teams mode can pass the headcount check and
+            // resolve:'random'); a teams grouping can pass the headcount check and
             // still fail the one-per-team seat, which otherwise deletes the
             // duel with nothing said about why.
             const randomBlocked = r.entry === 'none' && r.resolve === 'random' && teams && teams.size < 2
@@ -107,7 +107,7 @@ export function DuelPanel({ state, act }: { state: State; act: (a: HostAction) =
   const closeReason = rule ? closeBlockReason(state, duel, rule, eligibleIds) : null
 
   const pickSameTeam =
-    pick.length === 2 && state.mode === 'teams' && teamOf(state, pick[0]) === teamOf(state, pick[1])
+    pick.length === 2 && state.grouping === 'teams' && teamOf(state, pick[0]) === teamOf(state, pick[1])
 
   return (
     <section>

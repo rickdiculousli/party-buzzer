@@ -567,7 +567,7 @@ function Harness() {
           // A layer added this session has no entry in the committed RECIPES —
           // `getPath` returns undefined rather than a real number. Treating that
           // as 0 would give every dial on a new layer a "was 0 — reset" button,
-          // and clicking it on `hold` would zero out the whole-duration default
+          // and clicking it on `sustain` would zero out the whole-duration default
           // `addLayer` set specifically to keep the layer audible. There is
           // nothing committed to go back to, so the dial is simply not "moved".
           const committed = recipe ? getPath(RECIPES, d.recipe) : undefined

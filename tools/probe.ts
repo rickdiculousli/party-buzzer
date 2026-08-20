@@ -36,18 +36,18 @@
  *   rewind           forget where every pack got to, so a walkthrough repeats exactly
  *   read             start the reader on the chosen pack or the block's
  *   armed            wait for the buzzers to open — the reader arms, not you
- *   game:trivia      pin the mode (resets scores, as a host mode switch does)
- *   direct           drop any setlist — the one step that touches a flow probe did not set
+ *   mode:trivia      pin the mode (resets scores, as a host mode switch does)
+ *   direct           drop any setlist — the one step that touches a setlist probe did not set
  *   act:name[:data]  host-scoped act (fragment / powerEnds / revealAnswer)
  *   speak:A=text     A's transcript, POSTed as text/plain into the judge
  *   say:A=words      the same, but spoken: `say` renders the words to a clip and
  *                    the clip goes in as audio, so STT and the matcher both run
- *   teams:R=A,B/S=C  teams mode, those teams, those players on them
- *   flow:t*2@p.txt,q*1:v
+ *   teams:R=A,B/S=C  teams grouping, those teams, those players on them
+ *   setlist:t*2@p.txt,q*1:v
  *                    setlist: mode*count blocks, @pack the reader takes that
  *                    block's questions from, a trailing :rule opens a duel for
  *                    the block it follows
- *   jump:1           jump the flow to that block index
+ *   jump:1           jump the setlist to that block index
  *   duel:vote        open a heads-up duel under that rule id
  *   in:A,B | out:A   volunteer / back off, from those players' own sockets
  *   vote:A=B,C=B     A votes for B, C votes for B (`=`, not `>`: no quoting)
@@ -71,7 +71,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { connect, reachable, type Conn } from './conn.ts'
 import { clipPath, run } from '../server/speech.ts'
-import { ARM_LEAD_MS, COLLECT_MS } from '../shared/protocol.ts'
+import { ARM_DELAY_MS, COLLECT_MS } from '../shared/protocol.ts'
 
 const args = process.argv.slice(2)
 const URL = process.env.URL ?? (await reachable())
@@ -117,8 +117,8 @@ async function main() {
     // The header comment is the manual; printing a second copy is a second
     // thing to keep true.
     log('\n  usage: npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@120 correct')
-    log('  steps: loop join value arm buzz correct wrong next reset undo pack game direct autoplay rewind read armed act speak say teams flow jump duel in out vote unvote seat cancel wait clear')
-    log('  walks: npm run walk-duel   walk-teams   walk-flow   walk-read   walk-packs\n')
+    log('  steps: loop join value arm buzz correct wrong next reset undo pack mode direct autoplay rewind read armed act speak say teams setlist jump duel in out vote unvote seat cancel wait clear')
+    log('  walks: npm run walk-duel   walk-teams   walk-setlist   walk-read   walk-packs\n')
     return
   }
 
@@ -156,11 +156,11 @@ async function main() {
    * Players probe put on a team, and whether probe is the one who turned teams
    * on. Both exist so `clear` can undo exactly what this run did and nothing
    * else: a borrowed phone gets taken off its team again, but a room the host
-   * had already set up in teams mode before probe arrived is left in it.
+   * had already set up a teams grouping before probe arrived is left in it.
    */
   const assigned = new Set<string>()
   let teamsAreOurs = false
-  let flowIsOurs = false
+  let setlistIsOurs = false
   let readIsOurs = false
   let autoplayIsOurs = false
 
@@ -172,15 +172,15 @@ async function main() {
     if (autoplayIsOurs) {
       host.send({ t: 'host', action: { a: 'setAutoplay', on: false, nextSec: 5, reboundSec: 2 } })
     }
-    // Then the round: clearFlow is refused unless it is IDLE, so resetting here
+    // Then the round: clearSetlist is refused unless it is IDLE, so resetting here
     // before anything IDLE-gated runs is what makes a `clear` mid-question
-    // actually clear rather than leave the flow armed for the next `next`.
+    // actually clear rather than leave the setlist armed for the next `next`.
     host.send({ t: 'host', action: { a: 'next' } })
-    if (flowIsOurs) host.send({ t: 'host', action: { a: 'clearFlow' } })
+    if (setlistIsOurs) host.send({ t: 'host', action: { a: 'clearSetlist' } })
     host.send({ t: 'host', action: { a: 'cancelDuel' } })
     // Before the kick: an assign for a player who is already gone does nothing.
     for (const playerId of assigned) host.send({ t: 'host', action: { a: 'assign', playerId } })
-    if (teamsAreOurs) host.send({ t: 'host', action: { a: 'setMode', mode: 'solo' } })
+    if (teamsAreOurs) host.send({ t: 'host', action: { a: 'setGrouping', grouping: 'solo' } })
     const gone = (host.state()?.players ?? []).filter((p) => p.id.startsWith('probe-'))
     for (const p of gone) host.send({ t: 'host', action: { a: 'kick', playerId: p.id } })
     log(`  cleared ${gone.length}`)
@@ -193,7 +193,7 @@ async function main() {
   for (let pass = 1; ; pass++) {
     if (looping) log(`  ── pass ${pass}`)
     for (const step of steps) {
-      // First colon only: `flow:trivia*2,quizbowl*1:vote` has to keep the
+      // First colon only: `setlist:trivia*2,quizbowl*1:vote` has to keep the
       // duel rule attached, and an act's data can itself hold colons — a full
       // split-and-take-two would silently drop everything past the second one.
       const sep = step.indexOf(':')
@@ -254,7 +254,7 @@ async function main() {
           // So watch the phase instead, and keep the arithmetic only as the
           // ceiling for the case where nothing locks because every press was
           // dropped — a spectator's, in a duel.
-          const settle = last + COLLECT_MS + ARM_LEAD_MS
+          const settle = last + COLLECT_MS + ARM_DELAY_MS
           await Promise.race([
             host.waitFor((s) => s.round.phase === 'LOCKED', settle + 500).catch(() => {}),
             sleep(settle),
@@ -305,11 +305,11 @@ async function main() {
           break
         }
 
-        // game:trivia — pin the mode, because a walkthrough that scores 250 in
+        // mode:trivia — pin the mode, because a walkthrough that scores 250 in
         // one room and 200 in the next is not repeatable. Resets the scores,
         // like the host's own mode switch does.
-        case 'game':
-          host.send({ t: 'host', action: { a: 'setGame', id: arg, options: {} } })
+        case 'mode':
+          host.send({ t: 'host', action: { a: 'setMode', id: arg, options: {} } })
           await host.waitFor((s) => s.game.id === arg, 3000)
           break
 
@@ -317,8 +317,8 @@ async function main() {
         // script cannot run against a room in setlist mode, because the block
         // is what names the pack. Destructive, and only ever asked for.
         case 'direct':
-          host.send({ t: 'host', action: { a: 'clearFlow' } })
-          await host.waitFor((s) => !s.flow, 3000).catch(() => {})
+          host.send({ t: 'host', action: { a: 'clearSetlist' } })
+          await host.waitFor((s) => !s.setlist, 3000).catch(() => {})
           break
 
         // Forget where every pack got to, so a walkthrough starts from the same
@@ -390,7 +390,7 @@ async function main() {
             .catch(() => {
               throw new Error(`no answer window for ${name} — is the judge on? (see [stt] at boot)`)
             })
-          const res = await fetch(`${URL}/answer?player=${conn.playerId}`, {
+          const res = await fetch(`${URL}/spoken?player=${conn.playerId}`, {
             method: 'POST',
             headers: { 'content-type': clip ? 'audio/wav' : 'text/plain' },
             body: clip ? await readFile(clip) : text,
@@ -409,12 +409,12 @@ async function main() {
         // returns to solo, and the next run reuses them by name. Add the action
         // if a stale team ever actually gets in the way.
         case 'teams': {
-          // Only if it is not already on. `setMode` drops an open duel, so
+          // Only if it is not already on. `setGrouping` drops an open duel, so
           // re-sending it to add one late player would cancel the window you
           // were about to watch.
-          if (host.state()?.mode !== 'teams') {
-            host.send({ t: 'host', action: { a: 'setMode', mode: 'teams' } })
-            await host.waitFor((s) => s.mode === 'teams')
+          if (host.state()?.grouping !== 'teams') {
+            host.send({ t: 'host', action: { a: 'setGrouping', grouping: 'teams' } })
+            await host.waitFor((s) => s.grouping === 'teams')
             teamsAreOurs = true
           }
           for (const group of arg.split('/').filter(Boolean)) {
@@ -437,11 +437,11 @@ async function main() {
           break
         }
 
-        // flow:trivia*3@walk-a.txt,quizbowl*2:vote — mode*count, optionally
+        // setlist:trivia*3@walk-a.txt,quizbowl*2:vote — mode*count, optionally
         // @pack for the reader to take that block's questions from, optionally
         // :duelRule. Both suffixes are optional and either order of reading
         // them is unambiguous: a pack name holds no colon and a rule id no @.
-        case 'flow': {
+        case 'setlist': {
           const blocks = arg.split(',').filter(Boolean).map((part) => {
             const [head, duel] = part.split(':')
             const [spec, pack] = head.split('@')
@@ -454,15 +454,15 @@ async function main() {
               ...(duel ? { duel } : {}),
             }
           })
-          host.send({ t: 'host', action: { a: 'setFlow', blocks } })
-          await host.waitFor((s) => s.flow?.blocks.length === blocks.length)
-          flowIsOurs = true
-          log(`  flow ${blocks.length} blocks`)
+          host.send({ t: 'host', action: { a: 'setSetlist', blocks } })
+          await host.waitFor((s) => s.setlist?.blocks.length === blocks.length)
+          setlistIsOurs = true
+          log(`  setlist ${blocks.length} blocks`)
           break
         }
 
         case 'jump':
-          host.send({ t: 'host', action: { a: 'flowJump', at: Number(arg) } })
+          host.send({ t: 'host', action: { a: 'setlistJump', at: Number(arg) } })
           break
 
         case 'duel':

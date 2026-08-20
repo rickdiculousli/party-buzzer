@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { setTimeout as sleep } from 'node:timers/promises'
-import { ARM_LEAD_MS } from './state.ts'
+import { ARM_DELAY_MS } from './state.ts'
 import { FakeClient, SETTLE, withServer } from './e2e.ts'
 
 test('a quizbowl round: power bonus, fragments on the board but never on phones', async () => {
@@ -17,7 +17,7 @@ test('a quizbowl round: power bonus, fragments on the board but never on phones'
     host.send({
       t: 'host',
       action: {
-        a: 'setGame',
+        a: 'setMode',
         id: 'quizbowl',
         options: { powerAfterFragment: 2, powerBonus: 50, neg: 50 },
       },
@@ -29,7 +29,7 @@ test('a quizbowl round: power bonus, fragments on the board but never on phones'
 
     host.send({ t: 'host', action: { a: 'setValue', value: 200 } })
     host.send({ t: 'host', action: { a: 'arm' } })
-    await sleep(ARM_LEAD_MS + 30)
+    await sleep(ARM_DELAY_MS + 30)
 
     host.send({ t: 'act', act: 'fragment', data: 'First fragment.' })
     await sleep(60)
@@ -71,7 +71,7 @@ test('quizbowl wrong: configured neg, lockout, and an unpowered rebound', async 
     host.send({
       t: 'host',
       action: {
-        a: 'setGame',
+        a: 'setMode',
         id: 'quizbowl',
         options: { neg: 50, itemsEnabled: true },
       },
@@ -80,7 +80,7 @@ test('quizbowl wrong: configured neg, lockout, and an unpowered rebound', async 
 
     host.send({ t: 'host', action: { a: 'setValue', value: 200 } })
     host.send({ t: 'host', action: { a: 'arm' } })
-    await sleep(ARM_LEAD_MS + 30)
+    await sleep(ARM_DELAY_MS + 30)
 
     amy.send({ t: 'buzz', at: performance.now() + amy.offset })
     await sleep(20)
@@ -98,7 +98,7 @@ test('quizbowl wrong: configured neg, lockout, and an unpowered rebound', async 
 
     // The rebound is the same question: power has ended, so Bo's buzz is not
     // powered even though it is first.
-    await sleep(ARM_LEAD_MS + 20)
+    await sleep(ARM_DELAY_MS + 20)
     bo.send({ t: 'buzz', at: performance.now() + bo.offset })
     await sleep(SETTLE)
     host.send({ t: 'host', action: { a: 'correct' } })

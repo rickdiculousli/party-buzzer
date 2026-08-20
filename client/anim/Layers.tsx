@@ -116,8 +116,8 @@ export function Layers({
   }
 
   /**
-   * Decode before adding, so the new layer's `hold` can be the file's real
-   * length. A file layer is gated like any other and one with no stages is
+   * Decode before adding, so the new layer's `sustain` can be the file's real
+   * length. A file layer is gated like any other and one with no segments is
    * silent — this default is what stops the front door from handing you a
    * layer that does nothing.
    */

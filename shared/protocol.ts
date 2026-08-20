@@ -1,6 +1,6 @@
 export type PlayerId = string
 export type TeamId = string
-/** Scores key on team id in teams mode, player id in solo mode. */
+/** Scores key on team id in a teams grouping, player id in solo. */
 export type ScoreKey = string
 
 /**
@@ -10,10 +10,10 @@ export type ScoreKey = string
  * Part of the wire contract: clients count down to `round.armedAt` and use this
  * as the ceiling on how long that countdown can possibly be.
  */
-export const ARM_LEAD_MS = 300
+export const ARM_DELAY_MS = 300
 
 export type Role = 'player' | 'host' | 'board'
-export type Mode = 'solo' | 'teams'
+export type Grouping = 'solo' | 'teams'
 export type Phase = 'IDLE' | 'ARMED' | 'COLLECTING' | 'LOCKED'
 
 export type Player = {
@@ -56,7 +56,7 @@ export type Round = {
   /** Score keys barred from this round after a wrong answer. */
   lockedOut: ScoreKey[]
   /** The only players who may buzz this round. Set by a duel; absent = open. */
-  candidates?: PlayerId[]
+  buzzable?: PlayerId[]
   /**
    * Set when a question has been scored, and cleared when the next one starts.
    * The board keeps the result up for as long as this is here — the payoff
@@ -132,9 +132,9 @@ export type DuelState = {
   /** Id into the duelRules catalog. */
   rule: string
   pool: DuelPoolEntry[]
-  /** The two finalists, once the host closes the window (or an instant rule resolves). */
+  /** The seated pair, once the host closes the window (or an instant rule resolves). */
   seated?: [PlayerId, PlayerId]
-  /** Finalists who answered wrong this question — drives the exclusive rebound. */
+  /** Seated players who answered wrong this question — drives the exclusive rebound. */
   missed: PlayerId[]
 }
 
@@ -159,7 +159,7 @@ export type ActiveEffect = {
 }
 
 /** One stretch of the night: N questions of one mode, optionally as duels. */
-export type FlowBlock = {
+export type SetlistBlock = {
   /** Module id, into the same catalog the host settings form renders from. */
   game: string
   /** Values for that module's option schema; sanitized when applied. */
@@ -178,9 +178,9 @@ export type FlowBlock = {
  * The setlist and where the room is in it. Rides State, so snapshot, undo and
  * broadcast come free — the same bargain `duel` and `items` take.
  */
-export type FlowState = {
-  blocks: FlowBlock[]
-  /** Index of the running block. Equals blocks.length when the flow is spent. */
+export type SetlistState = {
+  blocks: SetlistBlock[]
+  /** Index of the running block. Equals blocks.length when the setlist is spent. */
   at: number
   /** Questions gone by inside the current block. */
   done: number
@@ -218,7 +218,7 @@ export type Autoplay = {
 }
 
 export type State = {
-  mode: Mode
+  grouping: Grouping
   players: Player[]
   teams: Team[]
   scores: Record<ScoreKey, number>
@@ -234,9 +234,9 @@ export type State = {
   /** Static rule catalog. Refreshed at startup beside `games`. */
   duelRules: DuelRuleInfo[]
   /** The setlist, if the host built one. Absent = the host is driving freehand. */
-  flow?: FlowState
-  /** Saved flow filenames on disk. Filenames only, like `packs`. */
-  flows: string[]
+  setlist?: SetlistState
+  /** Saved setlist filenames on disk. Filenames only, like `packs`. */
+  setlists: string[]
   /** Pack filenames on disk. Filenames only — question content never enters State. */
   packs: string[]
   /** Questions per pack. A count is not content, and the builder needs it. */
@@ -265,11 +265,11 @@ export type HostAction =
   | { a: 'setScore'; key: ScoreKey; score: number }
   | { a: 'rename'; playerId: PlayerId; name: string }
   | { a: 'kick'; playerId: PlayerId }
-  | { a: 'setMode'; mode: Mode }
+  | { a: 'setGrouping'; grouping: Grouping }
   | { a: 'addTeam'; name: string; color: string }
   | { a: 'assign'; playerId: PlayerId; teamId?: TeamId }
-  /** `keepScores` is the flow crossing a block boundary; a host switch resets. */
-  | { a: 'setGame'; id: string; options: Record<string, unknown>; keepScores?: boolean }
+  /** `keepScores` is the setlist crossing a block boundary; a host switch resets. */
+  | { a: 'setMode'; id: string; options: Record<string, unknown>; keepScores?: boolean }
   | { a: 'setMirror'; on: boolean }
   /** The whole triple every time: one edit, one undo step, no partial merge. */
   | { a: 'setAutoplay'; on: boolean; nextSec: number; reboundSec: number }
@@ -278,9 +278,9 @@ export type HostAction =
   | { a: 'closeDuel'; playerIds?: [PlayerId, PlayerId] }
   | { a: 'cancelDuel' }
   /** The builder writes the whole array: one edit, one undo step. Empty clears. */
-  | { a: 'setFlow'; blocks: FlowBlock[] }
-  | { a: 'flowJump'; at: number }
-  | { a: 'clearFlow' }
+  | { a: 'setSetlist'; blocks: SetlistBlock[] }
+  | { a: 'setlistJump'; at: number }
+  | { a: 'clearSetlist' }
 
 export type ClientMsg =
   | { t: 'hello'; role: Role; playerId?: PlayerId; name?: string }

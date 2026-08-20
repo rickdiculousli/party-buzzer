@@ -29,10 +29,10 @@ export function chunks(text: string): string[] {
 
 export type Standing = { key: ScoreKey; label: string; color: string; score: number }
 
-/** Whoever holds the score this game: teams in teams mode, players in solo. */
+/** Whoever holds the score this game: teams in a teams grouping, players in solo. */
 export function standings(state: State, sorted = true): Standing[] {
   const rows: Standing[] =
-    state.mode === 'teams'
+    state.grouping === 'teams'
       ? state.teams.map((t) => ({ key: t.id, label: t.name, color: t.color, score: 0 }))
       : state.players.map((p) => ({ key: p.id, label: p.name, color: colorFor(p.id), score: 0 }))
   const withScores = rows.map((r) => ({ ...r, score: state.scores[r.key] ?? 0 }))
@@ -41,7 +41,7 @@ export function standings(state: State, sorted = true): Standing[] {
 
 /** The identity colour of the thing a buzz scores for. */
 export function colorForPlayer(state: State, playerId: string): string {
-  const team = state.mode === 'teams'
+  const team = state.grouping === 'teams'
     ? state.teams.find((t) => t.id === state.players.find((p) => p.id === playerId)?.teamId)
     : undefined
   return team?.color ?? colorFor(playerId)
@@ -59,7 +59,7 @@ export function lockedNames(state: State): string[] {
 
 /** Who a duel may seat: connected, and on a team when the game has them. */
 export function eligibleForDuel(state: State) {
-  return state.players.filter((p) => p.connected && (state.mode !== 'teams' || !!p.teamId))
+  return state.players.filter((p) => p.connected && (state.grouping !== 'teams' || !!p.teamId))
 }
 
 /**
@@ -90,7 +90,7 @@ export function willSeat(state: State): [ScoreKey, ScoreKey] | null {
 
   const first = ranked[0]
   if (!first) return null
-  if (state.mode !== 'teams') return ranked[1] ? [first, ranked[1]] : null
+  if (state.grouping !== 'teams') return ranked[1] ? [first, ranked[1]] : null
   const second = ranked.find((id) => id !== first && teamOf(id) !== teamOf(first))
   return second ? [first, second] : null
 }

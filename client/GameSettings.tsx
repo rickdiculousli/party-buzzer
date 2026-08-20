@@ -86,7 +86,7 @@ export function GameSettings({
     if (!next) return
     const dirty = Object.values(state.scores).some((s) => s !== 0)
     if (dirty && !confirm(`Switch to ${next.name}? Scores and the round reset.`)) return
-    act({ a: 'setGame', id, options: defaultsOf(next) })
+    act({ a: 'setMode', id, options: defaultsOf(next) })
   }
 
   return (
@@ -112,7 +112,7 @@ export function GameSettings({
           value={state.game.options[spec.key]}
           disabled={!idle}
           onChange={(v) =>
-            act({ a: 'setGame', id: state.game.id, options: { ...state.game.options, [spec.key]: v } })
+            act({ a: 'setMode', id: state.game.id, options: { ...state.game.options, [spec.key]: v } })
           }
         />
       ))}

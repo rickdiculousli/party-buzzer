@@ -119,7 +119,7 @@ function Timeline({
  * A ranked column of nominations.
  *
  * Ranked for display; lit by the same prediction the host desk runs, which is
- * not the same as the top two. In teams mode a same-team runner-up gets
+ * not the same as the top two. In a teams grouping a same-team runner-up gets
  * skipped, and marking them anyway promises the room a face-off the close will
  * not produce.
  */
@@ -179,7 +179,7 @@ export function Board() {
   const { state, now, connected } = useSocket('board')
   // The big screen is what the room watches, so it must not light up before
   // the phones do. Same countdown to armedAt as every other surface.
-  const { open, lead } = useOpen(state?.round, now)
+  const { open, delay } = useOpen(state?.round, now)
 
   /**
    * The board is the only surface with a speaker the whole room can hear, and
@@ -292,28 +292,28 @@ export function Board() {
   const armed = round.phase === 'ARMED' || round.phase === 'COLLECTING'
   const here = state.players.filter((p) => p.connected).length
   const barred = lockedNames(state)
-  // `candidates` is only stamped at the arm, so between the host seating a pair
+  // `buzzable` is only stamped at the arm, so between the host seating a pair
   // and opening the buzzers there is a gap the board used to spend saying
   // "Ready" — the room watches the two names disappear a second after they were
   // announced. The seated pair carries it across that gap; once the arm stamps
-  // candidates, that is the truer source, because a wrong answer narrows it.
+  // buzzable, that is the truer source, because a wrong answer narrows it.
   const seating = willSeat(state)
 
   return (
     <main class="board">
-      <section class="board__stage">
+      <section class="board__wall">
         <div class="board__status">
-          {open && <span class="chip chip--live">Live</span>}
+          {open && <span class="chip chip--open">Open</span>}
           {armed && !open && <span class="chip chip--armed">Standing by</span>}
           <span class="chip">
             {here} {here === 1 ? 'player' : 'players'}
           </span>
-          {/* Position, not drama. The stage belongs to the question; a flow that
+          {/* Position, not drama. The stage belongs to the question; a setlist that
               pulls the eye during a buzz has failed at its job. */}
-          {state.flow?.blocks[state.flow.at] && (
+          {state.setlist?.blocks[state.setlist.at] && (
             <span class="chip">
-              {state.flow.at + 1}/{state.flow.blocks.length} · Q{state.flow.done + 1} of{' '}
-              {state.flow.blocks[state.flow.at].count}
+              {state.setlist.at + 1}/{state.setlist.blocks.length} · Q{state.setlist.done + 1} of{' '}
+              {state.setlist.blocks[state.setlist.at].count}
             </span>
           )}
           {/* What is at stake. The idle stage shows this large; once someone is
@@ -416,14 +416,14 @@ export function Board() {
             <>
               {/* The slot is always here so the filament arriving does not
                   shove the value down a line. */}
-              <div class="board__lead-in">
+              <div class="board__countdown">
                 {w.filament && (
                   // Keyed on the arm instant so the warm-up restarts once per
                   // arm and not on every unrelated broadcast.
                   <div
                     key={round.armedAt}
                     class={open ? 'filament is-hot' : 'filament'}
-                    style={{ '--lead': `${lead}ms` }}
+                    style={{ '--delay': `${delay}ms` }}
                   />
                 )}
               </div>

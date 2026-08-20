@@ -15,7 +15,7 @@ export type Source =
    * A decoded file, keyed by the URL `primeFile` fetched it under.
    *
    * ponytail: a file layer is still gated by the envelope like any other, so
-   * one written with no stages at all stops the instant it starts and is
+   * one written with no segments at all stops the instant it starts and is
    * silent. Give it a `decay` at least. Defaulting an envelope-less layer to
    * the buffer's own length would need the buffer, which `schedule` does not
    * have — pass its duration in if a recipe ever wants that.
@@ -31,11 +31,11 @@ export type Layer = {
   /** How the glide travels. `exp` is what a pitch drop actually sounds like. */
   glide?: 'lin' | 'exp'
 
-  /** Envelope, in ms — except `sustain`, which is a level from 0 to 1. */
+  /** Envelope, in ms — except `level`, which is a gain from 0 to 1. */
   attack?: number
   decay?: number
+  level?: number
   sustain?: number
-  hold?: number
   release?: number
 
   gain?: number
@@ -89,20 +89,20 @@ export function schedule(recipe: Recipe, rate = 1): Voice[] {
     const start = ms(l.delay, r)
     const attack = ms(l.attack, r)
     const decay = ms(l.decay, r)
-    const hold = ms(l.hold, r)
+    const sustain = ms(l.sustain, r)
     const release = ms(l.release, r)
-    // Summed in ms, then converted once — converting each stage separately
+    // Summed in ms, then converted once — converting each segment separately
     // and adding the results drifts a cent past the exact value in float64.
-    const stop = start + ms((l.attack ?? 0) + (l.decay ?? 0) + (l.hold ?? 0) + (l.release ?? 0), r)
+    const stop = start + ms((l.attack ?? 0) + (l.decay ?? 0) + (l.sustain ?? 0) + (l.release ?? 0), r)
 
     const peak = Math.max(l.gain ?? 1, GAIN_FLOOR)
-    const level = Math.max(peak * (l.sustain ?? 0), GAIN_FLOOR)
+    const level = Math.max(peak * (l.level ?? 0), GAIN_FLOOR)
 
     const gain: Step[] = [{ t: start, value: GAIN_FLOOR, curve: 'set' }]
     const at = (t: number, value: number, curve: Step['curve']) => gain.push({ t, value, curve })
     at(start + attack, peak, 'lin')
     at(start + attack + decay, level, 'exp')
-    at(start + attack + decay + hold, level, 'set')
+    at(start + attack + decay + sustain, level, 'set')
     at(stop, GAIN_FLOOR, 'exp')
 
     const freq: Step[] = []

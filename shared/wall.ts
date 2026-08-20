@@ -9,7 +9,7 @@
  *
  * `momentOf` is universal. `viewFor` redacts `order`, `whole`, and (without the
  * mirror) `fragments` and `answer` — but keeps `phase`, `armedAt`, `spoken`,
- * `award`, `held`, `duel` and `candidates`, which is every field a moment is
+ * `award`, `held`, `duel` and `buzzable`, which is every field a moment is
  * derived from. So the wall and the phones compute the same word from different
  * data and cannot drift. Nothing here may read `order`, for exactly that reason:
  * a player sees only their own entry, so a moment derived from it would differ
@@ -88,9 +88,9 @@ export function momentOf(state: State, local: Local): Moment {
   }
 
   if (state.duel && !state.duel.seated) return 'duel:nominating'
-  // `[]`, not absent: both finalists missed, and nobody at all may buzz.
-  if (r.candidates?.length === 0) return 'duel:dead'
-  if (r.candidates?.length === 2 || state.duel?.seated) return 'duel:faceoff'
+  // `[]`, not absent: both seated players missed, and nobody at all may buzz.
+  if (r.buzzable?.length === 0) return 'duel:dead'
+  if (r.buzzable?.length === 2 || state.duel?.seated) return 'duel:faceoff'
 
   if (r.phase === 'COLLECTING') return 'buzz:collecting'
   if (r.phase === 'ARMED') return local.open ? 'buzz:open' : 'buzz:arming'
@@ -160,7 +160,7 @@ const EMPTY_MIDDLE = {
 function middleOf(state: State, m: Moment, hero: Wall['hero'], reading: boolean): Middle {
   const r = state.round
   if (hero) return { hero }
-  if (m === 'duel:nominating') return { nominations: state.mode === 'teams' ? 'teams' : 'solo' }
+  if (m === 'duel:nominating') return { nominations: state.grouping === 'teams' ? 'teams' : 'solo' }
   if (m === 'duel:dead') return { call: 'dead' }
   // The reading view and the buzz call are alternatives, not a sequence. While
   // the box is driving, the question owns the middle for the whole question —
@@ -168,7 +168,7 @@ function middleOf(state: State, m: Moment, hero: Wall['hero'], reading: boolean)
   if (reading || r.fragments?.length) {
     return { clue: { whole: r.whole, shown: r.fragments?.join(' ') ?? '' } }
   }
-  const seated = r.candidates ?? state.duel?.seated
+  const seated = r.buzzable ?? state.duel?.seated
   if (seated?.length === 2) {
     const nameOf = (id: string) => state.players.find((p) => p.id === id)?.name ?? '?'
     return { faceoff: [nameOf(seated[0]), nameOf(seated[1])] }
@@ -234,7 +234,7 @@ export type Mine = {
   /** A duel this player is not in. */
   spectator: boolean
   /**
-   * Both finalists missed: `candidates` is `[]` and nobody at all may buzz.
+   * Both seated players missed: `buzzable` is `[]` and nobody at all may buzz.
    *
    * Public, so it could have been the moment `duel:dead` — but the wall and the
    * phone want it at different priorities, and neither is wrong. The wall
@@ -244,7 +244,7 @@ export type Mine = {
    * will keep.
    */
   dead: boolean
-  finalistNames?: string[]
+  buzzableNames?: string[]
   /** This player is first in the order. */
   won: boolean
   /** Their margin behind first, when they buzzed and did not win. */
@@ -281,7 +281,7 @@ export function phoneOf(m: Moment, f: Mine): Phone {
   if (f.spectator) {
     return {
       label: 'Duel',
-      sub: `${f.finalistNames?.join(' vs ')} — you sit this one out`,
+      sub: `${f.buzzableNames?.join(' vs ')} — you sit this one out`,
       mood: 'barred',
     }
   }

@@ -80,7 +80,7 @@ export async function withServer(fn: (url: string) => Promise<void>): Promise<vo
     transcribe: null,
     // Nor fetch a certificate: boot must never touch the network either.
     tls: false,
-    flowDir: join(dir, 'flows'),
+    setlistDir: join(dir, 'setlists'),
   })
   try {
     await fn(`http://127.0.0.1:${server.port}`)

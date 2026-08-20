@@ -58,7 +58,7 @@ at a party. Keeping both, and keeping them visually separate, is the design.
 | Token | Hex | Means |
 |---|---|---|
 | `--tungsten` | `#ffb454` | Armed, charging, the primary action, the question's value. |
-| `--tally` | `#ff3b2f` | Live. The buzzers are open, or something is destructive. |
+| `--tally` | `#ff3b2f` | Open. The buzzers are taking presses, or something is destructive. |
 | `--brass` | `#c9a227` | First place, correct, awarded, connected. |
 | `--silver` | `#b8bcc4` | Second place, in the standings dial. |
 | `--bronze` | `#b0793f` | Third place, in the standings dial. |
@@ -183,8 +183,8 @@ A small piece of state. Never a control, never clickable.
 
 ```html
 <span class="chip">6 players</span>
-<span class="chip chip--live">Live</span>       <!-- buzzers open -->
-<span class="chip chip--armed">Standing by</span> <!-- lead-in -->
+<span class="chip chip--open">Open</span>       <!-- buzzers open -->
+<span class="chip chip--armed">Standing by</span> <!-- the arm delay -->
 <span class="chip chip--won">Winner</span>
 <span class="chip chip--barred">Amy out</span>
 <span class="chip chip--data">150 ms window</span>
@@ -240,19 +240,19 @@ Each figure animates on mount (`cast`, anchor 6), which is why `Votes` keys by
 voter id: the arriving vote must be the element that mounts, and taking a vote
 back must not restart the ones that stay.
 
-### Flow strip and builder — `.host__flow`, `.flow`
+### Setlist strip and builder — `.host__setlist`, `.setlist`
 
 The setlist has two very different readers, so it gets two very different
-treatments. The play strip (`.host__flow`) says where the room is right now —
+treatments. The play strip (`.host__setlist`) says where the room is right now —
 block, mode, question count, a duel flag — and sits above `.host__controls`,
 unfolded, because a host who has to open a disclosure to learn what round it
-is will not do it. The builder (`.flow`, inside `FlowPanel`) is setup, not
+is will not do it. The builder (`.setlist`, inside `SetlistPanel`) is setup, not
 play: it lives folded away in the host's manage details beside `GameSettings`,
 one block per row with its own mode, question count, value and duel rule,
-reordered with `↑`/`↓` rather than drag, because a game night's flow is short
+reordered with `↑`/`↓` rather than drag, because a game night's setlist is short
 enough that two buttons beat a pointer library. The block the room is running
-rails brass (`.flow__block.is-here`) — the same colour the board uses for a
-leader — so scrolling the builder mid-game still shows which row is live.
+rails brass (`.setlist__block.is-here`) — the same colour the board uses for a
+leader — so scrolling the builder mid-game still shows which row is running.
 
 The board gets one chip, not the strip. The stage belongs to the question; a
 setlist that pulls the eye during a buzz has failed at its job, so the board's
@@ -372,7 +372,7 @@ It lives in `board__above`, above the award stamp, because evidence belongs
 with the payoff: the room reads what was said and what it scored in one
 glance. The three-band layout keeps the hero name pinned at centre, so the
 line arriving or leaving never moves it. And it outlives a rebound the way
-the award does — a wrong answer hands the question to the next finalist, the
+the award does — a wrong answer hands the question to the next in the order, the
 collection window is gone, but what the first player said is still the story
 the room is reacting to, so it stays up until the next question arms.
 
@@ -386,19 +386,19 @@ can carry the design.
 ### The filament — `.filament`
 
 Arming is scheduled ~300 ms ahead so every phone opens on the same real instant
-(see `ARM_LEAD_MS`). Rather than hide that gap, every surface shows it: a cold
+(see `ARM_DELAY_MS`). Rather than hide that gap, every surface shows it: a cold
 filament draws left to right and heats from `--ember` to `--hot`, landing exactly
 when the buzzers open. The room *feels* "go" coming instead of being surprised by
 it, which is the whole point of a synchronised start.
 
 ```html
-<div class="filament" style="--lead: 300ms" />   <!-- warming -->
+<div class="filament" style="--delay: 300ms" />  <!-- warming -->
 <div class="filament is-hot" />                  <!-- open, held at full -->
 ```
 
 Two rules:
 
-- `--lead` is **time actually remaining** (`armedAt - now()`), not the constant.
+- `--delay` is **time actually remaining** (`armedAt - now()`), not the constant.
   A client that heard late gets a shorter warm-up, never a wrong one.
 - Key the element on `round.armedAt` so the animation restarts once per arm and
   not on every unrelated broadcast.
@@ -449,8 +449,8 @@ Shown only when two or more people buzzed — a timeline with one mark is noise.
 
 ### Board — read from across the room
 
-Grid: stage on the left, a `clamp(17rem, 23vw, 26rem)` sidebar on the right.
-Everything on the stage is `--t-mega` or larger. Status chips sit top-left so the
+Grid: the wall (`.board__wall`) on the left, a `clamp(17rem, 23vw, 26rem)`
+sidebar on the right. Everything on the wall is `--t-mega` or larger. Status chips sit top-left so the
 centre stays clear for the moment that matters.
 
 States, in priority order:
@@ -503,10 +503,10 @@ unrecoverable without hand-editing a score.
 
 Setup lives in a collapsed `<details>` because it is not play — during a game the
 controls own the screen. Inside, four eyebrow-labelled blocks in the order a
-night is actually set up: **Game**, **Flow**, **Room** (teams mode, the teams
-themselves, mirroring), **Players**. Every block carries an eyebrow and the panel
-spaces them itself, so no control inside it sets its own margin. Teams mode and
-Add team sit together under Room; a control separated from the switch that
+night is actually set up: **Game**, **Setlist**, **Room** (the teams grouping,
+the teams themselves, mirroring), **Players**. Every block carries an eyebrow and
+the panel spaces them itself, so no control inside it sets its own margin. The
+teams grouping and Add team sit together under Room; a control separated from the switch that
 enables it reads as belonging to neither.
 
 ### Phone — one object in one hand
@@ -523,7 +523,7 @@ explanation is the worst thing this app can do:
 | State | Label | Subtitle |
 |---|---|---|
 | Idle | Wait | The host has not armed yet |
-| Lead-in | Wait | Any moment |
+| Delay | Wait | Any moment |
 | Open | Buzz | — |
 | Pressed, still collecting | In | Counting the rest of the field |
 | Buzz missed the window | In | Too late — the round closed first |
@@ -554,8 +554,8 @@ from another room.
 **Name things by what the player controls.** "Buzz", not "Submit". "Remove", not
 "Kick" — you are managing a party, not moderating a forum.
 
-**Keep the verb through the flow.** The button says "Arm"; the board says
-"Standing by"; the chip says "Live". Each names a different moment, so each gets
+**Keep the verb through the round.** The button says "Arm"; the board says
+"Standing by"; the chip says "Open". Each names a different moment, so each gets
 its own word — but "Arm" always means arm, everywhere.
 
 **Sentence case everywhere** except eyebrows, chips, and key hints, which are
@@ -570,7 +570,54 @@ player exactly what happened and when it ends.
 
 ---
 
-## 9. Seeing it move
+## 9. Canon words
+
+One word per thing, one thing per word. These are settled; when something
+needs a name, check here before minting one, and when prose here and code
+disagree, the code is what gets renamed.
+
+- **round / question / block** — a round is one arm-to-verdict cycle; a
+  question is the pack content being read; a block is one segment of a
+  setlist. A round is not a question is not a block.
+- **value / points / score** — `round.value` is what is at stake,
+  `award.points` is what was awarded, `state.scores` is what has accumulated.
+- **order / standings** — `round.order` is the buzz order. The score ranking
+  is the standings, never "the order".
+- **leader / hero** — the leader is `order[0]`, a fact about the round; the
+  hero is the `Wall`'s big name, a thing on the screen.
+- **read** — the box reads; nothing else does. `Reader`, `state.reading` and
+  `act:read` own the word. Reading a file is prose, never an identifier.
+- **open** — one sense only: a thing becoming available (`useOpen`,
+  `openRebound`, `openDuel`). The arm countdown is the **delay**
+  (`ARM_DELAY_MS`), and **lead** is only a position in the buzz order — the
+  lead changes hands, it is never a duration.
+- **live** — retired as a label. The buzzers-open chip is `.chip--open` and
+  reads "Open"; nothing on screen says "Live".
+- **cue / recipe / layer / bed / clip** — a cue is what a moment plays; a
+  recipe is its layers; a layer is one source under an envelope; a bed is a
+  loop; a clip is a rendered file. A "sample" is just a file-sourced layer.
+- **hold / sustain** — the hold is the beat a miss holds the wall before its
+  rebound opens (`round.held`); sustain is an envelope segment. The envelope
+  never holds and the verdict never sustains.
+- **segment** — attack, decay, sustain and release are an envelope's four
+  segments. "Stages" for them is retired.
+- **mode / grouping** — the mode is the game module (`setMode`,
+  `server/modes/`); solo vs teams is the grouping. The old warning about two
+  things called "mode" is retired by this line.
+- **setlist** — the ordered blocks a night plays through, and the strip that
+  shows them. "Flow" for this is retired; a flow is a river's.
+- **pool / seated / buzzable** — the pool is a duel's nominees, the seated are
+  the pair facing off, the buzzable are who may buzz right now
+  (`round.buzzable`). Nobody is a finalist.
+- **spoken / answer** — spoken is the player's transcript (`round.spoken`,
+  `POST /spoken`); the answer is the revealed correct one (`round.answer`).
+- **wall / stage** — `board__wall` renders the `Wall`. `--stage` is only the
+  backdrop colour, and the word belongs to the theatrical metaphor, never to
+  a region or a position in a sequence.
+
+---
+
+## 10. Seeing it move
 
 Static screens lie about a design that only exists over time. `npm run sim`
 fills the room with bots that buzz like people — uneven skill, uneven reflexes,
@@ -600,7 +647,7 @@ fills.
 
 ---
 
-## 10. Adding something new
+## 11. Adding something new
 
 1. Can an existing component do it? Use it.
 2. Is it drama or measurement? That answers the colour and the typeface.

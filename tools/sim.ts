@@ -112,7 +112,7 @@ async function main() {
 
   const host = await connect(URL, 'host')
   if (GAME) {
-    host.send({ t: 'host', action: { a: 'setGame', id: GAME, options: {} } })
+    host.send({ t: 'host', action: { a: 'setMode', id: GAME, options: {} } })
     await host.waitFor((s) => s.game.id === GAME)
     log(`  game mode: ${GAME}`)
   }

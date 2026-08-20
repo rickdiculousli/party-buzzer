@@ -23,8 +23,8 @@ test('every shipped recipe is non-empty', () => {
  *
  * The wrapper around these files must keep changing nothing. The envelope
  * gates the file, so this is the assertion that catches the two ways it can
- * silently ruin them: a stage list shorter than the audio truncates the cue,
- * and a missing `sustain` collapses the whole thing to `GAIN_FLOOR`.
+ * silently ruin them: a segment list shorter than the audio truncates the cue,
+ * and a missing `level` collapses the whole thing to `GAIN_FLOOR`.
  *
  * `leader` carries two of them — the drop and the buzzer under it — because
  * they are one moment. They were separate cues fired together before the
@@ -86,7 +86,7 @@ test('the file envelope holds its level for the whole file and outlives it', () 
       // in here is the envelope eating into audio it was only meant to pass.
       for (let n = 0; n <= 40; n++) {
         const t = (dur * n) / 40
-        // Not exact: the last sample lands on the hold boundary, and float64 can
+        // Not exact: the last sample lands on the sustain boundary, and float64 can
         // put it a femtosecond the wrong side of it.
         assert.ok(
           Math.abs(gainAt(v.gain, t) - LEVEL) < 0.001,
@@ -121,9 +121,9 @@ test('setPath writes one field and leaves the source table alone', () => {
 })
 
 // The canvas draws every handle whatever the recipe declares, so a drag on a
-// layer with no hold has to be able to give it one.
+// layer with no sustain has to be able to give it one.
 test('setPath can introduce a field the layer omits', () => {
-  assert.equal(setPath(SAMPLE, 'stamp.0.hold', 120).stamp[0].hold, 120)
+  assert.equal(setPath(SAMPLE, 'stamp.0.sustain', 120).stamp[0].sustain, 120)
 })
 
 test('setPath naming nothing real returns the table unchanged', () => {
@@ -145,11 +145,11 @@ test('span is the longest layer end, delay included', () => {
   assert.ok(span([]) > 0, 'an empty cue still needs a divisible axis')
 })
 
-test('clamps: nothing negative, sustain is a level, head cannot pass the file', () => {
+test('clamps: nothing negative, level stays in 0..1, head cannot pass the file', () => {
   assert.equal(clampField('attack', -30), 0)
-  assert.equal(clampField('hold', 120.6), 121)
-  assert.equal(clampField('sustain', 1.4), 1)
-  assert.equal(clampField('sustain', -0.2), 0)
+  assert.equal(clampField('sustain', 120.6), 121)
+  assert.equal(clampField('level', 1.4), 1)
+  assert.equal(clampField('level', -0.2), 0)
   assert.equal(clampField('head', 900, 400), 400)
   assert.equal(clampField('head', 120, 400), 120)
 })
@@ -158,14 +158,14 @@ test('a new file layer plays whole the moment it is added', () => {
   const out = addLayer([], { file: '/sounds/stamp.wav' }, 216)
   assert.equal(out.length, 1)
   assert.deepEqual(out[0].source, { file: '/sounds/stamp.wav' })
-  assert.equal(out[0].sustain, 1, 'no sustain means the layer is silent')
-  assert.equal(out[0].hold, 216, 'the envelope must cover the whole file')
+  assert.equal(out[0].level, 1, 'no level means the layer is silent')
+  assert.equal(out[0].sustain, 216, 'the envelope must cover the whole file')
 })
 
 test('a new oscillator layer is an audible pluck', () => {
   const [l] = addLayer([], 'sine')
   assert.equal(l.source, 'sine')
-  assert.ok((l.decay ?? 0) > 0, 'a layer with no stages is silent')
+  assert.ok((l.decay ?? 0) > 0, 'a layer with no segments is silent')
   assert.ok((l.freq ?? 0) > 0)
 })
 

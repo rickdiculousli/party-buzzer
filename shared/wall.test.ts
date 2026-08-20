@@ -7,7 +7,7 @@ const LOCAL: Local = { open: false, settled: true, retired: false }
 
 function room(): State {
   return {
-    mode: 'solo',
+    grouping: 'solo',
     players: [
       { id: 'a', name: 'Ada', connected: true },
       { id: 'b', name: 'Bo', connected: true },
@@ -20,7 +20,7 @@ function room(): State {
     effects: [],
     games: [],
     duelRules: [],
-    flows: [],
+    setlists: [],
     packs: [],
     packSizes: {},
     mirrorFragments: false,
@@ -136,7 +136,7 @@ test('a duel: nominations, the seat, and both missing', () => {
   oneOf(wallOf(s, LOCAL), 'nominating')
   assert.equal(wallOf(s, LOCAL).nominations, 'solo')
 
-  s.mode = 'teams'
+  s.grouping = 'teams'
   assert.equal(wallOf(s, LOCAL).nominations, 'teams')
 
   s.duel.seated = ['a', 'b']
@@ -145,7 +145,7 @@ test('a duel: nominations, the seat, and both missing', () => {
 
   // `[]`, not absent. The fall-through would otherwise invite the whole room to
   // buzz on a question nobody may answer.
-  s.round.candidates = []
+  s.round.buzzable = []
   assert.equal(momentOf(s, LOCAL), 'duel:dead')
   assert.equal(wallOf(s, LOCAL).call, 'dead')
 })
@@ -191,7 +191,7 @@ test('the phone: a question from second place, and the rebound', () => {
     'not "reopening in a moment" — nothing is going to reopen',
   )
   assert.equal(
-    phoneOf('buzz:open', { ...mine, spectator: true, finalistNames: ['Ada', 'Bo'] }).sub,
+    phoneOf('buzz:open', { ...mine, spectator: true, buzzableNames: ['Ada', 'Bo'] }).sub,
     'Ada vs Bo — you sit this one out',
   )
   // Frozen and barred outrank everything, including being the one answering.

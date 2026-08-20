@@ -59,16 +59,16 @@ presses and nothing happens; Fen answers wrong and Gus takes the rebound.
 - [ ] You can vote from your phone and take it back by tapping the same name
 - [ ] Your phone shows the seated pair, and says you sit this one out, before
       the host arms
-- [ ] Arming opens only the finalists' buzzers — your press does nothing at
+- [ ] Arming opens only the seated pair's buzzers — your press does nothing at
       all, not even a timeline mark
-- [ ] A wrong answer hands the rebound to the other finalist alone, and the one
+- [ ] A wrong answer hands the rebound to the other seated player alone, and the one
       who missed is dead-thumbed for the rest of the question
 
 ### Teams — `npm run walk-teams`
 
 Eight players, four a side. **Join from your phone as Ada first** — probe
 borrows the Ada already in the room rather than minting a second one, so your
-phone is Red's finalist and the rebound is yours to press.
+phone is Red's seated player and the rebound is yours to press.
 
 ```bash
 npm run walk-teams
@@ -96,17 +96,17 @@ thing to watch, and the two columns are what make it obvious.
       the question to Ada alone
 - [ ] Red's score moves, not Ada's
 
-### The setlist — `npm run walk-flow`
+### The setlist — `npm run walk-setlist`
 
 Four players build a three-block setlist and play the first two: two trivia
 questions, then two quizbowl questions each opened as a duel vote, then
-`jump:0` puts the flow back at the top before the trailing trivia block is
+`jump:0` puts the setlist back at the top before the trailing trivia block is
 ever reached. The point isn't any one buzz — it's the strip and the standings
-surviving the mode switch, and the flow itself surviving a jump back to
+surviving the mode switch, and the setlist itself surviving a jump back to
 block 1.
 
 ```bash
-npm run walk-flow
+npm run walk-setlist
 ```
 
 - [ ] The host strip counts `Q1 of 2` → `Q2 of 2` and then rolls to block 2
@@ -114,9 +114,9 @@ npm run walk-flow
 - [ ] Each question in the duel block opens its own nomination window
 - [ ] `resetRound` (the host taking a question back) does not spend a question
 - [ ] The board's chip tracks the strip and never grows past a chip
-- [ ] Skip block jumps forward; the flow sits at "Flow complete" at the end
-- [ ] Saving, clearing and loading the same flow returns the same blocks
-- [ ] `clear` leaves the room with no flow
+- [ ] Skip block jumps forward; the setlist sits at "Setlist complete" at the end
+- [ ] Saving, clearing and loading the same setlist returns the same blocks
+- [ ] `clear` leaves the room with no setlist
 
 ### Reading itself — `npm run walk-read`
 
@@ -159,7 +159,7 @@ ever opens — the run stops on "no answer window for Ada" rather than hanging.
       handover
 - [ ] Bo's red transcript is up for the whole hold and **comes down as the
       buzzers open** — the clue resumes on a clean wall, not underneath it
-- [ ] The clue does **not** flash back onto the stage while a transcript is
+- [ ] The clue does **not** flash back onto the wall while a transcript is
       typing. Bo's name holds the middle from his buzz through to his stamp,
       one continuous thing
 - [ ] Cy buzzing takes Bo's −300 stamp down with it, the same way it takes the
@@ -184,21 +184,21 @@ npm run walk-packs
 - [ ] The pack changes with it, and there is **no pause at the boundary** — both
       were synthesised before question one
 - [ ] Block 3 returns to pack A and continues it: question two, not question one
-- [ ] The flow ends, the reader stops, and `clear` leaves no setlist and no
+- [ ] The setlist ends, the reader stops, and `clear` leaves no setlist and no
       players behind
 - [ ] Run it twice back to back. The second run is identical to the first —
       that is `rewind` doing its job
 
 ### Left over from either
 
-- [ ] Both finalists missing says so on the board rather than reading "Buzz"
-- [ ] `clear` leaves the room in solo mode with none of probe's players on it
+- [ ] Both seated players missing says so on the board rather than reading "Buzz"
+- [ ] `clear` leaves the room in the solo grouping with none of probe's players on it
 
 ## Reading
 
 - [ ] Pack selected and rendered before guests arrive (first render is ~30s and
       caches; a re-read is instant)
-- [ ] Mirror setting matches the game: off for quizbowl, on only if the room
+- [ ] Mirror setting matches the game — off for quizbowl, on only if the room
       cannot see the board
 - [ ] A buzz cuts the voice mid-word — no trailing syllable, and the rest of the
       clue is not read after a correct answer
@@ -218,7 +218,7 @@ npm run walk-packs
 - [ ] A block asking for more questions than its pack holds says so in amber on
       that block, and is still allowed to be built
 - [ ] Setup offers Direct play or Setlist and never both sets of controls: no
-      Game or Pack picker under a setlist, no Flow panel under direct play
+      Game or Pack picker under a setlist, no Setlist panel under direct play
 - [ ] A setlist whose blocks name two different packs reads each from its own,
       with no pause at the boundary — both were rendered before question one
 - [ ] A block returning to an earlier pack continues it rather than restarting
