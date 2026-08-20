@@ -303,7 +303,7 @@ export function Board() {
     <main class="board">
       <section class="board__wall">
         <div class="board__status">
-          {open && <span class="chip chip--live">Live</span>}
+          {open && <span class="chip chip--open">Open</span>}
           {armed && !open && <span class="chip chip--armed">Standing by</span>}
           <span class="chip">
             {here} {here === 1 ? 'player' : 'players'}

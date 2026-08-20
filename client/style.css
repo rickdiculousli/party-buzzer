@@ -60,7 +60,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   color: var(--dim);
   white-space: nowrap;
 }
-.chip--live { border-color: var(--tally); color: var(--tally); }
+.chip--open { border-color: var(--tally); color: var(--tally); }
 .chip--armed { border-color: var(--tungsten); color: var(--tungsten); }
 .chip--won { border-color: var(--brass); color: var(--brass); }
 .chip--barred { border-color: #4a2420; color: #b0705f; }
