@@ -166,10 +166,10 @@ export function Player() {
   const myDuelEntry = duel?.pool.find((e) => e.playerId === playerId)
   const myVoteFor = duel?.pool.find((e) => e.votes.includes(playerId ?? ''))?.playerId
   const inCount = duel?.pool.filter((e) => e.in).length ?? 0
-  const finalist = !!playerId && !!round?.candidates?.includes(playerId)
-  const spectator = !!round?.candidates && !finalist && !!playerId
+  const buzzable = !!playerId && !!round?.buzzable?.includes(playerId)
+  const spectator = !!round?.buzzable && !buzzable && !!playerId
   const nameOf = (id: string) => state?.players.find((p) => p.id === id)?.name ?? '?'
-  const finalistNames = round?.candidates?.map(nameOf)
+  const buzzableNames = round?.buzzable?.map(nameOf)
   const seatedNames = duel?.seated?.map(nameOf)
 
   /**
@@ -379,10 +379,10 @@ export function Player() {
     barred,
     spectator,
     // Not taken from the moment: `verdict:hold` outranks `duel:dead` on the
-    // wall, and telling a phone "reopening in a moment" when both finalists
+    // wall, and telling a phone "reopening in a moment" when both seated players
     // have missed is a promise nothing will keep.
-    dead: state?.round.candidates?.length === 0,
-    finalistNames,
+    dead: state?.round.buzzable?.length === 0,
+    buzzableNames,
     won,
     deltaMs: mine?.deltaMs,
     pressed,
@@ -426,8 +426,8 @@ export function Player() {
 
       {/* Seated, not yet armed. The buzzer below still says "Wait" for everyone,
           which is the one moment it means two different things — so say which
-          one it is here rather than letting a finalist find out by pressing. */}
-      {duel?.seated && !round?.candidates && (
+          one it is here rather than letting a seated player find out by pressing. */}
+      {duel?.seated && !round?.buzzable && (
         <div class="player__duel">
           <p class="eyebrow">Heads-up</p>
           <p class="player__faceoff">

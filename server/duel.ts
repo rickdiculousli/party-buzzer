@@ -6,7 +6,7 @@
  *
  * Player entry (volunteer / back off / vote) rides the `act` channel through
  * duelAct; seating rides host actions in state.ts. The hub enforces the
- * result with one check on round.candidates at the buzz gate.
+ * result with one check on round.buzzable at the buzz gate.
  */
 import type {
   DuelRuleInfo, DuelState, PlayerId, State,
@@ -55,7 +55,7 @@ function twoSeats(state: State, ranked: PlayerId[]): [PlayerId, PlayerId] | null
 }
 
 /**
- * The two finalists per the duel's rule, or null when the pool cannot fill
+ * The seated pair per the duel's rule, or null when the pool cannot fill
  * the seats (or the rule leaves seating to the host). Null is not an error:
  * the window stays open and the host overrides or cancels.
  */
@@ -181,13 +181,13 @@ export function duelOnArm(state: State): void {
   const duel = state.duel
   if (!duel?.seated) return
   duel.missed = []
-  state.round.candidates = [...duel.seated]
+  state.round.buzzable = [...duel.seated]
 }
 
-/** The exclusive rebound: the leader is out, the other finalist stands alone. */
+/** The exclusive rebound: the leader is out, the other seated player stands alone. */
 export function duelOnWrong(state: State, leaderId: PlayerId): void {
   const duel = state.duel
   if (!duel?.seated) return
   if (!duel.missed.includes(leaderId)) duel.missed.push(leaderId)
-  state.round.candidates = duel.seated.filter((id) => !duel.missed.includes(id))
+  state.round.buzzable = duel.seated.filter((id) => !duel.missed.includes(id))
 }

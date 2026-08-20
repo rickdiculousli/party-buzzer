@@ -145,7 +145,7 @@ test('a duel: nominations, the seat, and both missing', () => {
 
   // `[]`, not absent. The fall-through would otherwise invite the whole room to
   // buzz on a question nobody may answer.
-  s.round.candidates = []
+  s.round.buzzable = []
   assert.equal(momentOf(s, LOCAL), 'duel:dead')
   assert.equal(wallOf(s, LOCAL).call, 'dead')
 })
@@ -191,7 +191,7 @@ test('the phone: a question from second place, and the rebound', () => {
     'not "reopening in a moment" — nothing is going to reopen',
   )
   assert.equal(
-    phoneOf('buzz:open', { ...mine, spectator: true, finalistNames: ['Ada', 'Bo'] }).sub,
+    phoneOf('buzz:open', { ...mine, spectator: true, buzzableNames: ['Ada', 'Bo'] }).sub,
     'Ada vs Bo — you sit this one out',
   )
   // Frozen and barred outrank everything, including being the one answering.

@@ -136,7 +136,7 @@ export function applyHostAction(state: State, action: HostAction): void {
       delete round.answer
       delete round.judge
       delete round.spoken
-      delete round.candidates
+      delete round.buzzable
       // A fresh question: sweep effects stamped to the last one, stamp the
       // live ones (a freeze fired between questions lands here).
       state.effects = state.effects.filter((e) => e.roundArmedAt === undefined)
@@ -242,7 +242,7 @@ export function applyHostAction(state: State, action: HostAction): void {
       delete round.answer
       delete round.judge
       delete round.spoken
-      delete round.candidates
+      delete round.buzzable
       // A duel is one question. The host re-opens (or rematches by arming
       // before next) rather than the pair leaking into the next round.
       delete state.duel
@@ -352,7 +352,7 @@ export function applyHostAction(state: State, action: HostAction): void {
     }
 
     case 'openDuel': {
-      // Seating happens before the question opens so candidates stamp at arm.
+      // Seating happens before the question opens so buzzable stamps at arm.
       if (round.phase !== 'IDLE') return
       const rule = duelRule(action.rule)
       if (!rule) return
@@ -385,7 +385,7 @@ export function applyHostAction(state: State, action: HostAction): void {
     case 'cancelDuel':
       delete state.duel
       // Mid-round cancel reopens the floor for the question in flight.
-      delete round.candidates
+      delete round.buzzable
       return
 
     case 'setSetlist': {
@@ -501,11 +501,11 @@ export function loadState(path: string): State {
       }
     }
     // A duel mid-setup can't survive a restart: the pool was voted under a
-    // room that may not be back. Fresh boot, no duel — and round.candidates
+    // room that may not be back. Fresh boot, no duel — and round.buzzable
     // goes with it, since without the duel it is just two ids that can buzz
     // for a reason nobody can see anymore.
     delete loaded.duel
-    delete loaded.round.candidates
+    delete loaded.round.buzzable
     if (!Array.isArray(loaded.packs)) loaded.packs = []
     if (typeof loaded.mirrorFragments !== 'boolean') loaded.mirrorFragments = false
     if (typeof loaded.answerWindowSec !== 'number') loaded.answerWindowSec = 10

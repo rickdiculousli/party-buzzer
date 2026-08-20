@@ -32,7 +32,7 @@ function closeBlockReason(
 
 /**
  * Heads-up duels: open a window (or seat instantly), watch the pool, close it
- * into two finalists. Everything here is a projection of state.duel — the
+ * into the seated pair. Everything here is a projection of state.duel — the
  * resolution itself is server-side (server/duel.ts). The pool below is sorted
  * for display only; ties and the teams one-per-team rule are settled by
  * the server when the window closes.

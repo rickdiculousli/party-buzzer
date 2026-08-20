@@ -292,11 +292,11 @@ export function Board() {
   const armed = round.phase === 'ARMED' || round.phase === 'COLLECTING'
   const here = state.players.filter((p) => p.connected).length
   const barred = lockedNames(state)
-  // `candidates` is only stamped at the arm, so between the host seating a pair
+  // `buzzable` is only stamped at the arm, so between the host seating a pair
   // and opening the buzzers there is a gap the board used to spend saying
   // "Ready" — the room watches the two names disappear a second after they were
   // announced. The seated pair carries it across that gap; once the arm stamps
-  // candidates, that is the truer source, because a wrong answer narrows it.
+  // buzzable, that is the truer source, because a wrong answer narrows it.
   const seating = willSeat(state)
 
   return (

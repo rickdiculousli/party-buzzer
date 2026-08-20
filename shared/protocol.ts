@@ -56,7 +56,7 @@ export type Round = {
   /** Score keys barred from this round after a wrong answer. */
   lockedOut: ScoreKey[]
   /** The only players who may buzz this round. Set by a duel; absent = open. */
-  candidates?: PlayerId[]
+  buzzable?: PlayerId[]
   /**
    * Set when a question has been scored, and cleared when the next one starts.
    * The board keeps the result up for as long as this is here — the payoff
@@ -132,9 +132,9 @@ export type DuelState = {
   /** Id into the duelRules catalog. */
   rule: string
   pool: DuelPoolEntry[]
-  /** The two finalists, once the host closes the window (or an instant rule resolves). */
+  /** The seated pair, once the host closes the window (or an instant rule resolves). */
   seated?: [PlayerId, PlayerId]
-  /** Finalists who answered wrong this question — drives the exclusive rebound. */
+  /** Seated players who answered wrong this question — drives the exclusive rebound. */
   missed: PlayerId[]
 }
 

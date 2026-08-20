@@ -204,7 +204,7 @@ test('a selectPack that fails is logged, not thrown — the process must survive
   assert.deepEqual(hub.state.round.fragments, ['still alive'])
 })
 
-test('a duel narrows the window to its finalists', () => {
+test('a duel narrows the window to the seated pair', () => {
   const { state, hub, conn } = rig()
   const a = conn('player')
   const b = conn('player')
@@ -212,13 +212,13 @@ test('a duel narrows the window to its finalists', () => {
   joinAs(hub, a, 'A')
   joinAs(hub, b, 'B')
   joinAs(hub, c, 'C')
-  state.round.candidates = [a.playerId!, b.playerId!]
+  state.round.buzzable = [a.playerId!, b.playerId!]
   state.round.phase = 'ARMED'
   state.round.armedAt = Date.now() - 10
   hub.handle(c, { t: 'buzz', at: Date.now() })
   assert.equal(state.round.phase, 'ARMED', 'a spectator never opens the window')
   hub.handle(a, { t: 'buzz', at: Date.now() })
-  assert.equal(state.round.phase, 'COLLECTING', 'a finalist buzzes through')
+  assert.equal(state.round.phase, 'COLLECTING', 'a seated player buzzes through')
 })
 
 test('duel acts ride the act channel from players only', () => {

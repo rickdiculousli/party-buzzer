@@ -44,7 +44,7 @@ test('vote resolution skips the unteamed in a teams grouping', () => {
   assert.deepEqual(resolveDuel(state, duel), ['a', 'b'])
 })
 
-test('a teams grouping never seats two finalists from one team', () => {
+test('a teams grouping never seats two from one team', () => {
   const state = stateWith([['a', 'ta'], ['b', 'ta'], ['c', 'tb']], 'teams')
   openDuel(state, 'vote')
   const duel = state.duel!
@@ -229,13 +229,13 @@ test('arm stamps the seated pair; next clears the duel', () => {
   applyHostAction(state, { a: 'openDuel', rule: 'host-pick' })
   applyHostAction(state, { a: 'closeDuel', playerIds: ['a', 'b'] })
   applyHostAction(state, { a: 'arm' })
-  assert.deepEqual(state.round.candidates, ['a', 'b'])
+  assert.deepEqual(state.round.buzzable, ['a', 'b'])
   applyHostAction(state, { a: 'next' })
   assert.equal(state.duel, undefined)
-  assert.equal(state.round.candidates, undefined)
+  assert.equal(state.round.buzzable, undefined)
 })
 
-test('a wrong answer narrows the rebound to the other finalist; a fresh arm resets', () => {
+test('a wrong answer narrows the rebound to the other seated player; a fresh arm resets', () => {
   const state = stateWith([['a'], ['b'], ['c']])
   applyHostAction(state, { a: 'openDuel', rule: 'host-pick' })
   applyHostAction(state, { a: 'closeDuel', playerIds: ['a', 'b'] })
@@ -244,16 +244,16 @@ test('a wrong answer narrows the rebound to the other finalist; a fresh arm rese
   state.round.phase = 'LOCKED'
   applyHostAction(state, { a: 'wrong', neg: 0 })
   assert.deepEqual(state.duel!.missed, ['a'])
-  assert.deepEqual(state.round.candidates, ['b'], 'exclusive rebound')
+  assert.deepEqual(state.round.buzzable, ['b'], 'exclusive rebound')
 
   state.round.order = [{ playerId: 'b', name: 'b', at: 2, deltaMs: 0 }]
   state.round.phase = 'LOCKED'
   applyHostAction(state, { a: 'wrong', neg: 0 })
-  assert.deepEqual(state.round.candidates, [], 'both missed — the round is dead')
+  assert.deepEqual(state.round.buzzable, [], 'both missed — the round is dead')
 
   applyHostAction(state, { a: 'arm' })
   assert.deepEqual(state.duel!.missed, [])
-  assert.deepEqual(state.round.candidates, ['a', 'b'], 'rematch: same pair, fresh question')
+  assert.deepEqual(state.round.buzzable, ['a', 'b'], 'rematch: same pair, fresh question')
 })
 
 test('setMode cancels an unseated duel; a seated one survives', () => {
@@ -278,7 +278,7 @@ test('cancelDuel lifts the candidacy mid-round', () => {
   applyHostAction(state, { a: 'arm' })
   applyHostAction(state, { a: 'cancelDuel' })
   assert.equal(state.duel, undefined)
-  assert.equal(state.round.candidates, undefined, 'the floor reopens')
+  assert.equal(state.round.buzzable, undefined, 'the floor reopens')
 })
 
 test('a vote crosses neither the team line nor the eligibility line', () => {

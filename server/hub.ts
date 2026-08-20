@@ -304,8 +304,8 @@ export class Hub {
     // a packet that landed before the arm instant was sent before it.
     if (arrivedAt < round.armedAt) return
 
-    // A duel narrows the field to its finalists for this arm.
-    if (round.candidates && !round.candidates.includes(conn.playerId)) return
+    // A duel narrows the field to the seated pair for this arm.
+    if (round.buzzable && !round.buzzable.includes(conn.playerId)) return
 
     // Framework effects (freeze) and the module's own rules both live behind
     // this one question.
