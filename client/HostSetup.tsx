@@ -1,5 +1,7 @@
 import { GameSettings } from './GameSettings.tsx'
 import { SetlistPanel } from './SetlistPanel.tsx'
+import { REFUSAL_TEXT } from './ui.ts'
+import { refuses } from '../shared/legality.ts'
 import type { HostAction, State } from '../shared/protocol.ts'
 
 /**
@@ -19,6 +21,11 @@ export function HostSetup({
   const { round } = state
   const setlist = !!state.setlist
 
+  // Both "how the night runs" buttons send `setSetlist`, and its legality does
+  // not read the blocks — so one call answers for the pair, and the empty array
+  // here is a placeholder rather than the payload either button will send.
+  const howRefusal = refuses(state, { a: 'setSetlist', blocks: [] })
+
   return (
     <details class="host__manage">
       <summary>
@@ -34,14 +41,16 @@ export function HostSetup({
         <div class="host__pick">
           <button
             class={setlist ? 'btn' : 'btn btn--primary'}
-            disabled={round.phase !== 'IDLE'}
+            disabled={!!howRefusal}
+            title={howRefusal ? REFUSAL_TEXT[howRefusal] : undefined}
             onClick={() => act({ a: 'setSetlist', blocks: [] })}
           >
             Direct play
           </button>
           <button
             class={setlist ? 'btn btn--primary' : 'btn'}
-            disabled={round.phase !== 'IDLE'}
+            disabled={!!howRefusal}
+            title={howRefusal ? REFUSAL_TEXT[howRefusal] : undefined}
             onClick={() =>
               setlist ||
               act({
@@ -75,10 +84,20 @@ export function HostSetup({
           {state.packs.length > 0 && (
             <section>
               <p class="eyebrow">Pack</p>
+              {/* The one control on this panel the table cannot speak for.
+                  `selectPack` rides the `act` channel, not the host-action one,
+                  so there is no `HostAction` to hand `refuses` — and borrowing a
+                  neighbour's action to stand in for it would make the picker
+                  follow a rule it does not have. The authority is the hub's own
+                  guard (`server/hub.ts`, "refuse it the way setMode does"), and
+                  this restates it because it must. What it does not restate is
+                  the sentence: the reason is the same reason, so the words come
+                  from the same place as every other one on this desk. */}
               <select
                 class="input"
                 value={state.reading?.pack ?? ''}
                 disabled={round.phase !== 'IDLE'}
+                title={round.phase === 'IDLE' ? undefined : REFUSAL_TEXT['not-idle']}
                 onChange={(e) => {
                   const name = (e.target as HTMLSelectElement).value
                   if (name) fire('selectPack', name)

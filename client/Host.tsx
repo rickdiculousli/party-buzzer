@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'preact/hooks'
 import { useOpen, useSocket } from './useSocket.ts'
-import { colorForPlayer, standings } from './ui.ts'
+import { REFUSAL_TEXT, colorForPlayer, standings } from './ui.ts'
+import { refuses } from '../shared/legality.ts'
 import { DuelPanel } from './DuelPanel.tsx'
 import { HostSetup } from './HostSetup.tsx'
 import { Spoken } from './Spoken.tsx'
@@ -111,7 +112,13 @@ export function Host() {
   // answering, so `Correct` has nothing to score — the slot is free, and the
   // host gets the one control they otherwise lack: skipping the beat rather
   // than waiting out `reboundSec`.
-  const reopenable = !!round.held
+  //
+  // Asked of the table rather than of `round.held` directly, even though the
+  // two are the same fact today. This one does not grey a button, it chooses
+  // which button is in the slot at all — so a `rebound` the server would refuse
+  // would put a live Reopen in front of the host, which is the same dead click
+  // wearing a different hat. It is also what the R key fires.
+  const reopenable = !refuses(state, { a: 'rebound' })
   reopenableRef.current = reopenable
 
   // The night is run one of two ways, and the panel only ever offers one of
@@ -183,6 +190,13 @@ export function Host() {
           const at = state.setlist.at
           const block = state.setlist.blocks[at]
           const name = state.games.find((g) => g.id === block?.game)?.name
+          // The table answers "may the host jump at all" — mid-question, or with
+          // no setlist to jump within. It does not answer "is there a block
+          // after this one", because that is a fact about this particular `at`
+          // rather than about the room, and the table takes the whole action but
+          // rules only on the round. So the bound stays here, next to the `+ 1`
+          // that produced it.
+          const jump = refuses(state, { a: 'setlistJump', at: at + 1 })
           return (
             <div class="host__setlist">
               {block ? (
@@ -198,7 +212,8 @@ export function Host() {
               <span class="host__spacer" />
               <button
                 class="btn btn--ghost"
-                disabled={round.phase !== 'IDLE' || at >= state.setlist.blocks.length}
+                disabled={!!jump || at >= state.setlist.blocks.length}
+                title={jump ? REFUSAL_TEXT[jump] : undefined}
                 onClick={() => act({ a: 'setlistJump', at: at + 1 })}
               >
                 Skip block

@@ -1,4 +1,34 @@
 import type { ScoreKey, State } from '../shared/protocol.ts'
+import type { Refusal } from '../shared/legality.ts'
+
+/**
+ * A refusal, in words the host can act on.
+ *
+ * `shared/legality.ts` returns a code and nothing else, for the same reason
+ * `shared/wall.ts` returns `penalised` rather than `red`: the identity is the
+ * contract, the words are the surface's. This is the host's half of that split,
+ * and it is a `Record<Refusal, string>` on purpose — a ninth code does not
+ * typecheck until somebody has written its sentence, which is the only thing
+ * standing between this and a tooltip that says "not-idle".
+ *
+ * The voice is `closeBlockReason`'s, because its sentences are the ones that
+ * already survived a game night: state the fact, then the consequence, and
+ * where there is something the host can press instead, name it. A host reads
+ * these one-handed with a room waiting.
+ */
+export const REFUSAL_TEXT: Record<Refusal, string> = {
+  // "Round", not "question": §9 keeps them apart, and what is in flight is the
+  // arm-to-verdict cycle, which is still running through a hold and a rebound
+  // after the question itself has been read out.
+  'not-idle': 'A round is in flight — this waits for it to end.',
+  'no-leader': 'Nobody is locked in — there is nothing to judge yet.',
+  'already-scored': 'This round is already scored — Undo first to change it.',
+  'nothing-held': 'No miss is being held — there is no rebound to open.',
+  'no-duel': 'No duel is open — there is nothing to close.',
+  'duel-seated': 'The pair is already seated — Cancel ends the duel.',
+  'unknown-mode': 'This room has no game by that name.',
+  'no-setlist': 'There is no setlist to move through.',
+}
 
 const IDS = ['var(--id-1)', 'var(--id-2)', 'var(--id-3)', 'var(--id-4)', 'var(--id-5)', 'var(--id-6)']
 

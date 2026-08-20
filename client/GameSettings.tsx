@@ -1,5 +1,7 @@
 import type { GameInfo, HostAction, OptionSpec, State } from '../shared/protocol.ts'
 import { modeSurfaces } from './modes/index.ts'
+import { REFUSAL_TEXT } from './ui.ts'
+import { refuses } from '../shared/legality.ts'
 
 export function OptionField({
   spec,
@@ -74,7 +76,12 @@ export function GameSettings({
   state: State
   act: (action: HostAction) => void
 }) {
-  const idle = state.round.phase === 'IDLE'
+  // Every control here sends a `setMode`, and its legality reads the id only to
+  // check the catalog knows it — which a `<select>` built from that same catalog
+  // cannot get wrong. So the current mode stands in, one call answers for the
+  // picker and every option under it, and this form stops holding an opinion
+  // about the round that the server also holds.
+  const refusal = refuses(state, { a: 'setMode', id: state.game.id, options: state.game.options })
   const current = state.games.find((g) => g.id === state.game.id)
   const Override = modeSurfaces[state.game.id]?.Settings
   if (Override) return <Override state={state} act={act} />
@@ -97,7 +104,7 @@ export function GameSettings({
         <select
           class="input"
           value={state.game.id}
-          disabled={!idle}
+          disabled={!!refusal}
           onChange={(e) => pick((e.target as HTMLSelectElement).value)}
         >
           {state.games.map((g) => (
@@ -110,13 +117,13 @@ export function GameSettings({
           key={spec.key}
           spec={spec}
           value={state.game.options[spec.key]}
-          disabled={!idle}
+          disabled={!!refusal}
           onChange={(v) =>
             act({ a: 'setMode', id: state.game.id, options: { ...state.game.options, [spec.key]: v } })
           }
         />
       ))}
-      {!idle && <p class="muted">Game settings unlock between questions.</p>}
+      {refusal && <p class="muted">{REFUSAL_TEXT[refusal]}</p>}
     </section>
   )
 }
