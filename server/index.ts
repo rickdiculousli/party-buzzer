@@ -9,7 +9,7 @@ import { Hub, type Conn } from './hub.ts'
 import { Reader } from './reader.ts'
 import { loadState, saveState, flushSave } from './state.ts'
 import { Judge, type Transcribe } from './judge.ts'
-import { probePool, sttBinary, transcribe as sttTranscribe } from './stt.ts'
+import { transcribePool, sttBinary, transcribe as sttTranscribe } from './stt.ts'
 import { locate } from './align.ts'
 import type { Aligner } from './reader.ts'
 import { render as renderClip } from './speech.ts'
@@ -110,9 +110,9 @@ export async function startServer(opts: {
   const alignBin = realStt ? await sttBinary(sttDir) : null
   const align: Aligner | undefined = alignBin
     ? async (joined, clip) => {
-        const pool = probePool(alignBin, clip.path)
+        const pool = transcribePool(alignBin, clip.path)
         try {
-          return await locate(joined, clip.durationMs, pool.probe)
+          return await locate(joined, clip.durationMs, pool.transcribe)
         } finally {
           pool.close()
         }

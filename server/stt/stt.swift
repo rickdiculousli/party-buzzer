@@ -2,22 +2,22 @@
 // WiFi — which has no route to the internet — is enough. Built by swiftc at
 // server boot; see server/stt.ts.
 //
-// `stt --probe <file>` instead opens the file once and serves ranges: a line
+// `stt --session <file>` instead opens the file once and serves ranges: a line
 // "<fromMs> <toMs>" on stdin yields one transcript line on stdout. The reader's
 // alignment asks the same clip hundreds of questions to find where its words
 // end, and roughly nine tenths of a one-shot run is process startup — so the
-// difference between a loop and a spawn per probe is minutes per pack.
+// difference between a loop and a spawn per question is minutes per pack.
 import Speech
 import AVFoundation
 import Foundation
 
 let args = CommandLine.arguments
-let probeMode = args.count > 2 && args[1] == "--probe"
+let sessionMode = args.count > 2 && args[1] == "--session"
 guard args.count > 1 else {
-    FileHandle.standardError.write("usage: stt [--probe] <audio-file>\n".data(using: .utf8)!)
+    FileHandle.standardError.write("usage: stt [--session] <audio-file>\n".data(using: .utf8)!)
     exit(2)
 }
-let url = URL(fileURLWithPath: probeMode ? args[2] : args[1])
+let url = URL(fileURLWithPath: sessionMode ? args[2] : args[1])
 let fail = { (msg: String, _ code: Int32) -> Never in
     FileHandle.standardError.write("\(msg)\n".data(using: .utf8)!)
     exit(code)
@@ -55,7 +55,7 @@ do { file = try AVAudioFile(forReading: url) } catch {
 let rate = file.processingFormat.sampleRate
 
 /// Transcribe a frame range of the open file. An empty string means the
-/// recogniser heard nothing it would commit to, which for a probe is a real
+/// recogniser heard nothing it would commit to, which here is a real
 /// answer — the audio up to here contains no complete word.
 func transcribe(fromMs: Int, toMs: Int) -> String? {
     let first = max(0, AVAudioFramePosition(Double(fromMs) / 1000.0 * rate))
@@ -78,8 +78,7 @@ func transcribe(fromMs: Int, toMs: Int) -> String? {
     var failed = false
     let task = recognizer.recognitionTask(with: request) { result, error in
         if error != nil {
-            // No speech in the slice is reported as an error, and for a probe
-            // that is the informative case, not a broken run.
+            // No speech in the slice is reported as an error,             // that is the informative case, not a broken run.
             out = ""
             failed = true
             return
@@ -104,11 +103,11 @@ func emit(_ s: String) {
     FileHandle.standardOutput.write("\(s)\n".data(using: .utf8)!)
 }
 
-if probeMode {
+if sessionMode {
     while let line = readLine(strippingNewline: true) {
         let parts = line.split(separator: " ")
         guard parts.count == 2, let from = Int(parts[0]), let to = Int(parts[1]) else {
-            FileHandle.standardError.write("bad probe: \(line)\n".data(using: .utf8)!)
+            FileHandle.standardError.write("bad range: \(line)\n".data(using: .utf8)!)
             emit("")
             continue
         }

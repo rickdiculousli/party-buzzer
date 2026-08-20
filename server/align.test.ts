@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { candidates, completed, join, locate, words, type Probe } from './align.ts'
+import { candidates, completed, join, locate, words, type Transcriber } from './align.ts'
 
 const FRAGMENTS = [
   'This Italian composer of The Four Seasons',
@@ -132,7 +132,7 @@ test('no transcript credits a word the audio has not reached', () => {
   const heard = TORTURE_HEARD.split(' ')
   // Every prefix stands for an earlier cut of the same clip. Counts must climb
   // and never fall: a fold that moved earlier as more audio arrived would put
-  // words on the board that the previous probe said were unspoken.
+  // words on the board that the previous transcription said were unspoken.
   let prev = 0
   for (let n = 0; n <= heard.length; n++) {
     const got = completed(src, heard.slice(0, n))
@@ -144,7 +144,7 @@ test('no transcript credits a word the audio has not reached', () => {
 
 test('resync needs evidence, and a dropped word is not evidence of the next one', () => {
   const src = 'alpha bravo charlie delta echo foxtrot'.split(' ')
-  // Nothing heard yet, nothing complete — the empty case a probe before the
+  // Nothing heard yet, nothing complete — the empty case a transcription before the
   // first word returns.
   assert.equal(completed(src, []), 0)
   // A clean prefix is exactly itself. Resync must not run ahead of the audio.
@@ -157,17 +157,16 @@ test('resync needs evidence, and a dropped word is not evidence of the next one'
   assert.equal(completed(src, ['alpha', 'zzzz']), 1)
   // And a match too far ahead to be plausible is not a resync.
   assert.equal(completed('a b c d e f g h i j k l m n o p'.split(' '), ['a', 'o', 'p']), 1)
-  // Regaining the thread takes two words running, which the end of a probe
-  // cannot supply — so a mishearing in the last word or two of a transcript
+  // Regaining the thread takes two words running,   // cannot supply — so a mishearing in the last word or two of a transcript
   // stops the count rather than being forgiven. That is the safe direction:
-  // the audio is still arriving, and the next probe will settle it.
+  // the audio is still arriving, and the next transcription will settle it.
   // A word that lines up exactly one-for-one is forgiven on a single following
   // match, since nothing about the sequence has shifted.
   assert.equal(completed(src, ['alpha', 'zzzz', 'charlie']), 3, 'a clean substitution needs one witness')
   // Regaining the thread after the sequence *has* shifted takes two words
-  // running, which the end of a probe cannot supply — so a collapse in the last
+  // running, which the end of a transcript cannot supply — so a collapse in the last
   // word or two stops the count instead of guessing. The audio is still
-  // arriving; the next probe settles it.
+  // arriving; the next transcription settles it.
   // Two words lost at once, and both are credited: "delta echo" surviving
   // afterwards is proof the audio travelled past them.
   assert.equal(completed(src, ['alpha', 'zzzz', 'delta', 'echo']), 5, 'a shift needs two witnesses')
@@ -179,13 +178,13 @@ test('resync needs evidence, and a dropped word is not evidence of the next one'
  * A window contains the words that finished inside it, which is what the helper
  * returns when asked for a range rather than a prefix.
  */
-function oracle(text: string, endMs: number[]): { probe: Probe; calls: () => number } {
+function oracle(text: string, endMs: number[]): { transcribe: Transcriber; calls: () => number } {
   const src = words(text).map((w) => w.word)
   const doneBy = (ms: number) => endMs.filter((e) => e <= ms).length
   let calls = 0
   return {
     calls: () => calls,
-    probe: async (from, to) => {
+    transcribe: async (from, to) => {
       calls++
       return src.slice(doneBy(from), doneBy(to))
     },
@@ -198,10 +197,10 @@ test('a clause goes up as the voice begins it, not when it finishes it', async (
   // Deliberately uneven, so a linear guess would be wrong everywhere.
   const endMs = [300, 500, 1400, 1600, 1700, 2600]
   assert.equal(src.length, endMs.length)
-  const { probe, calls } = oracle(j.text, endMs)
+  const { transcribe, calls } = oracle(j.text, endMs)
 
-  const folds = await locate(j, 3000, probe, 25)
-  assert.ok(calls() > 0 && calls() < 200, `probe count stays sane, got ${calls()}`)
+  const folds = await locate(j, 3000, transcribe, 25)
+  assert.ok(calls() > 0 && calls() < 200, `transcription count stays sane, got ${calls()}`)
 
   // Two folds: the first fragment, then the close. Each reveals one clause.
   assert.deepEqual(folds.map((f) => f.at), [15, 29])
@@ -231,9 +230,9 @@ test('words the search cannot separate are spread across the gap, not lumped at 
     const n = endMs.filter((e) => e <= ms).length
     return n - (n % 2)
   }
-  const probe: Probe = async (from, to) => src.slice(doneBy(from), doneBy(to))
+  const transcribe: Transcriber = async (from, to) => src.slice(doneBy(from), doneBy(to))
 
-  const folds = await locate(j, 3500, probe, 25)
+  const folds = await locate(j, 3500, transcribe, 25)
   assert.deepEqual(folds.map((f) => f.at), [15, 29], 'the clause break and the close')
   assert.equal(folds[0].ms, 0)
   // "four" opens the second clause. It is the first of its pair, so the search
@@ -250,16 +249,16 @@ test('an oracle that stutters cannot drag a fold earlier than its bracket', asyn
   const endMs = [300, 500, 1400, 1600, 1700, 2600]
   const src = words(j.text).map((w) => w.word)
   let n = 0
-  // Every third probe under-reports, the way endpointing holds a short word
+  // Every third transcription under-reports, the way endpointing holds a short word
   // back until its neighbour resolves.
   const doneBy = (ms: number) => endMs.filter((e) => e <= ms).length
-  const probe: Probe = async (from, to) => {
+  const transcribe: Transcriber = async (from, to) => {
     const real = doneBy(to)
     n++
     return src.slice(doneBy(from), n % 3 === 0 ? Math.max(doneBy(from), real - 1) : real)
   }
 
-  const folds = await locate(j, 3000, probe, 25)
+  const folds = await locate(j, 3000, transcribe, 25)
   // A fold fires as the clause it reveals begins — so never before every word
   // of the clause BEFORE it has been said. That is the floor a stuttering
   // oracle must not drag it under.

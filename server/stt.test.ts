@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { run } from './speech.ts'
-import { probeSession, sttBinary } from './stt.ts'
+import { transcribeSession, sttBinary } from './stt.ts'
 
 const SPOKEN = 'This Russian composer wrote a ballet about a nutcracker. ' +
   'He also wrote the 1812 Overture, which calls for cannon fire.'
@@ -33,7 +33,7 @@ test('a held-open clip answers one probe before being asked the next', async (t)
     return t.skip('no `say` on this box')
   }
 
-  const s = probeSession(bin, audio)
+  const s = transcribeSession(bin, audio)
   try {
     // A deadlock here is silent and indefinite: both sides idle at zero CPU
     // waiting for the other. Fail loudly instead of hanging the suite.
@@ -45,8 +45,8 @@ test('a held-open clip answers one probe before being asked the next', async (t)
         ),
       ])
 
-    const early = await answered(s.probe(0, 2900))
-    const later = await answered(s.probe(0, 7314))
+    const early = await answered(s.transcribe(0, 2900))
+    const later = await answered(s.transcribe(0, 7314))
 
     assert.ok(early.length > 0, 'the first probe answered at all')
     assert.ok(
@@ -68,8 +68,8 @@ test('a helper that dies mid-alignment answers everything still queued', async (
   // Nothing to open, so the helper exits immediately. Every pending probe must
   // still settle — an unresolved promise would hang the whole pack render, and
   // an empty answer is read as "no word finished yet", folding at the clip end.
-  const s = probeSession(bin, join(import.meta.dirname, 'stt', 'no-such-file.aiff'))
-  const answers = await Promise.all([s.probe(0, 1000), s.probe(0, 2000)])
+  const s = transcribeSession(bin, join(import.meta.dirname, 'stt', 'no-such-file.aiff'))
+  const answers = await Promise.all([s.transcribe(0, 1000), s.transcribe(0, 2000)])
   assert.deepEqual(answers, [[], []], 'a dead helper resolves rather than hangs')
   s.close()
 })

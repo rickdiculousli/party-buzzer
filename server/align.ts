@@ -16,7 +16,7 @@
  * word — so a bisection over t finds every boundary.
  *
  * This file is the pure half: it decides which cut to ask for next and what the
- * answers mean. It never spawns anything. The probe executor lives in stt.ts,
+ * answers mean. It never spawns anything. The transcription sessions live in stt.ts,
  * which is what keeps the search testable against a fake oracle in Node.
  *
  * Everything here rounds the same direction. A fold placed late costs a beat of
@@ -56,7 +56,7 @@ export function join(fragments: string[]): Joined {
 /**
  * Character offsets worth folding at: every fragment start, and every clause
  * break inside one. Clause breaks come from punctuation in the source, so the
- * candidates cost nothing to find — probing only ever supplies their times.
+ * candidates cost nothing to find — transcribing only ever supplies their times.
  *
  * A clause, not a word. Word-level folds were tried and are genuinely worse to
  * watch: the line grows a word at a time under your eye while you are trying to
@@ -91,7 +91,7 @@ export function candidates(j: Joined): { at: number; kind: Fold['kind'] }[] {
  * Transcribes `[fromMs, toMs)` of the clip into words. The only impure part of
  * the search, injected so the bisection can be driven by a table in a test.
  */
-export type Probe = (fromMs: number, toMs: number) => Promise<string[]>
+export type Transcriber = (fromMs: number, toMs: number) => Promise<string[]>
 
 /** Words of the joined text, with where each one starts. */
 export function words(text: string): { word: string; at: number }[] {
@@ -270,26 +270,26 @@ const RUNUP_WORDS = 3
  * Two things make this cheap enough to run over a whole pack.
  *
  * Each interval is transcribed from its OWN start rather than from zero,
- * against the words not yet accounted for. Probe cost is linear in the length
+ * against the words not yet accounted for. Transcription cost is linear in the length
  * of the slice and indifferent to where it begins — a 2s slice costs the same
- * at 18s as at 0s, while a 20s slice costs seven times either — so probing
- * from zero made every late probe re-read the whole question. Starting at
+ * at 18s as at 0s, while a 20s slice costs seven times either — so transcribing
+ * from zero made every late transcription re-read the whole question. Starting at
  * `loT` can clip the onset of a word already in progress, which loses it from
  * the transcript and places the fold later: the safe direction, so no margin
  * is added to buy it back.
  *
  * And the search runs level by level rather than depth-first. Splitting an
- * interval yields two that share nothing, so a whole level can be probed at
- * once; a caller that supplies a `probe` backed by several helpers gets the
+ * interval yields two that share nothing, so a whole level can be transcribed at
+ * once; a caller that supplies a `transcribe` backed by several helpers gets the
  * depth of the search (~log2 of the clip over epsMs, so nine or ten rounds)
- * instead of the count of its probes. That is what makes warming one question
+ * instead of the count of its calls. That is what makes warming one question
  * before the game starts worth doing — a pack can parallelise across
  * questions, but the question the host is waiting on cannot.
  */
 export async function locate(
   j: Joined,
   durationMs: number,
-  probe: Probe,
+  transcribe: Transcriber,
   epsMs = EPS_MS,
 ): Promise<Fold[]> {
   const src = words(j.text).map((w) => w.word)
@@ -324,7 +324,7 @@ export async function locate(
         // Back up far enough to catch the word already in progress, so the
         // transcript opens on a whole word rather than a half-syllable.
         const from = Math.max(0, s.loT - RUNUP_MS)
-        const heard = await probe(from, mids[i])
+        const heard = await transcribe(from, mids[i])
         // How far back the run-up actually reached depends on how fast the
         // reader was going, so rather than assume it caught exactly one word,
         // read the transcript from each plausible starting word and keep the
@@ -337,7 +337,7 @@ export async function locate(
         // The oracle is monotonic in principle and approximately so in practice
         // — endpointing can hold a short word back until its neighbour resolves
         // — and clamping into the bracket keeps one odd answer from corrupting
-        // a range two other probes already agreed on.
+        // a range two other transcriptions already agreed on.
         return Math.min(s.hiK, Math.max(s.loK, c))
       }),
     )
@@ -356,14 +356,14 @@ export async function locate(
    * search did separate sat within ~100ms of its true place.
    *
    * The cause is the oracle's pessimism, which is deliberate and worth keeping —
-   * a probe that cannot place a word reports fewer, so the word gets pushed into
+   * a transcription that cannot place a word reports fewer, so the word gets pushed into
    * the later half of the split, and a few levels of that squeezes several words
    * into one narrow bracket at the end.
    *
    * Nothing more can be measured about a run, but two things are known without
    * measuring: the words are in order, and they occupy the gap since the last
    * time we do trust. Speech inside a second is close enough to even, so give
-   * each its share of that gap. Interpolation, not more probing — it costs
+   * each its share of that gap. Interpolation, not more transcribing — it costs
    * nothing and it is what turns a line arriving in lumps behind the voice into
    * one that keeps pace with it.
    */
