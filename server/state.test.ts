@@ -4,7 +4,8 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { applyHostAction, buzzBlockReason, loadState, newState } from './state.ts'
-import type { SetlistBlock, State } from '../shared/protocol.ts'
+import { refuses } from '../shared/legality.ts'
+import type { HostAction, SetlistBlock, State } from '../shared/protocol.ts'
 
 function withPlayer(state: State): string {
   state.players.push({ id: 'p1', name: 'Ada', connected: true })
@@ -422,4 +423,195 @@ test('a stray rebound changes nothing, and a penalised question is still judgeab
   applyHostAction(state, { a: 'correct' })
   assert.equal(state.scores[id], 300 + state.round.value, 'the retake scores')
   assert.equal(state.round.award?.name, 'Ada', 'and the award is hers now')
+})
+
+/**
+ * The parity test: the table and the server say the same thing.
+ *
+ * `shared/legality.ts` only earns its keep if `applyHostAction` actually obeys
+ * it, and the failure that costs a game night is the quiet direction — the
+ * table says yes, the host's button is live, and the server returns without
+ * touching anything. So: for every action kind across a spread of rooms, when
+ * `refuses` returns null, applying it has to change the state. This is the
+ * `hub.test.ts` wall-parity test pointed at the other contract.
+ */
+
+/** Every room the actions are tried in. Rebuilt per pair — each one is mutated. */
+const ROOMS: Record<string, () => State> = {
+  // Between questions, not virgin: a room that has played one. `next` and
+  // `resetRound` on a state where nothing has ever happened are legitimately
+  // inert, and that is a fact about an empty room rather than about the table.
+  idle: () => {
+    const s = room()
+    s.round.armedAt = 1000
+    s.round.award = { name: 'Ada', points: 100 }
+    return s
+  },
+  armed: () => {
+    const s = room()
+    s.round.phase = 'ARMED'
+    s.round.armedAt = 1000
+    return s
+  },
+  locked: () => {
+    const s = room()
+    s.round.phase = 'LOCKED'
+    s.round.armedAt = 1000
+    s.round.order = [{ playerId: 'p1', name: 'Ada', at: 1100, deltaMs: 0 }]
+    s.round.total = 1
+    return s
+  },
+  // The verdict already landed and the desk should be dead: LOCKED, the leader
+  // still on the board, a payoff stamped. This is the room that splits the two
+  // authorities — `already-scored` is a rule only the host surfaces used to
+  // hold, so the table refuses here while the server, before this task, would
+  // happily score the question a second time.
+  scored: () => {
+    const s = room()
+    s.round.phase = 'LOCKED'
+    s.round.armedAt = 1000
+    s.round.order = [{ playerId: 'p1', name: 'Ada', at: 1100, deltaMs: 0 }]
+    s.round.total = 1
+    s.round.award = { name: 'Ada', points: 100 }
+    return s
+  },
+  // A miss the reader is holding: LOCKED with the order emptied, the penalty
+  // stamped, and nobody on the buzzer until `rebound` opens it.
+  held: () => {
+    const s = room()
+    s.round.phase = 'LOCKED'
+    s.round.armedAt = 1000
+    s.round.held = true
+    s.round.award = { name: 'Ada', points: -100, penalty: true }
+    s.round.lockedOut = ['p1']
+    return s
+  },
+  'duel open': () => {
+    const s = room()
+    s.duel = { rule: 'vote', pool: [{ playerId: 'p1', votes: ['p2'], in: true }], missed: [] }
+    return s
+  },
+  'duel seated': () => {
+    const s = room()
+    s.duel = { rule: 'vote', pool: [], missed: [], seated: ['p1', 'p2'] }
+    s.round.buzzable = ['p1', 'p2']
+    return s
+  },
+  // The only room the three setlist actions are live in, which is the point of
+  // its being here: without it they refuse everywhere and go unchecked.
+  setlist: () => {
+    const s = room()
+    s.round.armedAt = 1000
+    s.setlist = {
+      blocks: [
+        { game: 'trivia', options: {}, count: 2, value: 100 },
+        { game: 'quizbowl', options: {}, count: 1 },
+      ],
+      at: 0,
+      done: 1,
+    }
+    return s
+  },
+}
+
+function room(): State {
+  const s = newState()
+  s.players = [
+    { id: 'p1', name: 'Ada', connected: true },
+    { id: 'p2', name: 'Bo', connected: true },
+  ]
+  s.scores = { p1: 300, p2: 100 }
+  return s
+}
+
+/**
+ * Named one by one rather than derived from the type: a `HostAction` added
+ * later has to be added here too, and a derived list would let it slip out of
+ * the parity check the day it was written.
+ *
+ * Every argument is deliberately DIFFERENT from what the rooms already hold.
+ * The idempotent setters — `setValue`, `setScore`, `rename`, `assign` and the
+ * rest — legitimately change nothing when handed the value that is already in
+ * place, so a room-matching argument here would fail the parity assertion for a
+ * defect in the test rather than in the server.
+ */
+const ACTIONS: HostAction[] = [
+  { a: 'arm' },
+  { a: 'correct' },
+  { a: 'wrong', neg: 100 },
+  { a: 'rebound' },
+  { a: 'next' },
+  { a: 'resetRound' },
+  { a: 'undo' },
+  { a: 'setValue', value: 400 },
+  { a: 'setAnswerWindow', sec: 30 },
+  { a: 'setScore', key: 'p1', score: 900 },
+  { a: 'rename', playerId: 'p1', name: 'Zed' },
+  { a: 'kick', playerId: 'p2' },
+  { a: 'setGrouping', grouping: 'teams' },
+  { a: 'addTeam', name: 'Red', color: '#f00' },
+  { a: 'assign', playerId: 'p1', teamId: 't1' },
+  { a: 'setMode', id: 'quizbowl', options: {} },
+  { a: 'setMirror', on: true },
+  { a: 'setAutoplay', on: true, nextSec: 3, reboundSec: 2 },
+  // 'host-pick' rather than 'random': an instant rule seats (or deletes itself)
+  // on the spot, which makes what the action did depend on the draw.
+  { a: 'openDuel', rule: 'host-pick' },
+  { a: 'closeDuel', playerIds: ['p1', 'p2'] },
+  { a: 'cancelDuel' },
+  { a: 'setSetlist', blocks: [{ game: 'quizbowl', options: {}, count: 3 }] },
+  { a: 'setlistJump', at: 1 },
+  { a: 'clearSetlist' },
+]
+
+/**
+ * The legal-but-inert pairs, each with the reason it is not a parity failure.
+ * Kept to deletions of something that is not there, plus `undo`. Anything else
+ * that lands here is the drift this test exists to catch, not a new row.
+ */
+function inertlyLegal(s: State, a: HostAction): string | null {
+  // The hub owns the snapshot stack; `applyHostAction`'s `undo` case is an
+  // empty return by design, so "changed something" can never hold for it.
+  if (a.a === 'undo') return 'the hub owns undo'
+  if (a.a === 'cancelDuel' && !s.duel && !s.round.buzzable) return 'no duel to cancel'
+  if (a.a === 'clearSetlist' && !s.setlist) return 'no setlist to clear'
+  return null
+}
+
+test('every action the table allows actually does something', () => {
+  for (const [where, build] of Object.entries(ROOMS)) {
+    for (const action of ACTIONS) {
+      const state = build()
+      if (refuses(state, action)) continue
+      const before = structuredClone(state)
+      applyHostAction(state, action)
+      const inert = inertlyLegal(before, action)
+      if (inert) {
+        assert.deepEqual(state, before, `${action.a} in "${where}" (${inert}) should be inert`)
+        continue
+      }
+      assert.notDeepEqual(
+        state,
+        before,
+        `${action.a} in "${where}": the table allows it and the server changed nothing`,
+      )
+    }
+  }
+})
+
+test('every action the table refuses is refused by the server too', () => {
+  for (const [where, build] of Object.entries(ROOMS)) {
+    for (const action of ACTIONS) {
+      const state = build()
+      const why = refuses(state, action)
+      if (!why) continue
+      const before = structuredClone(state)
+      applyHostAction(state, action)
+      assert.deepEqual(
+        state,
+        before,
+        `${action.a} in "${where}": the table refuses it (${why}) and the server did it anyway`,
+      )
+    }
+  }
 })
