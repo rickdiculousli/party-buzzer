@@ -301,7 +301,7 @@ export function Board() {
 
   return (
     <main class="board">
-      <section class="board__stage">
+      <section class="board__wall">
         <div class="board__status">
           {open && <span class="chip chip--live">Live</span>}
           {armed && !open && <span class="chip chip--armed">Standing by</span>}

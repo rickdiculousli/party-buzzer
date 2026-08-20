@@ -206,7 +206,7 @@
   display: flex;
   flex-direction: column;
 }
-.harness__preview > .board__stage { flex: 1; }
+.harness__preview > .board__wall { flex: 1; }
 
 @media (max-width: 52rem) {
   .harness { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; }

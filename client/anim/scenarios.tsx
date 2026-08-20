@@ -190,7 +190,7 @@ function Stage({
   below?: preact.JSX.Element | false
 }) {
   return (
-    <section class="board__stage">
+    <section class="board__wall">
       <div class="board__above">{above}</div>
       <div class="board__mid">{mid}</div>
       <div class="board__below">{below}</div>
