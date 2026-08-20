@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { applyHostAction, buzzBlockReason, loadState, newState } from './state.ts'
 import { duelCatalog } from './duel.ts'
+import { catalog } from './modes/index.ts'
 import { refuses } from '../shared/legality.ts'
 import type { HostAction, SetlistBlock, State } from '../shared/protocol.ts'
 
@@ -534,6 +535,10 @@ function room(): State {
   // The catalogs the hub fills in at boot. `newState` ships them empty and the
   // table treats empty as "no opinion", so a room without them would let an
   // unknown rule or game past the check that is supposed to catch it here.
+  // Both, not one: `games` and `duelRules` are the same lookup twice, and a
+  // parity test that exercises one of them vacuously is the hole this branch is
+  // about, one field over.
+  s.games = catalog()
   s.duelRules = duelCatalog()
   s.players = [
     { id: 'p1', name: 'Ada', connected: true },
