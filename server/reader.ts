@@ -100,6 +100,14 @@ export class Reader {
   private loop: Promise<void> = Promise.resolve()
   private running = false
   private waiters = new Set<() => void>()
+  /**
+   * The read session's lifetime, as a signal. `stop()` aborts it and `start()`
+   * replaces it — an aborted controller never un-aborts, so it has to be a new
+   * one each session rather than a reset. Everything the read loop awaits takes
+   * this (composed with the question's own scope) and throws when it fires,
+   * which is what stops a stopped reader waking up inside a live round.
+   */
+  private session = new AbortController()
 
   constructor(hub: Hub, opts: ReaderOpts) {
     this.hub = hub
@@ -175,8 +183,11 @@ export class Reader {
    * Packs stay in memory once rendered, which is what lets a setlist cross
    * between them at a block boundary without a stall in the middle of the night.
    */
-  private async ensure(name: string): Promise<void> {
-    if (this.loaded.has(name)) return
+  private async ensure(name: string, sig?: AbortSignal): Promise<void> {
+    if (this.loaded.has(name)) {
+      sig?.throwIfAborted()
+      return
+    }
     const { questions, errors } = loadPack(this.opts.packDir, name)
     for (const e of errors) console.warn(`[reader] ${name}: ${e}`)
     if (questions.length === 0) {
@@ -199,6 +210,9 @@ export class Reader {
     }
     this.pump()
     await this.ready.get(texts[0])
+    // Rendering is minutes of synthesis and takes no notice of the reader, so
+    // the wait for it is one of the places a stopped session used to wake up in.
+    sig?.throwIfAborted()
   }
 
   /**
@@ -252,8 +266,9 @@ export class Reader {
   }
 
   /** Hold the loop until this question's audio exists. Usually already true. */
-  private async waitFor(q: Question): Promise<void> {
+  private async waitFor(q: Question, sig?: AbortSignal): Promise<void> {
     await Promise.all(this.textsFor(q).map((t) => this.ready.get(t)))
+    sig?.throwIfAborted()
   }
 
   /** The fragments that joined to this text — needed to place their boundaries. */
@@ -277,6 +292,7 @@ export class Reader {
     }
     this.running = true
     this.paused = false
+    this.session = new AbortController()
     // Flip the host screen to Pause the instant playback genuinely begins;
     // `stop()` (called explicitly, or by `run()` when the pack ends) is what
     // clears `state.reading` — this call must not race a later one that undoes it.
@@ -300,6 +316,7 @@ export class Reader {
 
   stop(): void {
     this.running = false
+    this.session.abort()
     this.paused = false
     this.playback?.stop()
     this.playback = undefined
@@ -310,6 +327,25 @@ export class Reader {
 
   private wake(): void {
     for (const w of [...this.waiters]) w()
+  }
+
+  /**
+   * A signal that aborts the moment `ok()` stops being true.
+   *
+   * It rides `this.waiters` — the same state-change callbacks `until` uses — so
+   * a predicate over hub state is re-asked exactly when hub state moves, and no
+   * second notification path exists to fall out of step with the first.
+   */
+  private watch(ok: () => boolean): AbortSignal {
+    const c = new AbortController()
+    const check = () => {
+      if (ok()) return
+      this.waiters.delete(check)
+      c.abort()
+    }
+    this.waiters.add(check)
+    c.signal.addEventListener('abort', () => this.waiters.delete(check), { once: true })
+    return c.signal
   }
 
   /** Push the current position into State, for the host screen only. */
@@ -351,154 +387,185 @@ export class Reader {
     }
 
     while (this.running) {
-      const want = this.nextPack()
-      if (!want) break
-      if (want !== this.pack) {
-        await this.ensure(want)
-        if (!this.running) return
-        this.pack = want
-      }
-      const q = this.questions[this.qIndex]
-      if (!q) break
-      // The one place the warm start can bite: a room that outran the renderer.
-      // Wait here rather than arming onto a clip that does not exist yet, which
-      // would open the buzzers on silence.
-      await this.waitFor(q)
-      if (!this.running) return
-      this.fragIndex = 0
-      if (q.value !== undefined) {
-        this.hub.send(this.conn, { t: 'host', action: { a: 'setValue', value: q.value } })
-      }
-      this.hub.send(this.conn, { t: 'host', action: { a: 'arm' } })
-      // Answer variants, memory only — this is the one path by which the judge
-      // ever learns what the room is about to be asked.
-      this.opts.judge?.prime(q.answers)
-      await this.until((s) => s.round.phase === 'ARMED')
-      if (!this.running) return
-
-      const stamp = this.hub.state.round.armedAt
-      await sleep(Math.max(0, stamp - Date.now()))
-
-      // A replaced round (undo, a fresh `arm`/`next`) deletes round.fragments;
-      // a `wrong` rebound re-arms but keeps them, since the question is still
-      // live. Tracking how many we've pushed lets the reader tell "the round
-      // moved on without me" from "the round bounced and is still mine" —
-      // `armedAt` alone can't, because a rebound changes it too.
+      // One question, one scope, and the scope is a signal rather than a flag
+      // somebody has to remember to test. Everything below is awaited with it,
+      // and everything awaited with it throws the moment the question stops
+      // being ours — a stop, an undo, a fresh arm under our feet. The catch is
+      // the only place that answer is needed: an abort is how a question
+      // normally ends, so it ends the read loop quietly rather than logging.
       //
-      // Before the first fragment is pushed, fragments can't carry that
-      // signal yet (both cases read as empty), so that one check falls back
-      // to `armedAt`. That's safe specifically here: COLLECT_MS is longer
-      // than ARM_DELAY_MS, so a genuine wrong-judgment rebound cannot land
-      // before this question's first fragment goes out.
-      let pushed = 0
-      const stillMine = () =>
-        pushed === 0
-          ? this.hub.state.round.armedAt === stamp
-          : (this.hub.state.round.fragments?.length ?? 0) >= pushed
+      // `mine` is this iteration's own kill switch. Without it the watcher
+      // below would sit in `waiters` for the rest of the session — one stale
+      // predicate per question read — because a question that ends *well*
+      // never falsifies `stillMine`.
+      let mine = true
+      try {
+        const want = this.nextPack()
+        if (!want) break
+        if (want !== this.pack) {
+          await this.ensure(want, this.session.signal)
+          this.pack = want
+        }
+        const q = this.questions[this.qIndex]
+        if (!q) break
+        // The one place the warm start can bite: a room that outran the renderer.
+        // Wait here rather than arming onto a clip that does not exist yet, which
+        // would open the buzzers on silence.
+        await this.waitFor(q, this.session.signal)
+        this.fragIndex = 0
+        if (q.value !== undefined) {
+          this.hub.send(this.conn, { t: 'host', action: { a: 'setValue', value: q.value } })
+        }
+        this.hub.send(this.conn, { t: 'host', action: { a: 'arm' } })
+        // Answer variants, memory only — this is the one path by which the judge
+        // ever learns what the room is about to be asked.
+        this.opts.judge?.prime(q.answers)
+        await this.until((s) => s.round.phase === 'ARMED', undefined, this.session.signal)
 
-      const powerAfter = Number(this.hub.state.game.options.powerAfterFragment ?? 0)
-      const j = joinFragments(q.fragments)
-      // The board needs the shape of the whole question before it says any of
-      // it, or every line it has already put up moves when the next one lands.
-      // Players never see this — the hub strips it.
-      this.hub.send(this.conn, { t: 'act', act: 'whole', data: j.text })
-      const whole = this.aligned.get(j.text)
+        const stamp = this.hub.state.round.armedAt
 
-      if (whole) {
-        // One clip, revealed a clause at a time as the voice reaches each one.
-        let shown = 0 // characters of the joined text on the board
-        let frags = 0 // how many fragment entries that has taken
-        let powered = false
+        // A replaced round (undo, a fresh `arm`/`next`) deletes round.fragments;
+        // a `wrong` rebound re-arms but keeps them, since the question is still
+        // live. Tracking how many we've pushed lets the reader tell "the round
+        // moved on without me" from "the round bounced and is still mine" —
+        // `armedAt` alone can't, because a rebound changes it too.
+        //
+        // Before the first fragment is pushed, fragments can't carry that
+        // signal yet (both cases read as empty), so that one check falls back
+        // to `armedAt`. That's safe specifically here: COLLECT_MS is longer
+        // than ARM_DELAY_MS, so a genuine wrong-judgment rebound cannot land
+        // before this question's first fragment goes out.
+        let pushed = 0
+        const stillMine = () =>
+          pushed === 0
+            ? this.hub.state.round.armedAt === stamp
+            : (this.hub.state.round.fragments?.length ?? 0) >= pushed
 
-        const revealTo = (upto: number) => {
-          if (upto <= shown || !stillMine()) return
-          shown = upto
-          for (let i = 0; i < q.fragments.length; i++) {
-            const start = j.fragmentAt[i]
-            if (upto <= start) break
-            const text = q.fragments[i].slice(0, Math.min(q.fragments[i].length, upto - start)).trimEnd()
-            if (!text) continue
-            if (i >= frags) {
-              // Crossing into a fragment starts a new entry, so `fragments`
-              // stays a list of fragments however finely it is revealed.
-              this.hub.send(this.conn, { t: 'act', act: 'fragment', data: text })
-              frags = i + 1
-              pushed += 1
-              this.fragIndex = i + 1
-              this.publish({})
-            } else if (i === frags - 1) {
-              this.hub.send(this.conn, { t: 'act', act: 'extend', data: text })
+        // The question's scope: the session's lifetime and this round's, as one
+        // signal. Declared here because `stillMine` is only answerable once the
+        // arm it belongs to has a stamp.
+        const sig = AbortSignal.any([this.session.signal, this.watch(() => mine && stillMine())])
+
+        await sleep(Math.max(0, stamp - Date.now()), sig)
+
+        const powerAfter = Number(this.hub.state.game.options.powerAfterFragment ?? 0)
+        const j = joinFragments(q.fragments)
+        // The board needs the shape of the whole question before it says any of
+        // it, or every line it has already put up moves when the next one lands.
+        // Players never see this — the hub strips it.
+        this.hub.send(this.conn, { t: 'act', act: 'whole', data: j.text })
+        const whole = this.aligned.get(j.text)
+
+        if (whole) {
+          // One clip, revealed a clause at a time as the voice reaches each one.
+          let shown = 0 // characters of the joined text on the board
+          let frags = 0 // how many fragment entries that has taken
+          let powered = false
+
+          const revealTo = (upto: number) => {
+            if (upto <= shown) return
+            shown = upto
+            for (let i = 0; i < q.fragments.length; i++) {
+              const start = j.fragmentAt[i]
+              if (upto <= start) break
+              const text = q.fragments[i].slice(0, Math.min(q.fragments[i].length, upto - start)).trimEnd()
+              if (!text) continue
+              if (i >= frags) {
+                // Crossing into a fragment starts a new entry, so `fragments`
+                // stays a list of fragments however finely it is revealed.
+                this.hub.send(this.conn, { t: 'act', act: 'fragment', data: text })
+                frags = i + 1
+                pushed += 1
+                this.fragIndex = i + 1
+                this.publish({})
+              } else if (i === frags - 1) {
+                this.hub.send(this.conn, { t: 'act', act: 'extend', data: text })
+              }
+            }
+            // The power boundary counts whole fragments, and a fragment is whole
+            // once the reveal has passed its last character.
+            if (powerAfter > 0 && !powered) {
+              const complete = q.fragments.filter((f, i) => upto >= j.fragmentAt[i] + f.length).length
+              if (complete >= powerAfter) {
+                powered = true
+                this.hub.send(this.conn, { t: 'act', act: 'powerEnds' })
+              }
             }
           }
-          // The power boundary counts whole fragments, and a fragment is whole
-          // once the reveal has passed its last character.
-          if (powerAfter > 0 && !powered) {
-            const complete = q.fragments.filter((f, i) => upto >= j.fragmentAt[i] + f.length).length
-            if (complete >= powerAfter) {
-              powered = true
+
+          const finished = await this.speakWhole(whole, j, revealTo, stillMine, sig)
+          if (finished) revealTo(j.text.length)
+        } else {
+          for (let f = 0; f < q.fragments.length; f++) {
+            this.fragIndex = f + 1
+            const text = q.fragments[f]
+            this.hub.send(this.conn, { t: 'act', act: 'fragment', data: text })
+            pushed += 1
+            this.publish({})
+            const finished = await this.speak(text, sig)
+            // Someone buzzed and the question was scored while they held the
+            // floor. The rest of the clue is not read out — the host judges.
+            if (!finished) break
+            if (powerAfter > 0 && f + 1 === powerAfter) {
               this.hub.send(this.conn, { t: 'act', act: 'powerEnds' })
             }
           }
         }
 
-        const finished = await this.speakWhole(whole, j, revealTo, stillMine)
-        if (!this.running || !stillMine()) return
-        if (finished) revealTo(j.text.length)
-      } else {
-        for (let f = 0; f < q.fragments.length && this.running; f++) {
-          if (!stillMine()) return
-          this.fragIndex = f + 1
-          const text = q.fragments[f]
-          this.hub.send(this.conn, { t: 'act', act: 'fragment', data: text })
-          pushed += 1
-          this.publish({})
-          const finished = await this.speak(text)
-          if (!this.running || !stillMine()) return
-          // Someone buzzed and the question was scored while they held the
-          // floor. The rest of the clue is not read out — the host judges.
-          if (!finished) break
-          if (powerAfter > 0 && f + 1 === powerAfter) {
-            this.hub.send(this.conn, { t: 'act', act: 'powerEnds' })
+        // The host judges from here. Resolved means scored, or passed with nobody
+        // left in the round.
+        const resolved = (s: State) =>
+          s.round.phase === 'IDLE' &&
+          (!!s.round.award || (s.round.order.length === 0 && s.round.lockedOut.length === 0))
+
+        // Dead air — the clue ran out and nobody pressed anything — has no
+        // resolution to wait for. A host passes it by hand; autoplay gives it the
+        // same dwell as a payoff and then moves on, since the alternative is a
+        // loop that waits forever on a room that has already stopped playing.
+        //
+        // From here the question is the host's, and the waits are the session's
+        // scope rather than the question's: `next` clears `round.fragments`,
+        // which is exactly what falsifies `stillMine` — a payoff wait armed with
+        // the question's signal would abort on the very keypress that releases
+        // it. The old checks here tested `this.running` alone for the same
+        // reason.
+        let deadAir = false
+        while (this.running && !resolved(this.hub.state)) {
+          await this.until(resolved, this.dwellMs(), this.session.signal)
+          const r = this.hub.state.round
+          // Only silence passes itself. Anything else still pending is somebody
+          // mid-answer, and their verdict is worth waiting out however long the
+          // host takes over it.
+          if (!resolved(this.hub.state) && r.phase === 'ARMED' && r.order.length === 0) {
+            deadAir = true
+            break
           }
         }
-      }
-
-      // The host judges from here. Resolved means scored, or passed with nobody
-      // left in the round.
-      const resolved = (s: State) =>
-        s.round.phase === 'IDLE' &&
-        (!!s.round.award || (s.round.order.length === 0 && s.round.lockedOut.length === 0))
-
-      // Dead air — the clue ran out and nobody pressed anything — has no
-      // resolution to wait for. A host passes it by hand; autoplay gives it the
-      // same dwell as a payoff and then moves on, since the alternative is a
-      // loop that waits forever on a room that has already stopped playing.
-      let deadAir = false
-      while (this.running && !resolved(this.hub.state)) {
-        await this.until(resolved, this.dwellMs())
-        const r = this.hub.state.round
-        // Only silence passes itself. Anything else still pending is somebody
-        // mid-answer, and their verdict is worth waiting out however long the
-        // host takes over it.
-        if (this.running && !resolved(this.hub.state) && r.phase === 'ARMED' && r.order.length === 0) {
-          deadAir = true
-          break
+        if (this.hub.state.round.award || deadAir) {
+          this.hub.send(this.conn, { t: 'act', act: 'revealAnswer', data: q.answer })
         }
+        // Let the payoff sit on the wall; the host's N clears it and releases us —
+        // under autoplay the reader presses N itself once the dwell is up.
+        await this.until(
+          (s) => s.round.phase === 'IDLE' && !s.round.award,
+          this.dwellMs(),
+          this.session.signal,
+        )
+        if (this.hub.state.round.award || deadAir) {
+          this.hub.send(this.conn, { t: 'host', action: { a: 'next' } })
+        }
+        // Done with this one. The `next` above may have rolled the setlist into a
+        // block with a different pack, which the top of the loop picks up.
+        this.qIndex += 1
+      } catch (e) {
+        if (!(e instanceof DOMException && e.name === 'AbortError')) throw e
+        return
+      } finally {
+        mine = false
+        // Retires this question's watcher: `watch` drops itself the first time
+        // its predicate is false, and nothing else is going to falsify it.
+        this.wake()
       }
-      if (!this.running) return
-      if (this.hub.state.round.award || deadAir) {
-        this.hub.send(this.conn, { t: 'act', act: 'revealAnswer', data: q.answer })
-      }
-      // Let the payoff sit on the wall; the host's N clears it and releases us —
-      // under autoplay the reader presses N itself once the dwell is up.
-      await this.until((s) => s.round.phase === 'IDLE' && !s.round.award, this.dwellMs())
-      if (!this.running) return
-      if (this.hub.state.round.award || deadAir) {
-        this.hub.send(this.conn, { t: 'host', action: { a: 'next' } })
-      }
-      // Done with this one. The `next` above may have rolled the setlist into a
-      // block with a different pack, which the top of the loop picks up.
-      this.qIndex += 1
     }
     // The pack is spent, so autoplay goes off with it. Leaving it on would hand
     // the room back to a host whose next question advances itself out from
@@ -531,6 +598,7 @@ export class Reader {
     j: Joined,
     revealTo: (upto: number) => void,
     ok: () => boolean,
+    sig: AbortSignal,
   ): Promise<boolean> {
     const { clip, folds } = whole
     const steps = [...folds].sort((a, b) => a.ms - b.ms)
@@ -538,11 +606,13 @@ export class Reader {
 
     while (this.running) {
       if (this.paused) {
-        await this.until(() => !this.paused)
+        // Pause is not an abort. It holds here and re-reads the clause it was
+        // in the middle of; the signal only fires if the question itself goes.
+        await this.until(() => !this.paused, undefined, sig)
         continue
       }
       if (this.buzzed()) {
-        if (!(await this.waitOutBuzz())) return false
+        if (!(await this.waitOutBuzz(sig))) return false
         continue
       }
 
@@ -565,8 +635,11 @@ export class Reader {
         })
 
       await pb.done
+      // Timers first: an abort thrown with these still pending would leave the
+      // reveal firing into a round that is no longer this question's.
       for (const t of timers) clearTimeout(t)
       this.playback = undefined
+      sig.throwIfAborted()
       if (!this.paused && !this.buzzed()) return true
 
       // Back to the top of the clause that was in progress. Folds are the only
@@ -575,6 +648,7 @@ export class Reader {
       const stoppedAt = from + (Date.now() - t0)
       atMs = steps.reduce((best, s) => (s.ms <= stoppedAt && s.ms > best ? s.ms : best), 0)
     }
+    sig.throwIfAborted()
     return true
   }
 
@@ -590,27 +664,30 @@ export class Reader {
    * the question either rebounds (wrong answer, ARMED again — the fragment is
    * re-read) or is done with (returns false, and the caller stops reading it).
    */
-  private async speak(text: string): Promise<boolean> {
+  private async speak(text: string, sig: AbortSignal): Promise<boolean> {
     const path = this.clips.get(text)
     if (!path) return true
     while (this.running) {
       if (this.paused) {
-        // publish() on resume is what wakes this.
-        await this.until(() => !this.paused)
+        // publish() on resume is what wakes this. Pause is not an abort — the
+        // fragment is re-read, not abandoned.
+        await this.until(() => !this.paused, undefined, sig)
         continue
       }
       if (this.buzzed()) {
-        if (!(await this.waitOutBuzz())) return false
+        if (!(await this.waitOutBuzz(sig))) return false
         continue
       }
       const pb = this.speech.play(path)
       this.playback = pb
       await pb.done
       this.playback = undefined
+      sig.throwIfAborted()
       // An untouched clip reached its own end; otherwise pause() or a buzz
       // killed it, so loop round and wait to say it again.
       if (!this.paused && !this.buzzed()) return true
     }
+    sig.throwIfAborted()
     return true
   }
 
@@ -631,24 +708,24 @@ export class Reader {
    * An unheld rebound — a host judging by hand while the box reads — keeps the
    * old shape, because they opened it themselves when they pressed W.
    */
-  private async waitOutBuzz(): Promise<boolean> {
+  private async waitOutBuzz(sig: AbortSignal): Promise<boolean> {
     await this.until(
       (s) => s.round.phase === 'ARMED' || s.round.phase === 'IDLE' || !!s.round.held,
+      undefined,
+      sig,
     )
-    if (!this.running) return false
     const auto = this.hub.state.autoplay
     if (this.hub.state.round.held) {
       // Ends early if anything else takes the round — a host arming, an undo.
-      await this.until((s) => !s.round.held, auto.reboundSec * 1000)
-      if (!this.running) return false
+      await this.until((s) => !s.round.held, auto.reboundSec * 1000, sig)
       if (this.hub.state.round.held) {
         this.hub.send(this.conn, { t: 'host', action: { a: 'rebound' } })
       }
-      return this.running && !this.buzzed()
+      return !this.buzzed()
     }
     if (this.buzzed()) return false
-    if (auto.on) await this.until(() => false, auto.reboundSec * 1000)
-    return this.running && !this.buzzed()
+    if (auto.on) await this.until(() => false, auto.reboundSec * 1000, sig)
+    return !this.buzzed()
   }
 
   private buzzed(): boolean {
@@ -666,27 +743,63 @@ export class Reader {
     return auto.on ? auto.nextSec * 1000 : undefined
   }
 
-  /** Wait until the state satisfies a predicate, the dwell runs out, or we stop. */
-  private until(ok: (s: State) => boolean, dwellMs?: number): Promise<void> {
-    if (!this.running || ok(this.hub.state)) return Promise.resolve()
-    return new Promise((resolve) => {
-      let timer: NodeJS.Timeout | undefined
-      const done = () => {
-        this.waiters.delete(check)
-        if (timer) clearTimeout(timer)
-        resolve()
-      }
-      const check = () => {
-        if (this.running && !ok(this.hub.state)) return
-        done()
-      }
-      this.waiters.add(check)
-      if (dwellMs !== undefined) {
-        timer = setTimeout(done, dwellMs)
-        timer.unref?.()
-      }
-    })
+  /**
+   * Wait until the state satisfies a predicate, the dwell runs out, or the
+   * scope this wait belongs to ends.
+   *
+   * It always resolved when the reader stopped; what it never did was say
+   * *why*, so every caller re-asked with a flag test of its own and the
+   * protection against a stale question writing into a live one was that
+   * somebody had remembered to write one. With a signal it throws instead, and
+   * the answer arrives at the `await` rather than after it.
+   */
+  private async until(ok: (s: State) => boolean, dwellMs?: number, sig?: AbortSignal): Promise<void> {
+    sig?.throwIfAborted()
+    if (this.running && !ok(this.hub.state)) {
+      await new Promise<void>((resolve) => {
+        let timer: NodeJS.Timeout | undefined
+        // Every path out of here goes through `done`, including the abort: a
+        // waiter left in the set would be re-run for the rest of the session,
+        // and a dwell timer left behind holds the process open past Ctrl-C.
+        const done = () => {
+          this.waiters.delete(check)
+          sig?.removeEventListener('abort', done)
+          if (timer) clearTimeout(timer)
+          resolve()
+        }
+        const check = () => {
+          if (this.running && !ok(this.hub.state)) return
+          done()
+        }
+        this.waiters.add(check)
+        sig?.addEventListener('abort', done, { once: true })
+        if (dwellMs !== undefined) {
+          timer = setTimeout(done, dwellMs)
+          timer.unref?.()
+        }
+      })
+    }
+    sig?.throwIfAborted()
   }
 }
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+/**
+ * The one wait with no predicate behind it — counting down to `armedAt`. It
+ * takes the signal for the same reason the others do, and clears its timer on
+ * the way out either way. Not unref'd: this one is short and load-bearing, and
+ * a question half-armed is worse than a process that waits 250ms to exit.
+ */
+const sleep = (ms: number, sig?: AbortSignal): Promise<void> => {
+  sig?.throwIfAborted()
+  return new Promise<void>((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timer)
+      reject(sig?.reason)
+    }
+    const timer = setTimeout(() => {
+      sig?.removeEventListener('abort', onAbort)
+      resolve()
+    }, ms)
+    sig?.addEventListener('abort', onAbort, { once: true })
+  })
+}
