@@ -518,18 +518,18 @@ export function Host() {
 
         <section>
           <p class="eyebrow">Room</p>
-          {/* Teams mode and its Add team belong to each other; the mirror toggle
+          {/* The teams grouping and its Add team belong to each other; the mirror toggle
               used to sit between them. */}
           <div class="host__toggles">
             <label class="field">
-              Teams mode
+              Teams
               <input
                 type="checkbox"
-                checked={state.mode === 'teams'}
+                checked={state.grouping === 'teams'}
                 onChange={(e) =>
                   act({
-                    a: 'setMode',
-                    mode: (e.target as HTMLInputElement).checked ? 'teams' : 'solo',
+                    a: 'setGrouping',
+                    grouping: (e.target as HTMLInputElement).checked ? 'teams' : 'solo',
                   })
                 }
               />
@@ -544,7 +544,7 @@ export function Host() {
             </label>
           </div>
 
-          {state.mode === 'teams' && (
+          {state.grouping === 'teams' && (
             <div class="host__minor">
               {state.teams.map((t) => (
                 <span key={t.id} class="chip" style={{ borderLeft: `3px solid ${t.color}` }}>
@@ -582,7 +582,7 @@ export function Host() {
                     act({ a: 'rename', playerId: p.id, name: (e.target as HTMLInputElement).value })
                   }
                 />
-                {state.mode === 'teams' && (
+                {state.grouping === 'teams' && (
                   <select
                     class="input"
                     value={p.teamId ?? ''}

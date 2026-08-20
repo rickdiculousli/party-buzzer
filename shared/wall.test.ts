@@ -7,7 +7,7 @@ const LOCAL: Local = { open: false, settled: true, retired: false }
 
 function room(): State {
   return {
-    mode: 'solo',
+    grouping: 'solo',
     players: [
       { id: 'a', name: 'Ada', connected: true },
       { id: 'b', name: 'Bo', connected: true },
@@ -136,7 +136,7 @@ test('a duel: nominations, the seat, and both missing', () => {
   oneOf(wallOf(s, LOCAL), 'nominating')
   assert.equal(wallOf(s, LOCAL).nominations, 'solo')
 
-  s.mode = 'teams'
+  s.grouping = 'teams'
   assert.equal(wallOf(s, LOCAL).nominations, 'teams')
 
   s.duel.seated = ['a', 'b']

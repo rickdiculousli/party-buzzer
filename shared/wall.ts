@@ -160,7 +160,7 @@ const EMPTY_MIDDLE = {
 function middleOf(state: State, m: Moment, hero: Wall['hero'], reading: boolean): Middle {
   const r = state.round
   if (hero) return { hero }
-  if (m === 'duel:nominating') return { nominations: state.mode === 'teams' ? 'teams' : 'solo' }
+  if (m === 'duel:nominating') return { nominations: state.grouping === 'teams' ? 'teams' : 'solo' }
   if (m === 'duel:dead') return { call: 'dead' }
   // The reading view and the buzz call are alternatives, not a sequence. While
   // the box is driving, the question owns the middle for the whole question —

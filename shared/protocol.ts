@@ -1,6 +1,6 @@
 export type PlayerId = string
 export type TeamId = string
-/** Scores key on team id in teams mode, player id in solo mode. */
+/** Scores key on team id in a teams grouping, player id in solo. */
 export type ScoreKey = string
 
 /**
@@ -13,7 +13,7 @@ export type ScoreKey = string
 export const ARM_LEAD_MS = 300
 
 export type Role = 'player' | 'host' | 'board'
-export type Mode = 'solo' | 'teams'
+export type Grouping = 'solo' | 'teams'
 export type Phase = 'IDLE' | 'ARMED' | 'COLLECTING' | 'LOCKED'
 
 export type Player = {
@@ -218,7 +218,7 @@ export type Autoplay = {
 }
 
 export type State = {
-  mode: Mode
+  grouping: Grouping
   players: Player[]
   teams: Team[]
   scores: Record<ScoreKey, number>
@@ -265,7 +265,7 @@ export type HostAction =
   | { a: 'setScore'; key: ScoreKey; score: number }
   | { a: 'rename'; playerId: PlayerId; name: string }
   | { a: 'kick'; playerId: PlayerId }
-  | { a: 'setMode'; mode: Mode }
+  | { a: 'setGrouping'; grouping: Grouping }
   | { a: 'addTeam'; name: string; color: string }
   | { a: 'assign'; playerId: PlayerId; teamId?: TeamId }
   /** `keepScores` is the flow crossing a block boundary; a host switch resets. */

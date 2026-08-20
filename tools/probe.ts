@@ -42,7 +42,7 @@
  *   speak:A=text     A's transcript, POSTed as text/plain into the judge
  *   say:A=words      the same, but spoken: `say` renders the words to a clip and
  *                    the clip goes in as audio, so STT and the matcher both run
- *   teams:R=A,B/S=C  teams mode, those teams, those players on them
+ *   teams:R=A,B/S=C  teams grouping, those teams, those players on them
  *   flow:t*2@p.txt,q*1:v
  *                    setlist: mode*count blocks, @pack the reader takes that
  *                    block's questions from, a trailing :rule opens a duel for
@@ -156,7 +156,7 @@ async function main() {
    * Players probe put on a team, and whether probe is the one who turned teams
    * on. Both exist so `clear` can undo exactly what this run did and nothing
    * else: a borrowed phone gets taken off its team again, but a room the host
-   * had already set up in teams mode before probe arrived is left in it.
+   * had already set up a teams grouping before probe arrived is left in it.
    */
   const assigned = new Set<string>()
   let teamsAreOurs = false
@@ -180,7 +180,7 @@ async function main() {
     host.send({ t: 'host', action: { a: 'cancelDuel' } })
     // Before the kick: an assign for a player who is already gone does nothing.
     for (const playerId of assigned) host.send({ t: 'host', action: { a: 'assign', playerId } })
-    if (teamsAreOurs) host.send({ t: 'host', action: { a: 'setMode', mode: 'solo' } })
+    if (teamsAreOurs) host.send({ t: 'host', action: { a: 'setGrouping', grouping: 'solo' } })
     const gone = (host.state()?.players ?? []).filter((p) => p.id.startsWith('probe-'))
     for (const p of gone) host.send({ t: 'host', action: { a: 'kick', playerId: p.id } })
     log(`  cleared ${gone.length}`)
@@ -409,12 +409,12 @@ async function main() {
         // returns to solo, and the next run reuses them by name. Add the action
         // if a stale team ever actually gets in the way.
         case 'teams': {
-          // Only if it is not already on. `setMode` drops an open duel, so
+          // Only if it is not already on. `setGrouping` drops an open duel, so
           // re-sending it to add one late player would cancel the window you
           // were about to watch.
-          if (host.state()?.mode !== 'teams') {
-            host.send({ t: 'host', action: { a: 'setMode', mode: 'teams' } })
-            await host.waitFor((s) => s.mode === 'teams')
+          if (host.state()?.grouping !== 'teams') {
+            host.send({ t: 'host', action: { a: 'setGrouping', grouping: 'teams' } })
+            await host.waitFor((s) => s.grouping === 'teams')
             teamsAreOurs = true
           }
           for (const group of arg.split('/').filter(Boolean)) {

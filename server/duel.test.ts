@@ -2,12 +2,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { applyHostAction, newState } from './state.ts'
 import { resolveDuel, duelAct, seatDuel } from './duel.ts'
-import type { Mode, PlayerId, State } from '../shared/protocol.ts'
+import type { Grouping, PlayerId, State } from '../shared/protocol.ts'
 
 /** A state with named players; the optional second tuple element is a team id. */
-function stateWith(players: [PlayerId, string?][], mode: Mode = 'solo'): State {
+function stateWith(players: [PlayerId, string?][], grouping: Grouping = 'solo'): State {
   const state = newState()
-  state.mode = mode
+  state.grouping = grouping
   const teamIds = [...new Set(players.map(([, t]) => t).filter((t): t is string => !!t))]
   state.teams = teamIds.map((id) => ({ id, name: id, color: 'var(--id-1)' }))
   state.players = players.map(([id, teamId]) => ({ id, name: id, teamId, connected: true }))
@@ -32,7 +32,7 @@ test('vote resolution seats the top two, pool order breaking ties', () => {
   assert.deepEqual(resolveDuel(state, duel), ['a', 'b'])
 })
 
-test('vote resolution skips the unteamed in teams mode', () => {
+test('vote resolution skips the unteamed in a teams grouping', () => {
   const state = stateWith([['a', 'ta'], ['b', 'tb'], ['c'], ['d', 'ta']], 'teams')
   openDuel(state, 'vote')
   const duel = state.duel!
@@ -44,7 +44,7 @@ test('vote resolution skips the unteamed in teams mode', () => {
   assert.deepEqual(resolveDuel(state, duel), ['a', 'b'])
 })
 
-test('teams mode never seats two finalists from one team', () => {
+test('a teams grouping never seats two finalists from one team', () => {
   const state = stateWith([['a', 'ta'], ['b', 'ta'], ['c', 'tb']], 'teams')
   openDuel(state, 'vote')
   const duel = state.duel!
@@ -200,7 +200,7 @@ test('volunteer-random waits for the window; random still seats instantly', () =
   assert.ok(randomState.duel?.seated, 'random has no entry gate — seats now')
 })
 
-test('random in teams mode draws one per team', () => {
+test('random in a teams grouping draws one per team', () => {
   const state = stateWith([['a', 'ta'], ['b', 'ta'], ['c', 'tb']], 'teams')
   applyHostAction(state, { a: 'openDuel', rule: 'random' })
   const [x, y] = state.duel!.seated!
@@ -295,7 +295,7 @@ test('a vote crosses neither the team line nor the eligibility line', () => {
   assert.deepEqual(state.duel!.pool.map((e) => [e.playerId, e.votes]), [['b', ['a']]])
 })
 
-test('solo mode still lets anyone nominate anyone', () => {
+test('a solo grouping still lets anyone nominate anyone', () => {
   const state = stateWith([['a'], ['b'], ['c']])
   openDuel(state, 'vote')
   assert.equal(duelAct(state, 'a', 'duelVote', 'b'), true)

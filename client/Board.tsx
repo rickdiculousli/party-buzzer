@@ -119,7 +119,7 @@ function Timeline({
  * A ranked column of nominations.
  *
  * Ranked for display; lit by the same prediction the host desk runs, which is
- * not the same as the top two. In teams mode a same-team runner-up gets
+ * not the same as the top two. In a teams grouping a same-team runner-up gets
  * skipped, and marking them anyway promises the room a face-off the close will
  * not produce.
  */

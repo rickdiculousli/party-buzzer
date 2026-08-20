@@ -17,7 +17,7 @@ const secs = (n: number, fallback: number): number =>
 
 export function newState(): State {
   return {
-    mode: 'solo',
+    grouping: 'solo',
     players: [],
     teams: [],
     scores: {},
@@ -53,10 +53,10 @@ export function newState(): State {
   }
 }
 
-/** Scores attach to the team in teams mode, otherwise to the player. */
+/** Scores attach to the team in a teams grouping, otherwise to the player. */
 export function scoreKey(state: State, playerId: PlayerId): ScoreKey {
   const player = state.players.find((p) => p.id === playerId)
-  if (state.mode === 'teams' && player?.teamId) return player.teamId
+  if (state.grouping === 'teams' && player?.teamId) return player.teamId
   return playerId
 }
 
@@ -316,9 +316,9 @@ export function applyHostAction(state: State, action: HostAction): void {
       delete state.scores[action.playerId]
       return
 
-    case 'setMode':
-      state.mode = action.mode
-      // Teams constraints shape the pool; re-open under the new mode.
+    case 'setGrouping':
+      state.grouping = action.grouping
+      // Teams constraints shape the pool; re-open under the new grouping.
       if (state.duel && !state.duel.seated) delete state.duel
       return
 

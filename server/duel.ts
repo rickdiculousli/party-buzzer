@@ -29,11 +29,11 @@ export function duelCatalog(): DuelRuleInfo[] {
   return DUEL_RULES
 }
 
-/** Who may be seated: connected, and in teams mode holding a team. */
+/** Who may be seated: connected, and in a teams grouping holding a team. */
 export function eligible(state: State): PlayerId[] {
   return state.players
     .filter((p) => p.connected)
-    .filter((p) => state.mode !== 'teams' || !!p.teamId)
+    .filter((p) => state.grouping !== 'teams' || !!p.teamId)
     .map((p) => p.id)
 }
 
@@ -42,14 +42,14 @@ function teamOf(state: State, playerId: PlayerId): string | undefined {
 }
 
 /**
- * Seat two from a ranked list. In teams mode the second seat comes from a
+ * Seat two from a ranked list. In a teams grouping the second seat comes from a
  * different team than the first — a duel inside one team scores for both
  * sides at once, which is no duel.
  */
 function twoSeats(state: State, ranked: PlayerId[]): [PlayerId, PlayerId] | null {
   const first = ranked[0]
   if (!first) return null
-  if (state.mode !== 'teams') return ranked[1] ? [first, ranked[1]] : null
+  if (state.grouping !== 'teams') return ranked[1] ? [first, ranked[1]] : null
   const second = ranked.find((id) => id !== first && teamOf(state, id) !== teamOf(state, first))
   return second ? [first, second] : null
 }
@@ -124,14 +124,14 @@ export function duelAct(
     if (!takesVotes || typeof data !== 'string') return false
     if (data === playerId) return false // a vote is for someone else
     if (!eligible(state).includes(data)) return false
-    // In teams mode you nominate your own side's player, because that is what
+    // In a teams grouping you nominate your own side's player, because that is what
     // the seat is: one from each team, chosen by the people who have to live
     // with it. Voting across the line is picking your opponent's champion,
     // which is either a courtesy or sabotage and never a nomination.
     //
     // Enforced here and not only in the phone's roster: a rule the client is
     // the sole keeper of is a rule one hand-built message walks through.
-    if (state.mode === 'teams' && teamOf(state, playerId) !== teamOf(state, data)) return false
+    if (state.grouping === 'teams' && teamOf(state, playerId) !== teamOf(state, data)) return false
     // One vote per player: lift it off whoever held it, then place it.
     let held = false
     for (const e of duel.pool) {
@@ -167,7 +167,7 @@ export function seatDuel(state: State, ids: [PlayerId, PlayerId]): boolean {
   if (!a || !b || a === b) return false
   const ok = new Set(eligible(state))
   if (!ok.has(a) || !ok.has(b)) return false
-  if (state.mode === 'teams' && teamOf(state, a) === teamOf(state, b)) return false
+  if (state.grouping === 'teams' && teamOf(state, a) === teamOf(state, b)) return false
   duel.seated = [a, b]
   return true
 }

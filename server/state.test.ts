@@ -86,7 +86,7 @@ test('loadState backfills snapshots from before game modes', () => {
   try {
     const path = join(dir, 'state.json')
     const old = {
-      mode: 'solo',
+      grouping: 'solo',
       players: [{ id: 'p1', name: 'Ada', connected: true }],
       teams: [],
       scores: { p1: 700 },
