@@ -145,11 +145,6 @@ export function Player() {
     blip(audio.current, 180, 260)
   }, [barred, ready])
 
-  // This phone is the locked-in leader and the judge is listening. It is what
-  // mounts `<Talk>`, and the mic's whole life is that mount — so this one line
-  // is also where the window opens and closes.
-  const talk = !!mine && mine.deltaMs === 0 && round?.phase === 'LOCKED' && !!round?.judge
-
   // The join tap doubles as the gesture that unlocks audio on iOS.
   const join = () => {
     const trimmed = name.trim()
@@ -213,7 +208,7 @@ export function Player() {
   const moment = state
     ? momentOf(state, { open, settled: true, retired: true })
     : ('idle:welcome' as const)
-  const { label, sub, mood } = phoneOf(moment, {
+  const { label, sub, mood, talk } = phoneOf(moment, {
     frozen,
     barred,
     spectator,
@@ -227,6 +222,7 @@ export function Player() {
     pressed,
     armed,
     open,
+    judging: !!round?.judge,
   })
 
   const me = state?.players.find((p) => p.id === playerId)
