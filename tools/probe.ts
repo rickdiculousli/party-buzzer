@@ -390,7 +390,7 @@ async function main() {
             .catch(() => {
               throw new Error(`no answer window for ${name} — is the judge on? (see [stt] at boot)`)
             })
-          const res = await fetch(`${URL}/answer?player=${conn.playerId}`, {
+          const res = await fetch(`${URL}/spoken?player=${conn.playerId}`, {
             method: 'POST',
             headers: { 'content-type': clip ? 'audio/wav' : 'text/plain' },
             body: clip ? await readFile(clip) : text,

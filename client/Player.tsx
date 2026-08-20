@@ -319,7 +319,7 @@ export function Player() {
       return
     }
     setTooShort(false)
-    void fetch(`/answer?player=${playerId}`, {
+    void fetch(`/spoken?player=${playerId}`, {
       method: 'POST',
       body: encodeWav(samples, rate),
     })

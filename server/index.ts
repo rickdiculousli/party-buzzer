@@ -154,7 +154,7 @@ export async function startServer(opts: {
       )
       return
     }
-    if (req.method === 'POST' && (req.url ?? '').startsWith('/answer')) {
+    if (req.method === 'POST' && (req.url ?? '').startsWith('/spoken')) {
       const player = new URL(req.url ?? '/', 'http://localhost').searchParams.get('player') ?? ''
       // text/plain is the transcript itself — probe's speak: step and tests.
       // Anything else is a recording to transcribe.
