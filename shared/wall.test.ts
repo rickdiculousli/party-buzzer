@@ -150,6 +150,67 @@ test('a duel: nominations, the seat, and both missing', () => {
   assert.equal(wallOf(s, LOCAL).call, 'dead')
 })
 
+test('a duel rebound keeps the miss up until the other one buzzes', () => {
+  const s = room()
+  s.duel = { rule: 'vote', pool: [], seated: ['a', 'b'], missed: [] }
+  s.round.buzzable = ['a', 'b']
+
+  // Ada misses. The rebound is open, to Bo alone.
+  s.round.phase = 'ARMED'
+  s.round.armedAt = 1000
+  s.round.buzzable = ['b']
+  s.round.lockedOut = ['a']
+  s.round.award = { name: 'Ada', points: -100 }
+
+  const dwelt: Local = { ...LOCAL, open: true, retired: true }
+  // The dwell has elapsed and outside a duel that would retire the stamp. Here
+  // it must not: the question is still live and nobody has answered it yet.
+  assert.equal(momentOf(s, dwelt), 'verdict:penalty')
+  const w = wallOf(s, dwelt)
+  oneOf(w, 'a held rebound')
+  assert.equal(w.hero?.tone, 'penalised')
+  assert.equal(w.award?.points, -100)
+
+  // Bo buzzes. That, not a timer, is what takes it down.
+  s.round.phase = 'COLLECTING'
+  assert.notEqual(momentOf(s, dwelt), 'verdict:penalty')
+  oneOf(wallOf(s, dwelt), 'the rebound answered')
+})
+
+test('a face-off survives its own rebound narrowing buzzable to one', () => {
+  const s = room()
+  s.duel = { rule: 'vote', pool: [], seated: ['a', 'b'], missed: [] }
+  // No award at all — an undo, or a module that stamps none. The wall has only
+  // the duel to go on, and it must still be the duel, not a bare "Ready".
+  s.round.phase = 'ARMED'
+  s.round.buzzable = ['b']
+  s.round.lockedOut = ['a']
+
+  const w = wallOf(s, { ...LOCAL, open: true, retired: true })
+  oneOf(w, 'a penalty-free rebound')
+  assert.deepEqual(w.faceoff, ['Ada', 'Bo'])
+  assert.equal(w.call, null)
+})
+
+test('a wrong that cost nothing is still a miss, not a payoff of zero', () => {
+  const s = room()
+  s.round.phase = 'ARMED'
+  // `points` is what a surface actually receives: the server writes `-0` and
+  // JSON flattens it to `0` on the way out, which is exactly why the sign
+  // cannot carry this and the flag has to. Without it the room is shown a
+  // reward for missing.
+  s.round.award = { name: 'Ada', points: 0, penalty: true }
+  assert.equal(momentOf(s, LOCAL), 'verdict:penalty')
+  const w = wallOf(s, LOCAL)
+  assert.equal(w.hero?.tone, 'penalised')
+  assert.equal(w.award?.points, 0)
+
+  // And a real payoff of zero — a question worth nothing — still reads as one.
+  s.round.award = { name: 'Ada', points: 0 }
+  assert.equal(momentOf(s, LOCAL), 'verdict:award')
+  assert.deepEqual(wallOf(s, LOCAL).hero, { name: 'Ada', tone: 'answering' })
+})
+
 test('idle:welcome ends at the first arm, not at the first buzz', () => {
   // Keyed on armedAt because the buzz count is redacted — a non-buzzing phone
   // would otherwise still be at welcome while the wall had moved on.
@@ -223,4 +284,86 @@ test('a penalty comes down when someone takes the question over', () => {
   assert.deepEqual(taken.hero, { name: 'Ada', tone: 'answering' })
   assert.equal(taken.award, null, 'and gone the moment Ada is up')
   oneOf(taken, 'the handover')
+})
+
+test('a rebound taken inside the penalty dwell shows the new leader, not the miss', () => {
+  const s = room()
+  // Ada missed a moment ago; the buzzers are open again and the stamp is still
+  // within its dwell.
+  s.round.phase = 'ARMED'
+  s.round.armedAt = 1000
+  s.round.lockedOut = ['a']
+  s.round.award = { name: 'Ada', points: -100, penalty: true }
+  const dwelling: Local = { ...LOCAL, open: true, retired: false }
+  assert.equal(momentOf(s, dwelling), 'verdict:penalty')
+
+  // Bo buzzes. The board sounds the buzz-in on this broadcast, so this is the
+  // frame the new name has to be on the wall by — waiting out the rest of the
+  // dwell put the sound a second ahead of the picture.
+  s.round.phase = 'COLLECTING'
+  s.round.order = [{ playerId: 'b', name: 'Bo', at: 1400, deltaMs: 400 }]
+  assert.equal(momentOf(s, dwelling), 'buzz:collecting')
+  const w = wallOf(s, dwelling)
+  oneOf(w, 'a rebound taken inside the dwell')
+  assert.deepEqual(w.hero, { name: 'Bo', tone: 'answering' })
+  assert.equal(w.award, null, 'the last miss is not still stamped over the new name')
+})
+
+test('a duel buzz takes the stage from the pair on the same frame as the cue', () => {
+  const s = room()
+  s.duel = { rule: 'vote', pool: [], seated: ['a', 'b'], missed: [] }
+  s.round.buzzable = ['a', 'b']
+  s.round.phase = 'ARMED'
+  s.round.armedAt = 1000
+  const live: Local = { ...LOCAL, open: true }
+  assert.deepEqual(wallOf(s, live).faceoff, ['Ada', 'Bo'])
+
+  // Ada presses. The order is held back 150ms, and the pair holds the stage
+  // for exactly that long rather than flicking to a bare "Ready".
+  s.round.phase = 'COLLECTING'
+  assert.equal(momentOf(s, live), 'buzz:collecting')
+  assert.deepEqual(wallOf(s, live).faceoff, ['Ada', 'Bo'], 'still the pair, briefly')
+
+  // The order lands — the same broadcast the board sounds the buzz-in on, so
+  // the name has to be up on this frame and not a locked round later.
+  s.round.order = [{ playerId: 'a', name: 'Ada', at: 1200, deltaMs: 0 }]
+  const w = wallOf(s, live)
+  oneOf(w, 'a duel buzz')
+  assert.deepEqual(w.hero, { name: 'Ada', tone: 'answering' })
+  assert.equal(w.faceoff, null)
+})
+
+test('a payoff keeps the winner on the stage, in a duel and out of one', () => {
+  const s = room()
+  s.duel = { rule: 'vote', pool: [], seated: ['a', 'b'], missed: [] }
+  s.round.buzzable = ['a', 'b']
+  // Scored: the phase drops to IDLE, so there is no leader to hold the stage.
+  s.round.phase = 'IDLE'
+  s.round.armedAt = 1000
+  s.round.order = [{ playerId: 'a', name: 'Ada', at: 1200, deltaMs: 0 }]
+  s.round.award = { name: 'Ada', points: 200 }
+
+  const w = wallOf(s, LOCAL)
+  assert.equal(momentOf(s, LOCAL), 'verdict:award')
+  oneOf(w, 'a duel payoff')
+  assert.deepEqual(w.hero, { name: 'Ada', tone: 'answering' }, 'not back to the pair')
+  assert.equal(w.faceoff, null)
+  assert.equal(w.award?.points, 200)
+
+  // Solo with nothing else on the stage: the name, rather than a bare "Ready"
+  // under a +200 belonging to nobody.
+  delete s.duel
+  delete s.round.buzzable
+  const solo = wallOf(s, LOCAL)
+  oneOf(solo, 'a solo payoff')
+  assert.deepEqual(solo.hero, { name: 'Ada', tone: 'answering' })
+
+  // But a clue still on the stage keeps it. The payoff sits over the question,
+  // not instead of it — a miss is the one that takes the middle outright,
+  // because it leaves the question live and has to say why.
+  s.round.fragments = ['A clue.']
+  assert.deepEqual(wallOf(s, LOCAL).clue?.shown, 'A clue.')
+  assert.equal(wallOf(s, LOCAL).hero, null)
+  s.round.award = { name: 'Ada', points: 0, penalty: true }
+  assert.equal(wallOf(s, LOCAL).hero?.tone, 'penalised', 'a miss outranks the clue')
 })

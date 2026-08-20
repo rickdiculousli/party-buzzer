@@ -23,8 +23,8 @@ npm test           # node:test
 npm run typecheck
 npm run sim        # synthetic self-play against a running server
 npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@140 correct   # one scripted round
-npm run walk-duel / walk-teams      # the two paced duel walkthroughs, ~1 min each
-npm run walk-setlist # the paced setlist walkthrough, ~1 min
+npm run walk-duel / walk-teams      # the two paced duel walkthroughs, ~30s each
+npm run walk-setlist # the paced setlist walkthrough, ~30s
 npm run walk-read  # a pack read by the box, spoken answers judged, ~90s
 npm run walk-packs # a setlist crossing two packs and back, ~2 min
 npm run motion     # the animation harness at /anim.html (dev only)
@@ -104,6 +104,23 @@ a phone each render. Three rules, all load-bearing:
 overlapping booleans on the board, which is where every display bug of
 2026-08 came from. `shared/wall.test.ts` asserts it at every step of a walked
 question. Design: `docs/superpowers/specs/2026-08-18-wall-boundary-design.md`.
+
+**There is one priority ladder and it is `momentOf`.** `middleOf` is a lookup
+against it: an exhaustive `switch` with a row per `Moment`, each row naming what
+that moment shows and what it settles for when the first choice has no data. A
+row never says what outranks what — the moment has already answered that. The
+`switch` has no `default`, so a fourteenth moment does not compile until it says
+what the wall shows.
+
+**Where a fix goes.** The wall shows the wrong thing — fix the order in
+`momentOf`. A moment shows the wrong occupant — fix that moment's row. Neither
+takes a new boolean, and reaching for one is the tell: `middleOf` was a second
+ladder for a week, six `if`s re-ranking the same five occupants out of raw
+state, and every display bug in that week was the two ladders disagreeing rather
+than either being wrong — a face-off that outlived the buzz-in, a penalty that
+outlived the rebound answering it, a payoff that handed the stage back to the
+pair. Each got fixed by tweaking a boolean, three times, before the second
+ladder was the thing that got deleted.
 
 - `server/hub.ts` — connections, buzz collection, broadcast, undo. Owns all
   round timing.
@@ -322,6 +339,19 @@ retype: **`npm run walk-duel`** is ten players trading a nomination lead through
 switches and withdrawals until it changes hands twice, **`npm run walk-teams`**
 is the same in a teams grouping, where the seat has to reach past a same-team runner-up
 and a wrong answer locks out a whole side. Both end in a `clear`.
+
+Two rules for the pacing, and they hold across every walk. **No `wait:` is
+longer than 2s** — a walkthrough is watched, not sat through, and a beat you
+notice waiting out is one nobody runs twice. **Every verdict gets a `wait:1000`
+on each side of it** — in front, because a `correct` fired on the same tick as
+the buzz that earned it shows the room a score change with no visible cause;
+behind, because the verdict is a moment with its own animation and sound, and
+the next `armed` used to cut it off mid-stamp. Two adjacent waits rather than
+one `wait:3000` is deliberate: the cap is per beat, and these are two beats.
+The one
+exception is the `wait:15000` that ends `walk-read`, which is not a beat at all:
+it is the box reading a whole unbuzzed question aloud and the pack running out,
+and cutting it would exit the process mid-question.
 
 **`npm run walk-read`** and **`npm run walk-packs`** are the reading pair, and
 the only walkthroughs where the box drives: the first is one pack under

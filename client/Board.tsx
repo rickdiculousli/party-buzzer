@@ -5,17 +5,37 @@ import { markGap, play, playSpaced, prime, startBed, stopBed, unlock } from './s
 import { Votes } from './Votes.tsx'
 import { Spoken } from './Spoken.tsx'
 import { wallOf, type Wall } from '../shared/wall.ts'
+import { isPenalty } from '../shared/protocol.ts'
 import { useReveal } from './useReveal.ts'
 import { COLLECT_MS, type BuzzEntry, type State } from '../shared/protocol.ts'
 
 type Mark = BuzzEntry & { lane: number }
 
-/** `wallOf` names the tone; the stylesheet is where it becomes a colour. */
-const HERO_CLASS: Record<NonNullable<Wall['hero']>['tone'], string> = {
-  answering: 'board__hero',
-  // Not brass — brass is what a payoff looks like. Same tally-red as the stamp
-  // above it, so the three parts of a miss read as one thing.
-  penalised: 'board__hero is-penalised',
+/**
+ * The name owning the stage. `slam` and `flare` are mount animations, so the
+ * arrival is the DOM node's lifetime — which makes "a different hero is a
+ * different element" a rule, not a call site's discretion — and "the same
+ * person, judged" a recolour rather than a second arrival. It lives here, on
+ * the only thing that renders one, rather than as a `key` every caller has to
+ * remember: a rebound taking the stage from the miss it answers is an arrival,
+ * and it looked like a text swap for as long as the key was optional.
+ *
+ * `wallOf` names the tone; the stylesheet is where it becomes a colour.
+ */
+function Hero({ name, tone }: NonNullable<Wall['hero']>) {
+  return (
+    <p
+      // Keyed on who, not on how. A name replacing a name is an arrival; the
+      // same name going red is that person being judged, and the letters should
+      // stay put while the colour tells you what happened.
+      key={name}
+      // Not brass — brass is what a payoff looks like. Same tally-red as the
+      // stamp above it, so the three parts of a miss read as one thing.
+      class={tone === 'penalised' ? 'board__hero is-penalised' : 'board__hero'}
+    >
+      {name}
+    </p>
+  )
 }
 
 /** The middle band when nobody owns it: what the room is being told to do. */
@@ -346,7 +366,7 @@ export function Board() {
               board after the host scores it, not before. A penalty's leader
               is already gone to the rebound, so this gates on the award. */}
           {w.award && (
-            <p class={w.award.points < 0 ? 'board__award is-neg' : 'board__award'}>
+            <p class={isPenalty(w.award) ? 'board__award is-neg' : 'board__award'}>
               {w.award.points > 0 ? '+' : ''}
               {w.award.points}
             </p>
@@ -359,7 +379,7 @@ export function Board() {
             not need it. Only the neutral hero — a penalty's name is a beat over
             a question still in progress, and the band it sits in is the cue's. */}
         <div class={w.hero?.tone === 'answering' ? 'board__mid' : 'board__mid board__mid--cue'}>
-          {w.hero && <p class={HERO_CLASS[w.hero.tone]}>{w.hero.name}</p>}
+          {w.hero && <Hero {...w.hero} />}
           {w.nominations && (
             <div class="board__noms">
               <p class="board__idle">Who plays?</p>

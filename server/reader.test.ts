@@ -318,7 +318,11 @@ test('a penalty rides the rebound without the reader calling the question over',
   await new Promise((r) => setTimeout(r, COLLECT_MS + 30))
   hub.handle(host, { t: 'host', action: { a: 'wrong', neg: 10 } })
 
-  assert.deepEqual(state.round.award, { name: 'Ada', points: -10 }, 'the penalty is up')
+  assert.deepEqual(
+    state.round.award,
+    { name: 'Ada', points: -10, penalty: true },
+    'the penalty is up',
+  )
   // Held, not open: with the box driving, the rebound waits out `reboundSec`
   // behind shut buzzers so the room reads the miss before it is racing on it.
   // This one is set to 0, so the reader opens it on its next turn.
@@ -332,7 +336,7 @@ test('a penalty rides the rebound without the reader calling the question over',
   // The clue picks up where the buzz cut it rather than the reader moving on.
   while (speech.spoken.length < 2) await new Promise((r) => setTimeout(r, 5))
   assert.equal(speech.spoken[1], 'First fragment.', 'the cut fragment resumes')
-  assert.deepEqual(state.round.award, { name: 'Ada', points: -10 }, 'still up')
+  assert.deepEqual(state.round.award, { name: 'Ada', points: -10, penalty: true }, 'still up')
   assert.equal(state.round.answer, undefined, 'still not revealed')
   reader.stop()
   await reader.settled()

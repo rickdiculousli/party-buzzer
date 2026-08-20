@@ -75,10 +75,10 @@ export const quizbowl: GameModule = {
     // the module's configured neg wins over whatever the button said.
     state.scores[key] ??= 0
     const penalty = neg === 0 ? 0 : Number(state.game.options.neg ?? 0)
-    if (penalty) {
-      bump(state, key, -penalty)
-      state.round.award = { name: leader.name, points: -penalty }
-    }
+    if (penalty) bump(state, key, -penalty)
+    // Outside the `if`: a neg of zero is still a neg, and the room has to see
+    // that the question was missed even when it cost nothing.
+    state.round.award = { name: leader.name, points: -penalty, penalty: true }
     if (state.game.options.bouncebacks !== false) {
       if (!state.round.lockedOut.includes(key)) state.round.lockedOut.push(key)
     }

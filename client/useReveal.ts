@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { parseTune, play } from './sound.ts'
+import { isPenalty } from '../shared/protocol.ts'
 import type { State } from '../shared/protocol.ts'
 
 /**
@@ -60,7 +61,7 @@ export function useReveal(round?: State['round']): Reveal {
    * whatever comes back is new.
    */
   const award = round?.award
-  const awardKey = award ? `${award.name}:${award.points}` : ''
+  const awardKey = award ? `${award.name}:${award.points}:${isPenalty(award) ? 'p' : 'a'}` : ''
   const thudded = useRef('')
   useEffect(() => {
     if (!settled) return
@@ -70,7 +71,7 @@ export function useReveal(round?: State['round']): Reveal {
     }
     if (awardKey === thudded.current) return
     thudded.current = awardKey
-    play(award!.points < 0 ? 'penalty' : 'award')
+    play(isPenalty(award) ? 'penalty' : 'award')
   }, [awardKey, settled])
 
   /**
@@ -89,7 +90,7 @@ export function useReveal(round?: State['round']): Reveal {
     // Forgotten the moment there is no penalty up, for the same reason the thud
     // is: without the arm in the key, a retired "Ada −100" would otherwise
     // retire the next identical one before the room ever saw it.
-    if (!award || award.points >= 0) {
+    if (!isPenalty(award)) {
       setRetiredKey('')
       return
     }

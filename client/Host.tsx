@@ -5,6 +5,7 @@ import { DuelPanel } from './DuelPanel.tsx'
 import { HostSetup } from './HostSetup.tsx'
 import { Spoken } from './Spoken.tsx'
 import { momentOf } from '../shared/wall.ts'
+import { isPenalty } from '../shared/protocol.ts'
 import type { HostAction, ScoreKey } from '../shared/protocol.ts'
 
 /**
@@ -96,12 +97,14 @@ export function Host() {
   // not score the very question the room was waiting on, and had to spend an N.
   // The machine judge never hit it, because a synthetic host connection goes
   // straight to `applyHostAction` and never reads this. The server's own rule is
-  // just leader-and-LOCKED, and a negative award means the question is still
-  // live, not scored.
+  // just leader-and-LOCKED, and a penalty means the question is still live, not
+  // scored. `isPenalty`, not the sign: a no-penalty wrong now stamps points of
+  // zero, and `>= 0` read that as a payoff and took the desk dead on the retake
+  // it caused — the same failure as the stale −400, one value further along.
   const judgeable =
     momentOf(state, { open, settled: true, retired: true }) === 'answer:locked' &&
     !!leader &&
-    !(round.award && round.award.points >= 0)
+    !(round.award && !isPenalty(round.award))
   judgeableRef.current = judgeable
 
   // A miss is up and the box has not opened its rebound yet. Nobody is

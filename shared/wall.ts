@@ -24,7 +24,8 @@
  * 2. It never reads the clock and never reads the DOM. Everything time-dependent
  *    arrives in `Local`. That is what keeps it runnable under `node:test`.
  */
-import type { State } from './protocol.ts'
+import { isPenalty } from './protocol.ts'
+import type { Award, State } from './protocol.ts'
 
 /**
  * The thirteen states, in priority order — `momentOf` returns the first that
@@ -83,16 +84,42 @@ export function momentOf(state: State, local: Local): Moment {
 
   // A result outranks the next nomination window: a penalty rides the rebound
   // it caused, so the phase is already ARMED again underneath this.
-  if (r.award && !local.retired) {
-    return r.award.points < 0 ? 'verdict:penalty' : 'verdict:award'
+  //
+  // A duel's rebound is the one place a verdict outlives its dwell. The
+  // buzzers are open again but only to one player, and the room has to keep
+  // reading why for as long as that is true — a dwell that expires mid-rebound
+  // drops the wall to a bare "Ready" while the question is still live, which
+  // is the miss disappearing before it has been answered for. It comes down
+  // when the other seated player buzzes, not on a timer: `ARMED` is what says
+  // nobody has yet, and it is public, so the phones agree.
+  //
+  // Whoever buzzes next ends it, dwell or no dwell. A rebound taken inside the
+  // penalty's 2.2s left the stamp on the wall while the board played the
+  // buzz-in — the sound of someone taking the question, over a picture still
+  // showing the last person missing it, and the new leader's name arriving up
+  // to a second later when the round locked. COLLECTING is the phase that says
+  // the room has answered, and it is public, so the phones agree.
+  const rebounding = r.buzzable?.length === 1 && r.phase === 'ARMED'
+  if (r.award && r.phase !== 'COLLECTING' && (!local.retired || rebounding)) {
+    return isPenalty(r.award) ? 'verdict:penalty' : 'verdict:award'
   }
 
   if (state.duel && !state.duel.seated) return 'duel:nominating'
   // `[]`, not absent: both seated players missed, and nobody at all may buzz.
   if (r.buzzable?.length === 0) return 'duel:dead'
+  // A press outranks the pair, because the pair is who *may* answer and this is
+  // who *is*. Under the face-off the wall sat on "Ada vs Bo" for the whole
+  // collection window while the board had already sounded the buzz-in — a
+  // second of hearing someone take the question and watching the stage still
+  // offer it to both of them.
+  //
+  // Only the moment moves. `middleOf` shows the face-off from `seated` rather
+  // than from the moment, so the pair still holds the stage through the 150ms
+  // before the order is published, and the name replaces it the instant there
+  // is one.
+  if (r.phase === 'COLLECTING') return 'buzz:collecting'
   if (r.buzzable?.length === 2 || state.duel?.seated) return 'duel:faceoff'
 
-  if (r.phase === 'COLLECTING') return 'buzz:collecting'
   if (r.phase === 'ARMED') return local.open ? 'buzz:open' : 'buzz:arming'
 
   // Welcome is not "the round is idle" — that is also true between every pair
@@ -124,7 +151,7 @@ export type Wall = {
   call: 'buzz' | 'standby' | 'ready' | 'dead' | null
 
   transcript: { name: string; text: string; hit: boolean } | null
-  award: { name: string; points: number; answer?: string } | null
+  award: (Award & { answer?: string }) | null
   timeline: boolean
   filament: boolean
   value: number | null
@@ -154,26 +181,91 @@ const EMPTY_MIDDLE = {
 } satisfies Pick<Wall, 'hero' | 'clue' | 'nominations' | 'faceoff' | 'call'>
 
 /**
- * Priority order, and it is the board's own, ported: a nomination window and a
- * dead duel outrank the clue, a faceoff yields to it.
+ * The middle band's occupant: one row per moment, in preference order.
+ *
+ * This used to be a second priority ladder — six `if`s that re-ranked the same
+ * five occupants out of raw state, next to the thirteen-way ranking `momentOf`
+ * had already done. Every display bug of the last week was the two ladders
+ * disagreeing rather than either one being wrong: a face-off that outlived the
+ * buzz-in because it outranked `buzz:collecting`, a penalty that outlived the
+ * rebound answering it, a payoff that handed the stage back to the pair. Each
+ * was fixed by tweaking a boolean, which is what having two ladders costs.
+ *
+ * There is one ladder now, in `momentOf`, and this is a lookup against it. A
+ * row says what its moment would like to show and what it settles for when the
+ * first choice has no data — never what outranks what, because the moment has
+ * already answered that. The `switch` is exhaustive with no `default`, so a new
+ * `Moment` does not compile until it has a row, and `or` returns exactly one
+ * occupant by construction.
  */
-function middleOf(state: State, m: Moment, hero: Wall['hero'], reading: boolean): Middle {
+function middleOf(state: State, m: Moment): Middle {
   const r = state.round
-  if (hero) return { hero }
-  if (m === 'duel:nominating') return { nominations: state.grouping === 'teams' ? 'teams' : 'solo' }
-  if (m === 'duel:dead') return { call: 'dead' }
-  // The reading view and the buzz call are alternatives, not a sequence. While
-  // the box is driving, the question owns the middle for the whole question —
-  // empty at the arm, filling as the voice reaches each clause.
-  if (reading || r.fragments?.length) {
-    return { clue: { whole: r.whole, shown: r.fragments?.join(' ') ?? '' } }
+  const nameOf = (id: string) => state.players.find((p) => p.id === id)?.name ?? '?'
+  const hero = (name?: string, tone: 'answering' | 'penalised' = 'answering') =>
+    name ? ({ hero: { name, tone } } satisfies Middle) : null
+
+  // The first choice that has anything to show. The fall-through is `ready`
+  // because a stage with nothing on it is a stage waiting for the host.
+  const or = (...xs: (Middle | null | undefined)[]): Middle =>
+    xs.find((x) => x != null) ?? { call: 'ready' }
+
+  // The question, while there is one on the stage: the box is mid-read, or what
+  // it has read so far is still up. Empty at the arm, filling as the voice
+  // reaches each clause.
+  const clue: Middle | null =
+    state.reading?.running || r.fragments?.length
+      ? { clue: { whole: r.whole, shown: r.fragments?.join(' ') ?? '' } }
+      : null
+
+  // The duel's pair, not who may buzz right now — a rebound narrows `buzzable`
+  // to one, and who is on the stage does not change when one of them misses.
+  const seated = state.duel?.seated ?? r.buzzable
+  const pair: Middle | null =
+    seated?.length === 2 ? { faceoff: [nameOf(seated[0]), nameOf(seated[1])] } : null
+
+  // `wallOf` is the board's, so `order` is whole here. `momentOf` may not read
+  // it; this may, because a name is exactly what a moment cannot carry.
+  const leader = hero(r.order[0]?.name)
+  const spoken = hero(r.spoken?.name)
+  const scorer = hero(r.award?.name, isPenalty(r.award) ? 'penalised' : 'answering')
+
+  switch (m) {
+    // The verdict clears `order` the instant it lands, but the room is still
+    // reading the transcript above. Without this the stage flicks back to the
+    // clue and is taken away again when the stamp arrives — the question
+    // appearing to resume under an answer nobody has been told the result of.
+    case 'answer:judging':
+      return or(spoken, leader, clue)
+    // A miss takes the middle outright, clue or no clue: it leaves the question
+    // live and the room has to be told why, against the name it cost.
+    case 'verdict:hold':
+    case 'verdict:penalty':
+      return or(scorer, clue)
+    // A payoff yields, because it sits over the question rather than instead of
+    // it — but with nothing left on the stage it is the name, not a bare
+    // "Ready" under a +200 belonging to nobody.
+    case 'verdict:award':
+      return or(clue, scorer)
+    case 'answer:locked':
+    case 'buzz:collecting':
+      // The pair is who *may* answer; the leader is who *is*. Before the order
+      // is published — the hub holds it 150ms — the pair still holds the stage,
+      // so a duel's buzz-in replaces it rather than blanking it first.
+      return or(leader, clue, pair, { call: 'standby' })
+    case 'duel:nominating':
+      return { nominations: state.grouping === 'teams' ? 'teams' : 'solo' }
+    case 'duel:dead':
+      return { call: 'dead' }
+    case 'duel:faceoff':
+      return or(clue, pair)
+    case 'buzz:open':
+      return or(clue, { call: 'buzz' })
+    case 'buzz:arming':
+      return or(clue, { call: 'standby' })
+    case 'idle:ready':
+    case 'idle:welcome':
+      return or(clue, { call: 'ready' })
   }
-  const seated = r.buzzable ?? state.duel?.seated
-  if (seated?.length === 2) {
-    const nameOf = (id: string) => state.players.find((p) => p.id === id)?.name ?? '?'
-    return { faceoff: [nameOf(seated[0]), nameOf(seated[1])] }
-  }
-  return { call: m === 'buzz:open' ? 'buzz' : isFamily(m, 'buzz') ? 'standby' : 'ready' }
 }
 
 export function wallOf(state: State, local: Local): Wall {
@@ -185,33 +277,18 @@ export function wallOf(state: State, local: Local): Wall {
   // the server is showing the miss until it opens the buzzers and the board
   // must not go dark in between.
   const showAward = !!r.award && (m === 'verdict:award' || m === 'verdict:penalty' || m === 'verdict:hold')
-  const penalised = showAward && !!r.award && r.award.points < 0
-
-  // The leader owns the middle for as long as there is one. Not from `order`
-  // itself — `wallOf` is the board's, so `order` is whole here, but a moment
-  // must never depend on it.
-  const leader = m === 'answer:locked' || m === 'buzz:collecting' ? r.order[0] : undefined
-  const hero: Wall['hero'] = leader
-    ? { name: leader.name, tone: 'answering' }
-    : m === 'answer:judging' && r.spoken
-      ? // The verdict clears `order` the instant it lands, but the room is still
-        // reading the transcript above. Without this the stage flicks back to
-        // the clue for two seconds and is taken away again when the stamp
-        // arrives — the question appearing to resume under an answer nobody has
-        // been told the result of.
-        { name: r.spoken.name, tone: 'answering' }
-      : penalised && r.award
-        ? // The room reads the −400 against who it happened to, in the same
-          // tally-red as the stamp above it, so the miss reads as one thing.
-          { name: r.award.name, tone: 'penalised' }
-        : null
+  const penalised = showAward && isPenalty(r.award)
 
   const reading = !!state.reading?.running
+
+  // The lower band's question, not the middle's: whose timeline, whose warm-up
+  // bar, whose value. `middleOf` owns who is on the stage.
+  const leader = m === 'answer:locked' || m === 'buzz:collecting' ? r.order[0] : undefined
 
   return {
     moment: m,
     ...EMPTY_MIDDLE,
-    ...middleOf(state, m, hero, reading),
+    ...middleOf(state, m),
     transcript: r.spoken
       ? { name: r.spoken.name, text: r.spoken.transcript, hit: r.spoken.hit }
       : null,
