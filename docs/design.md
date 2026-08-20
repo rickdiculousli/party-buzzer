@@ -398,7 +398,7 @@ it, which is the whole point of a synchronised start.
 
 Two rules:
 
-- `--lead` is **time actually remaining** (`armedAt - now()`), not the constant.
+- `--delay` is **time actually remaining** (`armedAt - now()`), not the constant.
   A client that heard late gets a shorter warm-up, never a wrong one.
 - Key the element on `round.armedAt` so the animation restarts once per arm and
   not on every unrelated broadcast.
