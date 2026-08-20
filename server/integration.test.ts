@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { setTimeout as sleep } from 'node:timers/promises'
-import { ARM_LEAD_MS } from './state.ts'
+import { ARM_DELAY_MS } from './state.ts'
 import { COLLECT, FakeClient, REVEAL, SETTLE, withServer } from './e2e.ts'
 
 test('the player who pressed first wins despite arriving last', async () => {
@@ -19,10 +19,10 @@ test('the player who pressed first wins despite arriving last', async () => {
     host.send({ t: 'host', action: { a: 'arm' } })
     await sleep(30)
 
-    // Amy jumps the gun during the lead-in. If the pre-fire guard broke, this
+    // Amy jumps the gun during the countdown. If the pre-fire guard broke, this
     // buzz would be kept and she would take first below.
     amy.send({ t: 'buzz', at: performance.now() + amy.offset })
-    await sleep(ARM_LEAD_MS)
+    await sleep(ARM_DELAY_MS)
 
     // Bea physically presses 20ms before Amy.
     bea.send({ t: 'buzz', at: performance.now() + bea.offset })
@@ -56,7 +56,7 @@ test('the leader shows early, and a slow packet with an early stamp takes the le
     await bea.sync()
 
     host.send({ t: 'host', action: { a: 'arm' } })
-    await sleep(ARM_LEAD_MS + 20)
+    await sleep(ARM_DELAY_MS + 20)
 
     amy.send({ t: 'buzz', at: performance.now() + amy.offset })
 
@@ -115,7 +115,7 @@ test('undo takes back an award, including the one before it', async () => {
 
     const award = async () => {
       host.send({ t: 'host', action: { a: 'arm' } })
-      await sleep(ARM_LEAD_MS + 20)
+      await sleep(ARM_DELAY_MS + 20)
       amy.send({ t: 'buzz', at: performance.now() + amy.offset })
       await sleep(SETTLE)
       host.send({ t: 'host', action: { a: 'correct' } })

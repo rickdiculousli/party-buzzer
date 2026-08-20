@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { setTimeout as sleep } from 'node:timers/promises'
-import { ARM_LEAD_MS } from './state.ts'
+import { ARM_DELAY_MS } from './state.ts'
 import { FakeClient, SETTLE, withServer } from './e2e.ts'
 
 test('a duel: vote, seat, the seated only, exclusive rebound', async () => {
@@ -31,7 +31,7 @@ test('a duel: vote, seat, the seated only, exclusive rebound', async () => {
     assert.deepEqual(host.last.duel?.seated, [bo.playerId, ada.playerId])
 
     host.send({ t: 'host', action: { a: 'arm' } })
-    await sleep(ARM_LEAD_MS + 30)
+    await sleep(ARM_DELAY_MS + 30)
     assert.deepEqual(host.last.round.buzzable, [bo.playerId, ada.playerId])
 
     // Cy is not in this round: the buzz is dropped, the window never opens.
@@ -47,7 +47,7 @@ test('a duel: vote, seat, the seated only, exclusive rebound', async () => {
     assert.deepEqual(host.last.round.buzzable, [ada.playerId], 'the rebound is Ada’s alone')
 
     // Bo’s thumb is dead now; Ada’s is not.
-    await sleep(ARM_LEAD_MS)
+    await sleep(ARM_DELAY_MS)
     bo.send({ t: 'buzz', at: performance.now() + bo.offset })
     await sleep(30)
     await ada.sync()

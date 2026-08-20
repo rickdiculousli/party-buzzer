@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
-import { ARM_LEAD_MS } from '../shared/protocol.ts'
+import { ARM_DELAY_MS } from '../shared/protocol.ts'
 import { knownModule, moduleFor, sanitizeOptions } from './modes/index.ts'
 import { executeGrants } from './items.ts'
 import { duelOnArm, duelOnWrong, duelRule, resolveDuel, seatDuel } from './duel.ts'
@@ -9,7 +9,7 @@ import type {
   SetlistBlock, HostAction, PlayerId, ScoreKey, State,
 } from '../shared/protocol.ts'
 
-export { ARM_LEAD_MS }
+export { ARM_DELAY_MS }
 
 /** A dwell the host typed: tenths of a second, never negative, never a minute. */
 const secs = (n: number, fallback: number): number =>
@@ -110,7 +110,7 @@ function openRebound(state: State): void {
   const round = state.round
   delete round.held
   round.phase = 'ARMED'
-  round.armedAt = Date.now() + ARM_LEAD_MS
+  round.armedAt = Date.now() + ARM_DELAY_MS
   round.order = []
   round.total = 0
   for (const e of state.effects) e.roundArmedAt = round.armedAt
@@ -126,7 +126,7 @@ export function applyHostAction(state: State, action: HostAction): void {
   switch (action.a) {
     case 'arm': {
       round.phase = 'ARMED'
-      round.armedAt = Date.now() + ARM_LEAD_MS
+      round.armedAt = Date.now() + ARM_DELAY_MS
       round.order = []
       round.total = 0
       delete round.award

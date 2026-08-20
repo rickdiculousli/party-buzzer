@@ -203,7 +203,7 @@ export function Player() {
 
   // The go cue. Lower than the buzz blip so the two never get confused, and
   // skipped for players who are locked out and cannot act on it.
-  const { open, lead } = useOpen(round, now, () => {
+  const { open, delay } = useOpen(round, now, () => {
     if (barred || frozen || spectator) return
     navigator.vibrate?.([40, 40, 40])
     blip(audio.current, 440)
@@ -414,12 +414,12 @@ export function Player() {
 
       {/* Reserved whether or not the filament is in it. Otherwise arming
           shrinks the buzzer under the thumb that is about to press it. */}
-      <div class="player__lead-in">
+      <div class="player__countdown">
         {armed && !barred && (
           <div
             key={round?.armedAt}
             class={open ? 'filament is-hot player__filament' : 'filament player__filament'}
-            style={{ '--lead': `${lead}ms` }}
+            style={{ '--delay': `${delay}ms` }}
           />
         )}
       </div>

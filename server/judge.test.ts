@@ -10,7 +10,7 @@ import { newState } from './state.ts'
 import { Judge, type Transcribe } from './judge.ts'
 import { Reader } from './reader.ts'
 import type { Speech } from './speech.ts'
-import { ARM_LEAD_MS } from '../shared/protocol.ts'
+import { ARM_DELAY_MS } from '../shared/protocol.ts'
 
 const hostConn: Conn = { id: 'h', role: 'host', send: () => {} }
 
@@ -133,7 +133,7 @@ test('a rebound nobody held keeps the transcript until someone takes the questio
 
   const bo: Conn = { id: 'b', role: 'player', send: () => {} }
   hub.handle(bo, { t: 'hello', role: 'player', name: 'Bo' })
-  await sleep(ARM_LEAD_MS + 5)
+  await sleep(ARM_DELAY_MS + 5)
   hub.handle(bo, { t: 'buzz', at: Date.now() })
   assert.equal(state.round.phase, 'COLLECTING', 'Bo is in')
   assert.equal(state.round.spoken, undefined, 'and the miss goes with the handover')
@@ -252,7 +252,7 @@ test('the reader primes at arm and unprimes at stop — the full loop in-process
 
   await reader.select('one.txt')
   reader.start()
-  await sleep(ARM_LEAD_MS + 30)
+  await sleep(ARM_DELAY_MS + 30)
   await lockIn(hub, ada)
   assert.ok(state.round.judge !== undefined, 'primed at arm, the window opened')
 

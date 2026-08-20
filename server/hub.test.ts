@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Hub, type Conn } from './hub.ts'
 import { newState } from './state.ts'
-import { ARM_LEAD_MS, COLLECT_MS, type Role, type ServerMsg, type State } from '../shared/protocol.ts'
+import { ARM_DELAY_MS, COLLECT_MS, type Role, type ServerMsg, type State } from '../shared/protocol.ts'
 import { momentOf, type Local } from '../shared/wall.ts'
 
 function rig() {
@@ -273,7 +273,7 @@ test('the wall and the phones never disagree about the moment', async () => {
 
   hub.handle(host, { t: 'host', action: { a: 'arm' } })
   agree('armed')
-  await new Promise((r) => setTimeout(r, ARM_LEAD_MS + 5))
+  await new Promise((r) => setTimeout(r, ARM_DELAY_MS + 5))
   hub.handle(ada, { t: 'buzz', at: Date.now() })
   agree('collecting, before the reveal')
   await new Promise((r) => setTimeout(r, COLLECT_MS + 60))

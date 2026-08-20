@@ -299,7 +299,7 @@ export class Hub {
     if (round.phase !== 'ARMED' && round.phase !== 'COLLECTING') return
 
     const arrivedAt = Date.now()
-    // Arming is scheduled ahead, so ARMED includes a lead-in nobody may buzz
+    // Arming is scheduled ahead, so ARMED includes a countdown nobody may buzz
     // during. Arrival time is server truth, so this needs no clock tolerance:
     // a packet that landed before the arm instant was sent before it.
     if (arrivedAt < round.armedAt) return

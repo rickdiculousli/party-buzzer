@@ -234,7 +234,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   transform: scaleX(0);
   transform-origin: left;
   background: var(--ember);
-  animation: warm var(--lead, 300ms) linear forwards;
+  animation: warm var(--delay, 300ms) linear forwards;
 }
 @keyframes warm {
   from { transform: scaleX(0); background: var(--ember); box-shadow: none; }
@@ -383,7 +383,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 /* Reserved whether or not the filament is in it, so arming does not nudge the
    value down a line. */
-.board__lead-in {
+.board__countdown {
   height: 6px;
   width: 100%;
   display: flex;
@@ -855,7 +855,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 
 /* The phone gets the filament too, so the go cue is felt before it is read. */
 .player__filament { width: 100%; }
-.player__lead-in { height: 6px; flex: none; }
+.player__countdown { height: 6px; flex: none; }
 
 .player__items {
   display: flex;

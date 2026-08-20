@@ -291,8 +291,8 @@ export const SCENARIOS: Scenario[] = [
         mid={lead ? <p class="board__idle">Stand by</p> : <p class="board__call">Buzz</p>}
         below={
           <>
-            <div class="board__lead-in">
-              <div class={lead ? 'filament' : 'filament is-hot'} style={{ '--lead': '900ms' }} />
+            <div class="board__countdown">
+              <div class={lead ? 'filament' : 'filament is-hot'} style={{ '--delay': '900ms' }} />
             </div>
             <p class="board__value">400</p>
           </>
@@ -316,7 +316,7 @@ export const SCENARIOS: Scenario[] = [
           </span>
           <span class="player__score readout">400</span>
         </div>
-        <div class="player__lead-in" />
+        <div class="player__countdown" />
         <button class={lead ? 'buzzer is-open' : 'buzzer is-placed'}>
           {lead ? 'Buzz' : 'In'}
           {!lead && <span class="buzzer__sub">Counting the rest of the field</span>}

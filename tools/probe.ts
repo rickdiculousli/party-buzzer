@@ -71,7 +71,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { connect, reachable, type Conn } from './conn.ts'
 import { clipPath, run } from '../server/speech.ts'
-import { ARM_LEAD_MS, COLLECT_MS } from '../shared/protocol.ts'
+import { ARM_DELAY_MS, COLLECT_MS } from '../shared/protocol.ts'
 
 const args = process.argv.slice(2)
 const URL = process.env.URL ?? (await reachable())
@@ -254,7 +254,7 @@ async function main() {
           // So watch the phase instead, and keep the arithmetic only as the
           // ceiling for the case where nothing locks because every press was
           // dropped — a spectator's, in a duel.
-          const settle = last + COLLECT_MS + ARM_LEAD_MS
+          const settle = last + COLLECT_MS + ARM_DELAY_MS
           await Promise.race([
             host.waitFor((s) => s.round.phase === 'LOCKED', settle + 500).catch(() => {}),
             sleep(settle),

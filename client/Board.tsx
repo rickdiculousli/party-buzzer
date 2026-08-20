@@ -179,7 +179,7 @@ export function Board() {
   const { state, now, connected } = useSocket('board')
   // The big screen is what the room watches, so it must not light up before
   // the phones do. Same countdown to armedAt as every other surface.
-  const { open, lead } = useOpen(state?.round, now)
+  const { open, delay } = useOpen(state?.round, now)
 
   /**
    * The board is the only surface with a speaker the whole room can hear, and
@@ -416,14 +416,14 @@ export function Board() {
             <>
               {/* The slot is always here so the filament arriving does not
                   shove the value down a line. */}
-              <div class="board__lead-in">
+              <div class="board__countdown">
                 {w.filament && (
                   // Keyed on the arm instant so the warm-up restarts once per
                   // arm and not on every unrelated broadcast.
                   <div
                     key={round.armedAt}
                     class={open ? 'filament is-hot' : 'filament'}
-                    style={{ '--lead': `${lead}ms` }}
+                    style={{ '--delay': `${delay}ms` }}
                   />
                 )}
               </div>

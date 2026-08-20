@@ -388,7 +388,7 @@ export class Reader {
       // Before the first fragment is pushed, fragments can't carry that
       // signal yet (both cases read as empty), so that one check falls back
       // to `armedAt`. That's safe specifically here: COLLECT_MS is longer
-      // than ARM_LEAD_MS, so a genuine wrong-judgment rebound cannot land
+      // than ARM_DELAY_MS, so a genuine wrong-judgment rebound cannot land
       // before this question's first fragment goes out.
       let pushed = 0
       const stillMine = () =>

@@ -10,7 +10,7 @@ export type ScoreKey = string
  * Part of the wire contract: clients count down to `round.armedAt` and use this
  * as the ceiling on how long that countdown can possibly be.
  */
-export const ARM_LEAD_MS = 300
+export const ARM_DELAY_MS = 300
 
 export type Role = 'player' | 'host' | 'board'
 export type Grouping = 'solo' | 'teams'

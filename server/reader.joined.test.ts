@@ -13,7 +13,7 @@ import { newState } from './state.ts'
 import { Reader, type Aligner } from './reader.ts'
 import { join } from './align.ts'
 import type { Playback, Speech } from './speech.ts'
-import { ARM_LEAD_MS } from '../shared/protocol.ts'
+import { ARM_DELAY_MS } from '../shared/protocol.ts'
 
 const FRAGMENTS = ['First one, with a clause.', 'Second one.']
 const PACK = `V: 300\n${FRAGMENTS.join(' / ')}\nA: gold\n`
@@ -67,7 +67,7 @@ function rig(align?: Aligner) {
 
 const settle = (ms = 30) => new Promise((r) => setTimeout(r, ms))
 async function reachArm(state: ReturnType<typeof newState>) {
-  await settle(ARM_LEAD_MS + 30)
+  await settle(ARM_DELAY_MS + 30)
   return state
 }
 
@@ -75,7 +75,7 @@ test('the whole question is one utterance, with no separator in it', async () =>
   const { reader, plays } = rig(foldsFor())
   await reader.select('one.txt')
   reader.start()
-  await settle(ARM_LEAD_MS + 40)
+  await settle(ARM_DELAY_MS + 40)
 
   assert.equal(plays.length, 1, 'one clip for the question, not one per fragment')
   const spoken = plays[0].path.replace('/fake/', '')
