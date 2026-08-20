@@ -570,7 +570,50 @@ player exactly what happened and when it ends.
 
 ---
 
-## 9. Seeing it move
+## 9. Canon words
+
+One word per thing, one thing per word. These are settled; when something
+needs a name, check here before minting one, and when prose here and code
+disagree, the code is what gets renamed.
+
+- **round / question / block** — a round is one arm-to-verdict cycle; a
+  question is the pack content being read; a block is one segment of a
+  setlist. A round is not a question is not a block.
+- **value / points / score** — `round.value` is what is at stake,
+  `award.points` is what was awarded, `state.scores` is what has accumulated.
+- **order / standings** — `round.order` is the buzz order. The score ranking
+  is the standings, never "the order".
+- **leader / hero** — the leader is `order[0]`, a fact about the round; the
+  hero is the `Wall`'s big name, a thing on the screen.
+- **read** — the box reads; nothing else does. `Reader`, `state.reading` and
+  `act:read` own the word. Reading a file is prose, never an identifier.
+- **open** — one sense only: a thing becoming available (`useOpen`,
+  `openRebound`, `openDuel`). The arm countdown is the **delay**
+  (`ARM_DELAY_MS`), and **lead** is only a position in the buzz order — the
+  lead changes hands, it is never a duration.
+- **cue / recipe / layer / bed / clip** — a cue is what a moment plays; a
+  recipe is its layers; a layer is one source under an envelope; a bed is a
+  loop; a clip is a rendered file. A "sample" is just a file-sourced layer.
+- **hold / sustain** — the hold is the beat a miss holds the wall before its
+  rebound opens (`round.held`); sustain is an envelope segment. The envelope
+  never holds and the verdict never sustains.
+- **mode / grouping** — the mode is the game module (`setMode`,
+  `server/modes/`); solo vs teams is the grouping. The old warning about two
+  things called "mode" is retired by this line.
+- **setlist** — the ordered blocks a night plays through, and the strip that
+  shows them. "Flow" for this is retired; a flow is a river's.
+- **pool / seated / buzzable** — the pool is a duel's nominees, the seated are
+  the pair facing off, the buzzable are who may buzz right now
+  (`round.buzzable`). Nobody is a finalist.
+- **spoken / answer** — spoken is the player's transcript (`round.spoken`,
+  `POST /spoken`); the answer is the revealed correct one (`round.answer`).
+- **wall / stage** — `board__wall` renders the `Wall`. `--stage` is only the
+  backdrop colour, and the word belongs to the theatrical metaphor, never to
+  a region or a position in a sequence.
+
+---
+
+## 10. Seeing it move
 
 Static screens lie about a design that only exists over time. `npm run sim`
 fills the room with bots that buzz like people — uneven skill, uneven reflexes,
@@ -600,7 +643,7 @@ fills.
 
 ---
 
-## 10. Adding something new
+## 11. Adding something new
 
 1. Can an existing component do it? Use it.
 2. Is it drama or measurement? That answers the colour and the typeface.
