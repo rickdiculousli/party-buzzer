@@ -217,7 +217,7 @@ export class Hub {
       // Display-only progress from the reader. Undefined clears it.
       this.state.reading = (data ?? undefined) as State['reading']
     } else if (name === 'selectPack' && typeof data === 'string') {
-      // Mid-question would cut the room off; refuse it the way setGame does.
+      // Mid-question would cut the room off; refuse it the way setMode does.
       if (this.state.round.phase !== 'IDLE') return
       this.reader?.select(data).catch((e) => console.warn(`[hub] selectPack failed: ${e}`))
     } else if (name === 'read') {

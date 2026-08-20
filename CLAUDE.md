@@ -110,12 +110,9 @@ question. Design: `docs/superpowers/specs/2026-08-18-wall-boundary-design.md`.
   `shared/modes/types.ts`, and `client/modes/` is where one may override a whole
   surface. Hooks (scoring, power, item grants) are all optional; `trivia`
   defines none and is today's game. A module has no mid-session lifecycle — no
-  start/stop hooks, no event bus — so switching games means a `setGame` reset,
+  start/stop hooks, no event bus — so switching games means a `setMode` reset,
   which is exactly what a flow block does at its boundary (with `keepScores`).
-
-  **Two different things are called "mode".** `setMode` is solo vs teams.
-  `setGame` is the module. They are unrelated switches; say game or module when
-  you mean the second one.
+  Solo vs teams is the `grouping`, a different switch entirely.
 - `server/items.ts` — framework-level boons/sabotage (freeze, shield, steal),
   fired by players over the `act` channel and validated before they apply.
 - `server/duel.ts` — heads-up duels (two-player face-offs). Framework-level,
@@ -295,15 +292,15 @@ Probe also drives a whole duel — `duel:` opens one, `vote:Bo=Ada` and
 host connection is dropped, which is the rule worth exercising rather than
 routing around), `unvote:` takes a vote back so you can watch a tally count
 down, and `seat`/`cancel` close the window. `teams:Red=Ada,Bo/Blue=Cy,Dee` sets
-the mode, the teams and the assignments in one step, reusing a team of that name
-if the room already has one and leaving the mode alone if it is already teams —
-`setMode` drops an open duel, so re-sending it to add one late player would
+the grouping, the teams and the assignments in one step, reusing a team of that name
+if the room already has one and leaving the grouping alone if it is already teams —
+`setGrouping` drops an open duel, so re-sending it to add one late player would
 cancel the window you were about to watch.
 `speak:Name=transcript` POSTs the transcript as `text/plain` into the judge's
 verdict path, so a whole spoken round is one command; real audio is the
 checklist's.
 
-In teams mode a vote may only name someone on the voter's own side: the seat
+In a teams grouping a vote may only name someone on the voter's own side: the seat
 takes one player per team, so nominating across the line is choosing your
 opponent's champion. `duelAct` refuses it, the phone's roster shows only your
 team, and the board splits the pool into a column per side.
@@ -318,7 +315,7 @@ With `wait:` between the steps that is a paced walkthrough you can watch on a
 phone, and the two worth keeping are npm scripts rather than a paragraph to
 retype: **`npm run walk-duel`** is ten players trading a nomination lead through
 switches and withdrawals until it changes hands twice, **`npm run walk-teams`**
-is the same in teams mode, where the seat has to reach past a same-team runner-up
+is the same in a teams grouping, where the seat has to reach past a same-team runner-up
 and a wrong answer locks out a whole side. Both end in a `clear`.
 
 **`npm run walk-read`** and **`npm run walk-packs`** are the reading pair, and
@@ -338,7 +335,7 @@ them. Nothing renders twice — the clips cache like the reader's.
 
 Both are repeatable rather than merely re-runnable, which took three things:
 `rewind` (the reader's read positions are per pack and survive a Stop, so a
-walkthrough has to forget them on purpose), `game:` (a mode left in quizbowl
+walkthrough has to forget them on purpose), `mode:` (a mode left in quizbowl
 scores 250 where trivia scores 200), and `direct` (a direct-play script cannot
 run in a room that is in setlist mode). The scores are asserted in
 `docs/manual-checklist.md` — the same three numbers every run, or something

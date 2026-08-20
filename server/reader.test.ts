@@ -104,7 +104,7 @@ test('power closes after the configured fragment', async () => {
   const { hub, state, reader } = rig(PACK)
   hub.handle({ id: 'h', role: 'host', send: () => {} }, {
     t: 'host',
-    action: { a: 'setGame', id: 'quizbowl', options: { powerAfterFragment: 1 } },
+    action: { a: 'setMode', id: 'quizbowl', options: { powerAfterFragment: 1 } },
   })
   await reader.select('one.txt')
   reader.start()

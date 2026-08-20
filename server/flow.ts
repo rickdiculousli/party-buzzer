@@ -30,7 +30,7 @@ export function applySetup(state: State, apply: Apply): void {
   const flow = state.flow
   const block = flow?.blocks[flow.at]
   if (!block) return
-  apply({ a: 'setGame', id: block.game, options: block.options, keepScores: true })
+  apply({ a: 'setMode', id: block.game, options: block.options, keepScores: true })
   if (block.value !== undefined) apply({ a: 'setValue', value: block.value })
 }
 
@@ -94,7 +94,7 @@ export function sanitizeBlocks(
       console.warn(`[flow] block names unknown duel rule "${String(b.duel)}" — dropped`)
       continue
     }
-    // ponytail: options ride through unchecked. setGame sanitizes them against
+    // ponytail: options ride through unchecked. setMode sanitizes them against
     // the module's schema on the way in, which is the only place that knows it.
     const count = Number(b.count)
     const block: FlowBlock = {

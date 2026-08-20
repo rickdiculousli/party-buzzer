@@ -269,7 +269,7 @@ export type HostAction =
   | { a: 'addTeam'; name: string; color: string }
   | { a: 'assign'; playerId: PlayerId; teamId?: TeamId }
   /** `keepScores` is the flow crossing a block boundary; a host switch resets. */
-  | { a: 'setGame'; id: string; options: Record<string, unknown>; keepScores?: boolean }
+  | { a: 'setMode'; id: string; options: Record<string, unknown>; keepScores?: boolean }
   | { a: 'setMirror'; on: boolean }
   /** The whole triple every time: one edit, one undo step, no partial merge. */
   | { a: 'setAutoplay'; on: boolean; nextSec: number; reboundSec: number }

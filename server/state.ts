@@ -257,7 +257,7 @@ export function applyHostAction(state: State, action: HostAction): void {
       // Handled by the hub, which owns the snapshot stack.
       return
 
-    case 'setGame': {
+    case 'setMode': {
       // Modes are fixed per session; switching is a fresh game, refused mid-question.
       if (round.phase !== 'IDLE') return
       // A pool was built under the old game's room; a seated pair is a
@@ -389,7 +389,7 @@ export function applyHostAction(state: State, action: HostAction): void {
       return
 
     case 'setFlow': {
-      // Setup, not play — refused mid-question the way setGame is.
+      // Setup, not play — refused mid-question the way setMode is.
       if (round.phase !== 'IDLE') return
       const blocks = sanitizeBlocks(action.blocks, knownModule, (id) => !!duelRule(id))
       if (blocks.length === 0) {

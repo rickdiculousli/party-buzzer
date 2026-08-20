@@ -36,7 +36,7 @@
  *   rewind           forget where every pack got to, so a walkthrough repeats exactly
  *   read             start the reader on the chosen pack or the block's
  *   armed            wait for the buzzers to open — the reader arms, not you
- *   game:trivia      pin the mode (resets scores, as a host mode switch does)
+ *   mode:trivia      pin the mode (resets scores, as a host mode switch does)
  *   direct           drop any setlist — the one step that touches a flow probe did not set
  *   act:name[:data]  host-scoped act (fragment / powerEnds / revealAnswer)
  *   speak:A=text     A's transcript, POSTed as text/plain into the judge
@@ -117,7 +117,7 @@ async function main() {
     // The header comment is the manual; printing a second copy is a second
     // thing to keep true.
     log('\n  usage: npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@120 correct')
-    log('  steps: loop join value arm buzz correct wrong next reset undo pack game direct autoplay rewind read armed act speak say teams flow jump duel in out vote unvote seat cancel wait clear')
+    log('  steps: loop join value arm buzz correct wrong next reset undo pack mode direct autoplay rewind read armed act speak say teams flow jump duel in out vote unvote seat cancel wait clear')
     log('  walks: npm run walk-duel   walk-teams   walk-flow   walk-read   walk-packs\n')
     return
   }
@@ -305,11 +305,11 @@ async function main() {
           break
         }
 
-        // game:trivia — pin the mode, because a walkthrough that scores 250 in
+        // mode:trivia — pin the mode, because a walkthrough that scores 250 in
         // one room and 200 in the next is not repeatable. Resets the scores,
         // like the host's own mode switch does.
-        case 'game':
-          host.send({ t: 'host', action: { a: 'setGame', id: arg, options: {} } })
+        case 'mode':
+          host.send({ t: 'host', action: { a: 'setMode', id: arg, options: {} } })
           await host.waitFor((s) => s.game.id === arg, 3000)
           break
 

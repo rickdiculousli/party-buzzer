@@ -8,7 +8,7 @@ import type { State } from '../../shared/protocol.ts'
 function quizbowlState(options: Record<string, unknown> = {}): State {
   const state = newState()
   applyHostAction(state, {
-    a: 'setGame',
+    a: 'setMode',
     id: 'quizbowl',
     options: { powerAfterFragment: 2, powerBonus: 50, neg: 50, ...options },
   })
@@ -30,7 +30,7 @@ test('registration and option sanitizing', () => {
   assert.equal(state.game.id, 'quizbowl')
   assert.equal(state.game.options.powerBonus, 50)
   const over = newState()
-  applyHostAction(over, { a: 'setGame', id: 'quizbowl', options: { powerBonus: 99999 } })
+  applyHostAction(over, { a: 'setMode', id: 'quizbowl', options: { powerBonus: 99999 } })
   assert.equal(over.game.options.powerBonus, 500, 'clamped to the spec max')
 })
 
@@ -40,7 +40,7 @@ test('switching modes resets scores, items, effects, and the round', () => {
   state.items.p1 = ['freeze']
   state.effects = [{ kind: 'frozen', playerId: 'p2' }]
   state.round.fragments = ['half a question']
-  applyHostAction(state, { a: 'setGame', id: 'trivia', options: {} })
+  applyHostAction(state, { a: 'setMode', id: 'trivia', options: {} })
   assert.deepEqual(state.scores, {})
   assert.deepEqual(state.items, {})
   assert.deepEqual(state.effects, [])

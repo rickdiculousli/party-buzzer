@@ -58,26 +58,26 @@ test('correct and wrong keep today\'s scoring when the module defines no hooks',
   assert.deepEqual(state.round.award, { name: 'Ada', points: 100 })
 })
 
-test('setGame with the current id updates options and keeps scores', () => {
+test('setMode with the current id updates options and keeps scores', () => {
   const state = newState()
   withPlayer(state)
-  applyHostAction(state, { a: 'setGame', id: 'trivia', options: {} })
+  applyHostAction(state, { a: 'setMode', id: 'trivia', options: {} })
   assert.equal(state.scores.p1, 300)
   assert.equal(state.game.id, 'trivia')
 })
 
-test('setGame with an unknown id is dropped, logged, and changes nothing', () => {
+test('setMode with an unknown id is dropped, logged, and changes nothing', () => {
   const state = newState()
   withPlayer(state)
-  applyHostAction(state, { a: 'setGame', id: 'nope', options: {} })
+  applyHostAction(state, { a: 'setMode', id: 'nope', options: {} })
   assert.equal(state.game.id, 'trivia')
   assert.equal(state.scores.p1, 300)
 })
 
-test('setGame is refused unless the round is IDLE', () => {
+test('setMode is refused unless the round is IDLE', () => {
   const state = newState()
   state.round.phase = 'ARMED'
-  applyHostAction(state, { a: 'setGame', id: 'trivia', options: {} })
+  applyHostAction(state, { a: 'setMode', id: 'trivia', options: {} })
   assert.equal(state.round.phase, 'ARMED')
 })
 
@@ -198,11 +198,11 @@ test('next clears both', () => {
   assert.equal(state.round.spoken, undefined)
 })
 
-test('setGame keeps the standings when the flow asks it to', () => {
+test('setMode keeps the standings when the flow asks it to', () => {
   const state = newState()
   state.scores = { ada: 300 }
   state.items = { ada: ['shield'] }
-  applyHostAction(state, { a: 'setGame', id: 'quizbowl', options: {}, keepScores: true })
+  applyHostAction(state, { a: 'setMode', id: 'quizbowl', options: {}, keepScores: true })
   assert.equal(state.game.id, 'quizbowl')
   assert.deepEqual(state.scores, { ada: 300 })
   // Items and effects are mode-flavoured and reset either way.
@@ -212,7 +212,7 @@ test('setGame keeps the standings when the flow asks it to', () => {
 test('a host switching modes by hand still wipes the standings', () => {
   const state = newState()
   state.scores = { ada: 300 }
-  applyHostAction(state, { a: 'setGame', id: 'quizbowl', options: {} })
+  applyHostAction(state, { a: 'setMode', id: 'quizbowl', options: {} })
   assert.deepEqual(state.scores, {})
 })
 
@@ -313,7 +313,7 @@ test('setFlow that changes the current block while a duel is open does not touch
   state.duel!.pool.push({ playerId: 'a', votes: ['b'], in: true })
   // Tweaking count while the nomination window is open — the finding's own
   // example. count isn't part of sameSetup, so this must not touch setup or
-  // the duel at all: no re-applied setGame (which would itself cancel an
+  // the duel at all: no re-applied setMode (which would itself cancel an
   // unseated duel, same as any host-driven mode resave) and no re-fired
   // openDuel (which would hand back a fresh, empty pool).
   const changed: FlowBlock[] = [{ ...duelBlocks[0], count: 5 }]
@@ -366,7 +366,7 @@ test('an empty setFlow is a clearFlow', () => {
   assert.equal(state.flow, undefined)
 })
 
-test('the flow actions are refused mid-question, the way setGame is', () => {
+test('the flow actions are refused mid-question, the way setMode is', () => {
   const state = newState()
   applyHostAction(state, { a: 'arm' })
   applyHostAction(state, { a: 'setFlow', blocks: flowBlocks })

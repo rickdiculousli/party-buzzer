@@ -256,10 +256,10 @@ test('a wrong answer narrows the rebound to the other finalist; a fresh arm rese
   assert.deepEqual(state.round.candidates, ['a', 'b'], 'rematch: same pair, fresh question')
 })
 
-test('setGame cancels an unseated duel; a seated one survives', () => {
+test('setMode cancels an unseated duel; a seated one survives', () => {
   const state = stateWith([['a'], ['b']])
   applyHostAction(state, { a: 'openDuel', rule: 'vote' })
-  applyHostAction(state, { a: 'setGame', id: 'trivia', options: {} })
+  applyHostAction(state, { a: 'setMode', id: 'trivia', options: {} })
   // assert.equal narrows state.duel to undefined via strictEqual's assertion
   // signature, and TS never invalidates that across the mutations below —
   // Boolean() keeps the check but breaks the false narrowing.
@@ -267,7 +267,7 @@ test('setGame cancels an unseated duel; a seated one survives', () => {
 
   applyHostAction(state, { a: 'openDuel', rule: 'host-pick' })
   applyHostAction(state, { a: 'closeDuel', playerIds: ['a', 'b'] })
-  applyHostAction(state, { a: 'setGame', id: 'trivia', options: {} })
+  applyHostAction(state, { a: 'setMode', id: 'trivia', options: {} })
   assert.ok(state.duel?.seated, 'a seated pair is a commitment, not setup')
 })
 

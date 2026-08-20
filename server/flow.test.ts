@@ -48,10 +48,10 @@ test('the mode is applied once per block, not once per question', () => {
   const { seen, apply } = recorder()
   advanceFlow(state, apply) // 1 of 3
   advanceFlow(state, apply) // 2 of 3
-  assert.equal(seen.filter((a) => a.a === 'setGame').length, 0)
+  assert.equal(seen.filter((a) => a.a === 'setMode').length, 0)
   advanceFlow(state, apply) // rolls into quizbowl
-  assert.deepEqual(seen.filter((a) => a.a === 'setGame'), [
-    { a: 'setGame', id: 'quizbowl', options: {}, keepScores: true },
+  assert.deepEqual(seen.filter((a) => a.a === 'setMode'), [
+    { a: 'setMode', id: 'quizbowl', options: {}, keepScores: true },
   ])
 })
 
@@ -60,7 +60,7 @@ test('entering a block keeps the standings across a mode switch', () => {
   const { seen, apply } = recorder()
   enterBlock(state, apply, true)
   assert.deepEqual(seen[0], {
-    a: 'setGame',
+    a: 'setMode',
     id: 'quizbowl',
     options: { powerAfterFragment: 2 },
     keepScores: true,

@@ -17,7 +17,7 @@ test('a quizbowl round: power bonus, fragments on the board but never on phones'
     host.send({
       t: 'host',
       action: {
-        a: 'setGame',
+        a: 'setMode',
         id: 'quizbowl',
         options: { powerAfterFragment: 2, powerBonus: 50, neg: 50 },
       },
@@ -71,7 +71,7 @@ test('quizbowl wrong: configured neg, lockout, and an unpowered rebound', async 
     host.send({
       t: 'host',
       action: {
-        a: 'setGame',
+        a: 'setMode',
         id: 'quizbowl',
         options: { neg: 50, itemsEnabled: true },
       },

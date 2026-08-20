@@ -198,7 +198,7 @@ npm run walk-packs
 
 - [ ] Pack selected and rendered before guests arrive (first render is ~30s and
       caches; a re-read is instant)
-- [ ] Mirror setting matches the game: off for quizbowl, on only if the room
+- [ ] Mirror setting matches the game — off for quizbowl, on only if the room
       cannot see the board
 - [ ] A buzz cuts the voice mid-word — no trailing syllable, and the rest of the
       clue is not read after a correct answer
