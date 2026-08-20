@@ -121,6 +121,32 @@ export function Host() {
   const reopenable = !refuses(state, { a: 'rebound' })
   reopenableRef.current = reopenable
 
+  // Why the three judging buttons are dead, and it walks `judgeable`'s own terms
+  // rather than asking `refuses` — that is the whole point of it. `judgeable` is
+  // strictly narrower than the table (the moment folds in `settled` and
+  // `retired`, which `shared/legality.ts` may not read), so a sentence driven off
+  // `refuses` alone would come back null in the gap between them, and the desk
+  // would grey silently at exactly the moments only this file knows about.
+  // Deriving it from the predicate that actually greys the button is what makes
+  // it exhaustive: the last branch has no condition, so there is no state in
+  // which these buttons are dead and this is null.
+  //
+  // Two of the sentences come from `REFUSAL_TEXT` because they are those codes —
+  // `refuses(state, { a: 'correct' })` returns exactly `already-scored` and
+  // `no-leader` for them. The other two have no code and must not be given one:
+  // one is a fact about the moment and one about the hold, neither is a rule
+  // about what the host may press, and the table would be lying if it claimed to
+  // know either.
+  const judgeReason = judgeable
+    ? null
+    : round.award && !isPenalty(round.award)
+      ? REFUSAL_TEXT['already-scored']
+      : reopenable
+        ? 'A miss is up and the buzzers are shut — Reopen puts the question back to the room.'
+        : !leader
+          ? REFUSAL_TEXT['no-leader']
+          : 'The buzz window is still filling — judging waits for it to close.'
+
   // The night is run one of two ways, and the panel only ever offers one of
   // them: freehand, where the host picks the game and the pack; or a setlist,
   // where each block carries its own and the pickers would only fight it.
@@ -213,11 +239,15 @@ export function Host() {
               <button
                 class="btn btn--ghost"
                 disabled={!!jump || at >= state.setlist.blocks.length}
-                title={jump ? REFUSAL_TEXT[jump] : undefined}
                 onClick={() => act({ a: 'setlistJump', at: at + 1 })}
               >
                 Skip block
               </button>
+              {/* A `title` on a disabled button never fires — the control eats
+                  its own pointer events — so the reason is printed. This strip
+                  is one flex row of chips, so it is a `span` here rather than
+                  the `p.muted` the two stacked panels use. */}
+              {jump && <span class="muted">{REFUSAL_TEXT[jump]}</span>}
             </div>
           )
         })()}
@@ -250,6 +280,11 @@ export function Host() {
             Next question<span class="key">N</span>
           </button>
         </div>
+        {/* Under the row rather than on the buttons: these three are the most
+            pressed controls on the desk, and a `title` on a disabled button is
+            never shown — the control suppresses the pointer events that would
+            trigger it. */}
+        {judgeReason && <p class="muted">{judgeReason}</p>}
 
         {/* What the locked-in player said, as the judge heard it. The verdict
             itself is the award above; this is the evidence for the undo. */}

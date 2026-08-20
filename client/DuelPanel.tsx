@@ -72,8 +72,10 @@ export function DuelPanel({ state, act }: { state: State; act: (a: HostAction) =
     const teams = state.grouping === 'teams' ? new Set(eligible.map((p) => p.teamId)) : null
     // `openDuel`'s legality does not read the rule — seating happens before the
     // question opens, and that is a fact about the round — so one call answers
-    // for every button in the row below and for the note under it.
-    const openRefusal = refuses(state, { a: 'openDuel', rule: state.duelRules[0]?.id ?? '' })
+    // for every button in the row below and for the line under it. The empty
+    // rule is not a payload and never becomes one; it is there because the
+    // parameter exists, and naming a real rule would only suggest otherwise.
+    const openRefusal = refuses(state, { a: 'openDuel', rule: '' })
     return (
       <section>
         <p class="eyebrow">Heads-up</p>
@@ -89,7 +91,6 @@ export function DuelPanel({ state, act }: { state: State; act: (a: HostAction) =
                 key={r.id}
                 class="btn"
                 disabled={!!openRefusal || eligible.length < 2 || !!randomBlocked}
-                title={openRefusal ? REFUSAL_TEXT[openRefusal] : undefined}
                 onClick={() => act({ a: 'openDuel', rule: r.id })}
               >
                 {r.name}
@@ -97,6 +98,9 @@ export function DuelPanel({ state, act }: { state: State; act: (a: HostAction) =
             )
           })}
         </div>
+        {/* Printed, not a `title`: a disabled button eats the pointer events a
+            tooltip needs, so a sentence hung on one is a sentence nobody reads. */}
+        {openRefusal && <p class="muted">{REFUSAL_TEXT[openRefusal]}</p>}
         {!openRefusal && eligible.length >= 2 && teams && teams.size < 2 && (
           <p class="muted">Random draw needs two different teams — everyone eligible is on one.</p>
         )}
@@ -168,7 +172,6 @@ export function DuelPanel({ state, act }: { state: State; act: (a: HostAction) =
           <button
             class="btn btn--primary"
             disabled={!!closeReason || !!closeRefusal}
-            title={closeRefusal ? REFUSAL_TEXT[closeRefusal] : undefined}
             onClick={() => act({ a: 'closeDuel' })}
           >
             Seat them

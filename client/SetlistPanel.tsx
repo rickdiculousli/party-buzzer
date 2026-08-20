@@ -32,7 +32,6 @@ export function SetlistPanel({
   // with the server by coincidence and with nothing to say when they were right.
   const edits = refuses(state, { a: 'setSetlist', blocks: [] })
   const clear = refuses(state, { a: 'clearSetlist' })
-  const words = (r: typeof edits) => (r ? REFUSAL_TEXT[r] : undefined)
 
   /**
    * What a block asks for against what its pack can supply. Blocks sharing a
@@ -89,7 +88,6 @@ export function SetlistPanel({
           class="input"
           value=""
           disabled={!!edits || state.setlists.length === 0}
-          title={words(edits)}
           onChange={(e) => {
             const name = (e.target as HTMLSelectElement).value
             if (name) fire('loadSetlist', name)
@@ -263,22 +261,23 @@ export function SetlistPanel({
       )}
 
       <div class="host__minor">
-        <button class="btn" disabled={!!edits} title={words(edits)} onClick={add}>+ block</button>
+        <button class="btn" disabled={!!edits} onClick={add}>+ block</button>
         {blocks.length > 0 && (
           <button
             class="btn btn--ghost"
             disabled={!!clear}
-            title={words(clear)}
             onClick={() => act({ a: 'clearSetlist' })}
           >
             Clear setlist
           </button>
         )}
       </div>
-      {/* The panel's own sentence, rather than eleven tooltips: everything above
-          greys for one reason at a time, and a line under it is read without
-          hovering anything. The block rows carry no `title` for that reason —
-          the three that do (↑ ↓ ×) already say what they are. */}
+      {/* The panel's own sentence, and the only place any of this is explained.
+          A `title` on a disabled control never fires — the control suppresses
+          the pointer events a tooltip needs — so hanging one on each of the
+          twelve would have computed the reason and thrown it away. Everything
+          above greys for one reason at a time, so one line under it says it
+          once, and is read without hovering anything. */}
       {edits && <p class="muted">{REFUSAL_TEXT[edits]}</p>}
     </section>
   )

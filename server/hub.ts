@@ -6,6 +6,7 @@ import { useItem } from './items.ts'
 import { duelAct, duelCatalog } from './duel.ts'
 import { listPacks, packSizes } from './packs.ts'
 import { listSetlists, readSetlist, writeSetlist } from './setlists.ts'
+import { refuses } from '../shared/legality.ts'
 import { COLLECT_MS } from '../shared/protocol.ts'
 import type {
   ClientMsg, PlayerId, Role, ServerMsg, State,
@@ -243,6 +244,14 @@ export class Hub {
       this.state.setlists = listSetlists(this.setlistDir)
     } else if (name === 'loadSetlist' && typeof data === 'string') {
       if (!this.setlistDir) return
+      // Loading is a `setSetlist` wearing a filename, so it is refused wherever
+      // one would be — and asked here, before anything else happens, rather than
+      // left to the `applyHostAction` at the bottom. That one does refuse it,
+      // but only after this branch has read the file off disk and pushed an undo
+      // snapshot for a mutation that never lands: a phantom Undo step on the
+      // host's stack, mid-question, undoing the question instead. The same rule
+      // greys the button on the desk, which is the point of the table.
+      if (refuses(this.state, { a: 'setSetlist', blocks: [] })) return
       let blocks
       try {
         blocks = readSetlist(this.setlistDir, data)

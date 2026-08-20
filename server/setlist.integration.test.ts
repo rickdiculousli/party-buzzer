@@ -77,3 +77,41 @@ test('a mid-setlist undo restores the position and the mode together', async () 
     assert.equal(host.last.game.id, 'trivia', 'mode rewound with it')
   })
 })
+
+test('a setlist cannot be loaded mid-round, and the refusal costs no undo step', async () => {
+  await withServer(async (url) => {
+    const host = new FakeClient(url, 'host')
+    await host.open()
+
+    host.send({ t: 'host', action: { a: 'setSetlist', blocks } })
+    await sleep(60)
+    host.send({ t: 'act', act: 'saveSetlist', data: 'Test Night' })
+    await sleep(60)
+    host.send({ t: 'host', action: { a: 'clearSetlist' } })
+    await sleep(60)
+    assert.equal(host.last.setlist, undefined)
+
+    // `loadSetlist` rides the act channel, so it used to miss the guard its own
+    // `setSetlist` carries: it read the file, pushed an undo snapshot, and only
+    // then had the mutation declined — leaving a phantom step that ate the arm.
+    host.send({ t: 'host', action: { a: 'arm' } })
+    await sleep(60)
+    assert.notEqual(host.last.round.phase, 'IDLE')
+    host.send({ t: 'act', act: 'loadSetlist', data: 'test-night.json' })
+    await sleep(60)
+    const during = host.last
+    assert.equal(during.setlist, undefined, 'refused mid-round')
+
+    // One undo, one step back: to before the arm, not to before a load that
+    // never happened.
+    host.send({ t: 'host', action: { a: 'undo' } })
+    await sleep(60)
+    assert.equal(host.last.round.phase, 'IDLE', 'the undo spent itself on the arm')
+
+    // And it lands the moment the round is quiet again.
+    host.send({ t: 'act', act: 'loadSetlist', data: 'test-night.json' })
+    await sleep(60)
+    const after = host.last
+    assert.equal(after.setlist?.blocks.length, 2, 'accepted once idle')
+  })
+})
