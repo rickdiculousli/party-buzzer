@@ -1356,7 +1356,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   fill: var(--cyan);
   cursor: ew-resize;
 }
-/* The one handle that travels in both axes — decay across, sustain up. */
+/* The one handle that travels in both axes — decay across, level up. */
 .track__handle--free {
   cursor: move;
 }

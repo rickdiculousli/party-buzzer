@@ -42,14 +42,14 @@ type Handle = { field: NumericField; x: number; y: number; level: boolean }
  * sentence: `col-resize` where the clip edge is grabbable, `ew-resize` on a
  * handle that only travels sideways, `move` on the one corner that travels in
  * both. Naming the axis is the part that matters — every field here is a
- * horizontal drag except `sustain`, and nothing on screen said so before.
+ * horizontal drag except `level`, and nothing on screen said so before.
  */
 const GESTURE: Record<string, { hint: string; cursor: string }> = {
   delay: { hint: '← drag the body → move this layer in time', cursor: 'grab' },
   head: { hint: '← drag the edge → slide the audio inside the clip', cursor: 'col-resize' },
   attack: { hint: '← attack →', cursor: 'ew-resize' },
-  decay: { hint: '← decay →, ↑ sustain ↓', cursor: 'move' },
-  hold: { hint: '← hold →', cursor: 'ew-resize' },
+  decay: { hint: '← decay →, ↑ level ↓', cursor: 'move' },
+  sustain: { hint: '← sustain →', cursor: 'ew-resize' },
   release: { hint: '← release →', cursor: 'ew-resize' },
 }
 
@@ -76,9 +76,9 @@ export function Track({
   const d0 = layer.delay ?? 0
   const a = layer.attack ?? 0
   const d = layer.decay ?? 0
-  const h = layer.hold ?? 0
+  const h = layer.sustain ?? 0
   const r = layer.release ?? 0
-  const s = layer.sustain ?? 0
+  const s = layer.level ?? 0
   const end = d0 + a + d + h + r
 
   const x = (t: number) => PAD + (t / spanMs) * (W - PAD * 2)
@@ -124,7 +124,7 @@ export function Track({
   const handles: Handle[] = [
     { field: 'attack', x: x(d0 + a), y: y(1), level: false },
     { field: 'decay', x: x(d0 + a + d), y: y(s), level: true },
-    { field: 'hold', x: x(d0 + a + d + h), y: y(s), level: false },
+    { field: 'sustain', x: x(d0 + a + d + h), y: y(s), level: false },
     { field: 'release', x: x(end), y: y(0), level: false },
   ]
   const points = `${x(d0)},${y(0)} ${handles.map((p) => `${p.x},${p.y}`).join(' ')}`
@@ -151,7 +151,7 @@ export function Track({
       onChange(field, clampField(field, from.v + (m.clientX - from.x) * scale, durMs))
       if (alsoLevel) {
         const dy = (m.clientY - from.y) / (rect.height * ((H - PAD * 2) / H))
-        onChange('sustain', clampField('sustain', from.s - dy))
+        onChange('level', clampField('level', from.s - dy))
       }
     }
     const up = () => {
