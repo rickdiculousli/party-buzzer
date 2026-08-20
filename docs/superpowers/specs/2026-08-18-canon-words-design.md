@@ -1,6 +1,6 @@
 # Canon words — a disambiguation pass
 
-**Status: designed 2026-08-18, approved.** One pass over the repo's overloaded
+**Status: done 2026-08-19.** One pass over the repo's overloaded
 words: a glossary in `docs/design.md`, renames everywhere including State
 fields, probe verbs, npm scripts and visible labels. A saved `state.json`
 from before the pass is not migrated — the docs say to delete it.

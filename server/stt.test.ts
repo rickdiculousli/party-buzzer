@@ -11,22 +11,22 @@ const SPOKEN = 'This Russian composer wrote a ballet about a nutcracker. ' +
 
 /** Rendered rather than checked in, the way the demo sounds are. */
 async function fixture(dir: string): Promise<string | null> {
-  const path = join(dir, 'probe.aiff')
+  const path = join(dir, 'clip.aiff')
   const { ok } = await run('say', ['-o', path, SPOKEN])
   return ok ? path : null
 }
 
 /**
- * One probe at a time, each awaited before the next is sent — which is how the
+ * One request at a time, each awaited before the next is sent — which is how the
  * aligner uses it, and the only shape that catches the bug this test exists
  * for. Writing every request first and reading afterwards passes even when the
  * helper never flushes, because the buffer empties when the process exits.
  */
-test('a held-open clip answers one probe before being asked the next', async (t) => {
+test('a held-open clip answers one request before being asked the next', async (t) => {
   const bin = await sttBinary(join(import.meta.dirname, 'stt'))
   if (!bin) return t.skip('no swiftc / no helper source')
 
-  const dir = mkdtempSync(join(tmpdir(), 'probe-'))
+  const dir = mkdtempSync(join(tmpdir(), 'stt-'))
   const audio = await fixture(dir)
   if (!audio) {
     rmSync(dir, { recursive: true, force: true })
@@ -48,7 +48,7 @@ test('a held-open clip answers one probe before being asked the next', async (t)
     const early = await answered(s.transcribe(0, 2900))
     const later = await answered(s.transcribe(0, 7314))
 
-    assert.ok(early.length > 0, 'the first probe answered at all')
+    assert.ok(early.length > 0, 'the first request answered at all')
     assert.ok(
       later.length > early.length,
       `more audio must yield at least as many words: ${early.length} then ${later.length}`,
@@ -65,7 +65,7 @@ test('a helper that dies mid-alignment answers everything still queued', async (
   const bin = await sttBinary(join(import.meta.dirname, 'stt'))
   if (!bin) return t.skip('no swiftc / no helper source')
 
-  // Nothing to open, so the helper exits immediately. Every pending probe must
+  // Nothing to open, so the helper exits immediately. Every pending request must
   // still settle — an unresolved promise would hang the whole pack render, and
   // an empty answer is read as "no word finished yet", folding at the clip end.
   const s = transcribeSession(bin, join(import.meta.dirname, 'stt', 'no-such-file.aiff'))
