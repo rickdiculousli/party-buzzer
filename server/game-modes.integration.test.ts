@@ -94,7 +94,7 @@ test('quizbowl wrong: configured neg, lockout, and an unpowered rebound', async 
     assert.equal(host.last.round.phase, 'ARMED', 'rebound')
     // The module stamps its own penalty, the way it stamps its own payoff, and
     // it rides the rebound so the room sees what the neg cost.
-    assert.deepEqual(host.last.round.award, { name: 'Amy', points: -50 })
+    assert.deepEqual(host.last.round.award, { name: 'Amy', points: -50, penalty: true })
 
     // The rebound is the same question: power has ended, so Bo's buzz is not
     // powered even though it is first.

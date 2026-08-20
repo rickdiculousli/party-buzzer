@@ -45,6 +45,19 @@ export type BuzzEntry = {
  */
 export const COLLECT_MS = 1000
 
+export type Award = { name: string; points: number; penalty?: true }
+
+/**
+ * Was this verdict a miss? True for every wrong answer, including the host's
+ * "Wrong, no penalty" — a deduction of zero is still a deduction.
+ *
+ * The `points < 0` half is for an award a module stamped without the flag; the
+ * flag is what makes a zero-point miss readable at all.
+ */
+export function isPenalty(award: Award | undefined): boolean {
+  return !!award && (award.penalty === true || award.points < 0)
+}
+
 export type Round = {
   value: number
   phase: Phase
@@ -60,10 +73,17 @@ export type Round = {
   /**
    * Set when a question has been scored, and cleared when the next one starts.
    * The board keeps the result up for as long as this is here — the payoff
-   * needs to outlive the button press that caused it. A penalized wrong
-   * answer stamps it negative, and it rides the rebound that follows.
+   * needs to outlive the button press that caused it. A wrong answer stamps a
+   * penalty, and it rides the rebound that follows.
+   *
+   * `penalty` is which verdict happened, not how much it cost. The sign used to
+   * carry both, which is wrong at exactly one value: a no-penalty wrong is a
+   * penalty of zero, and reading it off `points` made it a payoff of zero
+   * instead — the miss vanished from the wall. `-0` does not survive the trip
+   * (`State` is JSON, and `JSON.stringify(-0)` is `"0"`), so the fact is a
+   * field. Use `isPenalty`, never the sign.
    */
-  award?: { name: string; points: number }
+  award?: Award
   /**
    * The judge's offer to the locked-in leader. Present means push-to-talk is
    * live; `until` is the server-domain deadline, absent means the host ends a
