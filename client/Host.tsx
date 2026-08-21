@@ -22,94 +22,76 @@ const KEYS: Record<string, HostAction> = {
 }
 
 /**
- * What the desk says about the two rows the host lives on, as a lookup against
- * the moment.
+ * What the desk says, as a lookup against the moment.
  *
- * There is one priority ladder and it is `momentOf`. This is a row per moment
- * saying what that moment tells the host — never what outranks what, because the
- * moment has already answered that. The `switch` has no `default`, so a
- * fourteenth moment does not compile until it has said what the judging row and
- * the arm row say while it is up.
+ * One row per `Moment`, no `default`, so a fourteenth moment does not compile
+ * until it has said what the judging row and the arm row show while it is up.
+ * Rows never rank each other — `momentOf` has already done that. A row reading
+ * `f` is fetching its own data, not holding a second opinion about what is on
+ * top.
  *
- * Both halves were hand-rolled ladders over raw state before this, sitting
- * beside a `judgeable` that was already derived from the moment: four ternaries
- * re-deriving `scored`, `held` and `leader` in a different order from the one
- * `momentOf` had just put them in. That is the shape `middleOf` was deleted for,
- * and it had grown back within the week — the second time in this file, which is
- * why it is a table now rather than one more ternary.
+ * Most rows are silent on purpose. The desk shows the round, so a note that
+ * names the state the host is looking at is noise; these say only what the
+ * screen does not already show. `judge` is therefore null in states where the
+ * judging buttons are dead, and that is deliberate.
  *
- * A row may still consult `f`. Asking whether this locked round has a leader is
- * the row fetching its own data, not a second opinion about what is on top.
+ * Arm stays pressable everywhere it appears here. Arming a round still on the
+ * board is legal, and on a seated pair it is the rematch — `duelOnArm` clears
+ * `missed` and hands the buzzers back to both. These notes say what it does,
+ * they do not refuse it.
  */
 function notesFor(
   m: Moment,
-  f: { leader: boolean; scored: boolean },
+  f: { leader: boolean; scored: boolean; setlist: boolean },
 ): { judge: string | null; arm: string | null } {
-  // Said in full by three rows, because a round that is still on the board is
-  // the whole reason the arm row exists. `N`, not `Next question`: the key is
-  // what a host reaches for one-handed.
-  const restart = 'This round is still on the board — arming starts another without ending it. N finishes the question.'
-  // Nothing is locked in, and the honest spread is wider than COLLECTING: it
-  // also covers the odd shapes where an order stands on a round that is not
-  // locked. Either way the answer is the same, so they share a sentence.
-  const unlocked = 'Nothing is locked in yet — judging waits for the buzz window to close.'
+  // `advanceSetlist` runs off `next` and nothing else, so any other way out of a
+  // played round leaves the block a question short. The only consequence here
+  // the wall does not show, which is why it is the one that always speaks.
+  const skips = f.setlist ? 'Arming skips this one — the block will not count it.' : null
 
   switch (m) {
-    // The desk passes `settled: true` and never reaches this, so the row is here
-    // for the compiler and for whoever gives the host a typing transcript later.
+    // The desk passes `settled: true`, so this moment does not reach it.
     case 'answer:judging':
-      return { judge: 'The answer is still being read out — judging waits for it.', arm: restart }
+      return { judge: null, arm: skips }
 
     case 'answer:locked':
       return {
-        // Exactly `judgeable`'s remaining two terms, and the only row that may
-        // return a null judge: `judgeable` is this moment plus a leader minus a
-        // payoff, so anywhere else the buttons are dead and must say why.
-        judge: !f.leader ? REFUSAL_TEXT['no-leader'] : f.scored ? REFUSAL_TEXT['already-scored'] : null,
-        arm: 'Nobody has judged this yet — arming starts a new round and the lock is lost. N finishes the question.',
+        // `judgeable`'s remaining two terms, and the only null judge that means
+        // "the buttons are live": everywhere else null means "nothing to add".
+        judge: !f.leader ? 'The lock caught no buzz.' : f.scored ? REFUSAL_TEXT['already-scored'] : null,
+        arm: skips,
       }
 
     case 'verdict:hold':
       return {
-        judge: 'A miss is up and the buzzers are shut — Reopen puts the question back to the room.',
-        arm: 'A miss is still held — arming starts a new round and the rebound never opens. N finishes the question.',
+        judge: 'Reopen puts the question back to the room.',
+        arm: 'Arming drops the rebound.',
       }
 
     case 'verdict:award':
-      return { judge: REFUSAL_TEXT['already-scored'], arm: restart }
+      return { judge: REFUSAL_TEXT['already-scored'], arm: skips }
 
-    // Not scored: a penalty deliberately survives into the rebound it caused, so
-    // the question is still live and the retake is what the desk is waiting for.
+    // A penalty survives into the rebound it caused: the question is still live
+    // and the retake is what the buttons are waiting for.
     case 'verdict:penalty':
-      return { judge: 'A penalty is up and the question is still live — judging waits for the retake to lock.', arm: restart }
+      return { judge: null, arm: skips }
 
-    // Arming is how a pair is rematched — `duelOnArm` clears `missed` and hands
-    // the buzzers back to both — so these two rows are directions, not warnings.
-    // A warning that fires on the documented way to do something is one the host
-    // learns to read past, and then it is not there for the rounds that meant it.
     case 'duel:faceoff':
-      return { judge: unlocked, arm: 'Arming again rematches the same pair. N ends the duel and moves on.' }
+      return { judge: null, arm: 'Arming rematches the same pair.' }
     case 'duel:dead':
-      return {
-        judge: 'Both seated players have missed — nobody may buzz.',
-        arm: 'Arming again puts both seated players back in. N ends the duel and moves on.',
-      }
-    // Nominations are not a round. Arming does not disturb an unseated pool, so
-    // there is nothing to say that the panel below is not already saying.
+      return { judge: 'Both seated players have missed.', arm: 'Arming puts them both back in.' }
     case 'duel:nominating':
-      return { judge: unlocked, arm: null }
+      return { judge: null, arm: null }
 
-    // Arm is disabled through all three (`open` covers the two that are live,
-    // and `buzz:arming` is the countdown), so the arm row has no reader.
+    // Arm is disabled through all three, so the arm row has no reader.
     case 'buzz:collecting':
     case 'buzz:open':
     case 'buzz:arming':
-      return { judge: unlocked, arm: null }
+      return { judge: null, arm: null }
 
-    // Nothing on the board, so arming is the plain move and says nothing.
     case 'idle:ready':
     case 'idle:welcome':
-      return { judge: REFUSAL_TEXT['no-leader'], arm: null }
+      return { judge: null, arm: null }
   }
 }
 
@@ -182,22 +164,15 @@ export function Host() {
   // the order is reachable if a freeze lands mid-window, and there is nothing to
   // judge there.
   //
-  // The award term asks "has this question already paid out", and it used to ask
-  // it as `!round.award` — which was wrong for the whole of a rebound. A penalty
-  // deliberately survives into the rebound it caused (`openRebound` leaves it up
-  // so the wall keeps saying why the question is still open), so the retake
-  // locked with a stale −400 on State and the desk went dead: a human host could
-  // not score the very question the room was waiting on, and had to spend an N.
-  // The machine judge never hit it, because a synthetic host connection goes
-  // straight to `applyHostAction` and never reads this. The server's own rule is
-  // just leader-and-LOCKED, and a penalty means the question is still live, not
-  // scored. `isPenalty`, not the sign: a no-penalty wrong now stamps points of
-  // zero, and `>= 0` read that as a payoff and took the desk dead on the retake
-  // it caused — the same failure as the stale −400, one value further along.
+  // The award term asks "has this question already paid out", which is not
+  // `!round.award`: a penalty survives into the rebound it caused (`openRebound`
+  // leaves it up so the wall keeps saying why the question is still open), and
+  // the retake must stay judgeable with that penalty on State. `isPenalty`, not
+  // the sign — a no-penalty wrong stamps points of zero, and `>= 0` reads that
+  // as a payoff.
   //
-  // Written once and read twice — the sentence below needs the same fact, and
-  // this predicate is the last one in the repo that should be typed out a second
-  // time. `refuses(state, { a: 'correct' }) === 'already-scored'` is exactly it,
+  // Written once and read twice — `notesFor` needs the same fact.
+  // `refuses(state, { a: 'correct' }) === 'already-scored'` is exactly it,
   // but only from LOCKED with a leader: the table answers `no-leader` first
   // everywhere else, so asking it here would report the wrong reason.
   const scored = !!round.award && !isPenalty(round.award)
@@ -218,25 +193,15 @@ export function Host() {
   const reopenable = !refuses(state, { a: 'rebound' })
   reopenableRef.current = reopenable
 
-  // Why the judging buttons are dead, and what arming would do instead of what
-  // the host probably means by it. Both come from the moment; neither asks
-  // `refuses`. `judgeable` is strictly narrower than the table — the moment folds
-  // in `settled` and `retired`, which `shared/legality.ts` may not read — so a
-  // sentence driven off `refuses` would come back null in the gap between them
-  // and the desk would grey silently at exactly the moments only this file knows
-  // about. Some sentences are `REFUSAL_TEXT`'s because they genuinely are those
-  // codes; the rest are facts about the moment, and giving those codes would have
-  // the table claiming to know things it cannot read.
-  const notes = notesFor(moment, { leader: !!leader, scored })
+  // Both notes come from the moment, and neither asks `refuses`: `judgeable` is
+  // strictly narrower than the table, which may not read `settled` or `retired`,
+  // so a sentence driven off the table would come back null inside the gap
+  // between them. Sentences that are `REFUSAL_TEXT`'s are the ones that really
+  // are those codes; the rest are facts about the moment, which the table cannot
+  // read and must not claim to.
+  const notes = notesFor(moment, { leader: !!leader, scored, setlist: !!state.setlist })
   const judgeReason = judgeable ? null : notes.judge
-
-  // The setlist counts questions by `next` and by nothing else (`advanceSetlist`
-  // runs off that action alone), so every one of these paths leaves the block a
-  // question short of where the host thinks it is. It is the only consequence
-  // here the wall does not show, which is why it is worth a clause rather than
-  // being left to be discovered at the end of a block that ran one long.
-  const armNote =
-    notes.arm && state.setlist ? `${notes.arm} The block will not count it.` : notes.arm
+  const armNote = notes.arm
 
   // The night is run one of two ways, and the panel only ever offers one of
   // them: freehand, where the host picks the game and the pack; or a setlist,
@@ -376,10 +341,6 @@ export function Host() {
             never shown — the control suppresses the pointer events that would
             trigger it. */}
         {judgeReason && <p class="muted">{judgeReason}</p>}
-        {/* Arm is live here and stays live — arming a round that is still on the
-            board is legal, and on a seated pair it is the documented rematch. The
-            desk is not refusing it, only saying what it does, which is why this is
-            a note and not a `Refusal`. */}
         {armNote && <p class="muted">{armNote}</p>}
 
         {/* What the locked-in player said, as the judge heard it. The verdict
