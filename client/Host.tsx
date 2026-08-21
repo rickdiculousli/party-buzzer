@@ -44,22 +44,22 @@ function notesFor(
   m: Moment,
   f: { leader: boolean; scored: boolean; setlist: boolean },
 ): { judge: string | null; arm: string | null } {
-  // `advanceSetlist` runs off `next` and nothing else, so any other way out of a
-  // played round leaves the block a question short. The only consequence here
-  // the wall does not show, which is why it is the one that always speaks.
-  const skips = f.setlist ? 'Arming skips this one — the block will not count it.' : null
+  // `advanceSetlist` runs off `next` and nothing else, so arming out of a played
+  // round leaves the block where it was and it runs one question long. The only
+  // consequence here the wall does not show.
+  const counts = f.setlist ? 'Only N counts this toward the block.' : null
 
   switch (m) {
     // The desk passes `settled: true`, so this moment does not reach it.
     case 'answer:judging':
-      return { judge: null, arm: skips }
+      return { judge: null, arm: counts }
 
     case 'answer:locked':
       return {
         // `judgeable`'s remaining two terms, and the only null judge that means
         // "the buttons are live": everywhere else null means "nothing to add".
         judge: !f.leader ? 'The lock caught no buzz.' : f.scored ? REFUSAL_TEXT['already-scored'] : null,
-        arm: skips,
+        arm: counts,
       }
 
     case 'verdict:hold':
@@ -69,12 +69,12 @@ function notesFor(
       }
 
     case 'verdict:award':
-      return { judge: REFUSAL_TEXT['already-scored'], arm: skips }
+      return { judge: REFUSAL_TEXT['already-scored'], arm: counts }
 
     // A penalty survives into the rebound it caused: the question is still live
     // and the retake is what the buttons are waiting for.
     case 'verdict:penalty':
-      return { judge: null, arm: skips }
+      return { judge: null, arm: counts }
 
     case 'duel:faceoff':
       return { judge: null, arm: 'Arming rematches the same pair.' }
