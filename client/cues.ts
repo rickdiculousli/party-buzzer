@@ -22,12 +22,11 @@
  * the other and see what you did. Nothing about the sound changed in the
  * merge: both carried the same gain, delay and rate.
  *
- * `gain` is on the layer because this table is now the only place a cue's sound
- * is described. It used to be `--<cue>-snd-gain` in style.css, read through
- * `getComputedStyle` at play time — which made sense when a cue was one sample
- * and its numbers sat beside the movement they were aligned to, and stopped
- * making sense the moment a cue became a list of layers that each already had
- * a `gain` field. A stylesheet is for what things look like. Volume is not.
+ * `gain` is on the layer because this table is the only place a cue's sound is
+ * described. Reading it from a stylesheet property at play time would make a
+ * cue's volume live somewhere other than the layers it belongs to, each of
+ * which already has a `gain` field. A stylesheet is for what things look like.
+ * Volume is not.
  *
  * The block between the markers is machine-written: the harness rewrites it
  * through `POST /__anim/save`, the same way it already rewrites the CSS

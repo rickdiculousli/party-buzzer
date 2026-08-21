@@ -183,20 +183,16 @@ const EMPTY_MIDDLE = {
 /**
  * The middle band's occupant: one row per moment, in preference order.
  *
- * This used to be a second priority ladder — six `if`s that re-ranked the same
- * five occupants out of raw state, next to the thirteen-way ranking `momentOf`
- * had already done. Every display bug of the last week was the two ladders
- * disagreeing rather than either one being wrong: a face-off that outlived the
- * buzz-in because it outranked `buzz:collecting`, a penalty that outlived the
- * rebound answering it, a payoff that handed the stage back to the pair. Each
- * was fixed by tweaking a boolean, which is what having two ladders costs.
- *
- * There is one ladder now, in `momentOf`, and this is a lookup against it. A
- * row says what its moment would like to show and what it settles for when the
+ * There is one ladder and it is `momentOf`; this is a lookup against it. A row
+ * says what its moment would like to show and what it settles for when the
  * first choice has no data — never what outranks what, because the moment has
- * already answered that. The `switch` is exhaustive with no `default`, so a new
- * `Moment` does not compile until it has a row, and `or` returns exactly one
- * occupant by construction.
+ * already answered that. Ranking the five occupants here as well, out of raw
+ * state, is what produces a face-off outliving its buzz-in or a payoff handing
+ * the stage back to the pair: two rankings that disagree, with neither wrong.
+ *
+ * The `switch` is exhaustive with no `default`, so a new `Moment` does not
+ * compile until it has a row, and `or` returns exactly one occupant by
+ * construction.
  */
 function middleOf(state: State, m: Moment): Middle {
   const r = state.round
@@ -394,9 +390,9 @@ export function phoneOf(m: Moment, f: Mine): Phone {
   if (f.pressed && f.armed) {
     return { label: 'In', sub: 'Counting the rest of the field', mood: 'placed', talk: false }
   }
-  // Second place is locked too. It used to get a placement readout of its own,
-  // which is a result on a screen whose only job is to say "not you" — and the
-  // margin is on the board, in front of the whole room, already.
+  // Second place is locked too, and gets no placement readout: that is a result
+  // on a screen whose only job is to say "not you", and the margin is already on
+  // the board in front of the whole room.
   if (shut) {
     return {
       label: 'Locked',

@@ -69,8 +69,8 @@ test('every anchor layer still plays its own WAV, in order', () => {
 /**
  * The level each file is held at for its whole length.
  *
- * 0.8 is what `--<cue>-snd-gain` used to apply after the envelope; it is now
- * the layer's own `gain`, which is the envelope's peak. Same number, one home.
+ * 0.8 is the layer's own `gain`, which is the envelope's peak. One home for it,
+ * rather than a stylesheet property applied after the envelope.
  */
 const LEVEL = 0.8
 

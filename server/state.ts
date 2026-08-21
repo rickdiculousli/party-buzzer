@@ -195,9 +195,9 @@ export function applyHostAction(state: State, action: HostAction): void {
       } else {
         if (action.neg) bump(state, key, -action.neg)
         if (!round.lockedOut.includes(key)) round.lockedOut.push(key)
-        // Stamped whatever it cost. A no-penalty wrong used to write no award
-        // at all, so the wall had no way to know a miss had happened and sat
-        // on a bare "Ready" through the rebound it caused.
+        // Stamped whatever it cost, zero included: the award is how the wall
+        // knows a miss happened at all, and without one it sits on a bare
+        // "Ready" through the rebound that miss caused.
         round.award = { name: leader.name, points: -action.neg, penalty: true }
       }
       // Same: the verdict ended the window, but what was said rides the rebound.

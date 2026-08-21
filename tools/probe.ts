@@ -244,12 +244,12 @@ async function main() {
           }
           // Hold until the order is actually published.
           //
-          // This used to count forward from `armedAt`, which is only the same
-          // instant as "now" when the buzz step follows the arm immediately. Put
-          // a `wait:` between them — as a paced walkthrough must — and the sum
-          // lands in the past, the step returns at once, and the host action
-          // after it fires mid-collection: `wrong` with no leader yet does
-          // nothing at all, silently.
+          // Counted from now, never forward from `armedAt`: those are the same
+          // instant only when the buzz step follows the arm immediately. With a
+          // `wait:` between them — as a paced walkthrough must have — an
+          // `armedAt` sum lands in the past, the step returns at once, and the
+          // host action after it fires mid-collection, where `wrong` with no
+          // leader yet does nothing at all, silently.
           //
           // So watch the phase instead, and keep the arithmetic only as the
           // ceiling for the case where nothing locks because every press was

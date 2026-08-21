@@ -702,16 +702,16 @@ export class Reader {
    * reader's again or gone. False means gone — scored, stopped, or replaced —
    * and the caller stops reading it.
    *
-   * A held rebound is the reader's to open. The miss sits on the board with the
-   * buzzers shut for the rebound beat, and only then does the arm go out, so
-   * the room and the phones learn the question is live again at the same
-   * moment. The beat used to run on the far side of the arm: buzzers open for
-   * the whole of it while nothing was being read and the wall was showing a
-   * result, which made buzzing on the verdict itself the dominant strategy and
-   * a race on a signal only the phones had.
+   * A held rebound is the reader's to open, and the beat runs on this side of
+   * the arm: the miss sits on the board with the buzzers shut, and only then
+   * does the arm go out, so the room and the phones learn the question is live
+   * again at the same moment. Opening first and beating afterwards leaves the
+   * buzzers open while nothing is being read and the wall shows a result, which
+   * makes buzzing on the verdict the dominant strategy — a race on a signal only
+   * the phones have.
    *
-   * An unheld rebound — a host judging by hand while the box reads — keeps the
-   * old shape, because they opened it themselves when they pressed W.
+   * An unheld rebound — a host judging by hand while the box reads — opens
+   * without a beat, because they opened it themselves when they pressed W.
    */
   private async waitOutBuzz(sig: AbortSignal): Promise<boolean> {
     await this.until(

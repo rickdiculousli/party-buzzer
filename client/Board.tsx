@@ -312,11 +312,11 @@ export function Board() {
   const armed = round.phase === 'ARMED' || round.phase === 'COLLECTING'
   const here = state.players.filter((p) => p.connected).length
   const barred = lockedNames(state)
-  // `buzzable` is only stamped at the arm, so between the host seating a pair
-  // and opening the buzzers there is a gap the board used to spend saying
-  // "Ready" — the room watches the two names disappear a second after they were
-  // announced. The seated pair carries it across that gap; once the arm stamps
-  // buzzable, that is the truer source, because a wrong answer narrows it.
+  // `buzzable` is only stamped at the arm, so between the host seating a pair and
+  // opening the buzzers there is a gap with nothing in it — the room would watch
+  // the two names disappear a second after they were announced. The seated pair
+  // carries the board across that gap; once the arm stamps buzzable, that is the
+  // truer source, because a wrong answer narrows it.
   const seating = willSeat(state)
 
   return (
@@ -447,11 +447,10 @@ export function Board() {
                   />
                 )}
               </div>
-              {/* What is at stake, and only while there is something at stake.
-                  It used to sit there whatever the room was doing, so the end
-                  of a read — reader stopped, stage back to "Ready", nobody
-                  playing — left a bare 400 floating under it with nothing to
-                  be the value of. */}
+              {/* What is at stake, and only while there is something at stake:
+                  at the end of a read — reader stopped, stage back to "Ready",
+                  nobody playing — an unconditional value is a bare 400 floating
+                  under it with nothing to be the value of. */}
               {w.value !== null && <p class="board__value">{w.value}</p>}
             </>
           )}

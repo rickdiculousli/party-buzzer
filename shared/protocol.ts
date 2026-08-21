@@ -76,12 +76,12 @@ export type Round = {
    * needs to outlive the button press that caused it. A wrong answer stamps a
    * penalty, and it rides the rebound that follows.
    *
-   * `penalty` is which verdict happened, not how much it cost. The sign used to
-   * carry both, which is wrong at exactly one value: a no-penalty wrong is a
-   * penalty of zero, and reading it off `points` made it a payoff of zero
-   * instead — the miss vanished from the wall. `-0` does not survive the trip
-   * (`State` is JSON, and `JSON.stringify(-0)` is `"0"`), so the fact is a
-   * field. Use `isPenalty`, never the sign.
+   * `penalty` is which verdict happened, not how much it cost. Carrying both on
+   * the sign is wrong at exactly one value: a no-penalty wrong is a penalty of
+   * zero, and reading it off `points` makes it a payoff of zero instead, so the
+   * miss vanishes from the wall. `-0` does not survive the trip (`State` is
+   * JSON, and `JSON.stringify(-0)` is `"0"`), so the fact is a field. Use
+   * `isPenalty`, never the sign.
    */
   award?: Award
   /**

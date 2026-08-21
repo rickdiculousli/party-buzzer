@@ -197,8 +197,8 @@ export function HostSetup({
 
       <section>
         <p class="eyebrow">Room</p>
-        {/* The teams grouping and its Add team belong to each other; the mirror toggle
-            used to sit between them. */}
+        {/* The teams grouping and its Add team belong to each other: nothing goes
+            between them. */}
         <div class="host__toggles">
           <label class="field">
             Teams
