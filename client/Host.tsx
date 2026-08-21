@@ -5,7 +5,7 @@ import { refuses } from '../shared/legality.ts'
 import { DuelPanel } from './DuelPanel.tsx'
 import { HostSetup } from './HostSetup.tsx'
 import { Spoken } from './Spoken.tsx'
-import { momentOf } from '../shared/wall.ts'
+import { momentOf, type Moment } from '../shared/wall.ts'
 import { isPenalty } from '../shared/protocol.ts'
 import type { HostAction, ScoreKey } from '../shared/protocol.ts'
 
@@ -19,6 +19,98 @@ const KEYS: Record<string, HostAction> = {
   c: { a: 'correct' },
   n: { a: 'next' },
   z: { a: 'undo' },
+}
+
+/**
+ * What the desk says about the two rows the host lives on, as a lookup against
+ * the moment.
+ *
+ * There is one priority ladder and it is `momentOf`. This is a row per moment
+ * saying what that moment tells the host — never what outranks what, because the
+ * moment has already answered that. The `switch` has no `default`, so a
+ * fourteenth moment does not compile until it has said what the judging row and
+ * the arm row say while it is up.
+ *
+ * Both halves were hand-rolled ladders over raw state before this, sitting
+ * beside a `judgeable` that was already derived from the moment: four ternaries
+ * re-deriving `scored`, `held` and `leader` in a different order from the one
+ * `momentOf` had just put them in. That is the shape `middleOf` was deleted for,
+ * and it had grown back within the week — the second time in this file, which is
+ * why it is a table now rather than one more ternary.
+ *
+ * A row may still consult `f`. Asking whether this locked round has a leader is
+ * the row fetching its own data, not a second opinion about what is on top.
+ */
+function notesFor(
+  m: Moment,
+  f: { leader: boolean; scored: boolean },
+): { judge: string | null; arm: string | null } {
+  // Said in full by three rows, because a round that is still on the board is
+  // the whole reason the arm row exists. `N`, not `Next question`: the key is
+  // what a host reaches for one-handed.
+  const restart = 'This round is still on the board — arming starts another without ending it. N finishes the question.'
+  // Nothing is locked in, and the honest spread is wider than COLLECTING: it
+  // also covers the odd shapes where an order stands on a round that is not
+  // locked. Either way the answer is the same, so they share a sentence.
+  const unlocked = 'Nothing is locked in yet — judging waits for the buzz window to close.'
+
+  switch (m) {
+    // The desk passes `settled: true` and never reaches this, so the row is here
+    // for the compiler and for whoever gives the host a typing transcript later.
+    case 'answer:judging':
+      return { judge: 'The answer is still being read out — judging waits for it.', arm: restart }
+
+    case 'answer:locked':
+      return {
+        // Exactly `judgeable`'s remaining two terms, and the only row that may
+        // return a null judge: `judgeable` is this moment plus a leader minus a
+        // payoff, so anywhere else the buttons are dead and must say why.
+        judge: !f.leader ? REFUSAL_TEXT['no-leader'] : f.scored ? REFUSAL_TEXT['already-scored'] : null,
+        arm: 'Nobody has judged this yet — arming starts a new round and the lock is lost. N finishes the question.',
+      }
+
+    case 'verdict:hold':
+      return {
+        judge: 'A miss is up and the buzzers are shut — Reopen puts the question back to the room.',
+        arm: 'A miss is still held — arming starts a new round and the rebound never opens. N finishes the question.',
+      }
+
+    case 'verdict:award':
+      return { judge: REFUSAL_TEXT['already-scored'], arm: restart }
+
+    // Not scored: a penalty deliberately survives into the rebound it caused, so
+    // the question is still live and the retake is what the desk is waiting for.
+    case 'verdict:penalty':
+      return { judge: 'A penalty is up and the question is still live — judging waits for the retake to lock.', arm: restart }
+
+    // Arming is how a pair is rematched — `duelOnArm` clears `missed` and hands
+    // the buzzers back to both — so these two rows are directions, not warnings.
+    // A warning that fires on the documented way to do something is one the host
+    // learns to read past, and then it is not there for the rounds that meant it.
+    case 'duel:faceoff':
+      return { judge: unlocked, arm: 'Arming again rematches the same pair. N ends the duel and moves on.' }
+    case 'duel:dead':
+      return {
+        judge: 'Both seated players have missed — nobody may buzz.',
+        arm: 'Arming again puts both seated players back in. N ends the duel and moves on.',
+      }
+    // Nominations are not a round. Arming does not disturb an unseated pool, so
+    // there is nothing to say that the panel below is not already saying.
+    case 'duel:nominating':
+      return { judge: unlocked, arm: null }
+
+    // Arm is disabled through all three (`open` covers the two that are live,
+    // and `buzz:arming` is the countdown), so the arm row has no reader.
+    case 'buzz:collecting':
+    case 'buzz:open':
+    case 'buzz:arming':
+      return { judge: unlocked, arm: null }
+
+    // Nothing on the board, so arming is the plain move and says nothing.
+    case 'idle:ready':
+    case 'idle:welcome':
+      return { judge: REFUSAL_TEXT['no-leader'], arm: null }
+  }
 }
 
 export function Host() {
@@ -109,10 +201,8 @@ export function Host() {
   // but only from LOCKED with a leader: the table answers `no-leader` first
   // everywhere else, so asking it here would report the wrong reason.
   const scored = !!round.award && !isPenalty(round.award)
-  const judgeable =
-    momentOf(state, { open, settled: true, retired: true }) === 'answer:locked' &&
-    !!leader &&
-    !scored
+  const moment = momentOf(state, { open, settled: true, retired: true })
+  const judgeable = moment === 'answer:locked' && !!leader && !scored
   judgeableRef.current = judgeable
 
   // A miss is up and the box has not opened its rebound yet. Nobody is
@@ -128,39 +218,25 @@ export function Host() {
   const reopenable = !refuses(state, { a: 'rebound' })
   reopenableRef.current = reopenable
 
-  // Why the three judging buttons are dead, and it walks `judgeable`'s own terms
-  // rather than asking `refuses` — that is the whole point of it. `judgeable` is
-  // strictly narrower than the table (the moment folds in `settled` and
-  // `retired`, which `shared/legality.ts` may not read), so a sentence driven off
-  // `refuses` alone would come back null in the gap between them, and the desk
-  // would grey silently at exactly the moments only this file knows about.
-  // Deriving it from the predicate that actually greys the button is what makes
-  // it exhaustive: the last branch has no condition, so there is no state in
-  // which these buttons are dead and this is null.
-  //
-  // Two of the sentences come from `REFUSAL_TEXT` because they are those codes —
-  // `refuses(state, { a: 'correct' })` returns exactly `already-scored` and
-  // `no-leader` for them. The other two have no code and must not be given one:
-  // one is a fact about the moment and one about the hold, neither is a rule
-  // about what the host may press, and the table would be lying if it claimed to
-  // know either.
-  //
-  // The last branch is the catch-all and says the one thing true of every state
-  // that reaches it: there is a leader, and the round is not locked. It used to
-  // say the window was still filling, which is only COLLECTING — the honest
-  // spread also includes the odd shapes (an order left standing on an IDLE
-  // round) where "filling" is a sentence about a window that has closed. It gets
-  // no branch of its own because it is not a state a host can act on
-  // differently: the answer either way is wait for the lock.
-  const judgeReason = judgeable
-    ? null
-    : scored
-      ? REFUSAL_TEXT['already-scored']
-      : reopenable
-        ? 'A miss is up and the buzzers are shut — Reopen puts the question back to the room.'
-        : !leader
-          ? REFUSAL_TEXT['no-leader']
-          : 'Nothing is locked in yet — judging waits for the buzz window to close.'
+  // Why the judging buttons are dead, and what arming would do instead of what
+  // the host probably means by it. Both come from the moment; neither asks
+  // `refuses`. `judgeable` is strictly narrower than the table — the moment folds
+  // in `settled` and `retired`, which `shared/legality.ts` may not read — so a
+  // sentence driven off `refuses` would come back null in the gap between them
+  // and the desk would grey silently at exactly the moments only this file knows
+  // about. Some sentences are `REFUSAL_TEXT`'s because they genuinely are those
+  // codes; the rest are facts about the moment, and giving those codes would have
+  // the table claiming to know things it cannot read.
+  const notes = notesFor(moment, { leader: !!leader, scored })
+  const judgeReason = judgeable ? null : notes.judge
+
+  // The setlist counts questions by `next` and by nothing else (`advanceSetlist`
+  // runs off that action alone), so every one of these paths leaves the block a
+  // question short of where the host thinks it is. It is the only consequence
+  // here the wall does not show, which is why it is worth a clause rather than
+  // being left to be discovered at the end of a block that ran one long.
+  const armNote =
+    notes.arm && state.setlist ? `${notes.arm} The block will not count it.` : notes.arm
 
   // The night is run one of two ways, and the panel only ever offers one of
   // them: freehand, where the host picks the game and the pack; or a setlist,
@@ -300,6 +376,11 @@ export function Host() {
             never shown — the control suppresses the pointer events that would
             trigger it. */}
         {judgeReason && <p class="muted">{judgeReason}</p>}
+        {/* Arm is live here and stays live — arming a round that is still on the
+            board is legal, and on a seated pair it is the documented rematch. The
+            desk is not refusing it, only saying what it does, which is why this is
+            a note and not a `Refusal`. */}
+        {armNote && <p class="muted">{armNote}</p>}
 
         {/* What the locked-in player said, as the judge heard it. The verdict
             itself is the award above; this is the evidence for the undo. */}
