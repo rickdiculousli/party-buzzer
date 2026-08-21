@@ -91,9 +91,10 @@ test('a setlist cannot be loaded mid-round, and the refusal costs no undo step',
     await sleep(60)
     assert.equal(host.last.setlist, undefined)
 
-    // `loadSetlist` rides the act channel, so it used to miss the guard its own
-    // `setSetlist` carries: it read the file, pushed an undo snapshot, and only
-    // then had the mutation declined — leaving a phantom step that ate the arm.
+    // `loadSetlist` rides the act channel and so needs the guard its own
+    // `setSetlist` carries. Without it the file is read and an undo snapshot
+    // pushed before the mutation is declined, leaving a phantom step that eats
+    // the arm — which is the assertion below, not the refusal above it.
     host.send({ t: 'host', action: { a: 'arm' } })
     await sleep(60)
     assert.notEqual(host.last.round.phase, 'IDLE')

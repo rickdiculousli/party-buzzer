@@ -11,8 +11,7 @@ import type { Refusal } from '../shared/legality.ts'
  * typecheck until somebody has written its sentence, which is the only thing
  * standing between this and a tooltip that says "not-idle".
  *
- * The voice is `closeBlockReason`'s, because its sentences are the ones that
- * already survived a game night: state the fact, then the consequence, and
+ * The voice is `closeBlockReason`'s: state the fact, then the consequence, and
  * where there is something the host can press instead, name it. A host reads
  * these one-handed with a room waiting.
  */

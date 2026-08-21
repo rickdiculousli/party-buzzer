@@ -239,8 +239,9 @@ test('the phone: a question from second place, and the rebound', () => {
   // The mic mounts off this same ladder rather than a second expression on
   // the phone: locked in as leader, with the judge's window open, is `talk`.
   assert.equal(phoneOf('answer:locked', { ...mine, won: true, judging: true }).talk, true)
-  // Frozen still outranks it — the old expression never asked, so a frozen
-  // leader with the window open used to mount the mic anyway.
+  // Frozen outranks it: a frozen leader with the judge's window open gets no
+  // mic, which only holds while `talk` rides the ladder rather than its own
+  // predicate.
   {
     const barredPhone = phoneOf('answer:locked', {
       ...mine,

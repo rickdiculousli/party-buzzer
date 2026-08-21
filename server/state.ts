@@ -130,10 +130,10 @@ export function applyHostAction(state: State, action: HostAction): void {
   // exactly the actions a host would press, so every validation still runs.
   const apply = (a: HostAction) => applyHostAction(state, a)
 
-  // Legality is asked once, from the table the host surfaces read too. Every
-  // case below used to restate its own half of it, which is how the server and
-  // the buttons drifted: a live button the server silently returned on is a
-  // dead click with no feedback. The code is dropped rather than returned —
+  // Legality is asked once, from the table the host surfaces read too — a rule
+  // restated on both sides of the socket drifts, and a live button the server
+  // silently returns on is a dead click with no feedback. The code is dropped
+  // rather than returned —
   // `applyHostAction` has never had a way to answer the host, and giving it one
   // is a protocol change, not this. What survives per case is *lookups*
   // (`if (!player) return`, the duel the case then resolves): fetching a value,

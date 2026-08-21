@@ -210,8 +210,8 @@ export class Reader {
     }
     this.pump()
     await this.ready.get(texts[0])
-    // Rendering is minutes of synthesis and takes no notice of the reader, so
-    // the wait for it is one of the places a stopped session used to wake up in.
+    // Rendering is minutes of synthesis and takes no notice of the reader, so a
+    // session stopped during it wakes here and must not carry on.
     sig?.throwIfAborted()
   }
 
@@ -640,8 +640,8 @@ export class Reader {
         })
 
       await pb.done
-      // Timers first: an abort thrown with these still pending would leave the
-      // reveal firing into a round that is no longer this question's.
+      // Timers first: an abort thrown with these still pending leaves the reveal
+      // firing into a round that is no longer this question's.
       for (const t of timers) clearTimeout(t)
       this.playback = undefined
       sig.throwIfAborted()

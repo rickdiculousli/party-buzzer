@@ -463,11 +463,9 @@ const ROOMS: Record<string, () => State> = {
     s.round.total = 1
     return s
   },
-  // The verdict already landed and the desk should be dead: LOCKED, the leader
-  // still on the board, a payoff stamped. This is the room that splits the two
-  // authorities — `already-scored` is a rule only the host surfaces used to
-  // hold, so the table refuses here while the server, before this task, would
-  // happily score the question a second time.
+  // The verdict already landed and the desk is dead: LOCKED, the leader still on
+  // the board, a payoff stamped. The room that pins `already-scored` — without
+  // it the sweep never reaches a state where scoring twice is possible.
   scored: () => {
     const s = room()
     s.round.phase = 'LOCKED'

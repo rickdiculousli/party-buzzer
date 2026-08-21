@@ -194,9 +194,9 @@ test('every code in the union is covered by a case', () => {
 
 /**
  * A penalty means the question is still live, not scored — the retake has to be
- * judgeable. This is the bug `isPenalty` was introduced for, one value further
- * along: a no-penalty wrong stamps points of zero, and reading the miss off the
- * sign made `>= 0` a payoff and took the desk dead on the rebound it caused.
+ * judgeable. Both values matter: a no-penalty wrong stamps points of zero, so
+ * reading the miss off the sign takes the desk dead on the rebound it caused.
+ * `isPenalty`, never `>= 0`.
  */
 test('a penalty does not score the question', () => {
   for (const points of [-100, 0]) {
