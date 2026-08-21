@@ -42,24 +42,24 @@ const KEYS: Record<string, HostAction> = {
  */
 function notesFor(
   m: Moment,
-  f: { leader: boolean; scored: boolean; setlist: boolean },
+  f: { leader: boolean; scored: boolean },
 ): { judge: string | null; arm: string | null } {
-  // `advanceSetlist` runs off `next` and nothing else, so arming out of a played
-  // round leaves the block where it was and it runs one question long. The only
-  // consequence here the wall does not show.
-  const counts = f.setlist ? 'Only N counts this toward the block.' : null
+  // The two ways out of a played round. Arm re-opens the same slot: `next` is
+  // what ends the question, advances a setlist block, and drops a duel. The
+  // score is already applied either way — Z reverts it, arming does not.
+  const played = 'Press N for next round. Arm to redo (score not reverted)'
 
   switch (m) {
     // The desk passes `settled: true`, so this moment does not reach it.
     case 'answer:judging':
-      return { judge: null, arm: counts }
+      return { judge: null, arm: played }
 
     case 'answer:locked':
       return {
         // `judgeable`'s remaining two terms, and the only null judge that means
         // "the buttons are live": everywhere else null means "nothing to add".
         judge: !f.leader ? 'The lock caught no buzz.' : f.scored ? REFUSAL_TEXT['already-scored'] : null,
-        arm: counts,
+        arm: played,
       }
 
     case 'verdict:hold':
@@ -69,12 +69,12 @@ function notesFor(
       }
 
     case 'verdict:award':
-      return { judge: REFUSAL_TEXT['already-scored'], arm: counts }
+      return { judge: REFUSAL_TEXT['already-scored'], arm: played }
 
     // A penalty survives into the rebound it caused: the question is still live
     // and the retake is what the buttons are waiting for.
     case 'verdict:penalty':
-      return { judge: null, arm: counts }
+      return { judge: null, arm: played }
 
     case 'duel:faceoff':
       return { judge: null, arm: 'Arming rematches the same pair.' }
@@ -199,7 +199,7 @@ export function Host() {
   // between them. Sentences that are `REFUSAL_TEXT`'s are the ones that really
   // are those codes; the rest are facts about the moment, which the table cannot
   // read and must not claim to.
-  const notes = notesFor(moment, { leader: !!leader, scored, setlist: !!state.setlist })
+  const notes = notesFor(moment, { leader: !!leader, scored })
   const judgeReason = judgeable ? null : notes.judge
   const armNote = notes.arm
 
