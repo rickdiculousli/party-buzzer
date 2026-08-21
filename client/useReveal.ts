@@ -49,12 +49,11 @@ export function useReveal(round?: State['round']): Reveal {
    * `JSON.parse`, so an identity check re-thuds on each one while the points
    * simply sit there.
    *
-   * And on what it says *only* — the arm instant used to be in the key, which
-   * was fine until a penalty outlived its own arm. A rebound restamps
-   * `armedAt` while the −100 is still on the wall, so the key changed under a
-   * stamp that had not, and the penalty sounded a second time as the buzzers
-   * opened. The same stale key also un-retired the plaque and restarted its
-   * dwell, which is why it sat there long after it should have gone.
+   * And on what it says *only*: the arm instant must stay out of the key,
+   * because a penalty outlives its own arm. A rebound restamps `armedAt` while
+   * the −100 is still on the wall, so a key carrying it changes under a stamp
+   * that has not — the penalty sounds a second time as the buzzers open, and
+   * the plaque un-retires and restarts its dwell.
    *
    * An undo-and-rejudge to the same number still sounds, because undo takes the
    * award away first: no award means an empty key, and an empty key forgets, so

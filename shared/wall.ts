@@ -183,20 +183,16 @@ const EMPTY_MIDDLE = {
 /**
  * The middle band's occupant: one row per moment, in preference order.
  *
- * This used to be a second priority ladder — six `if`s that re-ranked the same
- * five occupants out of raw state, next to the thirteen-way ranking `momentOf`
- * had already done. Every display bug of the last week was the two ladders
- * disagreeing rather than either one being wrong: a face-off that outlived the
- * buzz-in because it outranked `buzz:collecting`, a penalty that outlived the
- * rebound answering it, a payoff that handed the stage back to the pair. Each
- * was fixed by tweaking a boolean, which is what having two ladders costs.
- *
- * There is one ladder now, in `momentOf`, and this is a lookup against it. A
- * row says what its moment would like to show and what it settles for when the
+ * There is one ladder and it is `momentOf`; this is a lookup against it. A row
+ * says what its moment would like to show and what it settles for when the
  * first choice has no data — never what outranks what, because the moment has
- * already answered that. The `switch` is exhaustive with no `default`, so a new
- * `Moment` does not compile until it has a row, and `or` returns exactly one
- * occupant by construction.
+ * already answered that. Ranking the five occupants here as well, out of raw
+ * state, is what produces a face-off outliving its buzz-in or a payoff handing
+ * the stage back to the pair: two rankings that disagree, with neither wrong.
+ *
+ * The `switch` is exhaustive with no `default`, so a new `Moment` does not
+ * compile until it has a row, and `or` returns exactly one occupant by
+ * construction.
  */
 function middleOf(state: State, m: Moment): Middle {
   const r = state.round
@@ -304,7 +300,7 @@ export function wallOf(state: State, local: Local): Wall {
 
 /** What is on one phone. Everything here is that player's own. */
 export type Mood = 'waiting' | 'open' | 'placed' | 'first' | 'barred'
-export type Phone = { label: string; sub: string; mood: Mood }
+export type Phone = { label: string; sub: string; mood: Mood; talk: boolean }
 export type Mine = {
   frozen: boolean
   barred: boolean
@@ -332,6 +328,8 @@ export type Mine = {
   armed: boolean
   /** Past the arm instant: the buzzers are actually open. */
   open: boolean
+  /** `!!round.judge` — the judge's spoken-answer window is open. */
+  judging: boolean
 }
 
 /**
@@ -346,20 +344,31 @@ export type Mine = {
  */
 export function phoneOf(m: Moment, f: Mine): Phone {
   if (f.frozen) {
-    return { label: 'Frozen', sub: 'A freeze item shut you out of this question', mood: 'barred' }
+    return {
+      label: 'Frozen',
+      sub: 'A freeze item shut you out of this question',
+      mood: 'barred',
+      talk: false,
+    }
   }
   if (f.barred) {
-    return { label: 'Out', sub: 'Wrong answer — you sit out the rest of this question', mood: 'barred' }
+    return {
+      label: 'Out',
+      sub: 'Wrong answer — you sit out the rest of this question',
+      mood: 'barred',
+      talk: false,
+    }
   }
   // Above the answer states, unlike on the wall. See `Mine.dead`.
   if (f.dead) {
-    return { label: 'Duel', sub: 'Both missed — waiting for the host', mood: 'barred' }
+    return { label: 'Duel', sub: 'Both missed — waiting for the host', mood: 'barred', talk: false }
   }
   if (f.spectator) {
     return {
       label: 'Duel',
       sub: `${f.buzzableNames?.join(' vs ')} — you sit this one out`,
       mood: 'barred',
+      talk: false,
     }
   }
   // The buzzers being shut is what "somebody is answering" means to a phone.
@@ -367,7 +376,11 @@ export function phoneOf(m: Moment, f: Mine): Phone {
   // question is live again and this phone may press.
   const shut = !f.armed && (isFamily(m, 'answer') || m === 'verdict:hold')
 
-  if (f.won && shut) return { label: 'You’re up', sub: 'Answer it', mood: 'first' }
+  // The one branch where the mic can mount: this phone is the locked-in
+  // leader and the judge's window is open. `talk` rides `f.judging` rather
+  // than a boolean of its own — `<Talk>`'s whole lifetime is this branch, so
+  // there is exactly one place that decides it is the one answering.
+  if (f.won && shut) return { label: 'You’re up', sub: 'Answer it', mood: 'first', talk: f.judging }
   // The press has gone but the window is still filling, and the room learns
   // nothing for a whole second.
   //
@@ -375,11 +388,11 @@ export function phoneOf(m: Moment, f: Mine): Phone {
   // for the whole question however that question ends — and a scored one ends
   // IDLE, which is neither armed nor locked.
   if (f.pressed && f.armed) {
-    return { label: 'In', sub: 'Counting the rest of the field', mood: 'placed' }
+    return { label: 'In', sub: 'Counting the rest of the field', mood: 'placed', talk: false }
   }
-  // Second place is locked too. It used to get a placement readout of its own,
-  // which is a result on a screen whose only job is to say "not you" — and the
-  // margin is on the board, in front of the whole room, already.
+  // Second place is locked too, and gets no placement readout: that is a result
+  // on a screen whose only job is to say "not you", and the margin is already on
+  // the board in front of the whole room.
   if (shut) {
     return {
       label: 'Locked',
@@ -390,9 +403,10 @@ export function phoneOf(m: Moment, f: Mine): Phone {
             ? `+${f.deltaMs} ms`
             : '',
       mood: 'barred',
+      talk: false,
     }
   }
-  if (f.open) return { label: 'Buzz', sub: '', mood: 'open' }
-  if (f.armed) return { label: 'Wait', sub: 'Any moment', mood: 'waiting' }
-  return { label: 'Wait', sub: 'The host has not armed yet', mood: 'waiting' }
+  if (f.open) return { label: 'Buzz', sub: '', mood: 'open', talk: false }
+  if (f.armed) return { label: 'Wait', sub: 'Any moment', mood: 'waiting', talk: false }
+  return { label: 'Wait', sub: 'The host has not armed yet', mood: 'waiting', talk: false }
 }

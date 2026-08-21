@@ -1,12 +1,11 @@
 /**
  * Where the folds are in a question read as one breath.
  *
- * The reader used to call `say` once per fragment, which is why it sounded
- * chopped: "This Italian composer of The Four Seasons" got sentence-final
- * intonation while it was actually mid-sentence. Rendering the whole question
- * as one utterance fixes the prosody and loses the boundaries — the clip no
- * longer knows where a fragment ends, and the board must not print a word the
- * room has not heard.
+ * Calling `say` once per fragment sounds chopped: "This Italian composer of The
+ * Four Seasons" takes sentence-final intonation while it is actually
+ * mid-sentence. Rendering the whole question as one utterance fixes the prosody
+ * and costs the boundaries — the clip does not know where a fragment ends, and
+ * the board must not print a word the room has not heard.
  *
  * So the boundaries are measured back out of the audio. We hold the answer key
  * (the source text), so this is verification rather than recognition: cut the
@@ -391,8 +390,8 @@ export async function locate(
    *
    * That is `done[prevK]`: the moment every word before this clause is done,
    * which is the moment its own first word starts. Firing on the clause's last
-   * word instead — the obvious reading of "reveal what has been said" — put the
-   * whole line up a clause behind the reader, which is what this used to do.
+   * word instead — the obvious reading of "reveal what has been said" — puts the
+   * whole line a clause behind the reader.
    *
    * The tradeoff is deliberate and it is the one the file was written against:
    * the room can now read a clause slightly ahead of hearing it. On a buzzer

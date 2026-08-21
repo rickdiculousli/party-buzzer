@@ -337,12 +337,11 @@ function Harness() {
    * The trim an audition plays through, and a cue sound bakes in.
    *
    * Plain state, and it lives beside the Library because it belongs to the
-   * Library. It used to be three custom properties in the `anim:tunables`
-   * block, which put its sliders up among the animation dials — a screen away
-   * from the list they act on, absent entirely from any scenario without a
-   * sound, and quietly reading zero when you adopted from one of those. None of
-   * that bought anything: a scratch trim on a download you are deciding about
-   * is not a value anyone wants written back to a stylesheet.
+   * Library. Not custom properties in `anim:tunables`: that would put its
+   * sliders up among the animation dials, a screen away from the list they act
+   * on, absent from any scenario without a sound and reading zero when you
+   * adopt from one of those. A scratch trim on a download you are deciding
+   * about is not a value anyone wants written back to a stylesheet.
    */
   const [trim, setTrim] = useState({ head: 0, cut: 0, rate: 1 })
   const noTrim = trim.head === 0 && trim.cut === 0 && trim.rate === 1
@@ -647,11 +646,10 @@ function Harness() {
         })}
 
         <p class="eyebrow">Write back</p>
-        {/* The button used to say "Save to style.css", which was true when the
-            only thing here was CSS. It writes two files now, and since a cue's
-            sound moved into its recipe, cues.ts is the half that carries the
-            audio — a label naming only the stylesheet would send you looking in
-            the wrong file for a change you just made. */}
+        {/* Save writes two files, and a cue's sound lives in its recipe, so
+            cues.ts is the half carrying the audio. A label naming only the
+            stylesheet would send you looking in the wrong file for a change you
+            just made. */}
         <p class="harness__hint">
           {dirty
             ? 'Writes the moved dials into the anim:tunables block in style.css, and every recipe into the cue:recipes block in cues.ts. Both blocks are regenerated in place.'

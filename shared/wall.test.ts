@@ -228,7 +228,7 @@ test('idle:welcome ends at the first arm, not at the first buzz', () => {
 test('the phone: a question from second place, and the rebound', () => {
   const mine = {
     frozen: false, barred: false, spectator: false, dead: false,
-    won: false, pressed: false, armed: false, open: false,
+    won: false, pressed: false, armed: false, open: false, judging: false,
   }
   assert.equal(phoneOf('idle:ready', mine).label, 'Wait')
   assert.equal(phoneOf('buzz:arming', { ...mine, armed: true }).sub, 'Any moment')
@@ -236,6 +236,22 @@ test('the phone: a question from second place, and the rebound', () => {
   assert.equal(phoneOf('buzz:collecting', { ...mine, armed: true, pressed: true }).label, 'In')
 
   assert.equal(phoneOf('answer:locked', { ...mine, won: true }).label, 'You’re up')
+  // The mic mounts off this same ladder rather than a second expression on
+  // the phone: locked in as leader, with the judge's window open, is `talk`.
+  assert.equal(phoneOf('answer:locked', { ...mine, won: true, judging: true }).talk, true)
+  // Frozen outranks it: a frozen leader with the judge's window open gets no
+  // mic, which only holds while `talk` rides the ladder rather than its own
+  // predicate.
+  {
+    const barredPhone = phoneOf('answer:locked', {
+      ...mine,
+      won: true,
+      judging: true,
+      frozen: true,
+    })
+    assert.equal(barredPhone.talk, false)
+    assert.equal(barredPhone.mood, 'barred')
+  }
   assert.equal(phoneOf('answer:locked', { ...mine, deltaMs: 140 }).sub, '+140 ms')
   assert.equal(phoneOf('verdict:hold', mine).sub, 'Reopening in a moment')
 

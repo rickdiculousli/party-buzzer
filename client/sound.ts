@@ -2,12 +2,10 @@
  * One-shot sample playback for the anchor moments.
  *
  * A cue's numbers live with the cue: in `RECIPES` for anything that is a
- * recipe, in `BED` below for the one cue that is still a sample. They used to
- * live in the `anim:tunables` block in style.css as custom properties read
- * through `getComputedStyle`, which was a real argument while a cue was one
- * sample with a head and a cut — aligning a sound to a movement is the same act
- * as tuning the movement, and it bought the harness's dials and write-back for
- * free.
+ * recipe, in `BED` below for the one cue that is still a sample. Custom
+ * properties in `anim:tunables` are the tempting alternative — aligning a sound
+ * to a movement is the same act as tuning the movement, and it would buy the
+ * harness's dials and write-back for free.
  *
  * A recipe layer already carries `gain`, `delay` and its own envelope, so
  * keeping a parallel set of the same numbers in a stylesheet meant two homes

@@ -1,11 +1,28 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { DuelRuleInfo, DuelState, HostAction, PlayerId, State } from '../shared/protocol.ts'
 import { Votes } from './Votes.tsx'
-import { eligibleForDuel, willSeat as seatPrediction } from './ui.ts'
+import { REFUSAL_TEXT, eligibleForDuel, willSeat as seatPrediction } from './ui.ts'
+import { refuses } from '../shared/legality.ts'
 
 const teamOf = (state: State, id: PlayerId) => state.players.find((p) => p.id === id)?.teamId
 
-/** Why closing this window right now would resolve nothing, or null. */
+/**
+ * Why closing this window right now would resolve nothing, or null.
+ *
+ * Kept, when the `!idle` around it went to `shared/legality.ts`, and the
+ * line between them is worth stating because it is the same line the table
+ * draws for itself: `refuses` says whether the *host may press this*, and this
+ * says whether *pressing it would do anything*. The server takes a `closeDuel`
+ * that seats nobody without complaint; there is nothing to refuse, there is only
+ * a host about to waste a beat. So this is a hint, and hints stay on the surface
+ * that shows them.
+ *
+ * It also could not move if it wanted to. Answering needs `eligibleForDuel` and
+ * `willSeat` from `client/ui.ts`, and a rule `shared/` cannot evaluate is a rule
+ * it must not hold — `legality.ts` names this function by name as the reason
+ * that boundary exists. Both buttons below are therefore governed by two things
+ * at once, and neither is a second ladder: the table rules, this advises.
+ */
 function closeBlockReason(
   state: State,
   duel: DuelState,
@@ -40,7 +57,6 @@ function closeBlockReason(
 export function DuelPanel({ state, act }: { state: State; act: (a: HostAction) => void }) {
   const [pick, setPick] = useState<PlayerId[]>([])
   const duel = state.duel
-  const idle = state.round.phase === 'IDLE'
   const name = (id: PlayerId) => state.players.find((p) => p.id === id)?.name ?? '?'
   const eligible = eligibleForDuel(state)
   const eligibleIds = new Set(eligible.map((p) => p.id))
@@ -54,6 +70,12 @@ export function DuelPanel({ state, act }: { state: State; act: (a: HostAction) =
 
   if (!duel) {
     const teams = state.grouping === 'teams' ? new Set(eligible.map((p) => p.teamId)) : null
+    // `openDuel`'s legality does not read the rule — seating happens before the
+    // question opens, and that is a fact about the round — so one call answers
+    // for every button in the row below and for the line under it. The empty
+    // rule is not a payload and never becomes one; it is there because the
+    // parameter exists, and naming a real rule would only suggest otherwise.
+    const openRefusal = refuses(state, { a: 'openDuel', rule: '' })
     return (
       <section>
         <p class="eyebrow">Heads-up</p>
@@ -68,7 +90,7 @@ export function DuelPanel({ state, act }: { state: State; act: (a: HostAction) =
               <button
                 key={r.id}
                 class="btn"
-                disabled={!idle || eligible.length < 2 || !!randomBlocked}
+                disabled={!!openRefusal || eligible.length < 2 || !!randomBlocked}
                 onClick={() => act({ a: 'openDuel', rule: r.id })}
               >
                 {r.name}
@@ -76,7 +98,10 @@ export function DuelPanel({ state, act }: { state: State; act: (a: HostAction) =
             )
           })}
         </div>
-        {idle && eligible.length >= 2 && teams && teams.size < 2 && (
+        {/* Printed, not a `title`: a disabled button eats the pointer events a
+            tooltip needs, so a sentence hung on one is a sentence nobody reads. */}
+        {openRefusal && <p class="muted">{REFUSAL_TEXT[openRefusal]}</p>}
+        {!openRefusal && eligible.length >= 2 && teams && teams.size < 2 && (
           <p class="muted">Random draw needs two different teams — everyone eligible is on one.</p>
         )}
       </section>
@@ -105,6 +130,12 @@ export function DuelPanel({ state, act }: { state: State; act: (a: HostAction) =
   const willSeat = seatPrediction(state)
   const pool = duel.pool.slice().sort((a, b) => b.votes.length - a.votes.length)
   const closeReason = rule ? closeBlockReason(state, duel, rule, eligibleIds) : null
+  // Both ways of closing — resolve the pool, or name two by hand — are the same
+  // `closeDuel`, so one refusal covers both buttons. Reaching this line means
+  // there is a duel and it is unseated, so what it can still say is `not-idle`:
+  // a window that was open when the host armed. That was a live button the
+  // server refuses, which is the dead click this whole task is about.
+  const closeRefusal = refuses(state, { a: 'closeDuel' })
 
   const pickSameTeam =
     pick.length === 2 && state.grouping === 'teams' && teamOf(state, pick[0]) === teamOf(state, pick[1])
@@ -140,7 +171,7 @@ export function DuelPanel({ state, act }: { state: State; act: (a: HostAction) =
         {rule?.resolve !== 'host' && (
           <button
             class="btn btn--primary"
-            disabled={!!closeReason}
+            disabled={!!closeReason || !!closeRefusal}
             onClick={() => act({ a: 'closeDuel' })}
           >
             Seat them
@@ -150,7 +181,9 @@ export function DuelPanel({ state, act }: { state: State; act: (a: HostAction) =
           Cancel
         </button>
       </div>
-      {closeReason && <p class="muted">{closeReason}</p>}
+      {(closeRefusal || closeReason) && (
+        <p class="muted">{closeRefusal ? REFUSAL_TEXT[closeRefusal] : closeReason}</p>
+      )}
 
       <p class="eyebrow" style={{ marginTop: 'var(--s3)' }}>Or pick two</p>
       <div class="host__minor">
@@ -165,7 +198,12 @@ export function DuelPanel({ state, act }: { state: State; act: (a: HostAction) =
         ))}
         <button
           class="btn btn--go"
-          disabled={pick.length !== 2 || pickSameTeam}
+          // The two picks and the same-team check are about this form's own
+          // contents and stay here; whether the room permits a `closeDuel` at
+          // all is the table's, and it is the same one the resolve button above
+          // asks. A form-contents check does not go through `refuses`, and a
+          // room-permission one does not stay local.
+          disabled={pick.length !== 2 || pickSameTeam || !!closeRefusal}
           onClick={() => {
             act({ a: 'closeDuel', playerIds: [pick[0], pick[1]] })
             setPick([])

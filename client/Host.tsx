@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'preact/hooks'
 import { useOpen, useSocket } from './useSocket.ts'
-import { colorForPlayer, standings } from './ui.ts'
+import { REFUSAL_TEXT, colorForPlayer, standings } from './ui.ts'
+import { refuses } from '../shared/legality.ts'
 import { DuelPanel } from './DuelPanel.tsx'
 import { HostSetup } from './HostSetup.tsx'
 import { Spoken } from './Spoken.tsx'
-import { momentOf } from '../shared/wall.ts'
+import { momentOf, type Moment } from '../shared/wall.ts'
 import { isPenalty } from '../shared/protocol.ts'
 import type { HostAction, ScoreKey } from '../shared/protocol.ts'
 
@@ -18,6 +19,80 @@ const KEYS: Record<string, HostAction> = {
   c: { a: 'correct' },
   n: { a: 'next' },
   z: { a: 'undo' },
+}
+
+/**
+ * What the desk says, as a lookup against the moment.
+ *
+ * One row per `Moment`, no `default`, so a fourteenth moment does not compile
+ * until it has said what the judging row and the arm row show while it is up.
+ * Rows never rank each other — `momentOf` has already done that. A row reading
+ * `f` is fetching its own data, not holding a second opinion about what is on
+ * top.
+ *
+ * Most rows are silent on purpose. The desk shows the round, so a note that
+ * names the state the host is looking at is noise; these say only what the
+ * screen does not already show. `judge` is therefore null in states where the
+ * judging buttons are dead, and that is deliberate.
+ *
+ * Arm stays pressable everywhere it appears here. Arming a round still on the
+ * board is legal, and on a seated pair it is the rematch — `duelOnArm` clears
+ * `missed` and hands the buzzers back to both. These notes say what it does,
+ * they do not refuse it.
+ */
+function notesFor(
+  m: Moment,
+  f: { leader: boolean; scored: boolean },
+): { judge: string | null; arm: string | null } {
+  // The two ways out of a played round. Arm re-opens the same slot: `next` is
+  // what ends the question, advances a setlist block, and drops a duel. The
+  // score is already applied either way — Z reverts it, arming does not.
+  const played = 'Press N for next round. Arm to redo (score not reverted)'
+
+  switch (m) {
+    // The desk passes `settled: true`, so this moment does not reach it.
+    case 'answer:judging':
+      return { judge: null, arm: played }
+
+    case 'answer:locked':
+      return {
+        // `judgeable`'s remaining two terms, and the only null judge that means
+        // "the buttons are live": everywhere else null means "nothing to add".
+        judge: !f.leader ? 'The lock caught no buzz.' : f.scored ? REFUSAL_TEXT['already-scored'] : null,
+        arm: played,
+      }
+
+    case 'verdict:hold':
+      return {
+        judge: 'Reopen puts the question back to the room.',
+        arm: 'Arming drops the rebound.',
+      }
+
+    case 'verdict:award':
+      return { judge: REFUSAL_TEXT['already-scored'], arm: played }
+
+    // A penalty survives into the rebound it caused: the question is still live
+    // and the retake is what the buttons are waiting for.
+    case 'verdict:penalty':
+      return { judge: null, arm: played }
+
+    case 'duel:faceoff':
+      return { judge: null, arm: 'Arming rematches the same pair.' }
+    case 'duel:dead':
+      return { judge: 'Both seated players have missed.', arm: 'Arming puts them both back in.' }
+    case 'duel:nominating':
+      return { judge: null, arm: null }
+
+    // Arm is disabled through all three, so the arm row has no reader.
+    case 'buzz:collecting':
+    case 'buzz:open':
+    case 'buzz:arming':
+      return { judge: null, arm: null }
+
+    case 'idle:ready':
+    case 'idle:welcome':
+      return { judge: null, arm: null }
+  }
 }
 
 export function Host() {
@@ -89,30 +164,44 @@ export function Host() {
   // the order is reachable if a freeze lands mid-window, and there is nothing to
   // judge there.
   //
-  // The award term asks "has this question already paid out", and it used to ask
-  // it as `!round.award` — which was wrong for the whole of a rebound. A penalty
-  // deliberately survives into the rebound it caused (`openRebound` leaves it up
-  // so the wall keeps saying why the question is still open), so the retake
-  // locked with a stale −400 on State and the desk went dead: a human host could
-  // not score the very question the room was waiting on, and had to spend an N.
-  // The machine judge never hit it, because a synthetic host connection goes
-  // straight to `applyHostAction` and never reads this. The server's own rule is
-  // just leader-and-LOCKED, and a penalty means the question is still live, not
-  // scored. `isPenalty`, not the sign: a no-penalty wrong now stamps points of
-  // zero, and `>= 0` read that as a payoff and took the desk dead on the retake
-  // it caused — the same failure as the stale −400, one value further along.
-  const judgeable =
-    momentOf(state, { open, settled: true, retired: true }) === 'answer:locked' &&
-    !!leader &&
-    !(round.award && !isPenalty(round.award))
+  // The award term asks "has this question already paid out", which is not
+  // `!round.award`: a penalty survives into the rebound it caused (`openRebound`
+  // leaves it up so the wall keeps saying why the question is still open), and
+  // the retake must stay judgeable with that penalty on State. `isPenalty`, not
+  // the sign — a no-penalty wrong stamps points of zero, and `>= 0` reads that
+  // as a payoff.
+  //
+  // Written once and read twice — `notesFor` needs the same fact.
+  // `refuses(state, { a: 'correct' }) === 'already-scored'` is exactly it,
+  // but only from LOCKED with a leader: the table answers `no-leader` first
+  // everywhere else, so asking it here would report the wrong reason.
+  const scored = !!round.award && !isPenalty(round.award)
+  const moment = momentOf(state, { open, settled: true, retired: true })
+  const judgeable = moment === 'answer:locked' && !!leader && !scored
   judgeableRef.current = judgeable
 
   // A miss is up and the box has not opened its rebound yet. Nobody is
   // answering, so `Correct` has nothing to score — the slot is free, and the
   // host gets the one control they otherwise lack: skipping the beat rather
   // than waiting out `reboundSec`.
-  const reopenable = !!round.held
+  //
+  // Asked of the table rather than of `round.held` directly, even though the
+  // two are the same fact today. This one does not grey a button, it chooses
+  // which button is in the slot at all — so a `rebound` the server would refuse
+  // would put a live Reopen in front of the host, which is the same dead click
+  // wearing a different hat. It is also what the R key fires.
+  const reopenable = !refuses(state, { a: 'rebound' })
   reopenableRef.current = reopenable
+
+  // Both notes come from the moment, and neither asks `refuses`: `judgeable` is
+  // strictly narrower than the table, which may not read `settled` or `retired`,
+  // so a sentence driven off the table would come back null inside the gap
+  // between them. Sentences that are `REFUSAL_TEXT`'s are the ones that really
+  // are those codes; the rest are facts about the moment, which the table cannot
+  // read and must not claim to.
+  const notes = notesFor(moment, { leader: !!leader, scored })
+  const judgeReason = judgeable ? null : notes.judge
+  const armNote = notes.arm
 
   // The night is run one of two ways, and the panel only ever offers one of
   // them: freehand, where the host picks the game and the pack; or a setlist,
@@ -183,6 +272,13 @@ export function Host() {
           const at = state.setlist.at
           const block = state.setlist.blocks[at]
           const name = state.games.find((g) => g.id === block?.game)?.name
+          // The table answers "may the host jump at all" — mid-question, or with
+          // no setlist to jump within. It does not answer "is there a block
+          // after this one", because that is a fact about this particular `at`
+          // rather than about the room, and the table takes the whole action but
+          // rules only on the round. So the bound stays here, next to the `+ 1`
+          // that produced it.
+          const jump = refuses(state, { a: 'setlistJump', at: at + 1 })
           return (
             <div class="host__setlist">
               {block ? (
@@ -198,11 +294,16 @@ export function Host() {
               <span class="host__spacer" />
               <button
                 class="btn btn--ghost"
-                disabled={round.phase !== 'IDLE' || at >= state.setlist.blocks.length}
+                disabled={!!jump || at >= state.setlist.blocks.length}
                 onClick={() => act({ a: 'setlistJump', at: at + 1 })}
               >
                 Skip block
               </button>
+              {/* A `title` on a disabled button never fires — the control eats
+                  its own pointer events — so the reason is printed. This strip
+                  is one flex row of chips, so it is a `span` here rather than
+                  the `p.muted` the two stacked panels use. */}
+              {jump && <span class="muted">{REFUSAL_TEXT[jump]}</span>}
             </div>
           )
         })()}
@@ -235,6 +336,12 @@ export function Host() {
             Next question<span class="key">N</span>
           </button>
         </div>
+        {/* Under the row rather than on the buttons: these three are the most
+            pressed controls on the desk, and a `title` on a disabled button is
+            never shown — the control suppresses the pointer events that would
+            trigger it. */}
+        {judgeReason && <p class="muted">{judgeReason}</p>}
+        {armNote && <p class="muted">{armNote}</p>}
 
         {/* What the locked-in player said, as the judge heard it. The verdict
             itself is the award above; this is the evidence for the undo. */}

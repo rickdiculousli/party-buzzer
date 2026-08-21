@@ -5,6 +5,7 @@ import { knownModule, moduleFor, sanitizeOptions } from './modes/index.ts'
 import { executeGrants } from './items.ts'
 import { duelOnArm, duelOnWrong, duelRule, resolveDuel, seatDuel } from './duel.ts'
 import { advanceSetlist, applySetup, enterBlock, sanitizeBlocks } from './setlist.ts'
+import { refuses } from '../shared/legality.ts'
 import type {
   SetlistBlock, HostAction, PlayerId, ScoreKey, State,
 } from '../shared/protocol.ts'
@@ -118,10 +119,26 @@ function openRebound(state: State): void {
 
 export function applyHostAction(state: State, action: HostAction): void {
   const round = state.round
+  // Used unnarrowed by `correct` and `wrong`, and that is not an oversight the
+  // compiler is missing: `refuses` returns `no-leader` for both unless
+  // `r.order[0]` is there, and the `return` below is what makes it a guarantee.
+  // It only typechecks because `noUncheckedIndexedAccess` is off, so the
+  // guarantor is a different file now — name it rather than leave it looking
+  // like luck.
   const leader = round.order[0]
   // The setlist applies its blocks through this same function: entering a block is
   // exactly the actions a host would press, so every validation still runs.
   const apply = (a: HostAction) => applyHostAction(state, a)
+
+  // Legality is asked once, from the table the host surfaces read too — a rule
+  // restated on both sides of the socket drifts, and a live button the server
+  // silently returns on is a dead click with no feedback. The code is dropped
+  // rather than returned —
+  // `applyHostAction` has never had a way to answer the host, and giving it one
+  // is a protocol change, not this. What survives per case is *lookups*
+  // (`if (!player) return`, the duel the case then resolves): fetching a value,
+  // not ruling on legality.
+  if (refuses(state, action)) return
 
   switch (action.a) {
     case 'arm': {
@@ -147,10 +164,6 @@ export function applyHostAction(state: State, action: HostAction): void {
     }
 
     case 'correct': {
-      // Judging waits for the window: a provisional leader is on the board
-      // from 150ms in, but scoring during COLLECTING would strand every buzz
-      // still in the air and cut the timeline the room is watching.
-      if (!leader || round.phase !== 'LOCKED') return
       const mod = moduleFor(state.game.id)
       if (mod.onCorrect) {
         mod.onCorrect(state)
@@ -169,7 +182,6 @@ export function applyHostAction(state: State, action: HostAction): void {
     }
 
     case 'wrong': {
-      if (!leader || round.phase !== 'LOCKED') return
       const key = scoreKey(state, leader.playerId)
       const mod = moduleFor(state.game.id)
       // Cleared first, stamped second: a penalty gets the award's mirror and it
@@ -183,9 +195,9 @@ export function applyHostAction(state: State, action: HostAction): void {
       } else {
         if (action.neg) bump(state, key, -action.neg)
         if (!round.lockedOut.includes(key)) round.lockedOut.push(key)
-        // Stamped whatever it cost. A no-penalty wrong used to write no award
-        // at all, so the wall had no way to know a miss had happened and sat
-        // on a bare "Ready" through the rebound it caused.
+        // Stamped whatever it cost, zero included: the award is how the wall
+        // knows a miss happened at all, and without one it sits on a bare
+        // "Ready" through the rebound that miss caused.
         round.award = { name: leader.name, points: -action.neg, penalty: true }
       }
       // Same: the verdict ended the window, but what was said rides the rebound.
@@ -215,9 +227,6 @@ export function applyHostAction(state: State, action: HostAction): void {
     }
 
     case 'rebound':
-      // Only ever opens a rebound that is being held. A stray one — a double
-      // tap, a reader waking on a round that already moved — changes nothing.
-      if (!round.held) return
       // The hold *was* the room's look at the miss. Opening it hands the wall
       // back to the clue, and the clue resumes in the same instant — so the
       // transcript goes with the hold rather than sitting over the next two
@@ -261,8 +270,6 @@ export function applyHostAction(state: State, action: HostAction): void {
       return
 
     case 'setMode': {
-      // Modes are fixed per session; switching is a fresh game, refused mid-question.
-      if (round.phase !== 'IDLE') return
       // A pool was built under the old game's room; a seated pair is a
       // commitment and survives.
       if (state.duel && !state.duel.seated) delete state.duel
@@ -355,8 +362,11 @@ export function applyHostAction(state: State, action: HostAction): void {
     }
 
     case 'openDuel': {
-      // Seating happens before the question opens so buzzable stamps at arm.
-      if (round.phase !== 'IDLE') return
+      // A lookup, and only a lookup: the table refuses an unknown rule against
+      // `state.duelRules` now, so this is fetching the `entry`/`resolve` the
+      // case is about to read, not ruling on legality. It still returns on a
+      // miss because the catalog it reads is `server/duel.ts`'s and the table's
+      // is State's copy — the same pair as `knownModule` and `state.games`.
       const rule = duelRule(action.rule)
       if (!rule) return
       state.duel = { rule: rule.id, pool: [], missed: [] }
@@ -374,8 +384,9 @@ export function applyHostAction(state: State, action: HostAction): void {
 
     case 'closeDuel': {
       const duel = state.duel
-      if (!duel || duel.seated) return
-      if (round.phase !== 'IDLE') return
+      // The `seated` half of this was a precondition and is the table's now;
+      // what is left is the lookup `resolveDuel` needs a value for.
+      if (!duel) return
       if (action.playerIds) {
         seatDuel(state, action.playerIds)
         return
@@ -392,8 +403,6 @@ export function applyHostAction(state: State, action: HostAction): void {
       return
 
     case 'setSetlist': {
-      // Setup, not play — refused mid-question the way setMode is.
-      if (round.phase !== 'IDLE') return
       const blocks = sanitizeBlocks(action.blocks, knownModule, (id) => !!duelRule(id))
       if (blocks.length === 0) {
         delete state.setlist
@@ -421,7 +430,8 @@ export function applyHostAction(state: State, action: HostAction): void {
     }
 
     case 'setlistJump': {
-      if (round.phase !== 'IDLE') return
+      // A lookup again: the table has already refused a jump with no setlist,
+      // this is the value the case moves.
       const setlist = state.setlist
       if (!setlist) return
       const at = Number.isFinite(action.at) ? Math.round(action.at) : 0
@@ -432,7 +442,6 @@ export function applyHostAction(state: State, action: HostAction): void {
     }
 
     case 'clearSetlist':
-      if (round.phase !== 'IDLE') return
       // The setlist goes; the game in progress stays. Clearing a plan is not a
       // reason to change the mode or cancel a duel the room is already voting on.
       delete state.setlist

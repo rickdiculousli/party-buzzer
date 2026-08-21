@@ -1,5 +1,7 @@
 import { GameSettings } from './GameSettings.tsx'
 import { SetlistPanel } from './SetlistPanel.tsx'
+import { REFUSAL_TEXT } from './ui.ts'
+import { refuses } from '../shared/legality.ts'
 import type { HostAction, State } from '../shared/protocol.ts'
 
 /**
@@ -19,6 +21,15 @@ export function HostSetup({
   const { round } = state
   const setlist = !!state.setlist
 
+  // Both "how the night runs" buttons send `setSetlist`, and its legality does
+  // not read the blocks — so one call answers for the pair, and the empty array
+  // here is a placeholder rather than the payload either button will send.
+  const howRefusal = refuses(state, { a: 'setSetlist', blocks: [] })
+
+  // The pack picker's own, because the table cannot hold it — see the comment on
+  // the control itself. The identity is restated here; the words are not.
+  const packBlocked = round.phase !== 'IDLE'
+
   return (
     <details class="host__manage">
       <summary>
@@ -34,14 +45,14 @@ export function HostSetup({
         <div class="host__pick">
           <button
             class={setlist ? 'btn' : 'btn btn--primary'}
-            disabled={round.phase !== 'IDLE'}
+            disabled={!!howRefusal}
             onClick={() => act({ a: 'setSetlist', blocks: [] })}
           >
             Direct play
           </button>
           <button
             class={setlist ? 'btn btn--primary' : 'btn'}
-            disabled={round.phase !== 'IDLE'}
+            disabled={!!howRefusal}
             onClick={() =>
               setlist ||
               act({
@@ -65,6 +76,7 @@ export function HostSetup({
             ? 'Each block carries its own game and pack. Switching to direct play discards the setlist.'
             : 'You pick the game and the pack, and drive the night by hand.'}
         </p>
+        {howRefusal && <p class="muted">{REFUSAL_TEXT[howRefusal]}</p>}
       </section>
 
       {setlist ? (
@@ -75,10 +87,19 @@ export function HostSetup({
           {state.packs.length > 0 && (
             <section>
               <p class="eyebrow">Pack</p>
+              {/* The one control on this panel the table cannot speak for.
+                  `selectPack` rides the `act` channel, not the host-action one,
+                  so there is no `HostAction` to hand `refuses` — and borrowing a
+                  neighbour's action to stand in for it would make the picker
+                  follow a rule it does not have. The authority is the hub's own
+                  guard (`server/hub.ts`, "refuse it the way setMode does"), and
+                  this restates it because it must. What it does not restate is
+                  the sentence: the reason is the same reason, so the line under
+                  it comes from the same place as every other one on this desk. */}
               <select
                 class="input"
                 value={state.reading?.pack ?? ''}
-                disabled={round.phase !== 'IDLE'}
+                disabled={packBlocked}
                 onChange={(e) => {
                   const name = (e.target as HTMLSelectElement).value
                   if (name) fire('selectPack', name)
@@ -89,6 +110,7 @@ export function HostSetup({
                   <option key={p} value={p}>{p}</option>
                 ))}
               </select>
+              {packBlocked && <p class="muted">{REFUSAL_TEXT['not-idle']}</p>}
             </section>
           )}
         </>
@@ -175,8 +197,8 @@ export function HostSetup({
 
       <section>
         <p class="eyebrow">Room</p>
-        {/* The teams grouping and its Add team belong to each other; the mirror toggle
-            used to sit between them. */}
+        {/* The teams grouping and its Add team belong to each other: nothing goes
+            between them. */}
         <div class="host__toggles">
           <label class="field">
             Teams

@@ -1,6 +1,8 @@
 import { useState } from 'preact/hooks'
 import type { SetlistBlock, HostAction, State } from '../shared/protocol.ts'
 import { OptionField, defaultsOf } from './GameSettings.tsx'
+import { REFUSAL_TEXT } from './ui.ts'
+import { refuses } from '../shared/legality.ts'
 
 /**
  * The setlist builder. Setup, so it lives folded away in the host's manage
@@ -22,7 +24,14 @@ export function SetlistPanel({
 }) {
   const [saveAs, setSaveAs] = useState('')
   const blocks = state.setlist?.blocks ?? []
-  const idle = state.round.phase === 'IDLE'
+
+  // Every edit on this panel is one `setSetlist`, so one refusal answers for all
+  // of them; the legality of that action does not read the blocks, which is why
+  // an empty array can stand in for whatever the control being greyed would have
+  // sent. This replaced every `!idle` on the panel — a dozen of them, agreeing
+  // with the server by coincidence and with nothing to say when they were right.
+  const edits = refuses(state, { a: 'setSetlist', blocks: [] })
+  const clear = refuses(state, { a: 'clearSetlist' })
 
   /**
    * What a block asks for against what its pack can supply. Blocks sharing a
@@ -67,10 +76,18 @@ export function SetlistPanel({
 
 
       <div class="setlist__io">
+        {/* Loading rides the `act` channel rather than the host-action one, so
+            there is no `HostAction` of its own to ask about — but what the hub
+            does with it *is* a `setSetlist`: it replaces `state.setlist` and
+            pushes the same undo snapshot the builder's edits do. Asking the
+            table about the mutation this performs is not borrowing a
+            neighbour's rule, and the pack picker in `HostSetup` is the case
+            where it would be: `selectPack` has no host action with its effect,
+            so that one stays local. */}
         <select
           class="input"
           value=""
-          disabled={!idle || state.setlists.length === 0}
+          disabled={!!edits || state.setlists.length === 0}
           onChange={(e) => {
             const name = (e.target as HTMLSelectElement).value
             if (name) fire('loadSetlist', name)
@@ -113,7 +130,7 @@ export function SetlistPanel({
                 <select
                   class="input"
                   value={b.game}
-                  disabled={!idle}
+                  disabled={!!edits}
                   onChange={(e) => {
                     const id = (e.target as HTMLSelectElement).value
                     const next = state.games.find((g) => g.id === id)
@@ -138,7 +155,7 @@ export function SetlistPanel({
                   min={1}
                   max={99}
                   value={b.count}
-                  disabled={!idle}
+                  disabled={!!edits}
                   onChange={(e) => edit(i, { count: Number((e.target as HTMLInputElement).value) })}
                 />
               </label>
@@ -151,7 +168,7 @@ export function SetlistPanel({
                   step={100}
                   placeholder="—"
                   value={b.value ?? ''}
-                  disabled={!idle}
+                  disabled={!!edits}
                   onChange={(e) => {
                     const raw = (e.target as HTMLInputElement).value
                     edit(i, { value: raw === '' ? undefined : Number(raw) })
@@ -164,7 +181,7 @@ export function SetlistPanel({
                 <select
                   class="input"
                   value={b.pack ?? ''}
-                  disabled={!idle}
+                  disabled={!!edits}
                   onChange={(e) =>
                     edit(i, { pack: (e.target as HTMLSelectElement).value || undefined })
                   }
@@ -181,7 +198,7 @@ export function SetlistPanel({
                 <select
                   class="input"
                   value={b.duel ?? ''}
-                  disabled={!idle}
+                  disabled={!!edits}
                   onChange={(e) =>
                     edit(i, { duel: (e.target as HTMLSelectElement).value || undefined })
                   }
@@ -200,7 +217,7 @@ export function SetlistPanel({
                   key={spec.key}
                   spec={spec}
                   value={b.options[spec.key]}
-                  disabled={!idle}
+                  disabled={!!edits}
                   onChange={(v) => edit(i, { options: { ...b.options, [spec.key]: v } })}
                 />
               ))}
@@ -216,7 +233,7 @@ export function SetlistPanel({
                 <button
                   class="btn btn--ghost"
                   title="Move up"
-                  disabled={!idle || i === 0}
+                  disabled={!!edits || i === 0}
                   onClick={() => move(i, -1)}
                 >
                   ↑
@@ -224,7 +241,7 @@ export function SetlistPanel({
                 <button
                   class="btn btn--ghost"
                   title="Move down"
-                  disabled={!idle || i === blocks.length - 1}
+                  disabled={!!edits || i === blocks.length - 1}
                   onClick={() => move(i, 1)}
                 >
                   ↓
@@ -232,7 +249,7 @@ export function SetlistPanel({
                 <button
                   class="btn btn--ghost"
                   title="Remove block"
-                  disabled={!idle}
+                  disabled={!!edits}
                   onClick={() => write(blocks.filter((_, j) => j !== i))}
                 >
                   ×
@@ -244,14 +261,24 @@ export function SetlistPanel({
       )}
 
       <div class="host__minor">
-        <button class="btn" disabled={!idle} onClick={add}>+ block</button>
+        <button class="btn" disabled={!!edits} onClick={add}>+ block</button>
         {blocks.length > 0 && (
-          <button class="btn btn--ghost" disabled={!idle} onClick={() => act({ a: 'clearSetlist' })}>
+          <button
+            class="btn btn--ghost"
+            disabled={!!clear}
+            onClick={() => act({ a: 'clearSetlist' })}
+          >
             Clear setlist
           </button>
         )}
       </div>
-      {!idle && <p class="muted">The setlist unlocks between questions.</p>}
+      {/* The panel's own sentence, and the only place any of this is explained.
+          A `title` on a disabled control never fires — the control suppresses
+          the pointer events a tooltip needs — so hanging one on each of the
+          twelve would have computed the reason and thrown it away. Everything
+          above greys for one reason at a time, so one line under it says it
+          once, and is read without hovering anything. */}
+      {edits && <p class="muted">{REFUSAL_TEXT[edits]}</p>}
     </section>
   )
 }
