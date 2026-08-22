@@ -45,6 +45,17 @@ export type BuzzEntry = {
  */
 export const COLLECT_MS = 1000
 
+/**
+ * These two are not independent: `COLLECT_MS > ARM_DELAY_MS`, and
+ * `server/reader.ts` depends on it. Before a question's first fragment is
+ * pushed, the reader tells "the round moved on without me" from "the round
+ * bounced and is still mine" by `armedAt` alone, which only works while a
+ * rebound cannot re-arm inside the collection window. Held by a test in
+ * `server/reader.test.ts` rather than by the compiler — TypeScript widens a
+ * comparison to `boolean`, so there is no literal type to assert against
+ * without more machinery than one invariant is worth.
+ */
+
 export type Award = { name: string; points: number; penalty?: true }
 
 /**

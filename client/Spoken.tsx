@@ -10,7 +10,7 @@
  * a surface can land the award stamp and its thud there too.
  */
 import { useEffect, useRef, useState } from 'preact/hooks'
-import { parseTune, play, unlock } from './sound.ts'
+import { play, tune, unlock } from './sound.ts'
 import { chunks } from './ui.ts'
 
 export function Spoken({
@@ -51,9 +51,9 @@ export function Spoken({
     // Read the pace off the line itself, not the root: the harness sets its
     // dialled values on a wrapper, and a property read at the root never sees
     // them — the same reason `markGap` takes a scope.
-    const scope = getComputedStyle(line.current ?? document.documentElement)
-    const ms = parseTune(scope.getPropertyValue('--type-chunk'), 220)
-    const hold = parseTune(scope.getPropertyValue('--verdict-hold'), 500)
+    const scope = line.current ?? undefined
+    const ms = tune('--type-chunk', scope)
+    const hold = tune('--verdict-hold', scope)
     let n = 0
     let after: ReturnType<typeof setTimeout>
     const t = setInterval(() => {

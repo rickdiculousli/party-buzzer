@@ -39,6 +39,13 @@ function rig(packBody: string) {
 
 const PACK = 'V: 300\nFirst fragment. / Second fragment.\nA: gold\n'
 
+// The reader's `stillMine` falls back to `armedAt` before the first fragment,
+// which is only safe while a rebound cannot re-arm inside the collection
+// window. See the note beside the constants in shared/protocol.ts.
+test('the collection window outlasts the arm delay', () => {
+  assert.ok(COLLECT_MS > ARM_DELAY_MS, `${COLLECT_MS} must exceed ${ARM_DELAY_MS}`)
+})
+
 test('selecting a pack renders every fragment and publishes progress', async () => {
   const { state, reader } = rig(PACK)
   await reader.select('one.txt')

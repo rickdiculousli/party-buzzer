@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
-import { parseTune, play } from './sound.ts'
+import { play, tune } from './sound.ts'
 import { isPenalty } from '../shared/protocol.ts'
 import type { State } from '../shared/protocol.ts'
 
@@ -94,10 +94,7 @@ export function useReveal(round?: State['round']): Reveal {
       setRetiredKey('')
       return
     }
-    const dwell = parseTune(
-      getComputedStyle(document.documentElement).getPropertyValue('--penalty-dwell'),
-      2200,
-    )
+    const dwell = tune('--penalty-dwell')
     const t = setTimeout(() => setRetiredKey(awardKey), dwell)
     return () => clearTimeout(t)
   }, [awardKey, settled])

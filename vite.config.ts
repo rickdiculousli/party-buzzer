@@ -91,7 +91,7 @@ function animSave(): Plugin {
             const marker = src.slice(rs, src.indexOf('*/', rs) + 2)
             const body =
               `\nexport const RECIPES = ${JSON.stringify(rec, null, 2)}` +
-              ` satisfies Record<string, Recipe>\n`
+              ` satisfies Partial<Record<Cue, Recipe>>\n`
             await writeFile(CUES, head + marker + body + src.slice(re))
             cues = Object.keys(rec).length
           }

@@ -122,7 +122,43 @@ export function bufferFor(url: string): AudioBuffer | undefined {
 }
 
 /**
- * One tunable, read from wherever the caller says the properties live.
+ * Every CSS tunable the JavaScript reads, and what it falls back to.
+ *
+ * The values live in `anim:tunables` in `client/style.css`, which is what the
+ * motion harness writes to — but a property the DOM cannot answer for needs a
+ * number anyway, and a fallback restated at each call site is a second copy of
+ * the value in a file the harness never touches. Two of the four had already
+ * drifted from the stylesheet by the time this table replaced them. Here there
+ * is one copy per tunable and `client/tunables.test.ts` fails when it stops
+ * matching the CSS.
+ *
+ * Times in ms, because that is what every caller schedules in.
+ */
+export const TUNE = {
+  '--mark-stagger': 100,
+  '--type-chunk': 120,
+  '--verdict-hold': 500,
+  '--penalty-dwell': 2200,
+} as const
+
+export type Tunable = keyof typeof TUNE
+
+/**
+ * One tunable, read from wherever the properties live.
+ *
+ * `scope` is the element to read from, and it matters: the harness applies
+ * dialled values to its stage wrapper, so a component reading from
+ * `document.documentElement` never sees them. Pass your own element.
+ */
+export function tune(name: Tunable, scope?: Element): number {
+  return parseTune(
+    getComputedStyle(scope ?? document.documentElement).getPropertyValue(name),
+    TUNE[name],
+  )
+}
+
+/**
+ * The parse itself, split out because it is arithmetic and the read is DOM.
  *
  * Times come back in whatever unit survived the build, which is not the unit
  * that was written: the CSS minifier rewrites `1000ms` as the shorter and
@@ -247,10 +283,7 @@ export function play(cue: Cue, { rateScale = 1, offsetMs = 0, recipe }: PlayOpts
  * picture and the sound cannot drift apart.
  */
 export function markGap(scope?: Element): number {
-  return parseTune(
-    getComputedStyle(scope ?? document.documentElement).getPropertyValue('--mark-stagger'),
-    70,
-  )
+  return tune('--mark-stagger', scope)
 }
 
 /**

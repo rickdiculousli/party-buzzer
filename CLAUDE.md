@@ -414,10 +414,12 @@ done until all four are made:
 
 1. **The picture's numbers become custom properties** in `anim:tunables`. If
    the animation is JS-driven rather than a keyframe (a `setInterval` reveal),
-   the number still lives there — read it with `parseTune` off the component's
-   *own element*, never `document.documentElement`: the harness applies dialled
-   values to its stage wrapper, and a property read at the root never sees them.
-   (`markGap` takes a scope for the same reason.)
+   the number still lives there — read it with `tune('--name', scope)` off the
+   component's *own element*, never `document.documentElement`: the harness
+   applies dialled values to its stage wrapper, and a property read at the root
+   never sees them. (`markGap` takes a scope for the same reason.) A property
+   the JS reads is also a row in `TUNE` in `client/sound.ts`, the only place its
+   fallback lives; `client/tunables.test.ts` fails when the two disagree.
 2. **The sound becomes a recipe** in `cue:recipes`, played with `play()` — not
    a new sample, not a new playback path. Recipes are what the Sound panel can
    show, and what Save can write back.

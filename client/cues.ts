@@ -34,6 +34,7 @@
  * regenerated wholesale, so do not put a comment in there expecting to see it
  * again.
  */
+import type { Cue } from './sound.ts'
 import type { Layer, Recipe, Source } from './synth.ts'
 
 /* cue:recipes — rewritten in place by the harness. Prose lives outside the
@@ -229,7 +230,7 @@ export const RECIPES = {
       "release": 40
     }
   ]
-} satisfies Record<string, Recipe>
+} satisfies Partial<Record<Cue, Recipe>>
 /* /cue:recipes */
 
 /** One numeric field, addressed the way a harness dial addresses it. */
