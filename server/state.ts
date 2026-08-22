@@ -169,8 +169,8 @@ export function applyHostAction(state: State, action: HostAction): void {
         mod.onCorrect(state)
       } else {
         bump(state, scoreKey(state, leader.playerId), round.value)
-        // The order stays up. Clearing it here is what made the result vanish
-        // at the exact moment the room looked at it; `arm` and `next` clear it.
+        // The order stays up. Clearing it here vanishes the result at the exact
+        // moment the room looks at it; `arm` and `next` clear it.
         round.award = { name: leader.name, points: round.value }
       }
       round.phase = 'IDLE'
@@ -384,8 +384,8 @@ export function applyHostAction(state: State, action: HostAction): void {
 
     case 'closeDuel': {
       const duel = state.duel
-      // The `seated` half of this was a precondition and is the table's now;
-      // what is left is the lookup `resolveDuel` needs a value for.
+      // Whether a seated duel may be re-closed is the table's call; what is
+      // left here is the lookup `resolveDuel` needs a value for.
       if (!duel) return
       if (action.playerIds) {
         seatDuel(state, action.playerIds)

@@ -580,8 +580,8 @@ const ACTIONS: HostAction[] = [
   // on the spot, which makes what the action did depend on the draw.
   { a: 'openDuel', rule: 'host-pick' },
   // The bad-argument case, and the only one in this list: the table refuses an
-  // unknown rule, so the server must too. Before it did, this was a direction-1
-  // failure — the table allowed it and `applyHostAction` dropped it silently.
+  // unknown rule, so the server must too. A table that allows it while
+  // `applyHostAction` drops it silently is a direction-1 failure.
   { a: 'openDuel', rule: 'nonsense' },
   { a: 'closeDuel', playerIds: ['p1', 'p2'] },
   { a: 'cancelDuel' },

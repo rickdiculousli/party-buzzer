@@ -98,8 +98,8 @@ test('with the box driving, a miss holds the rebound shut until it is opened', a
   await sleep(20)
   assert.equal(state.round.judge, undefined, 'no window reopens during the hold')
 
-  // And nobody may buzz into it. This was the whole point — the old rebound
-  // opened on the verdict, seconds before the room could know.
+  // And nobody may buzz into it: a rebound opening on the verdict itself opens
+  // seconds before the room can know.
   const bo: Conn = { id: 'b', role: 'player', send: () => {} }
   hub.handle(bo, { t: 'hello', role: 'player', name: 'Bo' })
   hub.handle(bo, { t: 'buzz', at: Date.now() })

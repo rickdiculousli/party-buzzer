@@ -83,7 +83,7 @@ function load(cue: Cue): Promise<AudioBuffer> {
  * A cue that is a recipe needs the bytes each of its `{ file }` layers names,
  * keyed by URL, because that is the map `render` looks in — priming the sample
  * buffer for such a cue fills the wrong map and the cue plays silently. A cue
- * that is still a sample needs its own buffer as before. Callers pass cue names
+ * that is still a sample needs its own buffer instead. Callers pass cue names
  * either way and never have to know which kind they got.
  */
 export function prime(...cues: Cue[]): void {

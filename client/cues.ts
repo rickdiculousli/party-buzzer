@@ -259,9 +259,9 @@ export function recipeFor(cue: string): Recipe | undefined {
 /**
  * One field written into a copy of the tree.
  *
- * The replacement for `withOverrides`: the harness holds the tree itself now,
- * so an edit is a write rather than an entry in a side map. A path naming a
- * layer that does not exist returns the table it was given — a stale dial must
+ * The harness holds the tree itself, so an edit is a write rather than an entry
+ * in a side map. A path naming a layer that does not exist returns the table it
+ * was given — a stale dial must
  * not be able to invent a layer, exactly as the CSS endpoint refuses an unknown
  * property instead of appending it. A *field* the layer omits is allowed
  * through: the canvas draws all four handles whatever the recipe declares.
@@ -283,9 +283,8 @@ export function setPath(
  * still sounding.
  *
  * One axis for the whole cue is the point of the view. Scaling each layer to
- * its own length — which is what the old envelope canvas did — makes two layers
- * of different lengths incomparable, and comparing them is the entire reason
- * for combining two sounds.
+ * its own length makes two layers of different lengths incomparable, and
+ * comparing them is the entire reason for combining two sounds.
  */
 export function span(recipe: Recipe): number {
   const ends = recipe.map(

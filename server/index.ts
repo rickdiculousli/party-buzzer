@@ -53,8 +53,9 @@ async function serveStatic(req: IncomingMessage, res: ServerResponse): Promise<v
       // Only the hashed bundles may be cached, because only they change name
       // when they change content. Everything else in dist/ — fonts, the QR, the
       // sounds — keeps a stable filename, so a cached copy is a copy that never
-      // updates: replacing a sound left every open board playing the old one
-      // for an hour, which reads as a change that silently did nothing.
+      // updates: cache one and replacing a sound leaves every open board
+      // playing the previous one for an hour, which reads as a change that
+      // silently did nothing.
       'cache-control': full.includes('/assets/')
         ? 'max-age=31536000, immutable'
         : 'no-cache',
@@ -121,8 +122,8 @@ export async function startServer(opts: {
 
   const reader = new Reader(hub, { packDir, cacheDir: join(packDir, '.cache'), judge, align })
   hub.setReader(reader)
-  // All three subscribers, now that all three exist: the snapshot, the
-  // reader's waits, and the judge's window.
+  // The three subscribers to a state change: the snapshot, the reader's waits,
+  // and the judge's window.
   hub.setOnChange((s) => {
     saveState(statePath, s)
     reader.onStateChange(s)

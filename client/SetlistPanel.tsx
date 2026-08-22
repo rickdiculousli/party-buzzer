@@ -28,8 +28,8 @@ export function SetlistPanel({
   // Every edit on this panel is one `setSetlist`, so one refusal answers for all
   // of them; the legality of that action does not read the blocks, which is why
   // an empty array can stand in for whatever the control being greyed would have
-  // sent. This replaced every `!idle` on the panel — a dozen of them, agreeing
-  // with the server by coincidence and with nothing to say when they were right.
+  // sent. A local `!idle` check would only agree with the server by coincidence,
+  // and has nothing to say when it is right.
   const edits = refuses(state, { a: 'setSetlist', blocks: [] })
   const clear = refuses(state, { a: 'clearSetlist' })
 

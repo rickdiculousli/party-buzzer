@@ -25,7 +25,8 @@ test('an unset property falls back rather than becoming NaN', () => {
 })
 
 // Today's samples all have onset zero — trimming dead air off the front is
-// exactly what `head` does — so this case must stay bit-for-bit what it was.
+// exactly what `head` does — so this is the case every shipped cue takes, and
+// lead compensation must not shift it by a sample.
 test('a sample cue with no onset is scheduled exactly on its slot', () => {
   const p = spacedPlan(1000, 0, 100, [0])
   assert.deepEqual(p.offsets, [0])
@@ -45,8 +46,8 @@ test('cues in one moment share the slot and are each pulled back by their own on
   assert.equal(p.free, 1400, 'one moment costs one gap, not one per cue')
 })
 
-// Less lead than onset: the cue cannot start before now, so it is simply late,
-// exactly as it would have been before any of this existed.
+// Less lead than onset: the cue cannot start before now, so it is simply late.
+// Late is the honest answer here; a negative offset is not.
 test('an onset longer than the lead clamps to now rather than to the past', () => {
   const p = spacedPlan(1000, 1000, 100, [120])
   assert.deepEqual(p.offsets, [0])
