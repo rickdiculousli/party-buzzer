@@ -89,6 +89,8 @@ export async function startServer(opts: {
     collectMs: opts.collectMs,
     packDir,
     setlistDir,
+    // The tap is one investigation per boot; TRACE=1 turns it on.
+    tracePath: process.env.TRACE ? 'trace.jsonl' : undefined,
     onChange: (s) => saveState(statePath, s),
   })
 

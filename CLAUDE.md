@@ -23,6 +23,7 @@ npm test           # node:test
 npm run typecheck
 npm run sim        # synthetic self-play against a running server
 npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@140 correct   # one scripted round
+npm run trace               # diff timeline of a TRACE=1 run: --full N, --watch path, --moment X, --round
 npm run walk-duel / walk-teams      # the two paced duel walkthroughs, ~30s each
 npm run walk-setlist # the paced setlist walkthrough, ~30s
 npm run walk-read  # a pack read by the box, spoken answers judged, ~90s
@@ -302,6 +303,14 @@ a command instead of a wait on dice. It is one-shot: the steps run, the process
 exits, and the board stays on the frame the last step produced — the screen is
 server state, so nothing has to stay running to hold it there. `clear` puts the
 room back.
+
+`npm run trace` is how an agent asks "how did the room get here" without
+reading snapshots: boot with `TRACE=1 npm start` and every state transition
+appends to `trace.jsonl`, then the CLI prints it as a one-line-per-transition
+diff timeline. Drive the bug with probe, then `npm run trace -- --watch
+round.held` (or whatever leaf is lying), `--moment verdict:hold` to pick one
+moment, `--full N` for the whole state at one frame, `--round` to collapse the
+night to a line per question.
 
 ```bash
 npm run probe -- value:400 join:Ada,Bo,Cy arm buzz:Ada@0,Bo@140,Cy@390

@@ -9,6 +9,7 @@
     "build": "vite build",
     "sim": "node tools/sim.ts",
     "probe": "node tools/probe.ts",
+    "trace": "node tools/trace.ts",
     "motion": "vite --open /anim.html",
     "anim": "node tools/probe.ts loop join:Ada,Bo,Cy,Dee value:400 arm buzz:Ada@1000,Bo@1250,Cy@1500,Dee@1750 wait:2000 correct wait:2000 next wait:1000",
     "walk-duel": "node tools/probe.ts join:Bo,Cy,Dee,Eve,Fen,Gus,Hal,Ida,Jo duel:vote wait:750 vote:Cy=Bo,Dee=Bo,Eve=Bo wait:750 vote:Gus=Fen,Hal=Fen wait:750 vote:Ida=Fen wait:750 vote:Jo=Gus wait:750 vote:Dee=Gus,Eve=Gus wait:750 unvote:Cy wait:750 vote:Hal=Gus wait:750 unvote:Ida wait:750 vote:Ida=Fen wait:750 seat wait:2000 arm buzz:Hal@0 wait:2000 buzz:Fen@120 wait:1000 wrong:0 wait:1000 wait:2000 buzz:Fen@60,Gus@80 wait:1000 correct wait:1000 wait:2000 clear",

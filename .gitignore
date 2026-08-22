@@ -27,3 +27,4 @@ server/play/play
 .superpowers/
 .claude/worktrees/
 .claude/settings.local.json
+trace.jsonl
