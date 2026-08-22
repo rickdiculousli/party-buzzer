@@ -103,3 +103,40 @@ test('noOverlap flags intersecting windows of the two kinds', () => {
   assert.deepEqual(check(frames, [rule], { speech: clear }), [])
   assert.equal(check(frames, [rule], { speech: overlapping }).length, 1)
 })
+
+import { RULES } from './rules.ts'
+
+const ruleNamed = (name: string): Rule => {
+  const r = RULES.find((x) => x.name === name)
+  assert.ok(r, `RULES is missing "${name}"`)
+  return r
+}
+
+test('RULES: lock needs a leader fires on an empty LOCKED', () => {
+  const v = check([frame(0, 'settle', 'LOCKED')], [ruleNamed('lock needs a leader')], {})
+  assert.equal(v.length, 1)
+})
+
+test('RULES: scores move only on verdicts', () => {
+  const bad = [frame(0, 'host:arm', 'ARMED'), frame(1, 'buzz', 'COLLECTING', [], { ada: 400 })]
+  const okUndo = [frame(0, 'host:correct', 'LOCKED'), frame(1, 'host:undo', 'IDLE', [], { ada: 0 })]
+  assert.equal(check(bad, [ruleNamed('scores move only on verdicts')], {}).length, 1)
+  assert.deepEqual(check(okUndo, [ruleNamed('scores move only on verdicts')], {}), [])
+})
+
+test('RULES: order is ordered allows ties, flags inversions', () => {
+  const tied = [frame(0, 'settle', 'LOCKED', [{ playerId: 'a', deltaMs: 0 }, { playerId: 'b', deltaMs: 0 }])]
+  const inverted = [frame(0, 'settle', 'LOCKED', [{ playerId: 'a', deltaMs: 5 }, { playerId: 'b', deltaMs: 2 }])]
+  assert.deepEqual(check(tied, [ruleNamed('order is ordered')], {}), [])
+  assert.equal(check(inverted, [ruleNamed('order is ordered')], {}).length, 1)
+})
+
+test('RULES: voice ends at the buzz — a say window outliving it fires', () => {
+  const frames = [
+    frame(0, 'host:arm', 'ARMED'),
+    frame(1, 'buzz', 'COLLECTING', [{ playerId: 'a' }]), // t = 1100
+  ]
+  const speech = [{ kind: 'say', start: 500, end: 1300 }]
+  assert.equal(check(frames, [ruleNamed('voice ends at the buzz')], { speech }).length, 1)
+  assert.deepEqual(check(frames, [ruleNamed('voice ends at the buzz')], { speech: [{ kind: 'say', start: 500, end: 1100 }] }), [])
+})

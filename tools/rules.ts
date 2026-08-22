@@ -142,3 +142,52 @@ export function noOverlap(name: string, kindA: string, kindB: string): Rule {
     },
   }
 }
+
+import { COLLECT_MS } from '../shared/protocol.ts'
+
+/**
+ * The table is the spec. A bug investigated in trace.jsonl graduates into a
+ * row here. Phase edges enumerated from applyHostAction in server/state.ts
+ * plus the hub's own settle/buzz transitions.
+ */
+export const RULES: Rule[] = [
+  whenever('lock needs a leader',
+    (_p, f) => f.state.round.phase === 'LOCKED',
+    (_p, f) => f.state.round.order.length > 0),
+
+  neverFollows('no lock after award', 'verdict:award', 'answer:locked'),
+
+  phaseGraph('phase graph', {
+    IDLE: ['ARMED'],
+    ARMED: ['COLLECTING', 'IDLE'],
+    COLLECTING: ['LOCKED', 'IDLE'],
+    LOCKED: ['IDLE'],
+  }),
+
+  minGap('full collect window', 'buzz', 'settle', COLLECT_MS),
+
+  // Undo restores a score snapshot by design, so it moves scores legally.
+  whenever('scores move only on verdicts',
+    (p, f) => !!p && scoresMoved(p, f),
+    (_p, f) => ['host:correct', 'host:wrong', 'host:undo'].includes(f.cause)),
+
+  // Ties are legal: two presses can clamp to the same deltaMs.
+  whenever('order is ordered',
+    (_p, f) => f.state.round.order.length > 1,
+    (_p, f) => f.state.round.order.every((b, i, o) => i === 0 || o[i - 1].deltaMs <= b.deltaMs)),
+
+  noOverlap('voice never talks over the room', 'say', 'cue'),
+
+  // A buzz kills the clip server-side, so the window must end with it. Core
+  // shape — no factory names "the first buzz at or after this window's start".
+  {
+    name: 'voice ends at the buzz',
+    check: (frames, ctx) =>
+      (ctx.speech ?? []).flatMap((w) => {
+        const buzz = frames.find((f) => f.cause === 'buzz' && f.t >= w.start)
+        return buzz && w.end > buzz.t
+          ? [{ rule: 'voice ends at the buzz', seq: buzz.seq, detail: `say ends ${w.end}, buzz at ${buzz.t}` }]
+          : []
+      }),
+  },
+]
