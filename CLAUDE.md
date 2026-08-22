@@ -312,6 +312,12 @@ round.held` (or whatever leaf is lying), `--moment verdict:hold` to pick one
 moment, `--full N` for the whole state at one frame, `--round` to collapse the
 night to a line per question.
 
+`tools/rules.ts` is where a bug found in a trace graduates into an invariant:
+`RULES` is the table, checked live against a driven `Hub` in
+`tools/rules.test.ts`. New invariants go through the factories
+(`whenever`/`neverFollows`/`phaseGraph`/`minGap`/`noOverlap`) when one fits and
+the core `Rule` shape when none does.
+
 ```bash
 npm run probe -- value:400 join:Ada,Bo,Cy arm buzz:Ada@0,Bo@140,Cy@390
 npm run probe -- clear
