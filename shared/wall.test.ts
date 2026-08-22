@@ -98,20 +98,13 @@ test('a question end to end, one occupant the whole way', () => {
   }
   s.round.whole = 'One. Two. Three.'
   s.round.fragments = ['One.']
-  // A penalty is a beat, not a state. While it is un-retired it keeps the
-  // stage, and the clue stays off — that is the room reading the −300 against
-  // the name it cost.
-  const beat = at({ open: true })
-  assert.equal(beat.moment, 'verdict:penalty', 'the stamp rides the rebound')
-  assert.deepEqual(beat.hero, { name: 'Bo', tone: 'penalised' })
-  assert.equal(beat.clue, null)
-
-  // In the reader's own timing the beat is already over by the time the
-  // buzzers open: the dwell is 2.2s and reboundSec is 3. So the clue picks back
-  // up *as* the rebound opens, which is what the checklist watches for.
-  const on = at({ open: true, retired: true })
+  // The hold was the room's look at the miss, and the box opening the rebound
+  // is the beat ending: the voice picks the question back up in that instant,
+  // so the stage goes with it. The board's own dwell has no say while the box
+  // is driving — it is measured from a different moment and cannot agree.
+  const on = at({ open: true, retired: false })
   assert.equal(on.moment, 'buzz:open')
-  assert.equal(on.award, null)
+  assert.equal(on.award, null, 'the stamp does not outlive the voice')
   assert.deepEqual(on.clue, { whole: 'One. Two. Three.', shown: 'One.' })
   assert.equal(on.value, 200, 'what is at stake comes back with it')
 
@@ -126,7 +119,8 @@ test('a question end to end, one occupant the whole way', () => {
   const paid = at()
   assert.equal(paid.moment, 'verdict:award')
   assert.equal(paid.award?.answer, 'Marie Curie')
-  assert.deepEqual(paid.clue?.shown, 'One.', 'the payoff sits over the question, not instead of it')
+  assert.deepEqual(paid.hero, { name: 'Ada', tone: 'answering' }, 'the winner holds the stage')
+  assert.equal(paid.clue, null, 'the question behind a correct answer is spent')
 })
 
 test('a duel: nominations, the seat, and both missing', () => {
@@ -372,12 +366,94 @@ test('a payoff keeps the winner on the stage, in a duel and out of one', () => {
   oneOf(solo, 'a solo payoff')
   assert.deepEqual(solo.hero, { name: 'Ada', tone: 'answering' })
 
-  // But a clue still on the stage keeps it. The payoff sits over the question,
-  // not instead of it — a miss is the one that takes the middle outright,
-  // because it leaves the question live and has to say why.
+  // And a clue still up does not take it back: a correct answer ends the
+  // question, so what is left of it on the stage is spent.
   s.round.fragments = ['A clue.']
-  assert.deepEqual(wallOf(s, LOCAL).clue?.shown, 'A clue.')
-  assert.equal(wallOf(s, LOCAL).hero, null)
+  assert.equal(wallOf(s, LOCAL).clue, null)
+  assert.deepEqual(wallOf(s, LOCAL).hero, { name: 'Ada', tone: 'answering' })
   s.round.award = { name: 'Ada', points: 0, penalty: true }
-  assert.equal(wallOf(s, LOCAL).hero?.tone, 'penalised', 'a miss outranks the clue')
+  assert.equal(wallOf(s, LOCAL).hero?.tone, 'penalised', 'a miss keeps it too, and says why')
+})
+
+/**
+ * Two clocks, one beat.
+ *
+ * The board retires a penalty on `--penalty-dwell`, counted from the transcript
+ * finishing — `useReveal` will not start it until `settled`. The reader opens
+ * the rebound on `autoplay.reboundSec`, counted from the verdict, and resumes
+ * speaking in the same instant. Different lengths from different starting
+ * instants, related by nothing, so the voice picked the question back up under
+ * a stamp still on the wall and a stage with no clue on it.
+ *
+ * The rule that replaces the arithmetic: while the box is driving, the question
+ * resuming is what ends the beat. `state.ts`'s `rebound` already says so —
+ * "opening it hands the wall back to the clue, and the clue resumes in the same
+ * instant" — and this is the wall keeping that promise.
+ */
+test('the box picking the question back up ends the penalty, dwell or no dwell', () => {
+  const s = room()
+  s.autoplay = { on: true, nextSec: 4, reboundSec: 3 }
+  s.reading = {
+    pack: 'p', qIndex: 0, qTotal: 3, fragIndex: 1, fragTotal: 4,
+    paused: false, running: true,
+  }
+  s.round = {
+    ...s.round,
+    phase: 'LOCKED',
+    armedAt: 4000,
+    held: true,
+    award: { name: 'Bo', points: -100, penalty: true },
+    whole: 'One. Two. Three.',
+    fragments: ['One.'],
+  }
+
+  // The hold is the room's look at the miss, and it is the reader's own clock.
+  const held = wallOf(s, LOCAL)
+  oneOf(held, 'held')
+  assert.equal(held.moment, 'verdict:hold')
+  assert.deepEqual(held.hero, { name: 'Bo', tone: 'penalised' })
+
+  // The reader opens it and starts talking. The board's dwell has not elapsed —
+  // it had a transcript to type first — and that must not matter.
+  delete s.round.held
+  s.round.phase = 'ARMED'
+  s.round.armedAt = 7000
+  const back = wallOf(s, { ...LOCAL, open: true, retired: false })
+  oneOf(back, 'handed back')
+  assert.equal(back.moment, 'buzz:open', 'the stamp does not outlive the voice')
+  assert.equal(back.award, null)
+  assert.deepEqual(back.clue, { whole: 'One. Two. Three.', shown: 'One.' })
+})
+
+/**
+ * A payoff ends the question; a penalty does not. The clue behind a correct
+ * answer is spent — nothing more will be read from it — so the name that won is
+ * the story, and the room spends `nextSec` looking at it rather than at the
+ * question it just answered.
+ *
+ * Invisible without the box: a host reading aloud pushes no fragments, so there
+ * was never a clue to lose the stage to.
+ */
+test('a payoff keeps the stage while the box has a clue up', () => {
+  const s = room()
+  s.reading = {
+    pack: 'p', qIndex: 0, qTotal: 3, fragIndex: 3, fragTotal: 4,
+    paused: false, running: true,
+  }
+  s.round = {
+    ...s.round,
+    phase: 'IDLE',
+    armedAt: 4000,
+    award: { name: 'Ada', points: 200 },
+    answer: 'Marie Curie',
+    whole: 'One. Two. Three.',
+    fragments: ['One.', 'Two.', 'Three.'],
+  }
+
+  const paid = wallOf(s, LOCAL)
+  oneOf(paid, 'paid')
+  assert.equal(paid.moment, 'verdict:award')
+  assert.deepEqual(paid.hero, { name: 'Ada', tone: 'answering' }, 'the winner, not the spent question')
+  assert.equal(paid.clue, null)
+  assert.equal(paid.award?.answer, 'Marie Curie')
 })

@@ -140,7 +140,9 @@ ever opens — the run stops on "no answer window for Ada" rather than hanging.
       rest of that clue is never read after the correct answer
 - [ ] Ada says "the Pacific Ocean" — a whole phrase, in a different voice from
       the reader's. The board shows what it heard, in brass, and scores it
-- [ ] The payoff sits for four seconds and the next question arms itself
+- [ ] The payoff sits for four seconds and the next question arms itself, with
+      **the winner's name** on the stage for that whole dwell — the half-read
+      clue does not come back up under the stamp; that question is over
 - [ ] Bo answers "Rosalind Franklin" on the Curie question. The transcript goes
       up in red and the matcher refuses it — the machine is doing the judging
 - [ ] After that wrong answer the miss holds the wall — red name, red stamp, no

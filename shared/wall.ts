@@ -99,7 +99,18 @@ export function momentOf(state: State, local: Local): Moment {
   // to a second later when the round locked. COLLECTING is the phase that says
   // the room has answered, and it is public, so the phones agree.
   const rebounding = r.buzzable?.length === 1 && r.phase === 'ARMED'
-  if (r.award && r.phase !== 'COLLECTING' && (!local.retired || rebounding)) {
+  // While the box is driving, the question resuming is what ends the beat, and
+  // it outranks both the dwell and the rebound above. The two clocks are not
+  // comparable: the board retires a penalty `--penalty-dwell` after the
+  // transcript has finished typing, and the reader opens the rebound
+  // `autoplay.reboundSec` after the verdict and starts speaking in the same
+  // instant. Nothing relates them, so the voice reached the next clause under a
+  // stamp still on the wall and a stage with no clue on it. `state.ts`'s
+  // `rebound` already promises the wall goes back to the clue there; this is
+  // the wall keeping it. A room with no box has no voice to hand back to and
+  // keeps the dwell, which is the only clock it has.
+  const handedBack = !!state.reading?.running && r.phase === 'ARMED'
+  if (r.award && r.phase !== 'COLLECTING' && !handedBack && (!local.retired || rebounding)) {
     return isPenalty(r.award) ? 'verdict:penalty' : 'verdict:award'
   }
 
@@ -236,11 +247,13 @@ function middleOf(state: State, m: Moment): Middle {
     case 'verdict:hold':
     case 'verdict:penalty':
       return or(scorer, clue)
-    // A payoff yields, because it sits over the question rather than instead of
-    // it — but with nothing left on the stage it is the name, not a bare
-    // "Ready" under a +200 belonging to nobody.
+    // A payoff takes the middle. The question behind it is spent — a correct
+    // answer ends it, and nothing more will be read from that clue — so the
+    // name that won is what the room spends the payoff's dwell looking at.
+    // Only the box ever puts a clue up to lose the stage; under a host reading
+    // aloud there are no fragments and this is the name either way.
     case 'verdict:award':
-      return or(clue, scorer)
+      return or(scorer, clue)
     case 'answer:locked':
     case 'buzz:collecting':
       // The pair is who *may* answer; the leader is who *is*. Before the order
