@@ -93,3 +93,52 @@ export function minGap(name: string, causeA: string, causeB: string, ms: number)
 export function scoresMoved(prev: Frame, f: Frame): boolean {
   return diffStates(prev.state, f.state).some((c) => c.path.startsWith('scores.'))
 }
+
+import { RECIPES, span } from '../client/cues.ts'
+
+/**
+ * What the board plays, derived from the same facts the board reads. Starts
+ * are approximate by one settle dwell — the dwell is a client-side animation
+ * clock the trace cannot see (same caveat momentOfFrame documents).
+ */
+export function cueWindows(frames: Frame[]): Window[] {
+  const out: Window[] = []
+  for (let i = 0; i < frames.length; i++) {
+    const f = frames[i]
+    const prev = frames[i - 1]
+    const before = prev?.state.round.order.length ?? 0
+    const after = f.state.round.order.length
+    for (let j = before; j < after; j++) {
+      const cue = j === 0 ? 'leader' : 'stamp'
+      out.push({ kind: 'cue', cue, start: f.t, end: f.t + span(RECIPES[cue]!) })
+    }
+    const had = prev?.state.round.award
+    const now = f.state.round.award
+    if (now && (!had || JSON.stringify(had) !== JSON.stringify(now))) {
+      const cue = now.points < 0 ? 'penalty' : 'award'
+      out.push({ kind: 'cue', cue, start: f.t, end: f.t + span(RECIPES[cue]!) })
+    }
+  }
+  return out
+}
+
+/** No window of kindA intersects a window of kindB. */
+export function noOverlap(name: string, kindA: string, kindB: string): Rule {
+  return {
+    name,
+    check: (frames, ctx) => {
+      const all = [...cueWindows(frames), ...(ctx.speech ?? [])]
+      const as = all.filter((w) => w.kind === kindA)
+      const bs = all.filter((w) => w.kind === kindB)
+      const out: Violation[] = []
+      for (const a of as)
+        for (const b of bs)
+          if (a.start < b.end && b.start < a.end) {
+            // Nearest frame gets the blame; the window pair is the detail.
+            const f = frames.find((x) => x.t >= Math.max(a.start, b.start)) ?? frames[frames.length - 1]
+            out.push({ rule: name, seq: f?.seq ?? 0, detail: `${kindA} [${a.start},${a.end}] x ${kindB}${b.cue ? `(${b.cue})` : ''} [${b.start},${b.end}]` })
+          }
+      return out
+    },
+  }
+}

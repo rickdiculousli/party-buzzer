@@ -61,3 +61,45 @@ test('check runs every rule and returns every violation', () => {
   const v = check([frame(0, 'x', 'IDLE'), frame(1, 'y', 'IDLE')], rules, {})
   assert.equal(v.length, 4)
 })
+
+import { cueWindows, noOverlap, type Window } from './rules.ts'
+import { RECIPES, span } from '../client/cues.ts'
+import { TUNE } from '../client/sound.ts'
+
+test('cueWindows: order growth is leader then stamps, one window per new entry', () => {
+  const frames = [
+    frame(0, 'host:arm', 'ARMED'),
+    frame(1, 'buzz', 'COLLECTING', [{ playerId: 'a' }]),
+    frame(2, 'buzz', 'COLLECTING', [{ playerId: 'a' }, { playerId: 'b' }]),
+    frame(3, 'settle', 'LOCKED', [{ playerId: 'a' }, { playerId: 'b' }]),
+  ]
+  const w = cueWindows(frames)
+  assert.equal(w.length, 2)
+  assert.deepEqual(w[0], { kind: 'cue', cue: 'leader', start: frames[1].t, end: frames[1].t + span(RECIPES.leader!) })
+  assert.deepEqual(w[1], { kind: 'cue', cue: 'stamp', start: frames[2].t, end: frames[2].t + span(RECIPES.stamp!) })
+  // markGap spaces marks within one render's batch; each frame here is its own
+  // broadcast, so the stagger never appears between frames — pin the constant.
+  assert.equal(TUNE['--mark-stagger'], 100)
+})
+
+test('cueWindows: an award appearing fires award or penalty', () => {
+  const withAward = (seq: number, points: number): Frame => {
+    const base = frame(seq, 'host:correct', 'LOCKED', [{ playerId: 'a' }])
+    return { ...base, state: { ...base.state, round: { ...base.state.round, award: { name: 'Ada', points } } } } as never
+  }
+  const frames = [frame(0, 'settle', 'LOCKED', [{ playerId: 'a' }]), withAward(1, 200), withAward(2, -50)]
+  const w = cueWindows(frames).filter((x) => x.cue !== 'leader')
+  assert.deepEqual(w.map((x) => x.cue), ['award', 'penalty'])
+})
+
+test('noOverlap flags intersecting windows of the two kinds', () => {
+  const rule = noOverlap('voice over room', 'say', 'cue')
+  const frames = [
+    frame(0, 'host:arm', 'ARMED'),
+    frame(1, 'buzz', 'COLLECTING', [{ playerId: 'a' }]), // leader cue at t=1100
+  ]
+  const overlapping: Window[] = [{ kind: 'say', start: 1000, end: 1200 }]
+  const clear: Window[] = [{ kind: 'say', start: 0, end: 900 }]
+  assert.deepEqual(check(frames, [rule], { speech: clear }), [])
+  assert.equal(check(frames, [rule], { speech: overlapping }).length, 1)
+})
