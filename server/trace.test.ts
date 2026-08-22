@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, existsSync, rmSync } from 'node:fs'
-import { makeTracer } from './trace.ts'
+import { makeTracer, type Frame } from './trace.ts'
 
 const TMP = 'server/.trace-test.jsonl'
 
@@ -63,6 +63,20 @@ test('hub writes one frame per transition, cause-labelled, when tracePath is set
   assert.deepEqual(frames.map((f) => f.cause), ['join', 'host:setValue', 'host:arm'])
   assert.deepEqual(frames.map((f) => f.seq), [0, 1, 2])
   assert.equal(frames[2].state.round.phase, 'ARMED')
+})
+
+test('hub calls a passed tracer with cause and state', () => {
+  const frames: Frame[] = []
+  const hub = new Hub(newState(), {
+    tracer: (cause, state) =>
+      frames.push({ seq: frames.length, t: Date.now(), cause, state: structuredClone(state) }),
+  })
+  const ada = conn('player')
+  hub.add(ada)
+  hub.send(ada, { t: 'hello', role: 'player', name: 'Ada' })
+  assert.equal(frames.length, 1)
+  assert.equal(frames[0].cause, 'join')
+  assert.equal(frames[0].state.players[0].name, 'Ada')
 })
 
 test('hub writes nothing and builds no tracer without tracePath', () => {

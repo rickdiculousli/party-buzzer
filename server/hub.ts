@@ -60,6 +60,8 @@ export type HubOpts = {
   reader?: ReaderControls
   /** Presence turns the trace tap on; the composition root maps TRACE=1 to it. */
   tracePath?: string
+  /** In-memory tap, preferred over tracePath. Tests drive this; TRACE=1 uses the file. */
+  tracer?: Tracer
 }
 
 export class Hub {
@@ -96,7 +98,7 @@ export class Hub {
     this.collectMs = opts.collectMs ?? COLLECT_MS
     this.onChange = opts.onChange ?? (() => {})
     this.reader = opts.reader
-    this.trace = opts.tracePath ? makeTracer(opts.tracePath) : () => {}
+    this.trace = opts.tracer ?? (opts.tracePath ? makeTracer(opts.tracePath) : () => {})
   }
 
   add(conn: Conn): void {
