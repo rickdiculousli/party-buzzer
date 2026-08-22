@@ -23,14 +23,18 @@ all the intelligence so the server change stays tiny.
   (`changed('arm')`, `changed('buzz')`, …) — present tense, naming the message
   or timer that mutated.
 - The tap appends one JSON line per call to `trace.jsonl` (repo root,
-  gitignored): `{seq, t, cause, moment, state}` where `moment` is
-  `momentOf(state, local)` computed with the hub's own timing facts
-  (`open`/`settled`/`retired`), so the timeline speaks the same vocabulary as
-  the wall bugs it exists to catch.
-- Recording is gated on `TRACE=1` in the environment. Off means zero overhead:
-  no clone, no file handle. On means the full (unredacted, board-view) state is
-  `structuredClone`d per frame — the clone is what makes replay safe against
-  later in-place mutation.
+  gitignored): `{seq, t, cause, state}` — state only, the full unredacted
+  board-view, `structuredClone`d per frame so replay is safe against later
+  in-place mutation. The `moment` is NOT stamped here: two of `Local`'s three
+  clocks (`settled`, `retired`) are the board's own animation timing and the
+  hub cannot know them. The CLI derives `momentOf(state, {open, settled:false,
+  retired:false})` at read time — the pre-dwell moment, which is the
+  informative one for state-transition bugs; dwell-timing bugs belong to the
+  motion harness either way.
+- Recording is gated on `TRACE=1` in the environment, read by the composition
+  root and passed to the hub as `HubOpts.tracePath` — presence of the path is
+  what turns it on, which keeps the hub itself testable. Off means zero
+  overhead: no clone, no file handle.
 - The file rotates by truncation at server start when tracing is on: a trace is
   one investigation, not an archive.
 - ponytail: append-per-frame with no size cap. A game night at TRACE=1 writes
@@ -68,11 +72,11 @@ works against a trace from a dead server, a copied file, or CI.
 
 ## Testing
 
-- `server/trace.test.ts`: tap writes nothing with TRACE unset; one line per
-  `changed()` with it set; moment matches `momentOf` of the frame's state.
+- `server/trace.test.ts`: tap writes nothing without a trace path; one line per
+  `changed()` with one.
 - `tools/trace.test.ts`: diff of two synthetic states produces the expected
-  leaf changes; `--watch` filters; the timeline line compacts a multi-leaf
-  round correctly.
+  leaf changes; the timeline line names the frame's `momentOf`; `--watch`
+  filters.
 - Manual: `TRACE=1 npm start` + a probe round, then `npm run trace` reads it.
 
 ## Files
