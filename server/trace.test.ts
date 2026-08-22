@@ -37,3 +37,39 @@ test('frames are immune to later mutation of the state object', (t) => {
   const frame = JSON.parse(readFileSync(TMP, 'utf8').trim())
   assert.equal(frame.state.round.phase, 'IDLE')
 })
+
+import { Hub, type Conn } from './hub.ts'
+import { newState } from './state.ts'
+
+const conn = (role: 'host' | 'player', playerId?: string): Conn & { sent: unknown[] } => ({
+  id: Math.random().toString(36).slice(2),
+  role,
+  playerId,
+  sent: [],
+  send(msg) { this.sent.push(msg) },
+})
+
+test('hub writes one frame per transition, cause-labelled, when tracePath is set', (t) => {
+  t.after(() => rmSync(TMP, { force: true }))
+  const hub = new Hub(newState(), { tracePath: TMP })
+  const host = conn('host')
+  hub.add(host)
+  const ada = conn('player')
+  hub.add(ada)
+  hub.send(ada, { t: 'hello', role: 'player', playerId: 'ada', name: 'Ada' })
+  hub.send(host, { t: 'host', action: { a: 'setValue', value: 200 } })
+  hub.send(host, { t: 'host', action: { a: 'arm' } })
+  const frames = readFileSync(TMP, 'utf8').trim().split('\n').map((l) => JSON.parse(l))
+  assert.deepEqual(frames.map((f) => f.cause), ['join', 'host:setValue', 'host:arm'])
+  assert.deepEqual(frames.map((f) => f.seq), [0, 1, 2])
+  assert.equal(frames[2].state.round.phase, 'ARMED')
+})
+
+test('hub writes nothing and builds no tracer without tracePath', () => {
+  const hub = new Hub(newState())
+  assert.equal(existsSync(TMP), false)
+  const host = conn('host')
+  hub.add(host)
+  hub.send(host, { t: 'host', action: { a: 'arm' } })
+  assert.equal(existsSync(TMP), false)
+})

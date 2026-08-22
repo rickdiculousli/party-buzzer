@@ -8,6 +8,7 @@ import { listPacks, packSizes } from './packs.ts'
 import { listSetlists, readSetlist, writeSetlist } from './setlists.ts'
 import { refuses } from '../shared/legality.ts'
 import { COLLECT_MS } from '../shared/protocol.ts'
+import { makeTracer, type Tracer } from './trace.ts'
 import type {
   ClientMsg, PlayerId, Role, ServerMsg, State,
 } from '../shared/protocol.ts'
@@ -57,6 +58,8 @@ export type HubOpts = {
   /** Saved setlists live here. Filenames only enter State; omit for no setlists. */
   setlistDir?: string
   reader?: ReaderControls
+  /** Presence turns the trace tap on; the composition root maps TRACE=1 to it. */
+  tracePath?: string
 }
 
 export class Hub {
@@ -73,6 +76,7 @@ export class Hub {
   private onChange: (state: State) => void
   private reader: ReaderControls | undefined
   private setlistDir: string | undefined
+  private trace: Tracer
 
   constructor(state: State, opts: HubOpts = {}) {
     this.state = state
@@ -92,6 +96,7 @@ export class Hub {
     this.collectMs = opts.collectMs ?? COLLECT_MS
     this.onChange = opts.onChange ?? (() => {})
     this.reader = opts.reader
+    this.trace = opts.tracePath ? makeTracer(opts.tracePath) : () => {}
   }
 
   add(conn: Conn): void {
@@ -102,7 +107,7 @@ export class Hub {
     this.conns.delete(conn)
     const player = this.state.players.find((p) => p.id === conn.playerId)
     if (player) player.connected = false
-    this.changed()
+    this.changed('leave')
   }
 
   /** Replace the change subscriber. The reader is built after the hub, so the
@@ -155,7 +160,7 @@ export class Hub {
           (msg.action.a === 'correct' || msg.action.a === 'wrong') &&
           this.state.round.phase !== 'LOCKED'
         if (RESETS.has(msg.action.a) && !refused) this.clearWindow()
-        this.changed()
+        this.changed(`host:${msg.action.a}`)
         return
 
       case 'act':
@@ -177,14 +182,14 @@ export class Hub {
       if (!conn.playerId) return
       if (useItem(this.state, conn.playerId, data)) {
         if (this.revealed) this.publish()
-        this.changed()
+        this.changed('item')
       }
       return
     }
     // Duel entry belongs to players, like items.
     if (name.startsWith('duel')) {
       if (!conn.playerId) return
-      if (duelAct(this.state, conn.playerId, name, data)) this.changed()
+      if (duelAct(this.state, conn.playerId, name, data)) this.changed('duel')
       return
     }
     if (conn.role !== 'host') return
@@ -275,7 +280,7 @@ export class Hub {
         return
       }
     }
-    this.changed()
+    this.changed(`act:${name}`)
   }
 
   private join(conn: Conn, playerId: PlayerId | undefined, name?: string): void {
@@ -299,7 +304,7 @@ export class Hub {
 
     conn.playerId = player.id
     conn.send({ t: 'welcome', playerId: player.id, serverTime: Date.now() })
-    this.changed()
+    this.changed('join')
   }
 
   private buzz(conn: Conn, at: number): void {
@@ -339,7 +344,7 @@ export class Hub {
     // so this leaks nothing about the field; after it, this is the timeline
     // filling in as the rest of the room lands.
     if (this.revealed) this.publish()
-    this.changed()
+    this.changed('buzz')
   }
 
   private entry(b: Resolved) {
@@ -387,7 +392,7 @@ export class Hub {
     this.revealTimer = undefined
     this.revealed = true
     this.publish()
-    this.changed()
+    this.changed('reveal')
   }
 
   /** Lock the round and publish the final order, once the window is up. */
@@ -399,7 +404,7 @@ export class Hub {
     this.revealed = true
     this.publish()
     this.pending = []
-    this.changed()
+    this.changed('settle')
   }
 
   /**
@@ -463,7 +468,8 @@ export class Hub {
     }
   }
 
-  private changed(): void {
+  private changed(cause = 'change'): void {
+    this.trace(cause, this.state)
     this.broadcast()
     this.onChange(this.state)
   }
