@@ -29,3 +29,41 @@ test('timelineLine shows seq, delta, cause, phase, moment, diff', () => {
   assert.match(line, new RegExp(`^#1 \\+400ms buzz COLLECTING ${expected}`))
   assert.match(line, /round\.phase: "ARMED"→"COLLECTING"/)
 })
+
+import { filterFrames, roundLines } from './trace.ts'
+import type { Frame } from '../server/trace.ts'
+
+const frame = (seq: number, cause: string, phase: string, order: unknown[] = [], scores = {}): Frame =>
+  ({ seq, t: 1000 + seq * 100, cause, state: { round: { phase, armedAt: 900, order }, players: [], scores, game: { id: 'trivia' } } }) as never
+
+test('filterFrames applies since/until and watch', () => {
+  const frames = [
+    frame(0, 'host:arm', 'ARMED'),
+    frame(1, 'buzz', 'COLLECTING', [{ playerId: 'ada' }]),
+    frame(2, 'settle', 'LOCKED', [{ playerId: 'ada' }], { ada: 0 }),
+  ]
+  assert.deepEqual(filterFrames(frames, { since: 1 }).map((f) => f.seq), [1, 2])
+  assert.deepEqual(filterFrames(frames, { until: 1 }).map((f) => f.seq), [0, 1])
+  // watch keeps only frames where that leaf moved
+  assert.deepEqual(filterFrames(frames, { watch: ['scores.ada'] }).map((f) => f.seq), [2])
+  assert.deepEqual(filterFrames(frames, { watch: ['round.phase'] }).map((f) => f.seq), [1, 2])
+})
+
+test('roundLines collapses a buzzed round to one line', () => {
+  const frames = [
+    frame(0, 'host:arm', 'ARMED'),
+    frame(1, 'buzz', 'COLLECTING', [{ playerId: 'ada', name: 'Ada', deltaMs: 0 }]),
+    frame(2, 'settle', 'LOCKED', [{ playerId: 'ada', name: 'Ada', deltaMs: 0 }], { ada: 0 }),
+    frame(3, 'host:correct', 'LOCKED', [{ playerId: 'ada', name: 'Ada', deltaMs: 0 }], { ada: 400 }),
+    frame(4, 'host:next', 'IDLE'),
+  ]
+  const lines = roundLines(frames)
+  assert.equal(lines.length, 1)
+  assert.match(lines[0], /Ada@0/)
+  assert.match(lines[0], /correct.*\+400/)
+})
+
+test('roundLines marks an unbuzzed round as passed', () => {
+  const frames = [frame(0, 'host:arm', 'ARMED'), frame(1, 'host:next', 'IDLE')]
+  assert.match(roundLines(frames)[0], /passed/)
+})

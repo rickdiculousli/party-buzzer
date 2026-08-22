@@ -59,8 +59,76 @@ export function timelineLine(f: Frame, prev: Frame | undefined): string {
   return `${head} — ${body}`
 }
 
+export type FilterOpts = { since?: number; until?: number; moment?: string; watch?: string[] }
+
+export function filterFrames(frames: Frame[], opts: FilterOpts): Frame[] {
+  return frames.filter((f, i) => {
+    if (opts.since !== undefined && f.seq < opts.since) return false
+    if (opts.until !== undefined && f.seq > opts.until) return false
+    if (opts.moment !== undefined && momentOfFrame(f) !== opts.moment) return false
+    if (opts.watch) {
+      const prev = frames[i - 1]
+      if (!prev) return false
+      if (!diffStates(prev.state, f.state).some((c) => opts.watch!.includes(c.path))) return false
+    }
+    return true
+  })
+}
+
+/**
+ * ponytail: built from causes, not a state walk — a cause string change in
+ * hub.ts silently degrades this view, and the roundLines tests are the
+ * tripwire.
+ */
+export function roundLines(frames: Frame[]): string[] {
+  const lines: string[] = []
+  let cur: { value: number; order: { name: string; deltaMs: number }[]; verdicts: string[]; buzzed: boolean } | undefined
+  const flush = () => {
+    if (!cur) return
+    const order = cur.order.map((b) => `${b.name}@${b.deltaMs}`).join(', ') || '—'
+    lines.push(`round $${cur.value} — ${order} → ${cur.buzzed ? cur.verdicts.join(' then ') || 'unjudged' : 'passed'}`)
+    cur = undefined
+  }
+  for (const f of frames) {
+    if (f.cause === 'host:arm') { flush(); cur = { value: f.state.round.value, order: [], verdicts: [], buzzed: false } }
+    if (!cur) continue
+    if (f.cause === 'settle') { cur.buzzed = true; cur.order = f.state.round.order }
+    if (f.cause === 'host:correct' || f.cause === 'host:wrong') {
+      const prev = frames[f.seq - 1]
+      const delta = diffStates(prev.state, f.state).find((c) => c.path.startsWith('scores.'))
+      const name = f.state.round.order[0]?.name ?? '?'
+      const d = delta ? +JSON.parse(delta.to!) - +JSON.parse(delta.from!) : NaN
+      cur.verdicts.push(`${f.cause === 'host:correct' ? 'correct' : 'wrong'} ${name} (${isNaN(d) ? '?' : `${d >= 0 ? '+' : ''}${d}`})`)
+    }
+    if (f.cause === 'host:next') flush()
+  }
+  flush()
+  return lines
+}
+
 // CLI entry — guarded so the test can import the engine without running it.
 if (process.argv[1]?.endsWith('tools/trace.ts')) {
-  const frames = readTrace('trace.jsonl')
-  for (const f of frames) console.log(timelineLine(f, frames[f.seq - 1]))
+  const args = process.argv.slice(2)
+  const flag = (name: string) => {
+    const i = args.indexOf(`--${name}`)
+    return i === -1 ? undefined : args[i + 1]
+  }
+  const frames = readTrace(flag('file') ?? 'trace.jsonl')
+  const full = flag('full')
+  if (full !== undefined) {
+    console.log(JSON.stringify(frames[+full]?.state ?? null, null, 2))
+    process.exit(0)
+  }
+  if (args.includes('--round')) {
+    for (const l of roundLines(frames)) console.log(l)
+    process.exit(0)
+  }
+  const opts: FilterOpts = {
+    since: flag('since') !== undefined ? +flag('since')! : undefined,
+    until: flag('until') !== undefined ? +flag('until')! : undefined,
+    moment: flag('moment'),
+    watch: flag('watch')?.split(','),
+  }
+  const shown = filterFrames(frames, opts)
+  for (const f of shown) console.log(timelineLine(f, frames[f.seq - 1]))
 }
