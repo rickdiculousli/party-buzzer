@@ -278,12 +278,10 @@ test('the phone: a question from second place, and the rebound', () => {
 
 test('a penalty comes down when someone takes the question over', () => {
   // `wrong` re-stamps the award negative and leaves it standing through the
-  // rebound (server/state.ts), so an award can genuinely be up at LOCKED. The
-  // old board kept the stamp there for the rest of its dwell — which put the
-  // last player's −300 above the new answerer's name, the same shape as the
-  // transcript bug fixed in `Hub.buzz` and fixed there for the same reason.
-  //
-  // This is the one deliberate behaviour change in the board's conversion: the
+  // rebound (server/state.ts), so an award can genuinely be up at LOCKED.
+  // Keeping the stamp there for the rest of its dwell would put the last
+  // player's −300 above the new answerer's name — the same shape `Hub.buzz`
+  // avoids with the transcript, and avoided there for the same reason. The
   // handover takes the stamp with it rather than waiting out a dwell.
   const s = room()
   s.round.phase = 'ARMED'

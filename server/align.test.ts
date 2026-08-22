@@ -207,8 +207,8 @@ test('a clause goes up as the voice begins it, not when it finishes it', async (
   // The first clause is on the board before a word of it has been said.
   assert.equal(folds[0].ms, 0, 'the question opens with its first clause already up')
   // The second goes up as "Four" begins — which is the instant "three" ended,
-  // not the instant "six" did. Firing on the last word was the old behaviour
-  // and left the line a whole clause behind the reader.
+  // not the instant "six" did. Firing on the last word instead leaves the line
+  // a whole clause behind the reader.
   assert.ok(
     Math.abs(folds[1].ms - endMs[2]) <= 25,
     `second clause fires at ${folds[1].ms}, not as "Four" begins at ${endMs[2]}`,

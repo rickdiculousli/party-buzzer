@@ -27,8 +27,7 @@ test('every shipped recipe is non-empty', () => {
  * and a missing `level` collapses the whole thing to `GAIN_FLOOR`.
  *
  * `leader` carries two of them — the drop and the buzzer under it — because
- * they are one moment. They were separate cues fired together before the
- * editor could put them on one timeline.
+ * they are one moment, and one cue is what puts them on one timeline.
  *
  * Durations are the real ones, measured off the files in client/public/sounds.
  */
@@ -98,13 +97,9 @@ test('the file envelope holds its level for the whole file and outlives it', () 
 })
 
 /**
- * The merge that folded `leader2` into `leader` must not have moved anything.
- *
- * Both were separate cues fired together by `playSpaced`, each with its own
- * gain, delay and rate — all identical, which is what made the merge safe. The
- * assertion is that both layers still start together at zero and run their own
- * full length, because a stray `delay` on either one is the one edit that would
- * quietly reorder a moment the room knows by ear.
+ * `leader`'s two layers are one cue fired as a chord: both start together at
+ * zero and run their own full length. A stray `delay` on either one is the one
+ * edit that would quietly reorder a moment the room knows by ear.
  */
 test('the leader drop and its buzzer still start together', () => {
   const [drop, buzzer] = schedule(RECIPES.leader)

@@ -1,11 +1,10 @@
 /**
  * Where a question is, and what each surface may show while it is there.
  *
- * Every display bug this month was the same shape: a condition that matched in
- * a state nobody was thinking about, because the state before it had stopped
- * matching. The board decided what to show from six overlapping booleans spread
- * across three JSX blocks — 2^6 combinations, of which about a dozen mean
- * anything, and nothing anywhere said which dozen. This names the dozen.
+ * A surface deciding what to show from overlapping booleans has 2^n
+ * combinations, of which about a dozen mean anything and nothing says which
+ * dozen — so the ones nobody was thinking about are where the display bugs
+ * live. This names the dozen instead.
  *
  * `momentOf` is universal. `viewFor` redacts `order`, `whole`, and (without the
  * mirror) `fragments` and `answer` — but keeps `phase`, `armedAt`, `spoken`,

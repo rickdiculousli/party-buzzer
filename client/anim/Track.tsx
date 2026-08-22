@@ -2,10 +2,9 @@
  * One layer of a cue: the audio behind, the envelope that gates it in front,
  * both on an axis the track does not own.
  *
- * This is the old `Envelope.tsx` with the waveform it was always missing. The
- * handle math is unchanged — drag as a delta, never to an absolute position,
- * because a handle's absolute x is the sum of every stage before it and reading
- * a position would make the handle jump to the cursor on grab.
+ * Handles drag as a delta, never to an absolute position: a handle's absolute x
+ * is the sum of every stage before it, and reading a position would make the
+ * handle jump to the cursor on grab.
  *
  * ponytail: no zoom, no snapping, no curve shaping, mono only. The axis is the
  * cue's own length and the harness's speed slider is the release valve for a
@@ -41,8 +40,8 @@ type Handle = { field: NumericField; x: number; y: number; level: boolean }
  * track says which one it is about to do, and the cursor agrees with the
  * sentence: `col-resize` where the clip edge is grabbable, `ew-resize` on a
  * handle that only travels sideways, `move` on the one corner that travels in
- * both. Naming the axis is the part that matters — every field here is a
- * horizontal drag except `level`, and nothing on screen said so before.
+ * both. Naming the axis is the part that matters: every field here is a
+ * horizontal drag except `level`, and nothing else on screen says so.
  */
 const GESTURE: Record<string, { hint: string; cursor: string }> = {
   delay: { hint: '← drag the body → move this layer in time', cursor: 'grab' },

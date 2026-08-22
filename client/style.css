@@ -338,8 +338,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
  * Three bands. The middle row is sized to its content and the two 1fr rows
  * around it are equal by construction, which pins whatever is in the middle to
  * the exact centre of the stage — permanently, whatever mounts above or below
- * it. The award, the timeline growing a lane, the lockout chips: all of them
- * used to re-centre the name they belong to. Both outer rows are minmax(0,1fr)
+ * it. Otherwise the award, the timeline growing a lane and the lockout chips
+ * each re-centre the name they belong to. Both outer rows are minmax(0,1fr)
  * so a tall timeline overflows into the padding rather than shoving the row
  * above it.
  */
@@ -355,9 +355,9 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 /*
  * The cue escalates through three sizes — "Ready" and "Stand by" at --t-mega,
  * "Buzz" at --t-hero — and the middle band is auto-height, so growing into the
- * big one used to push the filament and the value down the screen at the exact
- * moment the room is watching them. Reserve one hero line for all three and the
- * cue changes size inside a box that does not.
+ * big one would push the filament and the value down the screen at the exact
+ * moment the room is watching them. One hero line reserved for all three keeps
+ * the cue changing size inside a box that does not.
  */
 .board__mid--cue {
   min-height: calc(var(--t-hero) * 0.86); /* 0.86 is the hero's line-height. */
@@ -464,9 +464,9 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
  * yet judged, which is exactly what --dim is for — and brass or tally-red once
  * the verdict lands. The turn is the moment, so it eases rather than snapping.
  *
- * On the stage, in stage type. It sat at a fixed 1.5rem in the body face while
- * everything around it was --display and scaled with the viewport, so across a
- * room it read as a footnote to the question it had just replaced.
+ * On the stage, in stage type: everything around it is --display and scales
+ * with the viewport, and a fixed body-face size here reads across a room as a
+ * footnote to the question it just replaced.
  */
 .board__spoken {
   margin: 0 0 var(--s2);

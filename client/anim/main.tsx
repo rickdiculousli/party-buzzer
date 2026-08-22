@@ -121,8 +121,8 @@ function Harness() {
   /**
    * The recipes as they are being edited, seeded from what is committed.
    *
-   * A tree rather than the flat `cue.index.field` overrides it replaces,
-   * because add and remove are structural: override keys name a layer by
+   * A tree rather than flat `cue.index.field` override keys, because add and
+   * remove are structural: such a key names a layer by
    * position, so removing layer 0 silently retargets every key naming layer 1.
    * Stable per-layer ids would fix that at the cost of writing UI bookkeeping
    * into committed data. Nothing here is written to disk until Save, which is
@@ -158,13 +158,13 @@ function Harness() {
   /**
    * Back to the lead-up frame, hold it, then let the moment happen.
    *
-   * The timer is owned here rather than by an effect watching `lead`. That
-   * version wedged: the effect only re-runs when `lead` changes, so any path
-   * that left it true without a re-run — a trigger arriving while it was
-   * already true, an effect flush that did not happen — left no timer pending
-   * and the harness sat in the lead-up frame forever, with nothing to fire and
-   * no way back. Setting it imperatively means every trigger schedules its own
-   * way out, whatever state it found.
+   * The timer is owned here rather than by an effect watching `lead`, which
+   * wedges: such an effect only re-runs when `lead` changes, so any path that
+   * leaves it true without a re-run — a trigger arriving while it is already
+   * true, an effect flush that does not happen — leaves no timer pending and
+   * the harness sits in the lead-up frame forever, with nothing to fire and no
+   * way back. Setting it imperatively means every trigger schedules its own way
+   * out, whatever state it found.
    */
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const trigger = () => {
@@ -194,8 +194,8 @@ function Harness() {
    *
    * Rewinding is only ever right for an animation that has just been created.
    * Doing it to one already in flight restarts it, which at 0.1x — where a
-   * 700ms bloom runs for seven seconds — silently re-fired the settled marks
-   * every time the effect ran and made the context look like it was animating
+   * 700ms bloom runs for seven seconds — silently re-fires the settled marks on
+   * every run of the effect and makes the context look like it is animating
    * along with the subject.
    */
   const handled = useRef(new WeakSet<Animation>())
@@ -243,9 +243,9 @@ function Harness() {
    * The cue, on the same edge as the animation.
    *
    * The dialled recipe is handed over directly rather than read from anywhere:
-   * a cue's sound is its recipe now, so the draft *is* the tuning. There is no
-   * scope to pass, because there is no longer a stylesheet holding a second
-   * copy of these numbers to be read from the wrong element.
+   * a cue's sound is its recipe, so the draft *is* the tuning. There is no
+   * scope to pass, because no stylesheet holds a second copy of these numbers
+   * to be read from the wrong element.
    */
   useEffect(() => {
     if (lead || muted || !scenario.sound) return

@@ -133,8 +133,8 @@ export function DuelPanel({ state, act }: { state: State; act: (a: HostAction) =
   // Both ways of closing — resolve the pool, or name two by hand — are the same
   // `closeDuel`, so one refusal covers both buttons. Reaching this line means
   // there is a duel and it is unseated, so what it can still say is `not-idle`:
-  // a window that was open when the host armed. That was a live button the
-  // server refuses, which is the dead click this whole task is about.
+  // a window left open when the host armed. Without the refusal that is a live
+  // button the server refuses — a dead click.
   const closeRefusal = refuses(state, { a: 'closeDuel' })
 
   const pickSameTeam =

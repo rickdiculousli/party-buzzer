@@ -34,8 +34,9 @@ export function useReveal(round?: State['round']): Reveal {
    *
    * Derived during render rather than latched by an effect. An effect runs a
    * render too late, and the broadcast that carries the transcript carries the
-   * award with it — so the award got one frame on the wall before the hold
-   * could hide it, which is a flash of the answer at the worst possible moment.
+   * award with it — so a latched hold gives the award one frame on the wall
+   * before it engages, which is a flash of the answer at the worst possible
+   * moment.
    */
   const spoken = round?.spoken
   const spokenKey = spoken ? `${spoken.name}:${spoken.hit}:${spoken.transcript}` : ''

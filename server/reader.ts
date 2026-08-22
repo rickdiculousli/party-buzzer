@@ -2,8 +2,8 @@
  * The reader: speaks a question pack aloud, fragment by fragment, and drives the
  * game in time with its own voice.
  *
- * It drives the hub by sending the same `ClientMsg`s the old CLI reader sent
- * over a socket, through a synthetic host connection. That is deliberate: every
+ * It drives the hub by sending the same `ClientMsg`s a socket client sends,
+ * through a synthetic host connection. That is deliberate: every
  * validation, broadcast and undo path applies unchanged, the module still cannot
  * tell who drove it, and the hub grows no reader-shaped API.
  *
@@ -166,8 +166,8 @@ export class Reader {
    * What gets spoken for a question: one utterance when we can place the folds
    * inside it, one per fragment when we cannot. Reading a whole question in a
    * breath is the point — a fragment spoken alone gets sentence-final
-   * intonation even when it ends mid-sentence, which is what made the reader
-   * sound chopped.
+   * intonation even when it ends mid-sentence, which is what makes a
+   * fragment-at-a-time read sound chopped.
    */
   private textsFor(q: Question): string[] {
     return this.opts.align ? [joinFragments(q.fragments).text] : q.fragments
@@ -532,8 +532,7 @@ export class Reader {
         // scope rather than the question's: `next` clears `round.fragments`,
         // which is exactly what falsifies `stillMine` — a payoff wait armed with
         // the question's signal would abort on the very keypress that releases
-        // it. The old checks here tested `this.running` alone for the same
-        // reason.
+        // it.
         let deadAir = false
         while (this.running && !resolved(this.hub.state)) {
           await this.until(resolved, this.dwellMs(), this.session.signal)

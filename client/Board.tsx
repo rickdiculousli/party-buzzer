@@ -183,7 +183,7 @@ function NomList({
  * `shown` is a prefix of `whole` by construction — both are the same fragments
  * joined the same way — so it can be sliced by length rather than matched.
  * Without `whole` (a host reading by hand, an older snapshot) it degrades to
- * printing what has been said, which is what this did before.
+ * printing what has been said.
  */
 function Question({ whole, shown }: { whole?: string; shown: string }) {
   if (!whole) return <p class="board__question">{shown}</p>
@@ -386,10 +386,11 @@ export function Board() {
               {w.nominations === 'teams' ? (
                 // A column per side, because that is the shape of the decision:
                 // two rooms picking one name each, and the seat takes the top of
-                // each column. One merged list made the close look like it was
-                // reaching past the runner-up for no reason — here the runner-up
-                // is visibly in the wrong column. An empty column stays up, so
-                // the room can see which side has not made up its mind.
+                // each column. One merged list makes the close look like it is
+                // reaching past the runner-up for no reason — split, the
+                // runner-up is visibly in the wrong column. An empty column
+                // stays up, so the room can see which side has not made up its
+                // mind.
                 <div class="board__sides">
                   {state.teams.map((team) => (
                     <div key={team.id} class="board__sidepool">

@@ -64,7 +64,7 @@ test('the host waits for the first question, not the whole pack', async () => {
   const reader = new Reader(hub, { packDir, cacheDir: packDir + '/.cache', speech })
   hub.setOnChange((s) => reader.onStateChange(s))
 
-  await reader.select('one.txt') // would hang here before the warm start
+  await reader.select('one.txt') // returns on the first question, not the last
   assert.equal(state.reading?.qTotal, 2)
   assert.deepEqual(state.reading?.rendering, { done: 1, total: 2 }, 'the rest is still coming')
 
