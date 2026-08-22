@@ -140,3 +140,113 @@ test('RULES: voice ends at the buzz — a say window outliving it fires', () => 
   assert.equal(check(frames, [ruleNamed('voice ends at the buzz')], { speech }).length, 1)
   assert.deepEqual(check(frames, [ruleNamed('voice ends at the buzz')], { speech: [{ kind: 'say', start: 500, end: 1100 }] }), [])
 })
+
+import { Hub, type Conn } from '../server/hub.ts'
+import { newState } from '../server/state.ts'
+import { Reader } from '../server/reader.ts'
+import type { Speech } from '../server/speech.ts'
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+const drive = () => {
+  const frames: Frame[] = []
+  const hub = new Hub(newState(), {
+    tracer: (cause, state) =>
+      frames.push({ seq: frames.length, t: Date.now(), cause, state: structuredClone(state) }),
+  })
+  const player = (name: string, id: string): Conn => {
+    const c: Conn = { id, role: 'player', playerId: id, send: () => {} }
+    hub.handle(c, { t: 'hello', role: 'player', name, playerId: id })
+    return c
+  }
+  const host: Conn = { id: 'h', role: 'host', send: () => {} }
+  hub.handle(host, { t: 'hello', role: 'host' })
+  return { hub, frames, player, host }
+}
+
+test('integration: photo finish, correct, next — zero violations', async () => {
+  const { hub, frames, player, host } = drive()
+  const ada = player('Ada', 'p1'), bo = player('Bo', 'p2')
+  hub.handle(host, { t: 'host', action: { a: 'arm' } })
+  await sleep(350) // past ARM_DELAY_MS
+  hub.handle(ada, { t: 'buzz', at: Date.now() })
+  hub.handle(bo, { t: 'buzz', at: Date.now() + 40 })
+  await sleep(1100) // past COLLECT_MS — settle lands
+  hub.handle(host, { t: 'host', action: { a: 'correct' } })
+  hub.handle(host, { t: 'host', action: { a: 'next' } })
+  assert.deepEqual(check(frames, RULES, {}), [])
+})
+
+test('integration: wrong answer then rebound — zero violations', async () => {
+  const { hub, frames, player, host } = drive()
+  const ada = player('Ada', 'p1'), bo = player('Bo', 'p2')
+  hub.handle(host, { t: 'host', action: { a: 'arm' } })
+  await sleep(350)
+  hub.handle(ada, { t: 'buzz', at: Date.now() })
+  await sleep(1100)
+  hub.handle(host, { t: 'host', action: { a: 'wrong', neg: 50 } })
+  await sleep(350) // the rebound is a scheduled arm like any other
+  hub.handle(bo, { t: 'buzz', at: Date.now() })
+  await sleep(1100)
+  hub.handle(host, { t: 'host', action: { a: 'correct' } })
+  assert.deepEqual(check(frames, RULES, {}), [])
+})
+
+test('integration: a buzz cuts the voice, so say and cue never overlap', async () => {
+  const packDir = mkdtempSync(join(tmpdir(), 'pb-rules-'))
+  writeFileSync(join(packDir, 'one.txt'), 'V: 300\nFirst fragment. / Second fragment.\nA: gold\n')
+  const frames: Frame[] = []
+  const hub = new Hub(newState(), {
+    tracer: (cause, state) =>
+      frames.push({ seq: frames.length, t: Date.now(), cause, state: structuredClone(state) }),
+  })
+  const speech: Window[] = []
+  let open: Window | undefined
+  const fakeSpeech: Speech & { spoken: string[] } = {
+    spoken: [],
+    render: async (_dir, text) => ({ path: `/fake/${text}`, durationMs: 10 }),
+    play: (path) => {
+      fakeSpeech.spoken.push(path.replace('/fake/', ''))
+      let end = () => {}
+      return {
+        done: new Promise<void>((r) => (end = r)),
+        started: Promise.resolve(),
+        stop: () => {
+          if (open) open.end = Date.now()
+          open = undefined
+          end()
+        },
+      }
+    },
+  }
+  const reader = new Reader(hub, {
+    packDir,
+    cacheDir: join(packDir, '.cache'),
+    speech: fakeSpeech,
+    onClip: () => {
+      open = { kind: 'say', start: Date.now(), end: 0 }
+      speech.push(open)
+    },
+  })
+  hub.setOnChange((s) => reader.onStateChange(s))
+
+  await reader.select('one.txt')
+  reader.start()
+  while (fakeSpeech.spoken.length < 1) await sleep(5)
+
+  const ada: Conn = { id: 'p', role: 'player', playerId: 'p1', send: () => {} }
+  hub.handle(ada, { t: 'hello', role: 'player', name: 'Ada', playerId: 'p1' })
+  await sleep(350)
+  hub.handle(ada, { t: 'buzz', at: Date.now() })
+  await sleep(1100) // settle, then judge
+  hub.handle({ id: 'h', role: 'host', send: () => {} }, { t: 'host', action: { a: 'correct' } })
+  await sleep(20)
+  reader.stop()
+  await reader.settled()
+
+  assert.ok(speech.length >= 1, 'the reader spoke at least one clip')
+  assert.deepEqual(check(frames, RULES, { speech }), [])
+})

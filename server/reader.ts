@@ -51,6 +51,8 @@ export type ReaderOpts = {
    * time — which needs to know where the clauses are, which is this.
    */
   align?: Aligner
+  /** Observer for tests: every clip that starts playing, with its start time. */
+  onClip?: (clip: Clip, startedAt: number) => void
 }
 
 /**
@@ -621,6 +623,7 @@ export class Reader {
       }
 
       const pb = this.speech.play(clip.path, atMs)
+      this.opts.onClip?.(clip, Date.now())
       this.playback = pb
       await pb.started
       const from = atMs
@@ -683,6 +686,9 @@ export class Reader {
         continue
       }
       const pb = this.speech.play(path)
+      // speak() holds only the path; the window's end comes from the stop,
+      // so durationMs is 0 here and means "until stopped".
+      this.opts.onClip?.({ path, durationMs: 0 }, Date.now())
       this.playback = pb
       await pb.done
       this.playback = undefined

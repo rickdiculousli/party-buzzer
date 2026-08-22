@@ -89,9 +89,12 @@ export function minGap(name: string, causeA: string, causeB: string, ms: number)
   }
 }
 
-/** True when any scores.* leaf moved between the two frames. */
+/** True when any scores.* leaf moved between the two frames. A join minting a
+ * zero entry is not a move. */
 export function scoresMoved(prev: Frame, f: Frame): boolean {
-  return diffStates(prev.state, f.state).some((c) => c.path.startsWith('scores.'))
+  return diffStates(prev.state, f.state).some(
+    (c) => c.path.startsWith('scores.') && !(c.from === undefined && c.to === '0'),
+  )
 }
 
 import { RECIPES, span } from '../client/cues.ts'
@@ -161,7 +164,8 @@ export const RULES: Rule[] = [
     IDLE: ['ARMED'],
     ARMED: ['COLLECTING', 'IDLE'],
     COLLECTING: ['LOCKED', 'IDLE'],
-    LOCKED: ['IDLE'],
+    // wrong opens the rebound (ARMED) directly unless the box is holding it.
+    LOCKED: ['IDLE', 'ARMED'],
   }),
 
   minGap('full collect window', 'buzz', 'settle', COLLECT_MS),
