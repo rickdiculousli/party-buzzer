@@ -39,13 +39,6 @@ function rig(packBody: string) {
 
 const PACK = 'V: 300\nFirst fragment. / Second fragment.\nA: gold\n'
 
-// The reader's `stillMine` falls back to `armedAt` before the first fragment,
-// which is only safe while a rebound cannot re-arm inside the collection
-// window. See the note beside the constants in shared/protocol.ts.
-test('the collection window outlasts the arm delay', () => {
-  assert.ok(COLLECT_MS > ARM_DELAY_MS, `${COLLECT_MS} must exceed ${ARM_DELAY_MS}`)
-})
-
 test('selecting a pack renders every fragment and publishes progress', async () => {
   const { state, reader } = rig(PACK)
   await reader.select('one.txt')
@@ -142,6 +135,20 @@ test('an undo mid-question aborts the reader instead of pushing onto a dead roun
     speech.spoken.length < 3,
     `expected the reader to abort, but it spoke all of ${speech.spoken.length}`,
   )
+})
+
+test('replacing a question after its clue ends aborts the old answer wait', async () => {
+  const { hub, state, reader } = rig(PACK)
+  await reader.select('one.txt')
+  reader.start()
+  while ((state.round.fragments?.length ?? 0) < 2) await new Promise((r) => setTimeout(r, 5))
+  await new Promise((r) => setTimeout(r, 5))
+  hub.handle({ id: 'h', role: 'host', send() {} }, { t: 'host', action: { a: 'arm' } })
+  await reader.settled()
+  assert.equal(state.round.answer, undefined)
+  assert.equal(state.round.fragments, undefined)
+  assert.equal(state.reading, undefined)
+  assert.equal(state.round.phase, 'ARMED')
 })
 
 test('pause kills the clip and resume replays that fragment, not the next one', async () => {

@@ -1,4 +1,4 @@
-import type { ScoreKey, State } from '../shared/protocol.ts'
+import type { ActionResult, HostAction, ScoreKey, State } from '../shared/protocol.ts'
 import type { Refusal } from '../shared/legality.ts'
 
 /**
@@ -28,6 +28,14 @@ export const REFUSAL_TEXT: Record<Refusal, string> = {
   'unknown-mode': 'This room has no game by that name.',
   'unknown-duel-rule': 'This room has no duel rule by that name.',
   'no-setlist': 'There is no setlist to move through.',
+}
+
+/** Accepted changes already explain themselves through the state update. */
+export function actionFeedback(action: HostAction['a'] | 'loadSetlist', result: ActionResult): string | null {
+  if (result.status === 'refused') return REFUSAL_TEXT[result.reason]
+  if (result.status === 'failed') return result.message
+  if (result.status === 'unchanged' && action === 'undo') return 'Nothing to undo.'
+  return null
 }
 
 const IDS = ['var(--id-1)', 'var(--id-2)', 'var(--id-3)', 'var(--id-4)', 'var(--id-5)', 'var(--id-6)']

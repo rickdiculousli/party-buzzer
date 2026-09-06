@@ -21,7 +21,7 @@ function rig() {
     hub.add(c)
     return c
   }
-  const lastState = (c: number): State => (sent[c].at(-1) as { state: State }).state
+  const lastState = (c: number): State => sent[c].findLast((m) => m.t === 'state')!.state
   return { state, hub, conn, lastState }
 }
 
@@ -64,7 +64,7 @@ test('a frozen player\'s buzz never enters the window', () => {
   const playerId = phone.playerId!
   state.round.phase = 'ARMED'
   state.round.armedAt = Date.now() - 10
-  state.effects = [{ kind: 'frozen', playerId, roundArmedAt: state.round.armedAt }]
+  state.effects = [{ kind: 'frozen', playerId, attemptId: state.round.attemptId }]
   hub.handle(phone, { t: 'buzz', at: Date.now() })
   assert.equal(state.round.phase, 'ARMED', 'the window never opened')
   assert.equal(state.round.total, 0)
@@ -131,6 +131,7 @@ test('the mirror never widens the buzz-order redaction', () => {
 
 test('reading progress is host/board only, never sent to a player view', () => {
   const { state, hub, conn } = rig()
+  state.readingActive = true
   state.reading = {
     pack: 'science.txt',
     qIndex: 1,
@@ -138,12 +139,44 @@ test('reading progress is host/board only, never sent to a player view', () => {
     fragIndex: 2,
     fragTotal: 3,
     paused: false,
-    running: true,
   }
   const phone = conn('player')
   joinAs(hub, phone, 'Ada')
   assert.equal(hub.viewFor(phone).reading, undefined)
+  assert.equal(hub.viewFor(phone).readingActive, true)
   assert.deepEqual(hub.viewFor(conn('host')).reading, state.reading)
+})
+
+test('board and phones agree throughout an automated rebound without exposing pack progress', () => {
+  const { hub, state, conn } = rig()
+  const host = conn('host')
+  const board = conn('board')
+  const phone = conn('player')
+  joinAs(hub, phone, 'Ada')
+  hub.handle(host, { t: 'act', act: 'reading', data: {
+    active: true,
+    progress: { pack: 'private.txt', qIndex: 0, qTotal: 1, fragIndex: 0, fragTotal: 1, paused: false },
+  } })
+  state.autoplay.on = true
+  hub.handle(host, { t: 'host', action: { a: 'arm' } })
+  state.round.phase = 'LOCKED'
+  state.round.order = [{ playerId: phone.playerId!, name: 'Ada', at: state.round.armedAt, deltaMs: 0 }]
+  const same = () => {
+    for (const open of [false, true]) for (const settled of [false, true]) for (const retired of [false, true]) {
+      const local = { open, settled, retired }
+      assert.equal(momentOf(hub.viewFor(phone), local), momentOf(hub.viewFor(board), local))
+    }
+    assert.equal(hub.viewFor(phone).reading, undefined)
+  }
+  hub.handle(host, { t: 'host', action: { a: 'wrong', neg: 0 } })
+  assert.equal(state.round.held, true)
+  same()
+  hub.handle(host, { t: 'host', action: { a: 'rebound' } })
+  same()
+  assert.equal(momentOf(hub.viewFor(phone), { open: true, settled: true, retired: false }), 'buzz:open')
+  hub.handle(host, { t: 'act', act: 'reading', data: undefined })
+  same()
+  assert.equal(hub.viewFor(phone).readingActive, false)
 })
 
 test('the reading act is host-scoped and lands in state', () => {
@@ -155,7 +188,7 @@ test('the reading act is host-scoped and lands in state', () => {
   }
   hub.handle(phone, { t: 'act', act: 'reading', data: { ...reading, pack: 'forged.txt' } })
   assert.equal(hub.state.reading, undefined, 'a phone cannot fake reading progress')
-  hub.handle(host, { t: 'act', act: 'reading', data: reading })
+  hub.handle(host, { t: 'act', act: 'reading', data: { progress: reading, active: true } })
   assert.equal(lastState(0).reading?.pack, 'one.txt')
 })
 

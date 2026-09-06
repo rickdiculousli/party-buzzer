@@ -106,6 +106,29 @@ test('the leader shows early, and a slow packet with an early stamp takes the le
   })
 })
 
+test('host command results cross the socket and rejected clicks do not consume undo', async () => {
+  await withServer(async (url) => {
+    const host = new FakeClient(url, 'host')
+    await host.open()
+    try {
+      host.send({ t: 'host', action: { a: 'setValue', value: 400 } })
+      host.send({ t: 'host', action: { a: 'setValue', value: 400 } })
+      host.send({ t: 'host', action: { a: 'correct' } })
+      host.send({ t: 'host', action: { a: 'undo' } })
+      for (let tries = 0; host.results.length < 4 && tries < 100; tries++) await sleep(5)
+      assert.deepEqual(host.results.map((r) => r.result), [
+        { status: 'applied' },
+        { status: 'unchanged' },
+        { status: 'refused', reason: 'no-leader' },
+        { status: 'applied' },
+      ])
+      assert.equal(host.last.round.value, 100)
+    } finally {
+      host.close()
+    }
+  })
+})
+
 test('undo takes back an award, including the one before it', async () => {
   await withServer(async (url) => {
     const host = new FakeClient(url, 'host')

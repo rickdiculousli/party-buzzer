@@ -259,12 +259,12 @@ export function Board() {
    */
   const enter = useRef(new Map<string, number>())
   const nextSlot = useRef(0)
-  const round0 = useRef(-1)
+  const round0 = useRef('')
 
   const order = state?.round.order ?? []
   const buzzes = order.length
-  if (state && state.round.armedAt !== round0.current) {
-    round0.current = state.round.armedAt
+  if (state && state.round.attemptId !== round0.current) {
+    round0.current = state.round.attemptId
     // Only the assignments. `nextSlot` carries over: a slot already claimed is
     // claimed whatever round it belonged to, and one long past costs nothing.
     enter.current = new Map()
@@ -442,7 +442,7 @@ export function Board() {
                   // Keyed on the arm instant so the warm-up restarts once per
                   // arm and not on every unrelated broadcast.
                   <div
-                    key={round.armedAt}
+                    key={round.attemptId}
                     class={open ? 'filament is-hot' : 'filament'}
                     style={{ '--delay': `${delay}ms` }}
                   />

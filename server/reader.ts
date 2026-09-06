@@ -2,10 +2,9 @@
  * The reader: speaks a question pack aloud, fragment by fragment, and drives the
  * game in time with its own voice.
  *
- * It drives the hub by sending the same `ClientMsg`s a socket client sends,
- * through a synthetic host connection. That is deliberate: every
- * validation, broadcast and undo path applies unchanged, the module still cannot
- * tell who drove it, and the hub grows no reader-shaped API.
+ * Game actions use Hub.dispatch, the same commit path as host clicks and the
+ * judge. A synthetic host connection publishes private playback progress and
+ * clue text; those runtime updates do not create undo steps.
  *
  * The human host still judges. C and W on the host screen score the round as
  * always — a wrong answer re-arms for a rebound and the reader waits it out.
@@ -299,8 +298,9 @@ export class Reader {
     // `stop()` (called explicitly, or by `run()` when the pack ends) is what
     // clears `state.reading` — this call must not race a later one that undoes it.
     this.publish({})
+    const session = this.session
     this.loop = this.run().finally(() => {
-      this.running = false
+      if (this.session === session) this.stop()
     })
   }
 
@@ -360,10 +360,9 @@ export class Reader {
       fragIndex: this.fragIndex,
       fragTotal: q?.fragments.length ?? 0,
       paused: this.paused,
-      running: this.running,
       rendering: 'rendering' in patch ? patch.rendering : this.hub.state.reading?.rendering,
     }
-    this.hub.send(this.conn, { t: 'act', act: 'reading', data: reading })
+    this.hub.send(this.conn, { t: 'act', act: 'reading', data: { progress: reading, active: this.running } })
   }
 
   /**
@@ -416,9 +415,9 @@ export class Reader {
         await this.waitFor(q, this.session.signal)
         this.fragIndex = 0
         if (q.value !== undefined) {
-          this.hub.send(this.conn, { t: 'host', action: { a: 'setValue', value: q.value } })
+          this.hub.dispatch({ a: 'setValue', value: q.value })
         }
-        this.hub.send(this.conn, { t: 'host', action: { a: 'arm' } })
+        this.hub.dispatch({ a: 'arm' })
         // Answer variants, memory only — this is the one path by which the judge
         // ever learns what the room is about to be asked.
         this.opts.judge?.prime(q.answers)
@@ -426,22 +425,8 @@ export class Reader {
 
         const stamp = this.hub.state.round.armedAt
 
-        // A replaced round (undo, a fresh `arm`/`next`) deletes round.fragments;
-        // a `wrong` rebound re-arms but keeps them, since the question is still
-        // live. Tracking how many we've pushed lets the reader tell "the round
-        // moved on without me" from "the round bounced and is still mine" —
-        // `armedAt` alone can't, because a rebound changes it too.
-        //
-        // Before the first fragment is pushed, fragments can't carry that
-        // signal yet (both cases read as empty), so that one check falls back
-        // to `armedAt`. That's safe specifically here: COLLECT_MS is longer
-        // than ARM_DELAY_MS, so a genuine wrong-judgment rebound cannot land
-        // before this question's first fragment goes out.
-        let pushed = 0
-        const stillMine = () =>
-          pushed === 0
-            ? this.hub.state.round.armedAt === stamp
-            : (this.hub.state.round.fragments?.length ?? 0) >= pushed
+        const questionId = this.hub.state.round.questionId
+        const stillMine = () => this.hub.state.round.questionId === questionId
 
         // The question's scope: the session's lifetime and this round's, as one
         // signal. Declared here because `stillMine` is only answerable once the
@@ -477,7 +462,6 @@ export class Reader {
                 // stays a list of fragments however finely it is revealed.
                 this.hub.send(this.conn, { t: 'act', act: 'fragment', data: text })
                 frags = i + 1
-                pushed += 1
                 this.fragIndex = i + 1
                 this.publish({})
               } else if (i === frags - 1) {
@@ -507,7 +491,6 @@ export class Reader {
             this.fragIndex = f + 1
             const text = q.fragments[f]
             this.hub.send(this.conn, { t: 'act', act: 'fragment', data: text })
-            pushed += 1
             this.publish({})
             const finished = await this.speak(text, sig)
             // Someone buzzed and the question was scored while they held the
@@ -531,13 +514,17 @@ export class Reader {
         // loop that waits forever on a room that has already stopped playing.
         //
         // From here the question is the host's, and the waits are the session's
-        // scope rather than the question's: `next` clears `round.fragments`,
+        // scope rather than the question's: `next` clears `round.questionId`,
         // which is exactly what falsifies `stillMine` — a payoff wait armed with
         // the question's signal would abort on the very keypress that releases
         // it.
         let deadAir = false
         while (this.running && !resolved(this.hub.state)) {
-          await this.until(resolved, this.dwellMs(), this.session.signal)
+          await this.until((s) => resolved(s) || !stillMine(), this.dwellMs(), this.session.signal)
+          if (!stillMine()) {
+            if (this.hub.state.round.questionId) throw new DOMException('Question replaced', 'AbortError')
+            break // The host's Next completed this question.
+          }
           const r = this.hub.state.round
           // Only silence passes itself. Anything else still pending is somebody
           // mid-answer, and their verdict is worth waiting out however long the
@@ -547,18 +534,21 @@ export class Reader {
             break
           }
         }
-        if (this.hub.state.round.award || deadAir) {
+        if (stillMine() && (this.hub.state.round.award || deadAir)) {
           this.hub.send(this.conn, { t: 'act', act: 'revealAnswer', data: q.answer })
         }
         // Let the payoff sit on the wall; the host's N clears it and releases us —
         // under autoplay the reader presses N itself once the dwell is up.
         await this.until(
-          (s) => s.round.phase === 'IDLE' && !s.round.award,
+          (s) => !stillMine() || (s.round.phase === 'IDLE' && !s.round.award),
           this.dwellMs(),
           this.session.signal,
         )
-        if (this.hub.state.round.award || deadAir) {
-          this.hub.send(this.conn, { t: 'host', action: { a: 'next' } })
+        if (!stillMine() && this.hub.state.round.questionId) {
+          throw new DOMException('Question replaced', 'AbortError')
+        }
+        if (stillMine() && (this.hub.state.round.award || deadAir)) {
+          this.hub.dispatch({ a: 'next' })
         }
         // Done with this one. The `next` above may have rolled the setlist into a
         // block with a different pack, which the top of the loop picks up.
@@ -578,7 +568,7 @@ export class Reader {
     // under them; off, the game simply carries on by hand.
     const auto = this.hub.state.autoplay
     if (auto.on) {
-      this.hub.send(this.conn, { t: 'host', action: { ...auto, a: 'setAutoplay', on: false } })
+      this.hub.dispatch({ ...auto, a: 'setAutoplay', on: false })
     }
     this.stop()
   }
@@ -729,7 +719,7 @@ export class Reader {
       // Ends early if anything else takes the round — a host arming, an undo.
       await this.until((s) => !s.round.held, auto.reboundSec * 1000, sig)
       if (this.hub.state.round.held) {
-        this.hub.send(this.conn, { t: 'host', action: { a: 'rebound' } })
+        this.hub.dispatch({ a: 'rebound' })
       }
       return !this.buzzed()
     }

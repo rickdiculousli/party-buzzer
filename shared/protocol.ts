@@ -1,3 +1,5 @@
+import type { Refusal } from './legality.ts'
+
 export type PlayerId = string
 export type TeamId = string
 /** Scores key on team id in a teams grouping, player id in solo. */
@@ -45,17 +47,6 @@ export type BuzzEntry = {
  */
 export const COLLECT_MS = 1000
 
-/**
- * These two are not independent: `COLLECT_MS > ARM_DELAY_MS`, and
- * `server/reader.ts` depends on it. Before a question's first fragment is
- * pushed, the reader tells "the round moved on without me" from "the round
- * bounced and is still mine" by `armedAt` alone, which only works while a
- * rebound cannot re-arm inside the collection window. Held by a test in
- * `server/reader.test.ts` rather than by the compiler — TypeScript widens a
- * comparison to `boolean`, so there is no literal type to assert against
- * without more machinery than one invariant is worth.
- */
-
 export type Award = { name: string; points: number; penalty?: true }
 
 /**
@@ -70,6 +61,10 @@ export function isPenalty(award: Award | undefined): boolean {
 }
 
 export type Round = {
+  /** Stable through rebounds; empty when no question is in progress. */
+  questionId: string
+  /** A new identity for every arm, rebound, or restored attempt. */
+  attemptId: string
   value: number
   phase: Phase
   armedAt: number
@@ -186,7 +181,7 @@ export type DuelRuleInfo = {
 export type ActiveEffect = {
   kind: 'frozen' | 'steal'
   playerId: PlayerId
-  roundArmedAt?: number
+  attemptId?: string
 }
 
 /** One stretch of the night: N questions of one mode, optionally as duels. */
@@ -218,9 +213,9 @@ export type SetlistState = {
 }
 
 /**
- * What the reader is doing, for the host screen alone. Display-only: the reader
- * owns playback and republishes from its own loop, so an undo that restores a
- * stale block corrects itself on the next push rather than rewinding the audio.
+ * Private pack progress for host and board. The public `readingActive` fact
+ * tells every screen whether the reader drives the question. Neither is saved
+ * or restored by undo; the reader owns playback and stops on restoration.
  */
 export type ReadingState = {
   pack: string
@@ -229,11 +224,11 @@ export type ReadingState = {
   fragIndex: number
   fragTotal: number
   paused: boolean
-  /** Whether the read loop is actually driving the round, vs. selected-but-idle. */
-  running: boolean
   /** Present only while a freshly selected pack is being synthesised. */
   rendering?: { done: number; total: number }
 }
+
+export type ReadingUpdate = { progress: ReadingState; active: boolean }
 
 /**
  * Autoplay: the two beats a human host provides by instinct and the reader
@@ -279,6 +274,8 @@ export type State = {
   answerWindowSec: number
   /** Hands-off reading: the reader supplies its own N and paces the beats. */
   autoplay: Autoplay
+  /** Public gameplay fact, independent of private pack progress. */
+  readingActive: boolean
   reading?: ReadingState
 }
 
@@ -325,3 +322,10 @@ export type ServerMsg =
   | { t: 'welcome'; playerId: PlayerId; serverTime: number }
   | { t: 'pong'; t0: number; serverTime: number }
   | { t: 'state'; state: State }
+  | { t: 'actionResult'; action: HostAction['a'] | 'loadSetlist'; result: ActionResult }
+
+/** A command outcome, distinct from the state updates it may produce. */
+export type ActionResult =
+  | { status: 'applied' | 'unchanged' }
+  | { status: 'refused'; reason: Refusal }
+  | { status: 'failed'; message: string }

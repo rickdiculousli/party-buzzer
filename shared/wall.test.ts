@@ -8,13 +8,14 @@ const LOCAL: Local = { open: false, settled: true, retired: false }
 function room(): State {
   return {
     grouping: 'solo',
+    readingActive: false,
     players: [
       { id: 'a', name: 'Ada', connected: true },
       { id: 'b', name: 'Bo', connected: true },
     ],
     teams: [],
     scores: { a: 0, b: 0 },
-    round: { value: 200, phase: 'IDLE', armedAt: 0, order: [], total: 0, lockedOut: [] },
+    round: { questionId: '', attemptId: '', value: 200, phase: 'IDLE', armedAt: 0, order: [], total: 0, lockedOut: [] },
     game: { id: 'trivia', options: {}, moduleState: null },
     items: {},
     effects: [],
@@ -92,9 +93,10 @@ test('a question end to end, one occupant the whole way', () => {
   delete s.round.spoken
   s.round.phase = 'ARMED'
   s.round.armedAt = 5000
+  s.readingActive = true
   s.reading = {
     pack: 'p', qIndex: 0, qTotal: 3, fragIndex: 1, fragTotal: 4,
-    paused: false, running: true,
+    paused: false,
   }
   s.round.whole = 'One. Two. Three.'
   s.round.fragments = ['One.']
@@ -393,9 +395,10 @@ test('a payoff keeps the winner on the stage, in a duel and out of one', () => {
 test('the box picking the question back up ends the penalty, dwell or no dwell', () => {
   const s = room()
   s.autoplay = { on: true, nextSec: 4, reboundSec: 3 }
+  s.readingActive = true
   s.reading = {
     pack: 'p', qIndex: 0, qTotal: 3, fragIndex: 1, fragTotal: 4,
-    paused: false, running: true,
+    paused: false,
   }
   s.round = {
     ...s.round,
@@ -436,9 +439,10 @@ test('the box picking the question back up ends the penalty, dwell or no dwell',
  */
 test('a payoff keeps the stage while the box has a clue up', () => {
   const s = room()
+  s.readingActive = true
   s.reading = {
     pack: 'p', qIndex: 0, qTotal: 3, fragIndex: 3, fragTotal: 4,
-    paused: false, running: true,
+    paused: false,
   }
   s.round = {
     ...s.round,

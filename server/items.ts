@@ -54,7 +54,7 @@ export const ITEMS: ItemDef[] = [
       if (round.order.some((b) => b.playerId === userId)) return false
       if (
         state.effects.some(
-          (e) => e.kind === 'steal' && e.roundArmedAt === round.armedAt,
+          (e) => e.kind === 'steal' && e.attemptId === round.attemptId,
         )
       )
         return false
@@ -67,7 +67,7 @@ export const ITEMS: ItemDef[] = [
       state.effects.push({
         kind: 'steal',
         playerId: userId,
-        roundArmedAt: state.round.armedAt,
+        attemptId: state.round.attemptId,
       })
     },
   },

@@ -124,7 +124,16 @@ and play against them.
 Server code is native TypeScript — Node strips the types, there is no build
 step. Relative imports therefore carry `.ts` extensions.
 
-Game state lives in `state.json` beside the repo. Delete it to start fresh.
+Game settings, players, scores, inventories, and setlist position live in a
+versioned `state.json` beside the repo. Delete it to start fresh. Existing
+unversioned snapshots still load. Restart clears the question in progress and
+reconnects phones normally; it never resumes audio or an answer deadline.
+
+Undo takes back game actions, preserves current phone connections, and stops
+automated reading. A restored settled leader can be judged by hand; a restored
+collection reopens the buzzers because its original packets and timers are gone.
+Refused actions and settings that already have the requested value do not use
+an undo step. The host shows the reason when an action cannot run.
 
 **Upgrading across the rename.** A batch of names changed — `flow` became
 `setlist` throughout, among others — and neither the snapshot nor the saved

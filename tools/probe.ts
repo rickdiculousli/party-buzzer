@@ -333,7 +333,7 @@ async function main() {
           // A reader with nothing to read stops immediately and says nothing,
           // and the next `armed` then hangs for a minute on a question that is
           // never coming. Name the cause here instead.
-          await host.waitFor((s) => !!s.reading?.running, 3000).catch(() => {
+          await host.waitFor((s) => !!s.readingActive, 3000).catch(() => {
             throw new Error(
               'read did nothing — no pack is selected, or the setlist block the ' +
                 'room is on names none. `direct` first, or give the block a pack.',

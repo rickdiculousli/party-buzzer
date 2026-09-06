@@ -109,7 +109,7 @@ export function momentOf(state: State, local: Local): Moment {
   // `rebound` already promises the wall goes back to the clue there; this is
   // the wall keeping it. A room with no box has no voice to hand back to and
   // keeps the dwell, which is the only clock it has.
-  const handedBack = !!state.reading?.running && r.phase === 'ARMED'
+  const handedBack = !!state.readingActive && r.phase === 'ARMED'
   if (r.award && r.phase !== 'COLLECTING' && !handedBack && (!local.retired || rebounding)) {
     return isPenalty(r.award) ? 'verdict:penalty' : 'verdict:award'
   }
@@ -219,7 +219,7 @@ function middleOf(state: State, m: Moment): Middle {
   // it has read so far is still up. Empty at the arm, filling as the voice
   // reaches each clause.
   const clue: Middle | null =
-    state.reading?.running || r.fragments?.length
+    state.readingActive || r.fragments?.length
       ? { clue: { whole: r.whole, shown: r.fragments?.join(' ') ?? '' } }
       : null
 
@@ -287,7 +287,7 @@ export function wallOf(state: State, local: Local): Wall {
   const showAward = !!r.award && (m === 'verdict:award' || m === 'verdict:penalty' || m === 'verdict:hold')
   const penalised = showAward && isPenalty(r.award)
 
-  const reading = !!state.reading?.running
+  const reading = !!state.readingActive
 
   // The lower band's question, not the middle's: whose timeline, whose warm-up
   // bar, whose value. `middleOf` owns who is on the stage.

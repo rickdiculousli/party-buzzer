@@ -105,7 +105,7 @@ export function Player() {
   // This phone has pressed for this arm. Local, because the room learns nothing
   // for a full second and a buzzer that looks unchanged after a press feels
   // broken. Keyed on the arm so it clears itself for the next question.
-  const [pressedFor, setPressedFor] = useState(0)
+  const [pressedFor, setPressedFor] = useState('')
   const key =
     state?.grouping === 'teams'
       ? state.players.find((p) => p.id === playerId)?.teamId ?? playerId
@@ -118,7 +118,7 @@ export function Player() {
       (e) =>
         e.kind === 'frozen' &&
         e.playerId === playerId &&
-        e.roundArmedAt === state.round.armedAt,
+        e.attemptId === state.round.attemptId,
     )
   const buzzable = !!playerId && !!round?.buzzable?.includes(playerId)
   const spectator = !!round?.buzzable && !buzzable && !!playerId
@@ -127,7 +127,7 @@ export function Player() {
 
   const score = key ? state?.scores[key] ?? 0 : 0
   const armed = round?.phase === 'ARMED' || round?.phase === 'COLLECTING'
-  const pressed = !!round && pressedFor === round.armedAt && round.armedAt > 0
+  const pressed = !!round && pressedFor === round.attemptId && !!round.attemptId
 
   // The go cue. Lower than the buzz blip so the two never get confused, and
   // skipped for players who are locked out and cannot act on it.
@@ -193,7 +193,7 @@ export function Player() {
     if (!open || barred || pressed || frozen || spectator) return
     // Stamp before anything else so render work never inflates the time.
     send({ t: 'buzz', at: now() })
-    setPressedFor(round?.armedAt ?? 0)
+    setPressedFor(round?.attemptId ?? '')
     navigator.vibrate?.(60)
     blip(audio.current)
   }
@@ -252,7 +252,7 @@ export function Player() {
       <div class="player__countdown">
         {armed && !barred && (
           <div
-            key={round?.armedAt}
+            key={round?.attemptId}
             class={open ? 'filament is-hot player__filament' : 'filament player__filament'}
             style={{ '--delay': `${delay}ms` }}
           />

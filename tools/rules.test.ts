@@ -195,7 +195,7 @@ test('integration: wrong answer then rebound — zero violations', async () => {
   assert.deepEqual(check(frames, RULES, {}), [])
 })
 
-test('integration: a buzz cuts the voice, so say and cue never overlap', async () => {
+test('integration: a buzz cuts the voice, so say and cue never overlap', async (t) => {
   const packDir = mkdtempSync(join(tmpdir(), 'pb-rules-'))
   writeFileSync(join(packDir, 'one.txt'), 'V: 300\nFirst fragment. / Second fragment.\nA: gold\n')
   const frames: Frame[] = []
@@ -240,7 +240,13 @@ test('integration: a buzz cuts the voice, so say and cue never overlap', async (
   const ada: Conn = { id: 'p', role: 'player', playerId: 'p1', send: () => {} }
   hub.handle(ada, { t: 'hello', role: 'player', name: 'Ada', playerId: 'p1' })
   await sleep(350)
+  // Trace and stop run synchronously in this dispatch. A real millisecond
+  // boundary between them is not an asynchronous audio overlap.
+  const instant = Date.now()
+  const clock = t.mock.method(Date, 'now', () => instant)
   hub.handle(ada, { t: 'buzz', at: Date.now() })
+  clock.mock.restore()
+  assert.equal(open, undefined, 'the clip stops before dispatch returns')
   await sleep(1100) // settle, then judge
   hub.handle({ id: 'h', role: 'host', send: () => {} }, { t: 'host', action: { a: 'correct' } })
   await sleep(20)

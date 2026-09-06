@@ -9,8 +9,9 @@ import { listSetlists, readSetlist, writeSetlist } from './setlists.ts'
 import { refuses } from '../shared/legality.ts'
 import { COLLECT_MS } from '../shared/protocol.ts'
 import { makeTracer, type Tracer } from './trace.ts'
+import { gameSnapshot, restoreGame, type GameSnapshot } from './snapshot.ts'
 import type {
-  ClientMsg, PlayerId, Role, ServerMsg, State,
+  ClientMsg, PlayerId, Role, ServerMsg, State, ReadingUpdate, HostAction, ActionResult,
 } from '../shared/protocol.ts'
 
 export type Conn = {
@@ -68,7 +69,7 @@ export class Hub {
   readonly state: State
   private conns = new Set<Conn>()
   private pending: RawBuzz[] = []
-  private history: State[] = []
+  private history: GameSnapshot[] = []
   private timer: NodeJS.Timeout | undefined
   private revealTimer: NodeJS.Timeout | undefined
   /** Whether the room has been shown an order yet this round. */
@@ -79,6 +80,7 @@ export class Hub {
   private reader: ReaderControls | undefined
   private setlistDir: string | undefined
   private trace: Tracer
+  private restoring = false
 
   constructor(state: State, opts: HubOpts = {}) {
     this.state = state
@@ -123,8 +125,7 @@ export class Hub {
     this.reader = reader
   }
 
-  /** Deliver a message as if it arrived on a connection. The reader drives the
-   *  game this way, so it goes through every check a real host does. */
+  /** Internal reader/judge publications use the same handler as wire messages. */
   send(conn: Conn, msg: ClientMsg): void {
     this.handle(conn, msg)
   }
@@ -148,27 +149,33 @@ export class Hub {
       case 'host':
         // Only the host panel may mutate the game.
         if (conn.role !== 'host') return
-        if (msg.action.a === 'undo') this.undo()
-        else {
-          this.history.push(structuredClone(this.state))
-          if (this.history.length > UNDO_DEPTH) this.history.shift()
-          applyHostAction(this.state, msg.action)
-        }
-        // Anything that ends or restarts the question also shuts collection;
-        // setValue and the roster edits must not disturb a live round. A
-        // refused judgement — correct/wrong before LOCKED — changes nothing,
-        // so it must not kill the round's timers either.
-        const refused =
-          (msg.action.a === 'correct' || msg.action.a === 'wrong') &&
-          this.state.round.phase !== 'LOCKED'
-        if (RESETS.has(msg.action.a) && !refused) this.clearWindow()
-        this.changed(`host:${msg.action.a}`)
+        conn.send({ t: 'actionResult', action: msg.action.a, result: this.dispatch(msg.action) })
         return
 
       case 'act':
         this.act(conn, msg.act, msg.data)
         return
     }
+  }
+
+  /** The single commit path for the host, reader, judge and setlist loader. */
+  dispatch(action: HostAction): ActionResult {
+    let result: ActionResult
+    if (action.a === 'undo') {
+      result = { status: this.undo() ? 'applied' : 'unchanged' }
+    } else {
+      const before = gameSnapshot(this.state)
+      result = applyHostAction(this.state, action)
+      if (result.status === 'applied') {
+        this.history.push(before)
+        if (this.history.length > UNDO_DEPTH) this.history.shift()
+      }
+    }
+    if (result.status === 'applied') {
+      if (RESETS.has(action.a)) this.clearWindow()
+      this.changed(`host:${action.a}`)
+    }
+    return result
   }
 
   /** Unknown acts, so each is logged once rather than per packet. */
@@ -223,7 +230,9 @@ export class Hub {
       round.spoken = (data ?? undefined) as State['round']['spoken']
     } else if (name === 'reading') {
       // Display-only progress from the reader. Undefined clears it.
-      this.state.reading = (data ?? undefined) as State['reading']
+      const update = data as ReadingUpdate | undefined
+      this.state.reading = update?.progress
+      this.state.readingActive = update?.active ?? false
     } else if (name === 'selectPack' && typeof data === 'string') {
       // Mid-question would cut the room off; refuse it the way setMode does.
       if (this.state.round.phase !== 'IDLE') return
@@ -250,28 +259,8 @@ export class Hub {
       }
       this.state.setlists = listSetlists(this.setlistDir)
     } else if (name === 'loadSetlist' && typeof data === 'string') {
-      if (!this.setlistDir) return
-      // Loading is a `setSetlist` wearing a filename, so it is refused wherever
-      // one would be — and asked here, before anything else happens, rather than
-      // left to the `applyHostAction` at the bottom. That one does refuse it,
-      // but only after this branch has read the file off disk and pushed an undo
-      // snapshot for a mutation that never lands: a phantom Undo step on the
-      // host's stack, mid-question, undoing the question instead. The same rule
-      // greys the button on the desk, which is the point of the table.
-      if (refuses(this.state, { a: 'setSetlist', blocks: [] })) return
-      let blocks
-      try {
-        blocks = readSetlist(this.setlistDir, data)
-      } catch (e) {
-        console.warn(`[hub] loadSetlist failed: ${e}`)
-        return
-      }
-      if (blocks.length === 0) return
-      // Loading replaces the whole setlist, so it is undoable like the builder's
-      // own edits — same snapshot push the host path takes.
-      this.history.push(structuredClone(this.state))
-      if (this.history.length > UNDO_DEPTH) this.history.shift()
-      applyHostAction(this.state, { a: 'setSetlist', blocks })
+      conn.send({ t: 'actionResult', action: 'loadSetlist', result: this.loadSetlist(data) })
+      return
     } else {
       const handled = moduleFor(this.state.game.id).onAct?.(this.state, name, data) ?? false
       if (!handled) {
@@ -283,6 +272,21 @@ export class Hub {
       }
     }
     this.changed(`act:${name}`)
+  }
+
+  private loadSetlist(name: string): ActionResult {
+    // Refuse before disk access, then commit exactly as a builder edit would.
+    const reason = refuses(this.state, { a: 'setSetlist', blocks: [] })
+    if (reason) return { status: 'refused', reason }
+    if (!this.setlistDir) return { status: 'failed', message: 'Saved setlists are unavailable.' }
+    try {
+      const blocks = readSetlist(this.setlistDir, name)
+      if (!blocks.length) return { status: 'failed', message: 'This setlist has no playable blocks.' }
+      return this.dispatch({ a: 'setSetlist', blocks })
+    } catch (e) {
+      console.warn(`[hub] loadSetlist failed: ${e}`)
+      return { status: 'failed', message: 'The setlist could not be loaded.' }
+    }
   }
 
   private join(conn: Conn, playerId: PlayerId | undefined, name?: string): void {
@@ -364,7 +368,7 @@ export class Hub {
     const excluded = lockedPlayerIds(this.state)
     const frozen = new Set(
       this.state.effects
-        .filter((e) => e.kind === 'frozen' && e.roundArmedAt === round.armedAt)
+        .filter((e) => e.kind === 'frozen' && e.attemptId === round.attemptId)
         .map((e) => e.playerId),
     )
     round.order = resolveBuzzes(this.pending, round.armedAt, [...excluded, ...frozen]).map(
@@ -372,7 +376,7 @@ export class Hub {
     )
     // A steal jumps the window: first place, measured from the arm instant.
     const steal = this.state.effects.find(
-      (e) => e.kind === 'steal' && e.roundArmedAt === round.armedAt,
+      (e) => e.kind === 'steal' && e.attemptId === round.attemptId,
     )
     if (steal && !frozen.has(steal.playerId) && !excluded.includes(steal.playerId)) {
       const name =
@@ -410,14 +414,22 @@ export class Hub {
   }
 
   /**
-   * Restore the previous snapshot in place. `state` is handed out by reference
-   * to the persistence layer, so the object identity has to survive; only its
-   * top-level keys are swapped.
+   * Restore game data in place after stopping runtime work. The state object
+   * remains stable for subscribers; one complete restoration is then published.
    */
-  private undo(): void {
+  private undo(): boolean {
     const prev = this.history.pop()
-    if (!prev) return
-    Object.assign(this.state, prev)
+    if (!prev) return false
+    // Stopping the reader publishes runtime updates. Suppress those intermediate
+    // frames so subscribers only observe the complete restored game.
+    this.restoring = true
+    try {
+      this.reader?.stop()
+      restoreGame(this.state, prev)
+    } finally {
+      this.restoring = false
+    }
+    return true
   }
 
   private clearWindow(): void {
@@ -471,6 +483,7 @@ export class Hub {
   }
 
   private changed(cause = 'change'): void {
+    if (this.restoring) return
     this.trace(cause, this.state)
     this.broadcast()
     this.onChange(this.state)

@@ -15,39 +15,57 @@ function withPlayer(state: State): string {
   return 'p1'
 }
 
+test('question identity survives a rebound while attempts change even at the same timestamp', (t) => {
+  t.mock.method(Date, 'now', () => 1000)
+  const state = newState()
+  withPlayer(state)
+  applyHostAction(state, { a: 'arm' })
+  const { questionId, attemptId, armedAt } = state.round
+  state.round.phase = 'LOCKED'
+  state.round.order = [{ playerId: 'p1', name: 'Ada', at: armedAt, deltaMs: 0 }]
+  applyHostAction(state, { a: 'wrong', neg: 0 })
+  assert.equal(state.round.questionId, questionId)
+  assert.notEqual(state.round.attemptId, attemptId)
+  assert.equal(state.round.armedAt, armedAt, 'identity does not depend on elapsed time')
+  applyHostAction(state, { a: 'arm' })
+  assert.notEqual(state.round.questionId, questionId)
+  applyHostAction(state, { a: 'next' })
+  assert.equal(state.round.questionId, '')
+})
+
 test('arm sweeps last question\'s effects and stamps the live ones', () => {
   const state = newState()
   state.effects = [
-    { kind: 'frozen', playerId: 'old', roundArmedAt: 123 },
+    { kind: 'frozen', playerId: 'old', attemptId: 'old' },
     { kind: 'frozen', playerId: 'fresh' },
   ]
   applyHostAction(state, { a: 'arm' })
   assert.deepEqual(
     state.effects,
-    [{ kind: 'frozen', playerId: 'fresh', roundArmedAt: state.round.armedAt }],
+    [{ kind: 'frozen', playerId: 'fresh', attemptId: state.round.attemptId }],
   )
 })
 
 test('a wrong rebound re-stamps effects to the new arm instead of sweeping them', () => {
   const state = newState()
   withPlayer(state)
-  state.effects = [{ kind: 'frozen', playerId: 'p1', roundArmedAt: state.round.armedAt }]
+  state.effects = [{ kind: 'frozen', playerId: 'p1', attemptId: state.round.attemptId }]
   state.round.phase = 'LOCKED'
   state.round.order = [{ playerId: 'p1', name: 'Ada', at: 1, deltaMs: 0 }]
   applyHostAction(state, { a: 'wrong', neg: 0 })
   assert.equal(state.round.phase, 'ARMED')
   assert.equal(state.effects.length, 1)
-  assert.equal(state.effects[0].roundArmedAt, state.round.armedAt)
+  assert.equal(state.effects[0].attemptId, state.round.attemptId)
 })
 
 test('buzzBlockReason bars a frozen player for exactly the stamped round', () => {
   const state = newState()
   state.round.phase = 'ARMED'
-  state.round.armedAt = 999
-  state.effects = [{ kind: 'frozen', playerId: 'p1', roundArmedAt: 999 }]
+  state.round.attemptId = 'current'
+  state.effects = [{ kind: 'frozen', playerId: 'p1', attemptId: 'current' }]
   assert.equal(buzzBlockReason(state, 'p1'), 'frozen')
   assert.equal(buzzBlockReason(state, 'p2'), null)
-  state.effects[0].roundArmedAt = 888
+  state.effects[0].attemptId = 'other'
   assert.equal(buzzBlockReason(state, 'p1'), null, 'a freeze from another round is inert')
 })
 

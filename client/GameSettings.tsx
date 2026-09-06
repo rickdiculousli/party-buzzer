@@ -1,5 +1,4 @@
 import type { GameInfo, HostAction, OptionSpec, State } from '../shared/protocol.ts'
-import { modeSurfaces } from './modes/index.ts'
 import { REFUSAL_TEXT } from './ui.ts'
 import { refuses } from '../shared/legality.ts'
 
@@ -83,8 +82,6 @@ export function GameSettings({
   // about the round that the server also holds.
   const refusal = refuses(state, { a: 'setMode', id: state.game.id, options: state.game.options })
   const current = state.games.find((g) => g.id === state.game.id)
-  const Override = modeSurfaces[state.game.id]?.Settings
-  if (Override) return <Override state={state} act={act} />
   if (!current) return null
 
   const pick = (id: string) => {

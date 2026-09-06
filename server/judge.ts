@@ -3,7 +3,7 @@
  *
  * It watches the same state stream the reader waits on, opens an answer window
  * when a round locks with a leader while primed, and returns its verdict as
- * ordinary host actions through a synthetic host connection — undo, validation,
+ * ordinary host actions through Hub.dispatch — undo, validation,
  * rebound and the reader's wait-for-award loop all apply unchanged, and the hub
  * grows no judge-shaped API.
  *
@@ -36,8 +36,9 @@ export class Judge {
   private conn: Conn = { id: 'judge', role: 'host', send: () => {} }
   /** The current question's answer variants. Memory only — never State. */
   private primed: string[] | undefined
-  /** `${armedAt}:${leaderId}` for the open window, so repeat broadcasts don't re-open it. */
+  /** Attempt and leader identify one answer window, independently of clocks. */
   private windowKey: string | undefined
+  private submittedFor: string | undefined
   private timer: NodeJS.Timeout | undefined
 
   constructor(hub: Hub, opts: JudgeOpts = {}) {
@@ -47,7 +48,7 @@ export class Judge {
 
   /** The reader calls this at arm time with the question's answer variants. */
   prime(answers: string[]): void {
-    this.primed = answers
+    this.primed = [...answers]
   }
 
   unprime(): void {
@@ -66,8 +67,8 @@ export class Judge {
       if (this.windowKey && state.round.phase !== 'LOCKED') this.closeWindow()
       return
     }
-    const key = `${state.round.armedAt}:${leader.playerId}`
-    if (key === this.windowKey) return
+    const key = `${state.round.attemptId}:${leader.playerId}`
+    if (key === this.windowKey || key === this.submittedFor) return
     this.closeWindow()
     this.windowKey = key
     const sec = state.answerWindowSec
@@ -96,6 +97,8 @@ export class Judge {
       return { ok: false }
     }
     const answers = this.primed
+    const key = this.windowKey
+    this.submittedFor = key
     const name = leader.name
     const neg = state.round.value
     this.closeWindow()
@@ -108,13 +111,15 @@ export class Judge {
     // that is gone.
     if (
       this.hub.state.round.phase !== 'LOCKED' ||
-      this.hub.state.round.order[0]?.playerId !== playerId
+      this.hub.state.round.order[0]?.playerId !== playerId ||
+      `${this.hub.state.round.attemptId}:${playerId}` !== key ||
+      this.primed !== answers
     ) {
       return { ok: false }
     }
     const hit = !!transcript && matchAnswer(transcript, answers)
     this.hub.send(this.conn, { t: 'act', act: 'spoken', data: { name, transcript, hit } })
-    this.hub.send(this.conn, { t: 'host', action: hit ? { a: 'correct' } : { a: 'wrong', neg } })
+    this.hub.dispatch(hit ? { a: 'correct' } : { a: 'wrong', neg })
     return { ok: true, hit, transcript }
   }
 
@@ -135,6 +140,7 @@ export class Judge {
     const leader = state.round.order[0]
     if (state.round.phase !== 'LOCKED' || !leader) return
     const neg = state.round.value
+    this.submittedFor = key
     this.closeWindow()
     this.hub.send(this.conn, { t: 'act', act: 'judgeWindow', data: undefined })
     this.hub.send(this.conn, {
@@ -142,7 +148,7 @@ export class Judge {
       act: 'spoken',
       data: { name: leader.name, transcript: '', hit: false },
     })
-    this.hub.send(this.conn, { t: 'host', action: { a: 'wrong', neg } })
+    this.hub.dispatch({ a: 'wrong', neg })
   }
 
   private closeWindow(): void {

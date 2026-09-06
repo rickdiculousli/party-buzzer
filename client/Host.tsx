@@ -96,7 +96,7 @@ function notesFor(
 }
 
 export function Host() {
-  const { state, connected, send, now } = useSocket('host')
+  const { state, connected, send, now, actionMessage } = useSocket('host')
   const act = (action: HostAction) => send({ t: 'host', action })
   const fire = (a: string, data?: unknown) => send({ t: 'act', act: a, data })
   const { open } = useOpen(state?.round, now)
@@ -213,6 +213,7 @@ export function Host() {
 
   return (
     <main class="host">
+      {actionMessage && <p class="muted" role="status">{actionMessage}</p>}
       <div class="host__bar">
         <span class="host__title">Host</span>
         <span class="lamp">
@@ -365,9 +366,9 @@ export function Host() {
               </span>
             ) : (
               <>
-                {state.reading?.running ? (
-                  <button class="btn" onClick={() => fire(state.reading!.paused ? 'resumeRead' : 'pauseRead')}>
-                    {state.reading.paused ? 'Resume' : 'Pause'}
+                {state.readingActive ? (
+                  <button class="btn" onClick={() => fire(state.reading?.paused ? 'resumeRead' : 'pauseRead')}>
+                    {state.reading?.paused ? 'Resume' : 'Pause'}
                   </button>
                 ) : (
                   <button class="btn btn--primary" disabled={!readable} onClick={() => fire('read')}>

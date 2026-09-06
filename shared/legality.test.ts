@@ -13,13 +13,14 @@ import type { HostAction, State } from './protocol.ts'
 function room(): State {
   return {
     grouping: 'solo',
+    readingActive: false,
     players: [
       { id: 'a', name: 'Ada', connected: true },
       { id: 'b', name: 'Bo', connected: true },
     ],
     teams: [],
     scores: { a: 0, b: 0 },
-    round: { value: 200, phase: 'IDLE', armedAt: 0, order: [], total: 0, lockedOut: [] },
+    round: { questionId: '', attemptId: '', value: 200, phase: 'IDLE', armedAt: 0, order: [], total: 0, lockedOut: [] },
     game: { id: 'trivia', options: {}, moduleState: null },
     items: {},
     effects: [],

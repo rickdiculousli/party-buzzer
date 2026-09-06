@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { ARM_DELAY_MS } from '../shared/protocol.ts'
 import type { ClientMsg, Role, ServerMsg, State } from '../shared/protocol.ts'
+import { actionFeedback } from './ui.ts'
 
 const SAMPLES = 7
 const RESYNC_MS = 30_000
@@ -33,6 +34,7 @@ export function useOpen(
 ): { open: boolean; delay: number } {
   const armed = round?.phase === 'ARMED' || round?.phase === 'COLLECTING'
   const armedAt = round?.armedAt ?? 0
+  const attemptId = round?.attemptId ?? ''
   /**
    * The countdown can never exceed the delay the server actually schedules, so
    * clamp to it. Without this a client whose clock is behind — including one
@@ -43,14 +45,14 @@ export function useOpen(
   // Which arm we have opened for. The timer is the authority — re-reading the
   // clock here would leave us shut whenever setTimeout fires a hair early, with
   // no second render coming to correct it.
-  const [openedFor, setOpenedFor] = useState(0)
+  const [openedFor, setOpenedFor] = useState('')
   const fire = useRef(onOpen)
   fire.current = onOpen
 
   useEffect(() => {
     if (!armed) return
     const go = () => {
-      setOpenedFor(armedAt)
+      setOpenedFor(attemptId)
       fire.current?.()
     }
     const wait = Math.min(ARM_DELAY_MS, Math.max(0, armedAt - now()))
@@ -58,9 +60,9 @@ export function useOpen(
     if (wait <= 0) return go()
     const id = setTimeout(go, wait)
     return () => clearTimeout(id)
-  }, [armed, armedAt])
+  }, [armed, attemptId, armedAt])
 
-  return { open: armed && openedFor === armedAt, delay }
+  return { open: armed && openedFor === attemptId, delay }
 }
 
 export function useSocket(role: Role) {
@@ -69,6 +71,7 @@ export function useSocket(role: Role) {
     () => localStorage.getItem('playerId'),
   )
   const [connected, setConnected] = useState(false)
+  const [actionMessage, setActionMessage] = useState<string | null>(null)
 
   const socket = useRef<WebSocket | null>(null)
   // Seeded from this device's own wall clock so `now()` is in the server's
@@ -78,6 +81,7 @@ export function useSocket(role: Role) {
   const samples = useRef<{ rtt: number; offset: number }[]>([])
 
   const send = (msg: ClientMsg) => {
+    if (msg.t === 'host' || msg.t === 'act') setActionMessage(null)
     const s = socket.current
     if (s && s.readyState === WebSocket.OPEN) s.send(JSON.stringify(msg))
   }
@@ -121,6 +125,7 @@ export function useSocket(role: Role) {
       ws.onmessage = (ev) => {
         const msg = JSON.parse(ev.data as string) as ServerMsg
         if (msg.t === 'state') setState(msg.state)
+        else if (msg.t === 'actionResult') setActionMessage(actionFeedback(msg.action, msg.result))
         else if (msg.t === 'welcome') {
           localStorage.setItem('playerId', msg.playerId)
           setPlayerId(msg.playerId)
@@ -160,6 +165,7 @@ export function useSocket(role: Role) {
     state,
     playerId,
     connected,
+    actionMessage,
     now: () => performance.now() + offset.current,
     send,
   }

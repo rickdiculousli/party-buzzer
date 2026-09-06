@@ -1,13 +1,15 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
+import { isDeepStrictEqual } from 'node:util'
 import { ARM_DELAY_MS } from '../shared/protocol.ts'
 import { knownModule, moduleFor, sanitizeOptions } from './modes/index.ts'
 import { executeGrants } from './items.ts'
 import { duelOnArm, duelOnWrong, duelRule, resolveDuel, seatDuel } from './duel.ts'
 import { advanceSetlist, applySetup, enterBlock, sanitizeBlocks } from './setlist.ts'
 import { refuses } from '../shared/legality.ts'
+import { persistedSnapshot } from './snapshot.ts'
 import type {
-  SetlistBlock, HostAction, PlayerId, ScoreKey, State,
+  SetlistBlock, HostAction, PlayerId, ScoreKey, State, ActionResult,
 } from '../shared/protocol.ts'
 
 export { ARM_DELAY_MS }
@@ -19,6 +21,7 @@ const secs = (n: number, fallback: number): number =>
 export function newState(): State {
   return {
     grouping: 'solo',
+    readingActive: false,
     players: [],
     teams: [],
     scores: {},
@@ -44,6 +47,8 @@ export function newState(): State {
     // was still landing, which is two things happening at once.
     autoplay: { on: false, nextSec: 5, reboundSec: 4 },
     round: {
+      questionId: '',
+      attemptId: '',
       value: 100,
       phase: 'IDLE',
       armedAt: 0,
@@ -78,7 +83,7 @@ export function buzzBlockReason(state: State, playerId: PlayerId): string | null
     (e) =>
       e.kind === 'frozen' &&
       e.playerId === playerId &&
-      e.roundArmedAt === state.round.armedAt,
+      e.attemptId === state.round.attemptId,
   )
   if (frozen) return 'frozen'
   return moduleFor(state.game.id).canBuzz?.(state, playerId) ?? null
@@ -111,13 +116,30 @@ function openRebound(state: State): void {
   const round = state.round
   delete round.held
   round.phase = 'ARMED'
+  round.attemptId = randomUUID()
   round.armedAt = Date.now() + ARM_DELAY_MS
   round.order = []
   round.total = 0
-  for (const e of state.effects) e.roundArmedAt = round.armedAt
+  for (const e of state.effects) e.attemptId = round.attemptId
 }
 
-export function applyHostAction(state: State, action: HostAction): void {
+/** Validate before mutation and report whether anything actually changed. */
+export function applyHostAction(state: State, action: HostAction): ActionResult {
+  const reason = refuses(state, action)
+  if (reason) return { status: 'refused', reason }
+  // A bare state can precede catalog initialization in tests or on startup.
+  if (action.a === 'setMode' && !knownModule(action.id)) {
+    return { status: 'refused', reason: 'unknown-mode' }
+  }
+  if (action.a === 'openDuel' && !duelRule(action.rule)) {
+    return { status: 'refused', reason: 'unknown-duel-rule' }
+  }
+  const before = structuredClone(state)
+  mutateHostAction(state, action)
+  return { status: isDeepStrictEqual(before, state) ? 'unchanged' : 'applied' }
+}
+
+function mutateHostAction(state: State, action: HostAction): void {
   const round = state.round
   // Used unnarrowed by `correct` and `wrong`, and that is not an oversight the
   // compiler is missing: `refuses` returns `no-leader` for both unless
@@ -130,18 +152,10 @@ export function applyHostAction(state: State, action: HostAction): void {
   // exactly the actions a host would press, so every validation still runs.
   const apply = (a: HostAction) => applyHostAction(state, a)
 
-  // Legality is asked once, from the table the host surfaces read too — a rule
-  // restated on both sides of the socket drifts, and a live button the server
-  // silently returns on is a dead click with no feedback. The code is dropped
-  // rather than returned —
-  // `applyHostAction` has never had a way to answer the host, and giving it one
-  // is a protocol change, not this. What survives per case is *lookups*
-  // (`if (!player) return`, the duel the case then resolves): fetching a value,
-  // not ruling on legality.
-  if (refuses(state, action)) return
-
   switch (action.a) {
     case 'arm': {
+      round.questionId = randomUUID()
+      round.attemptId = randomUUID()
       round.phase = 'ARMED'
       round.armedAt = Date.now() + ARM_DELAY_MS
       round.order = []
@@ -156,8 +170,8 @@ export function applyHostAction(state: State, action: HostAction): void {
       delete round.buzzable
       // A fresh question: sweep effects stamped to the last one, stamp the
       // live ones (a freeze fired between questions lands here).
-      state.effects = state.effects.filter((e) => e.roundArmedAt === undefined)
-      for (const e of state.effects) e.roundArmedAt = round.armedAt
+      state.effects = state.effects.filter((e) => e.attemptId === undefined)
+      for (const e of state.effects) e.attemptId = round.attemptId
       moduleFor(state.game.id).onArm?.(state)
       duelOnArm(state)
       return
@@ -217,10 +231,10 @@ export function applyHostAction(state: State, action: HostAction): void {
       //
       // A host judging by hand keeps the instant rebound: they pressed W when
       // they were ready, and there is no reader to arm it for them. The
-      // `reading.running` half of the check is what makes that safe — autoplay
+      // `readingActive` half of the check is what makes that safe — autoplay
       // left on with nobody reading would otherwise hold a round nothing ever
       // opens.
-      if (state.autoplay.on && state.reading?.running) round.held = true
+      if (state.autoplay.on && state.readingActive) round.held = true
       else openRebound(state)
       duelOnWrong(state, leader.playerId)
       return
@@ -243,6 +257,8 @@ export function applyHostAction(state: State, action: HostAction): void {
       // question from a double-tap on N or a stale award being cleared.
       const played = round.armedAt > 0
       round.phase = 'IDLE'
+      round.questionId = ''
+      round.attemptId = ''
       round.armedAt = 0
       round.order = []
       round.total = 0
@@ -273,10 +289,6 @@ export function applyHostAction(state: State, action: HostAction): void {
       // A pool was built under the old game's room; a seated pair is a
       // commitment and survives.
       if (state.duel && !state.duel.seated) delete state.duel
-      if (!knownModule(action.id)) {
-        console.warn(`[state] unknown game "${action.id}" — dropped`)
-        return
-      }
       const mod = moduleFor(action.id)
       const options = sanitizeOptions(mod.options, action.options)
       if (action.id === state.game.id) {
@@ -291,6 +303,8 @@ export function applyHostAction(state: State, action: HostAction): void {
       if (!action.keepScores) state.scores = {}
       state.items = {}
       state.effects = []
+      round.questionId = ''
+      round.attemptId = ''
       round.armedAt = 0
       round.order = []
       round.total = 0
@@ -452,19 +466,19 @@ export function applyHostAction(state: State, action: HostAction): void {
 // ponytail: rewrites the whole file on every change, debounced. State is a few
 // KB and writes are rare, so this stays well under a millisecond. Switch to an
 // append-only log only if a game ever grows large enough to stutter.
-let pending: NodeJS.Timeout | undefined
-let queued: { path: string; snapshot: string } | undefined
+const queued = new Map<string, { timer: NodeJS.Timeout; snapshot: string }>()
 
-function write(): void {
-  pending = undefined
-  if (!queued) return
+function write(path: string): void {
+  const entry = queued.get(path)
+  if (!entry) return
+  clearTimeout(entry.timer)
   try {
-    writeFileSync(queued.path, queued.snapshot)
+    writeFileSync(path, entry.snapshot)
   } catch (err) {
     // A failed snapshot must never take the game down mid-question.
     console.error('[state] snapshot failed:', err)
   }
-  queued = undefined
+  queued.delete(path)
 }
 
 /**
@@ -473,16 +487,20 @@ function write(): void {
  * deadline back — a game that keeps changing still gets saved.
  */
 export function saveState(path: string, state: State): void {
-  queued = { path, snapshot: JSON.stringify(state) }
-  if (pending) return
-  pending = setTimeout(write, 100)
-  pending.unref?.()
+  const snapshot = JSON.stringify(persistedSnapshot(state))
+  const entry = queued.get(path)
+  if (entry) {
+    entry.snapshot = snapshot
+    return
+  }
+  const timer = setTimeout(() => write(path), 100)
+  timer.unref?.()
+  queued.set(path, { timer, snapshot })
 }
 
 /** Write anything outstanding right now. Sync, so shutdown cannot wait on it. */
 export function flushSave(): void {
-  clearTimeout(pending)
-  write()
+  for (const path of queued.keys()) write(path)
 }
 
 export function loadState(path: string): State {
@@ -494,7 +512,10 @@ export function loadState(path: string): State {
   }
 
   try {
-    const loaded = JSON.parse(raw) as State
+    const parsed = JSON.parse(raw)
+    if ('version' in parsed && parsed.version !== 1) throw new Error('Unsupported snapshot version')
+    // Unversioned files are the original live-State format.
+    const loaded = { ...newState(), ...(parsed.version === 1 ? parsed.state : parsed) } as State
     // Snapshots from before game modes — or naming a module this build does
     // not register — must still boot.
     loaded.items ??= {}
@@ -538,18 +559,21 @@ export function loadState(path: string): State {
     // Nobody is connected yet; sockets re-establish that on their own.
     for (const p of loaded.players) p.connected = false
     // A round mid-flight can't survive a restart: no timer, no pending buzzes.
-    loaded.round.phase = 'IDLE'
-    loaded.round.order = []
-    loaded.round.total = 0
-    delete loaded.round.award
-    delete loaded.round.held
-    delete loaded.round.fragments
-    delete loaded.round.whole
-    delete loaded.round.answer
+    loaded.round = { ...newState().round, value: loaded.round.value }
+    loaded.effects = loaded.effects.filter((e) => e.attemptId === undefined && !('roundArmedAt' in e))
+    const mod = moduleFor(loaded.game.id)
+    loaded.game.options = sanitizeOptions(mod.options, loaded.game.options)
+    loaded.game.moduleState = mod.init(loaded.game.options)
+    loaded.games = []
+    loaded.duelRules = []
+    loaded.packs = []
+    loaded.packSizes = {}
+    loaded.setlists = []
     // A reader is never mid-pack on a fresh boot — the Reader instance that
     // would drive it is built fresh too. Without this, a stale `running: true`
     // offers Pause on a reader that never started, and the next Read runs
     // paused from the first clip with nothing on screen to explain why.
+    loaded.readingActive = false
     delete loaded.reading
     return loaded
   } catch (err) {

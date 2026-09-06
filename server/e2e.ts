@@ -16,6 +16,7 @@ export class FakeClient {
   ws!: WebSocket
   playerId = ''
   states: State[] = []
+  results: Extract<ServerMsg, { t: 'actionResult' }>[] = []
   offset = 0
   private url: string
   private role: Role
@@ -37,6 +38,7 @@ export class FakeClient {
     this.ws.onmessage = (ev) => {
       const msg = JSON.parse(ev.data as string) as ServerMsg
       if (msg.t === 'state') this.states.push(msg.state)
+      else if (msg.t === 'actionResult') this.results.push(msg)
       else if (msg.t === 'welcome') this.playerId = msg.playerId
       else if (msg.t === 'pong') {
         this.offset = msg.serverTime - (msg.t0 + performance.now()) / 2

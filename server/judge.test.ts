@@ -81,9 +81,10 @@ test('with the box driving, a miss holds the rebound shut until it is opened', a
   const { state, hub, judge, ada } = rig()
   // The two halves of "the reader is in the loop and will open it".
   state.autoplay = { on: true, nextSec: 5, reboundSec: 4 }
+  state.readingActive = true
   state.reading = {
     pack: 'p.txt', qIndex: 0, qTotal: 1, fragIndex: 0, fragTotal: 1,
-    paused: false, running: true,
+    paused: false,
   }
   judge.prime(['Vermont'])
   await lockIn(hub, ada)
@@ -182,6 +183,50 @@ test('a host W mid-transcription wins; the late verdict drops in the judge', asy
   assert.equal(state.round.lockedOut.length, 1)
 })
 
+test('a transcript cannot score a later question led by the same player', async () => {
+  let release!: (text: string) => void
+  const { state, hub, judge, ada } = rig(() => new Promise((r) => { release = r }))
+  judge.prime(['old answer'])
+  await lockIn(hub, ada)
+  const old = judge.submit(ada.playerId!, Buffer.from('audio'), false)
+  hub.handle(hostConn, { t: 'host', action: { a: 'next' } })
+  judge.prime(['new answer'])
+  await lockIn(hub, ada)
+  release('old answer')
+  assert.deepEqual(await old, { ok: false })
+  assert.equal(state.round.phase, 'LOCKED')
+  assert.equal(state.scores[ada.playerId!], 0)
+  assert.equal(state.round.spoken, undefined)
+  assert.ok(state.round.judge, 'the new attempt still offers its answer window')
+})
+
+test('submitting consumes the window through reentrant broadcasts and later changes', async () => {
+  let release!: (text: string) => void
+  const { state, hub, judge, ada } = rig(() => new Promise((r) => { release = r }))
+  judge.prime(['Vermont'])
+  await lockIn(hub, ada)
+  const pending = judge.submit(ada.playerId!, Buffer.from('audio'), false)
+  hub.handle(hostConn, { t: 'host', action: { a: 'setValue', value: 200 } })
+  assert.equal(state.round.judge, undefined, 'transcribing does not reopen push-to-talk')
+  assert.deepEqual(await judge.submit(ada.playerId!, Buffer.from('Vermont'), true), { ok: false })
+  release('Vermont')
+  assert.equal((await pending).ok, true)
+})
+
+test('undo invalidates a transcript even when it restores the same locked leader', async () => {
+  let release!: (text: string) => void
+  const { state, hub, judge, ada } = rig(() => new Promise((r) => { release = r }))
+  judge.prime(['Vermont'])
+  await lockIn(hub, ada)
+  const pending = judge.submit(ada.playerId!, Buffer.from('audio'), false)
+  hub.handle(hostConn, { t: 'host', action: { a: 'correct' } })
+  hub.handle(hostConn, { t: 'host', action: { a: 'undo' } })
+  release('Vermont')
+  assert.deepEqual(await pending, { ok: false })
+  assert.equal(state.round.phase, 'LOCKED')
+  assert.equal(state.scores[ada.playerId!], 0)
+})
+
 test('the audio path hands transcribe a wav file and cleans it up', async () => {
   let seen = ''
   const peek: Transcribe = async (path) => {
@@ -253,7 +298,10 @@ test('the reader primes at arm and unprimes at stop — the full loop in-process
   await reader.select('one.txt')
   reader.start()
   await sleep(ARM_DELAY_MS + 30)
-  await lockIn(hub, ada)
+  // Buzz the question the reader armed. Arming again replaces it and correctly
+  // cancels its answers, so the generic lockIn helper is inappropriate here.
+  hub.handle(ada, { t: 'buzz', at: state.round.armedAt })
+  await sleep(80)
   assert.ok(state.round.judge !== undefined, 'primed at arm, the window opened')
 
   const res = await judge.submit(ada.playerId!, Buffer.from('the gold one'), true)

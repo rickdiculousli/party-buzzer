@@ -80,8 +80,11 @@ and the two timing constants (`ARM_DELAY_MS`, `COLLECT_MS`) that both sides coun
 against. Read it first; it explains more than any other single file.
 
 State flows one way. Clients send `ClientMsg`, the server mutates, then
-broadcasts a whole `State` to everyone. There is no client-side game logic and
-no partial update.
+broadcasts a whole `State` to everyone. `Hub.dispatch` commits host actions for
+the web UI, reader, judge and saved-setlist loader. Only applied actions create
+history and publish state; unchanged and refused actions leave timers intact.
+The host receives an `actionResult` separately so refusals are visible. Runtime
+publications (clue text, reader progress, judge windows) do not create history.
 
 `shared/wall.ts` is the other half of the contract — not what the server says,
 but what a surface may show while it says it. `Moment` is thirteen named states
@@ -129,8 +132,9 @@ ladder was the thing that got deleted.
   debounced snapshot to `state.json`.
 - `server/resolve.ts` — pure. Turns raw buzzes into a ranked order.
 - `server/modes/` — game modules; the `GameModule` type itself lives in
-  `shared/modes/types.ts`, and `client/modes/` is where one may override a whole
-  surface. Hooks (scoring, power, item grants) are all optional; `trivia`
+  `shared/modes/types.ts`. The three web surfaces each own one role-specific
+  socket; there is no unused surface-override registry. Hooks (scoring, power,
+  item grants) are all optional; `trivia`
   defines none and is today's game. A module has no mid-session lifecycle — no
   start/stop hooks, no event bus — so switching games means a `setMode` reset,
   which is exactly what a setlist block does at its boundary (with `keepScores`).
@@ -157,9 +161,10 @@ ladder was the thing that got deleted.
 - `client/{Player,Host,Board}.tsx` — the three surfaces, chosen by pathname in
   `main.tsx`.
 - `tools/sim.ts` — bots that play real questions over real sockets.
-- `server/reader.ts` — the question loop. Drives the hub through a synthetic
-  host connection, so it uses the same messages a socket client would and the
-  hub grows no reader API. It holds every pack a session touches in memory at
+- `server/reader.ts` — the question loop. Game actions use `Hub.dispatch`, just
+  like the host; runtime publications use a synthetic host connection. The
+  public `readingActive` fact reaches every screen; private `reading` progress
+  reaches only host and board. It holds every pack a session touches in memory at
   once, with a read position per pack, which is what lets a setlist cross
   between packs and come back to one where it left off; a setlist's packs are
   all rendered before its first question, never at the boundary.
@@ -184,8 +189,8 @@ ladder was the thing that got deleted.
 - `server/judge.ts` — spoken answers while the reader drives. Opens a window
   when a round locks with a leader, transcribes via `server/stt/stt.swift`
   (swiftc-built at boot, on-device), fuzzy-matches against the pack's answer
-  variants (`server/match.ts`), and returns the verdict through a synthetic
-  host connection — undo and rebound apply unchanged. Primed answers live in
+  variants (`server/match.ts`), and returns the verdict through `Hub.dispatch`
+  — undo and rebound apply unchanged. Primed answers live in
   memory only, never in State.
 - `server/speech.ts` — `say` pre-rendered to cached clips, played by `afplay`.
   Pause kills the clip and re-reads the fragment from its start, and so does a
@@ -219,6 +224,12 @@ surface counts down to that instant on its own synced clock, so all phones open
 together however late their packet landed. Buzzes arriving before `armedAt` are
 dropped outright — arrival time is server truth, so this needs no tolerance.
 
+**Identity is separate from timing.** `round.questionId` survives rebounds;
+`round.attemptId` changes on every arm, rebound and undo of an active question.
+Reader cancellation follows question identity. Judge submissions, effects and
+phone press state follow attempt identity. `armedAt` only schedules the opening
+and bounds press timestamps; timing constants do not determine identity.
+
 **One window, revealed early.** The first buzz opens a `COLLECT_MS` (1s)
 collection window; every buzz inside it is a contender, ordered by clamped press
 time alone. 150ms in, the hub publishes the provisional order — the phase stays
@@ -235,9 +246,12 @@ that is why the framework adds no new persistence or timing code. Effects are
 stamped with the arm they belong to and swept on the next, so nothing leaks
 across questions.
 
-**Undo is server-side**, a stack of `structuredClone(state)` in the hub, restored
-with `Object.assign` so the `state` object identity survives for the persistence
-layer holding the reference.
+**Undo is server-side.** `server/snapshot.ts` defines its game-only snapshot:
+catalogs, connection status and playback are not history. Restoring removes
+absent optional fields, preserves current connections and new arrivals, and
+stops reading. A restored collection reopens; a settled leader remains available
+for manual judgment. Disk snapshots are versioned and narrower still: restarting
+preserves settings and standings but clears the question and module runtime.
 
 **The server reads, but never remembers.** Question content lives in server
 memory while a pack is loaded and never enters `State` — only fragments the room
