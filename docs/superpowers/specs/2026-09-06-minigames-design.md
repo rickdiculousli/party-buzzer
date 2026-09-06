@@ -21,6 +21,8 @@ design document supported by comparative SVG studies.
   field for 40 seconds by default.
 - The server owns gameplay and scoring. Phones send intent; the board presents
   interpolated server frames.
+- Minigame traffic shares the existing continuously open WebSocket. A second
+  connection is added only if measured contention shows a need for it.
 - The first version uses a small custom 2D simulation with simple collision
   shapes. It does not add a general game engine.
 - Target points earned during the match are added directly to the existing
@@ -127,21 +129,55 @@ general rigid-body solver.
 ## Wire and command boundaries
 
 Player input uses a dedicated minigame message rather than the low-frequency
-module `act` channel. Its envelope contains the minigame id, `matchId`, a
-monotonic player sequence, and minigame-specific input. Bow input consists of
-normalized aim updates and a release command. The server validates the active
-match, role, player participation, sequence, finite numeric bounds, and reload
-eligibility before applying it.
+module `act` channel, but it travels over the existing continuously open
+WebSocket. Its envelope contains the minigame id, `matchId`, a monotonic player
+sequence, and minigame-specific input. Bow input consists of normalized aim
+updates and a discrete release command. A release also carries a server-domain
+release time calculated through the connection's existing clock sync. The
+server validates the active match, role, player participation, sequence,
+finite numeric bounds, lifecycle window, and reload eligibility before
+applying it.
 
 Aim updates may be coalesced because only the latest direction and tension
-matter. Releases are discrete and never coalesced. The phone renders its own
-drag immediately; network updates do not sit in the finger-feedback path.
+matter. Releases are discrete and never coalesced or skipped because they land
+between simulation ticks. An accepted release enters an input queue and fires
+on the next fixed simulation step. It is not queued across a lifecycle or
+reload boundary: a gesture made during countdown or while reloading is refused
+rather than firing unexpectedly when it later becomes legal. The phone renders
+its own drag immediately; network updates do not sit in the finger-feedback
+path.
+
+Each release sequence receives an accepted or refused acknowledgment. The
+server remembers the disposition for the active match, so a phone may retry an
+unacknowledged release after reconnecting without creating a second arrow. An
+acknowledgment confirms authoritative firing; it does not delay the phone's
+local release feedback.
+
+At the match deadline, the client stops creating releases at `endsAt`. The
+server retains a 250 ms input grace window for packets already in flight. The
+duration is a runtime tunable shared by every minigame. A release is accepted
+during that grace only when its timestamp,
+clamped to the interval from `startsAt` through its server arrival time, falls
+on or before `endsAt`. The arrow is spawned on the next simulation step; the
+simulation does not rewind to its claimed release time. Packets arriving after
+the input grace are refused so a match still has a deterministic end. The
+input grace is separate from the longer landing grace for arrows already
+accepted.
 
 Simulation frames use a dedicated server message containing `matchId`, tick,
 server time, and a role projection. The board receives the shared field.
 Phones receive the lifecycle plus only the control and result facts relevant
 to that player. Durable lifecycle changes still travel in ordinary state
 messages.
+
+Using one WebSocket preserves ordering between lifecycle messages and inputs
+and avoids a second browser connection. WebSocket already supplies a
+continuous, reliable, ordered TCP stream; minigame message framing is not
+expected to be a meaningful latency source at LAN payload sizes. The client
+send path does not batch a release behind coalescible aim updates. Load tests
+measure input-to-board latency while ordinary state messages are present; a
+second WebSocket remains a measured optimization rather than an initial
+boundary.
 
 Starting, cancelling, and advancing are host actions governed by
 `shared/legality.ts`. Their outcomes retain the existing applied, unchanged,
@@ -164,10 +200,11 @@ future `startsAt` time for a synchronized three-beat countdown. Inputs cannot
 fire an arrow before that instant.
 
 The default match lasts 40 seconds. Players may take repeated shots subject to
-a short reload. When `endsAt` arrives, new releases are refused. Arrows already
-in flight receive a short, fixed grace period to land; the grace does not
-permit new input. The server then freezes the field, calculates results, and
-commits every player's earned target points together.
+a short reload. When `endsAt` arrives, phones stop creating releases. The
+server briefly accepts release packets stamped before the deadline, then
+refuses further input. Accepted arrows receive a separate, fixed grace period
+to land. The server then freezes the field, calculates results, and commits
+every player's earned target points together.
 
 The host may cancel a countdown or playing match. Cancellation awards nothing
 and returns the same match to ready with a new identity on its next start. At
@@ -234,7 +271,8 @@ and feedback hierarchy through SVG comparisons and motion prototypes.
 
 ## Failure and recovery
 
-- A stale or duplicate input is ignored without changing the world.
+- A stale input is ignored without changing the world. A duplicate release
+  receives its original acknowledgment without creating another arrow.
 - An input for an unknown minigame, player, or match is ignored and logged at a
   bounded rate.
 - Invalid numeric input is rejected before it reaches the simulation.
@@ -256,8 +294,11 @@ trajectories, ring scores, boundaries, flying-arrow collisions, lodged-arrow
 collisions, expiry, reload rules, entity caps, and fixed-step consistency.
 
 Runtime tests use fake clocks to cover synchronized start, deadlines, landing
-grace, bounded catch-up, frame pacing, disconnect/reconnect, cancellation, and
-stale input or completion from an old `matchId`.
+grace, bounded catch-up, frame pacing, disconnect/reconnect, cancellation,
+release acknowledgments, idempotent retry, and stale input or completion from
+an old `matchId`. Deadline cases include a pre-deadline release arriving
+during input grace, the same packet arriving after grace, and a release made
+during countdown or reload.
 
 Hub and legality tests prove that:
 
@@ -276,8 +317,10 @@ An integration server with temporary persistence, `tls: false`, and
 `transcribe: null` drives several socket clients through countdown, releases,
 completion, score commit, and undo. Client rendering uses the real-component
 motion workbench where appropriate. Performance validation exercises the
-expected game-night player count at the entity cap, and manual checks cover
-actual-phone drag ergonomics, audio unlocking, haptic availability,
+expected game-night player count at the entity cap while ordinary state
+messages are present. It records release-to-board latency and WebSocket
+buffering rather than assuming transport is the bottleneck. Manual checks
+cover actual-phone drag ergonomics, audio unlocking, haptic availability,
 reconnection, multi-device synchronization, and board readability.
 
 The completed change runs the focused tests, `npm test`, `npm run typecheck`,
