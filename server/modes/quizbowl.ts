@@ -1,23 +1,29 @@
 /**
  * Quizbowl-lite: powers, negs, bouncebacks, and item drops.
  *
- * Power is a signal, not a timer. The reader (`server/reader.ts`) fires the
- * host-scoped `powerEnds` act when it finishes speaking the power fragment;
- * a buzz whose clamped press time beats that stamp is powered. Press times
- * are already clamped to [armedAt, arrivedAt], so no phone can backdate into
- * the window. Until any reader fires, power stays open the whole question —
- * graceful degradation to "everything is a power", visible on the host.
+ * The reader reports completed fragments; this module owns the power boundary.
+ * Buzzes before its cutoff earn a bonus. Without a reader, power remains open;
+ * the existing powerEnds act also lets a host-side script close it manually.
  */
-import type { GameModule } from '../../shared/modes/types.ts'
-import type { State } from '../../shared/protocol.ts'
-import { bump, scoreKey } from '../state.ts'
-import { randomItemId } from '../items.ts'
+import type { GameModule, ModeContext } from '../../shared/modes/types.ts'
+import { bump, scoreKey } from '../../shared/scoring.ts'
 
-type QuizbowlState = { powerEndsAt?: number }
+export type QuizbowlState = { powerEndsAt?: number }
+export type QuizbowlOptions = {
+  powerAfterFragment: number
+  powerBonus: number
+  neg: number
+  bouncebacks: boolean
+  itemsEnabled: boolean
+}
 
-const ms = (state: State) => state.game.moduleState as QuizbowlState
+function endPower(state: ModeContext<QuizbowlOptions, QuizbowlState>, at: number): boolean {
+  if (state.game.moduleState.powerEndsAt !== undefined) return false
+  state.game.moduleState.powerEndsAt = at
+  return true
+}
 
-export const quizbowl: GameModule = {
+export const quizbowl: GameModule<QuizbowlOptions, QuizbowlState> = {
   id: 'quizbowl',
   name: 'Quizbowl-lite',
   options: [
@@ -45,24 +51,36 @@ export const quizbowl: GameModule = {
   // The power cutoff belongs to the question, not the arm: a `wrong` rebound
   // re-arms but keeps it, so rebound buzzes are correctly unpowered.
   onArm: (state) => {
-    ms(state).powerEndsAt = undefined
+    state.game.moduleState.powerEndsAt = undefined
   },
 
   onAct(state, act) {
     if (act !== 'powerEnds') return false
-    ms(state).powerEndsAt = Date.now()
+    endPower(state, Date.now())
     return true
+  },
+
+  onFragmentEnd(state, completed, at) {
+    const boundary = state.game.options.powerAfterFragment
+    return boundary > 0 && completed >= boundary && endPower(state, at)
+  },
+
+  hostStatus(state) {
+    if (state.game.options.powerAfterFragment === 0) return undefined
+    return state.game.moduleState.powerEndsAt === undefined
+      ? { label: 'Power open', tone: 'active' }
+      : { label: 'Power ended', tone: 'inactive' }
   },
 
   onCorrect(state) {
     const leader = state.round.order[0]
     if (!leader) return
-    const cutoff = ms(state).powerEndsAt
+    const cutoff = state.game.moduleState.powerEndsAt
     const powered =
-      Number(state.game.options.powerAfterFragment ?? 0) > 0 &&
+      state.game.options.powerAfterFragment > 0 &&
       (cutoff === undefined || leader.at < cutoff)
     const points =
-      state.round.value + (powered ? Number(state.game.options.powerBonus ?? 0) : 0)
+      state.round.value + (powered ? state.game.options.powerBonus : 0)
     bump(state, scoreKey(state, leader.playerId), points)
     state.round.award = { name: leader.name, points }
   },
@@ -74,7 +92,7 @@ export const quizbowl: GameModule = {
     // The host's "no penalty" button sends 0 and always means it; otherwise
     // the module's configured neg wins over whatever the button said.
     state.scores[key] ??= 0
-    const penalty = neg === 0 ? 0 : Number(state.game.options.neg ?? 0)
+    const penalty = neg === 0 ? 0 : state.game.options.neg
     if (penalty) bump(state, key, -penalty)
     // Outside the `if`: a neg of zero is still a neg, and the room has to see
     // that the question was missed even when it cost nothing.
@@ -88,9 +106,8 @@ export const quizbowl: GameModule = {
     if (state.game.options.itemsEnabled !== true) return []
     const leader = state.round.order[0]
     if (!leader) return []
-    return [{ playerId: leader.playerId, itemId: randomItemId() }]
+    return [{ playerId: leader.playerId, random: true }]
   },
 
-  // No viewModuleState: the framework default shows host/board the raw blob
-  // (the host's power chip reads it) and hides it from phones.
+  // No viewModuleState: the default hides module memory from phones.
 }

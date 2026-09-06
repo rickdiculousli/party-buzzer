@@ -117,7 +117,32 @@ test('power closes after the configured fragment', async () => {
   await reader.settled()
 
   const ms = state.game.moduleState as { powerEndsAt?: number }
-  assert.ok(ms.powerEndsAt, 'powerEnds fired at the fragment boundary')
+  assert.ok(ms.powerEndsAt, 'the mode closed power at the fragment boundary')
+})
+
+test('pausing an unfinished fragment does not complete the mode boundary', { timeout: 3000 }, async (t) => {
+  const { hub, reader, speech } = rig(PACK)
+  t.after(() => reader.stop())
+  let finish = () => {}
+  speech.play = (path) => {
+    speech.spoken.push(path)
+    const done = new Promise<void>((resolve) => { finish = resolve })
+    return { done, started: Promise.resolve(), stop: finish }
+  }
+  hub.dispatch({ a: 'setMode', id: 'quizbowl', options: { powerAfterFragment: 1 } })
+  const host = { id: 'h', role: 'host' as const, send() {} }
+  await reader.select('one.txt')
+  reader.start()
+  while (speech.spoken.length < 1) await new Promise((r) => setTimeout(r, 5))
+  reader.pause()
+  await new Promise((r) => setTimeout(r, 10))
+  assert.equal(hub.viewFor(host).game.status?.label, 'Power open')
+  reader.resume()
+  while (speech.spoken.length < 2) await new Promise((r) => setTimeout(r, 5))
+  assert.equal(hub.viewFor(host).game.status?.label, 'Power open')
+  finish()
+  while (hub.viewFor(host).game.status?.label !== 'Power ended') await new Promise((r) => setTimeout(r, 5))
+  assert.equal(speech.spoken[0], speech.spoken[1], 'the interrupted fragment was replayed before completion')
 })
 
 test('an undo mid-question aborts the reader instead of pushing onto a dead round', async () => {

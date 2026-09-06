@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { resolveBuzzes, type RawBuzz, type Resolved } from './resolve.ts'
-import { applyHostAction, buzzBlockReason, lockedPlayerIds } from './state.ts'
+import { applyHostAction } from './state.ts'
+import { buzzBlockReason } from './eligibility.ts'
+import { lockedPlayerIds } from '../shared/scoring.ts'
 import { catalog, moduleFor } from './modes/index.ts'
 import { useItem } from './items.ts'
 import { duelAct, duelCatalog } from './duel.ts'
@@ -176,6 +178,15 @@ export class Hub {
       this.changed(`host:${action.a}`)
     }
     return result
+  }
+
+  /** Playback reports facts; the current mode decides what they mean. */
+  fragmentEnded(questionId: string, completed: number): void {
+    const round = this.state.round
+    if (!questionId || round.questionId !== questionId || round.phase !== 'ARMED') return
+    if (moduleFor(this.state.game.id).onFragmentEnd?.(this.state, completed, Date.now())) {
+      this.changed('fragment:end')
+    }
   }
 
   /** Unknown acts, so each is logged once rather than per packet. */
@@ -452,7 +463,10 @@ export class Hub {
    */
   viewFor(conn: Conn): State {
     const mod = moduleFor(this.state.game.id)
-    let game = this.state.game
+    let game = {
+      ...this.state.game,
+      status: conn.role === 'host' ? mod.hostStatus?.(this.state) : undefined,
+    }
     if (mod.viewModuleState) {
       const viewer = conn.role === 'player' ? (conn.playerId ?? '') : conn.role
       game = { ...game, moduleState: mod.viewModuleState(this.state, viewer) }

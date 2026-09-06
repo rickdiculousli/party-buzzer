@@ -1,144 +1,153 @@
 # party-buzzer
 
-A LAN buzzer for quizbowl, pub trivia, and Jeopardy nights. Host runs one
-command; players join by scanning a QR code. The game itself is pure LAN —
-nothing a phone renders is fetched from anywhere but the host.
+A browser-based buzzer for trivia and quizbowl nights on a trusted LAN. One
+machine hosts the game; players join on their phones by scanning a QR code.
+The host controls play at `/host`, and `/board` is the shared screen for a TV.
 
-## Run it
+## Run
 
-```bash
-mise install     # Node 26.7.0
+```sh
+mise install          # pinned Node version
 npm install
 npm run build
 npm start
 ```
 
-The terminal prints a QR code and a join URL. Players scan it. `/host` and
-`/board` open themselves on the machine running the server — drag the board
-window to the TV. `NO_OPEN=1 npm start` if you would rather they didn't.
+The terminal prints the join URL and QR code, and opens the host and board.
+Use `NO_OPEN=1 npm start` to suppress opening tabs. On macOS, Ctrl-C also tries
+to close Chrome tabs pointing at this server; that requires permission to
+control Chrome.
 
-Ctrl-C closes them again — every Chrome tab pointing at the server, so a night's
-worth of duplicated boards goes with it. macOS asks once for permission to
-control Chrome; decline it and the tabs simply stay, which is what they did
-before.
+Players and the server must be able to reach each other on the network.
+Override the selected LAN address with `HOST_IP=192.168.1.42 npm start`, or the
+port with `PORT=9000 npm start`.
 
-If several networks are detected, the server says which one it chose. Override
-with `HOST_IP=192.168.1.42 npm start`. Change the port with `PORT=9000`.
+The server normally uses an HTTPS address such as
+`https://192-168-1-42.local-ip.sh:8080`. It obtains and caches the shared
+wildcard certificate in `.cert/`; phones need working DNS to resolve the name
+to the LAN address. HTTPS enables browser microphone access. If certificate
+setup fails, the server falls back to HTTP; use spoken answers judged by the
+host when phone microphone access is unavailable.
 
-### Why the join URL is a domain name
+Game traffic and browser assets come from the host. Fonts and sounds are local.
+This is a trusted-room application: host access is not authenticated, and the
+certificate is a browser convenience, not an access-control boundary.
 
-It reads `https://192-168-0-74.local-ip.sh:8080` rather than the bare address.
-Spoken answers need microphone access, browsers only grant that on a secure
-origin, and no certificate authority will issue for a LAN IP. `local-ip.sh`
-resolves that name straight back to `192.168.0.74` and publishes a real
-certificate for it, so phones get https with no warning screen and nothing to
-install.
+## Play
 
-That needs working DNS **once, at startup** — the certificate is then cached in
-`.cert/` and the game plays entirely on the LAN. Without it the server falls
-back to plain http and says so: everything works except the microphone, and
-players answer out loud for the host to judge.
+1. Join from phones, then choose direct play or a setlist in host Setup.
+2. **Arm** schedules the buzzers to open together. The first accepted buzz
+   starts a one-second collection window; a provisional leader appears after
+   150 ms and can change as more packets arrive.
+3. Judge **Correct** or **Wrong**. Correct awards points; wrong applies the
+   configured penalty and lockout. Depending on mode and playback settings,
+   play reopens immediately or after a rebound pause.
+4. **Next question** clears the question's lockouts and advances a setlist.
 
-## How a question runs
+Phones estimate server time and timestamp the press locally. The server clamps
+that timestamp between opening and arrival, then ranks presses. This reduces
+network-jitter effects; it assumes honest clients. Phones receive their own
+placement and the total buzz count, rather than everyone's timing.
 
-1. **Arm** — buzzers go live on every phone.
-2. Players buzz. The first press starts a one-second collection window;
-   everyone who buzzes inside it is ranked by when they actually pressed, not
-   when their packet arrived. The provisional leader appears on the big screen
-   150ms in and the timeline keeps filling as the room lands — a slow packet
-   carrying an earlier press can still take the lead. Phones only ever see
-   their own placement.
-3. **Correct** awards the round value. **Wrong** applies a neg, locks that
-   player (or team) out, and reopens the buzzers for everyone else.
-4. **Next question** clears the lockouts.
+**Trivia** provides ordinary scoring. **Quizbowl-lite** adds configurable powers,
+negs, bouncebacks, and optional item drops. Freeze, shield, and steal live on
+players' phones. Teams and duels are separate features that compose with modes.
+Changing modes normally resets scores; setlist transitions can preserve them.
 
-## Direct play or a setlist
+A **setlist** is a sequence of blocks, each choosing a game, options, value,
+duel rule, question count, and optionally a pack. A block without a pack is
+read aloud by the host. Saved setlists are JSON files in `setlists/`.
 
-The host panel's Setup asks one question first, and shows only what the answer
-needs. **Direct play** is you picking the game and the pack and driving by hand.
-**Setlist** is a list of blocks, each carrying its own game, options, value,
-duel rule and pack — the room walks it a question at a time and the pickers
-disappear, because the block is what answers them. A block that names no pack
-is one you read aloud yourself.
+## Question packs and spoken play
 
-## Game modes
+Put `.txt` files in `packs/`, select one, and press **Read**. For example:
 
-The host screen folds a Game section into "Game, players and teams": pick the
-mode and its options there. The default is plain trivia — the game described above.
+```text
+V: 200
+This state's capital is Montpelier. / It is known as the Green Mountain State.
+A: Vermont | VT
 
-**Quizbowl-lite** adds powers (a faster buzz is worth more, while the power
-mark is still up), negs, bouncebacks after a wrong answer, and item drops —
-the winner's phone can hold a freeze, shield, or steal for a later round. A
-mode is set per session; switching resets scores and the board.
+Which ocean is largest?
+A: Pacific Ocean | the Pacific
+```
 
-Powers and fragments are driven by the host reading a question pack: put
-`.txt` packs in `packs/`, pick one on the host screen, and press Read. Picking
-a pack pre-renders every fragment to an audio clip, which takes a few seconds
-the first time and is cached after that. **Autoplay** takes the two keypresses either side of your judgment: the answer
-sits on the wall for however many seconds you set and then the next question
-arms itself, a rebound waits its own pause before the clue picks back up, and a
-question nobody buzzes passes on its own instead of hanging there. C and W are
-still yours — unless the spoken-answer judge is on, in which case the pack
-reads itself end to end.
+Blank lines separate questions. `V:` is optional; omitting it keeps the current
+round value. ` / ` separates fragments, and additional text lines continue the
+current fragment. `A:` is required; ` | ` separates accepted answer variants.
+The first variant is displayed as the answer. Invalid questions are skipped
+with diagnostics. See [the sample pack](packs/sample.txt).
 
-A buzz cuts the voice mid-word and the rest of the clue is never read — a
-correct answer ends the question there, a wrong one rebounds and the
-interrupted fragment is re-read from its start. **Pause** does the same by
-hand; buzzers stay live throughout, because the usual reason to pause is that
-someone interrupted.
-Speech needs macOS (`say`, `afplay`); without it the fragments still appear,
-silently.
+Selecting a pack starts background speech preparation and caching. Each
+question waits for its audio before arming; the entire pack does not have to
+finish rendering first. The board reveals the clue as it is read. Phones see
+question text only when **Mirror question text to phones** is enabled.
 
-Fragments go up on the board as they are spoken. Phones see them only if you
-tick "Mirror question text to phones" — off by default, and worth leaving off
-for quizbowl, where reading ahead is the whole game.
+A buzz interrupts playback. A rebound resumes at the interrupted clause when
+alignment and seeking are available, or uses the available playback fallback.
+**Pause** stops speech while leaving buzzers available. **Autoplay** handles
+verdict dwell, rebound pauses, and advancing through questions. With spoken
+answer recognition available, the judge can also apply verdicts automatically.
+The host can still judge manually.
 
-Pack format, three lines per question: `V: 200` sets the value (optional; a
-question without one leaves the round value where the last one put it), the
-question text uses ` / ` to mark
-where a fragment lands on the board, `A:` gives the answer, and a blank line
-ends the question. A question with no `A:` is skipped with a warning naming the
-line, so one typo costs one question rather than the pack. See
-`packs/sample.txt`.
+Local speech uses macOS tools and optional Swift helpers. Without speech
+support, text still progresses silently. Browser cues play separately on the
+phones and board; the question voice plays on the server machine.
 
-## Fairness
+## Saving and undo
 
-Phones sync a clock offset with the server on connect and stamp the buzz at the
-moment of touch. Each claimed stamp is clamped to `[armedAt, arrivedAt]`, so a
-buzz can never predate the question opening or postdate its own packet. That
-makes both a badly synced clock and a hand-edited timestamp harmless.
+`state.json` stores versioned game settings, players, teams, scores, inventories,
+and setlist position. Existing unversioned snapshots are also supported.
+Restart begins with an idle round and disconnected players until they reconnect.
+It does not resume a question, answer deadline, audio, or the reader's per-pack
+cursor. A saved setlist position is not a complete playback checkpoint.
+
+Undo keeps up to 20 applied host-action snapshots in memory. It preserves live
+connections and newly joined players, stops automated reading, and invalidates
+old answer attempts. A restored settled leader can be judged manually; an
+unfinished collection reopens because its original timers and packets are gone.
+Refused actions and unchanged settings do not consume an undo step. Playback
+controls and other runtime updates are not all undoable.
+
+To start with no saved game, stop the server and remove `state.json`. Older
+pre-rename `flows/` directories must be renamed to `setlists/` manually; this is
+separate from snapshot version support.
 
 ## Development
 
-```bash
-npm run dev        # Vite with HMR; run `npm start` alongside it for the API
-npm test           # node:test
+```sh
 npm run typecheck
-npm run sim        # fill the room with bots and play real rounds
+npm test
+npm run build
+npm run motion         # standalone visual/audio workbench at /anim.html
+npm run dev            # Vite HMR; see proxy limitation below
 ```
 
-`npm run sim` is the quickest way to see the board in motion. `npm run sim -- 5 2`
-runs five questions at half speed, Ctrl-C removes the bots. You can join from a phone
-and play against them.
+The server runs native TypeScript directly. Relative source imports use `.ts`.
+`npm start` serves `dist/`, so rebuild after client changes and restart after
+server changes.
 
-Server code is native TypeScript — Node strips the types, there is no build
-step. Relative imports therefore carry `.ts` extensions.
+The current Vite proxy expects a **plain HTTP backend on port 8080**, and proxies
+only `/ws` and `/qr.svg`. A normal HTTPS server is not interchangeable with
+that backend, and `/spoken` is not proxied. Use the built server URL for full
+phone and microphone testing. The [architecture guide](ARCHTECTURE.md#development-and-validation)
+includes a local HTTP backend recipe for HMR work.
 
-Game settings, players, scores, inventories, and setlist position live in a
-versioned `state.json` beside the repo. Delete it to start fresh. Existing
-unversioned snapshots still load. Restart clears the question in progress and
-reconnects phones normally; it never resumes audio or an answer deadline.
+With a game server running:
 
-Undo takes back game actions, preserves current phone connections, and stops
-automated reading. A restored settled leader can be judged by hand; a restored
-collection reopens the buzzers because its original packets and timers are gone.
-Refused actions and settings that already have the requested value do not use
-an undo step. The host shows the reason when an action cannot run.
+```sh
+npm run sim -- 5 2
+npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@140 correct
+```
 
-**Upgrading across the rename.** A batch of names changed — `flow` became
-`setlist` throughout, among others — and neither the snapshot nor the saved
-files migrate themselves. Delete `state.json`, and rename a saved `flows/`
-directory to `setlists/`; the files inside it are unchanged.
+These tools change the live room. The `walk-duel`, `walk-teams`, `walk-setlist`,
+`walk-read`, and `walk-packs` scripts exercise longer flows. Start with
+`TRACE=1 npm start` to record `trace.jsonl`, then inspect it with `npm run trace`.
+Before a game night, follow the [manual checklist](docs/manual-checklist.md)
+on actual phones and the room's audio setup.
 
-Before a real game night, walk `docs/manual-checklist.md` — it covers what no
-automated test can reach.
+## Repository guides
+
+- [ARCHTECTURE.md](ARCHTECTURE.md): components, wiring, state ownership, and extension points.
+- [AGENTS.md](AGENTS.md): shared instructions for coding agents.
+- [CLAUDE.md](CLAUDE.md): Claude entrypoint to the same guidance.
+- [Design system and vocabulary](docs/design.md): visual rules and canonical terminology.

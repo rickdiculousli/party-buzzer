@@ -26,6 +26,9 @@ test('a quizbowl round: power bonus, fragments on the board but never on phones'
     assert.equal(host.last.game.id, 'quizbowl')
     assert.equal(host.last.game.options.powerBonus, 50, 'options ride the state')
     assert.ok(host.last.games.some((g) => g.id === 'quizbowl'), 'the catalog rides too')
+    assert.deepEqual(host.last.game.status, { label: 'Power open', tone: 'active' })
+    assert.equal(board.last.game.status, undefined, 'mode status is host-only')
+    assert.equal(amy.last.game.status, undefined)
 
     host.send({ t: 'host', action: { a: 'setValue', value: 200 } })
     host.send({ t: 'host', action: { a: 'arm' } })
@@ -36,12 +39,13 @@ test('a quizbowl round: power bonus, fragments on the board but never on phones'
     assert.deepEqual(board.last.round.fragments, ['First fragment.'])
     assert.equal(amy.last.round.fragments, undefined, 'phones never see the text early')
 
-    // Amy presses during the power window; the reader's powerEnds lands after.
+    // Amy presses during the power window; a manual power signal lands after.
     amy.send({ t: 'buzz', at: performance.now() + amy.offset })
     await sleep(20)
     host.send({ t: 'act', act: 'powerEnds' })
     await sleep(SETTLE)
     assert.equal(host.last.round.phase, 'LOCKED')
+    assert.deepEqual(host.last.game.status, { label: 'Power ended', tone: 'inactive' })
 
     host.send({ t: 'host', action: { a: 'correct' } })
     await sleep(60)

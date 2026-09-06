@@ -3,10 +3,13 @@ import type { GameModule } from '../../shared/modes/types.ts'
 import { trivia } from './trivia.ts'
 import { quizbowl } from './quizbowl.ts'
 
-const MODULES: GameModule[] = [trivia, quizbowl]
+// The registry erases each module's option type to the common wire schema.
+// Implementations retain their own typed options, memory and field kinds.
+type RegisteredMode = Omit<GameModule, 'options'> & { options: OptionSpec[] }
+const MODULES: RegisteredMode[] = [trivia, quizbowl]
 
 /** The module behind a game id. Unknown ids fall back to trivia, so a snapshot written by another build still boots. */
-export function moduleFor(id: string): GameModule {
+export function moduleFor(id: string): RegisteredMode {
   return MODULES.find((m) => m.id === id) ?? trivia
 }
 

@@ -222,17 +222,11 @@ export function Host() {
         </span>
         <span class="chip">{round.phase}</span>
 
-        {state.game.id === 'quizbowl' &&
-          Number(state.game.options.powerAfterFragment ?? 0) > 0 &&
-          (() => {
-            const ms = state.game.moduleState as { powerEndsAt?: number } | undefined
-            const ended = ms?.powerEndsAt !== undefined
-            return (
-              <span class={ended ? 'chip chip--barred' : 'chip chip--data'}>
-                {ended ? 'Power ended' : 'Power open'}
-              </span>
-            )
-          })()}
+        {state.game.status && (
+          <span class={state.game.status.tone === 'inactive' ? 'chip chip--barred' : 'chip chip--data'}>
+            {state.game.status.label}
+          </span>
+        )}
 
         <label class="field">
           Value

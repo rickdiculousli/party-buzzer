@@ -134,7 +134,11 @@ export type GameState = {
   options: Record<string, unknown>
   /** Opaque to the framework; the module owns and interprets it. */
   moduleState: unknown
+  /** Derived by the module for the host; never persisted or sent to phones. */
+  status?: ModeStatus
 }
+
+export type ModeStatus = { label: string; tone: 'active' | 'inactive' }
 
 /** A mode option, declared as data so the host settings form needs no per-mode code. */
 export type OptionSpec =

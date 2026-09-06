@@ -8,8 +8,12 @@ import { duelOnArm, duelOnWrong, duelRule, resolveDuel, seatDuel } from './duel.
 import { advanceSetlist, applySetup, enterBlock, sanitizeBlocks } from './setlist.ts'
 import { refuses } from '../shared/legality.ts'
 import { persistedSnapshot } from './snapshot.ts'
+import { bump, scoreKey } from '../shared/scoring.ts'
+
+export { bump, scoreKey, lockedPlayerIds } from '../shared/scoring.ts'
+export { buzzBlockReason } from './eligibility.ts'
 import type {
-  SetlistBlock, HostAction, PlayerId, ScoreKey, State, ActionResult,
+  SetlistBlock, HostAction, State, ActionResult,
 } from '../shared/protocol.ts'
 
 export { ARM_DELAY_MS }
@@ -57,40 +61,6 @@ export function newState(): State {
       lockedOut: [],
     },
   }
-}
-
-/** Scores attach to the team in a teams grouping, otherwise to the player. */
-export function scoreKey(state: State, playerId: PlayerId): ScoreKey {
-  const player = state.players.find((p) => p.id === playerId)
-  if (state.grouping === 'teams' && player?.teamId) return player.teamId
-  return playerId
-}
-
-/** Expand the round's locked-out score keys into the player ids they bar. */
-export function lockedPlayerIds(state: State): PlayerId[] {
-  const barred = new Set(state.round.lockedOut)
-  return state.players
-    .filter((p) => barred.has(scoreKey(state, p.id)))
-    .map((p) => p.id)
-}
-
-/**
- * Why a player may not buzz right now, or null. Framework effects first — a
- * frozen player is frozen in every mode — then the module's own rules.
- */
-export function buzzBlockReason(state: State, playerId: PlayerId): string | null {
-  const frozen = state.effects.some(
-    (e) =>
-      e.kind === 'frozen' &&
-      e.playerId === playerId &&
-      e.attemptId === state.round.attemptId,
-  )
-  if (frozen) return 'frozen'
-  return moduleFor(state.game.id).canBuzz?.(state, playerId) ?? null
-}
-
-export function bump(state: State, key: ScoreKey, delta: number): void {
-  state.scores[key] = (state.scores[key] ?? 0) + delta
 }
 
 /**

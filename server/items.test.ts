@@ -13,6 +13,19 @@ function twoPlayers(): State {
   return state
 }
 
+test('the framework resolves random mode grants and still validates recipients and named items', (t) => {
+  const state = twoPlayers()
+  const random = t.mock.method(Math, 'random', () => 0.4)
+  executeGrants(state, [
+    { playerId: 'missing', random: true },
+    { playerId: 'p1', random: true },
+    { playerId: 'p2', itemId: 'freeze' },
+    { playerId: 'p2', itemId: 'unknown' },
+  ])
+  assert.deepEqual(state.items, { p1: ['shield'], p2: ['freeze'] })
+  assert.equal(random.mock.callCount(), 1, 'only a valid random grant draws an item')
+})
+
 test('using an item you do not hold changes nothing', () => {
   const state = twoPlayers()
   assert.equal(useItem(state, 'p1', { itemId: 'freeze', targetId: 'p2' }), false)

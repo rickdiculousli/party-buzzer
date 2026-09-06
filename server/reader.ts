@@ -16,11 +16,8 @@
  * touched passes on its own rather than wedging the loop. With the spoken
  * judge running too, that is a pack that reads itself end to end.
  *
- * Pause holds the audio and nothing else: buzzers stay live and `powerEndsAt` is
- * untouched, because the reason to pause is usually that someone interrupted,
- * and that is exactly when a buzz should still land. The power boundary stays
- * event-driven for the same reason — scheduling it from a known clip duration
- * would desynchronise the moment anyone paused.
+ * Pause holds the audio while buzzers stay live. Fragment completion follows
+ * actual playback, so module rules stay in step through pauses and rebounds.
  */
 import { join as joinFragments, type Fold, type Joined } from './align.ts'
 import type { Hub, Conn } from './hub.ts'
@@ -435,7 +432,6 @@ export class Reader {
 
         await sleep(Math.max(0, stamp - Date.now()), sig)
 
-        const powerAfter = Number(this.hub.state.game.options.powerAfterFragment ?? 0)
         const j = joinFragments(q.fragments)
         // The board needs the shape of the whole question before it says any of
         // it, or every line it has already put up moves when the next one lands.
@@ -447,7 +443,7 @@ export class Reader {
           // One clip, revealed a clause at a time as the voice reaches each one.
           let shown = 0 // characters of the joined text on the board
           let frags = 0 // how many fragment entries that has taken
-          let powered = false
+          let completed = 0
 
           const revealTo = (upto: number) => {
             if (upto <= shown) return
@@ -468,14 +464,11 @@ export class Reader {
                 this.hub.send(this.conn, { t: 'act', act: 'extend', data: text })
               }
             }
-            // The power boundary counts whole fragments, and a fragment is whole
-            // once the reveal has passed its last character.
-            if (powerAfter > 0 && !powered) {
-              const complete = q.fragments.filter((f, i) => upto >= j.fragmentAt[i] + f.length).length
-              if (complete >= powerAfter) {
-                powered = true
-                this.hub.send(this.conn, { t: 'act', act: 'powerEnds' })
-              }
+            // Report whole fragments once, even when a fold crosses several.
+            const complete = q.fragments.filter((f, i) => upto >= j.fragmentAt[i] + f.length).length
+            if (complete > completed) {
+              completed = complete
+              this.hub.fragmentEnded(questionId, completed)
             }
           }
 
@@ -496,9 +489,7 @@ export class Reader {
             // Someone buzzed and the question was scored while they held the
             // floor. The rest of the clue is not read out — the host judges.
             if (!finished) break
-            if (powerAfter > 0 && f + 1 === powerAfter) {
-              this.hub.send(this.conn, { t: 'act', act: 'powerEnds' })
-            }
+            this.hub.fragmentEnded(questionId, f + 1)
           }
         }
 

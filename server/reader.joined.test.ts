@@ -71,6 +71,31 @@ async function reachArm(state: ReturnType<typeof newState>) {
   return state
 }
 
+test('aligned playback reports completed fragments once and the mode owns their power effect', { timeout: 3000 }, async (t) => {
+  const { hub, state, reader, plays } = rig(foldsFor())
+  t.after(() => reader.stop())
+  hub.dispatch({ a: 'setMode', id: 'quizbowl', options: { powerAfterFragment: 1 } })
+  const completed: number[] = []
+  const report = hub.fragmentEnded.bind(hub)
+  t.mock.method(hub, 'fragmentEnded', (id: string, count: number) => {
+    completed.push(count)
+    report(id, count)
+  })
+  const host = { id: 'h', role: 'host' as const, send() {} }
+  await reader.select('one.txt')
+  reader.start()
+  while (plays.length < 1) await settle(5)
+  assert.equal(hub.viewFor(host).game.status?.label, 'Power open', 'a partial fragment earns no completion')
+  while (completed.length < 1) await settle(5)
+  assert.equal(hub.viewFor(host).game.status?.label, 'Power ended')
+  const cutoff = structuredClone(state.game.moduleState)
+  while (completed.length < 2) await settle(5)
+  plays[0].end()
+  await settle(10)
+  assert.deepEqual(completed, [1, 2], 'the final clip completion does not duplicate its last fold')
+  assert.deepEqual(state.game.moduleState, cutoff, 'later completions cannot shift power')
+})
+
 test('the whole question is one utterance, with no separator in it', async () => {
   const { reader, plays } = rig(foldsFor())
   await reader.select('one.txt')

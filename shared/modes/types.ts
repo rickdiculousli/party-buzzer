@@ -1,7 +1,22 @@
-import type { OptionSpec, PlayerId, State } from '../protocol.ts'
+import type { ModeStatus, OptionSpec, PlayerId, State } from '../protocol.ts'
 
 /** An item drop a module declares and the framework executes. */
-export type ItemGrant = { playerId: PlayerId; itemId: string }
+export type ItemGrant = { playerId: PlayerId } & ({ itemId: string } | { random: true })
+
+/** Modes own scoring and question rules, not playback, catalogs or setlists. */
+export type ModeContext<Options = Record<string, unknown>, Memory = unknown> =
+  Pick<State, 'players' | 'teams' | 'grouping' | 'scores' | 'round'> & {
+    game: { id: string; options: Options; moduleState: Memory }
+  }
+
+/** Schema keys and field kinds must agree with the options a mode reads. */
+export type ModeOption<Options> = {
+  [Key in keyof Options & string]: { key: Key } & (
+    Options[Key] extends number ? Extract<OptionSpec, { kind: 'int' }> :
+    Options[Key] extends boolean ? Extract<OptionSpec, { kind: 'bool' }> :
+    Options[Key] extends string ? Extract<OptionSpec, { kind: 'choice' }> : OptionSpec
+  )
+}[keyof Options & string]
 
 /**
  * A game mode. Every hook is optional; a module defining none is today's
@@ -10,25 +25,29 @@ export type ItemGrant = { playerId: PlayerId; itemId: string }
  * host ops ride the `act` channel through `onAct`, with the role checked by
  * the hub.
  */
-export type GameModule = {
+export type GameModule<Options = Record<string, unknown>, Memory = unknown> = {
   id: string
   name: string
-  options: OptionSpec[]
-  init(options: Record<string, unknown>): unknown
+  options: ModeOption<Options>[]
+  init(options: Options): Memory
   /** Why this player may not buzz, or null. Runs at buzz time. */
-  canBuzz?(state: State, playerId: PlayerId): string | null
+  canBuzz?(state: ModeContext<Options, Memory>, playerId: PlayerId): string | null
   /** Scoring and `round.award` when the leader is right. Default: leader gets round.value. */
-  onCorrect?(state: State): void
+  onCorrect?(state: ModeContext<Options, Memory>): void
   /** Neg scoring and lockout when the leader is wrong. `neg` is what the host sent; 0 always means no penalty. */
-  onWrong?(state: State, neg: number): void
+  onWrong?(state: ModeContext<Options, Memory>, neg: number): void
   /** Fresh-question reset, called on `arm` only — never on a `wrong` rebound. */
-  onArm?(state: State): void
+  onArm?(state: ModeContext<Options, Memory>): void
+  /** Cumulative completed fragments, from either playback path. True if state changed. */
+  onFragmentEnd?(state: ModeContext<Options, Memory>, completed: number, at: number): boolean
+  /** Host status data; the shared web surface owns its rendering. */
+  hostStatus?(state: ModeContext<Options, Memory>): ModeStatus | undefined
   /** A host-scoped act. Return true if handled. */
-  onAct?(state: State, act: string, data?: unknown): boolean
+  onAct?(state: ModeContext<Options, Memory>, act: string, data?: unknown): boolean
   /** What a viewer may see of moduleState. Absent: players see nothing, host/board see it raw. */
-  viewModuleState?(state: State, viewer: PlayerId | 'host' | 'board'): unknown
+  viewModuleState?(state: ModeContext<Options, Memory>, viewer: PlayerId | 'host' | 'board'): unknown
   /** Item drops after a correct answer, declared as data. */
-  grants?(state: State): ItemGrant[]
+  grants?(state: ModeContext<Options, Memory>): ItemGrant[]
 }
 
 /**

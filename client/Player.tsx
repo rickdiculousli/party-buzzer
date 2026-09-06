@@ -7,6 +7,7 @@ import { PlayerItems } from './PlayerItems.tsx'
 import { momentOf, phoneOf } from '../shared/wall.ts'
 import type { Mood } from '../shared/wall.ts'
 import type { State } from '../shared/protocol.ts'
+import { scoreKey } from '../shared/scoring.ts'
 
 /** `phoneOf` names the mood; the stylesheet is where it becomes a colour. */
 const MOOD_CLASS: Record<Mood, string> = {
@@ -106,10 +107,7 @@ export function Player() {
   // for a full second and a buzzer that looks unchanged after a press feels
   // broken. Keyed on the arm so it clears itself for the next question.
   const [pressedFor, setPressedFor] = useState('')
-  const key =
-    state?.grouping === 'teams'
-      ? state.players.find((p) => p.id === playerId)?.teamId ?? playerId
-      : playerId
+  const key = state && playerId ? scoreKey(state, playerId) : playerId
   const barred = !!key && !!round?.lockedOut.includes(key)
   const frozen =
     !!state &&

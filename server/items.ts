@@ -4,12 +4,13 @@
  * Firing rides the `act` channel (`useItem`); validation failure consumes
  * nothing and is silent to the room.
  *
- * The display names are mirrored in client/Player.tsx's ITEM_INFO — the wire
+ * The display names are mirrored in client/PlayerItems.tsx's ITEM_INFO — the wire
  * carries only ids, and three items do not justify a catalog channel.
  */
 import type { ActiveEffect, PlayerId, State } from '../shared/protocol.ts'
 import type { ItemDef, ItemGrant } from '../shared/modes/types.ts'
-import { buzzBlockReason, scoreKey } from './state.ts'
+import { buzzBlockReason } from './eligibility.ts'
+import { scoreKey } from '../shared/scoring.ts'
 
 export const ITEMS: ItemDef[] = [
   {
@@ -104,8 +105,9 @@ export function useItem(state: State, userId: PlayerId, data: unknown): boolean 
 /** Modules declare drops; the framework executes them. */
 export function executeGrants(state: State, grants: ItemGrant[]): void {
   for (const g of grants) {
-    if (!ITEMS.some((i) => i.id === g.itemId)) continue
     if (!state.players.some((p) => p.id === g.playerId)) continue
-    ;(state.items[g.playerId] ??= []).push(g.itemId)
+    const itemId = 'itemId' in g ? g.itemId : randomItemId()
+    if (!ITEMS.some((i) => i.id === itemId)) continue
+    ;(state.items[g.playerId] ??= []).push(itemId)
   }
 }
