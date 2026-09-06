@@ -1,0 +1,206 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1400" viewBox="0 0 1400 1400" role="img" aria-labelledby="title desc">
+  <title id="title">Bow minigame target component study</title>
+  <desc id="desc">Three classic five-colour archery target constructions: printed paper, painted canvas, and stacked plates.</desc>
+  <defs>
+    <filter id="cast" x="-50%" y="-50%" width="220%" height="220%">
+      <feDropShadow dx="12" dy="18" stdDeviation="12" flood-color="#000000" flood-opacity=".72"/>
+    </filter>
+    <filter id="shortCast" x="-50%" y="-50%" width="220%" height="220%">
+      <feDropShadow dx="7" dy="9" stdDeviation="5" flood-color="#000000" flood-opacity=".72"/>
+    </filter>
+    <filter id="ringGlow" x="-70%" y="-70%" width="240%" height="240%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+    <pattern id="paper" width="17" height="17" patternUnits="userSpaceOnUse">
+      <circle cx="3" cy="5" r=".8" fill="#2c2620" opacity=".08"/>
+      <circle cx="12" cy="13" r=".55" fill="#2c2620" opacity=".06"/>
+    </pattern>
+    <pattern id="canvas" width="8" height="8" patternUnits="userSpaceOnUse">
+      <path d="M0 2H8M0 6H8M2 0V8M6 0V8" stroke="#f5f0e6" stroke-width=".45" opacity=".09"/>
+    </pattern>
+    <linearGradient id="paperShade" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f2eadc"/>
+      <stop offset="1" stop-color="#d8cebd"/>
+    </linearGradient>
+    <linearGradient id="canvasShade" x1="0" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#ebe3d4"/>
+      <stop offset="1" stop-color="#cfc4b1"/>
+    </linearGradient>
+    <style>
+      .display { font-family: "Big Shoulders Display", "Arial Narrow", sans-serif; font-weight: 800; }
+      .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+      .eyebrow { font-size: 13px; font-weight: 600; letter-spacing: .16em; fill: #8a8073; }
+      .headline { font-size: 52px; fill: #f5f0e6; }
+      .title { font-size: 31px; fill: #f5f0e6; }
+      .body { font-size: 14px; fill: #b7ad9f; }
+      .small { font-size: 12px; fill: #8a8073; }
+      .label { font-size: 12px; font-weight: 600; letter-spacing: .1em; fill: #f5f0e6; }
+      .rule { stroke: #2c2620; stroke-width: 1; }
+      .scoreline { fill: none; stroke: #16130f; stroke-width: 1; opacity: .42; }
+      .keyline { fill: none; stroke: #2c2620; stroke-width: 10; }
+    </style>
+  </defs>
+
+  <rect width="1400" height="1400" fill="#0b0a08"/>
+  <rect width="1400" height="10" fill="#ffb454"/>
+  <text x="42" y="62" class="mono eyebrow">BOW MINIGAME · COMPONENT STUDY 01</text>
+  <text x="42" y="118" class="display headline">THE TARGET FACE</text>
+  <text x="42" y="151" class="mono body">Classic archery order, shifted into the studio palette. Every pale edge gets a dark silhouette.</text>
+  <line x1="42" y1="180" x2="1358" y2="180" class="rule"/>
+
+  <!-- Palette -->
+  <g transform="translate(42 205)">
+    <text x="0" y="12" class="mono eyebrow">FIXED RING ORDER</text>
+    <g transform="translate(190 0)">
+      <rect width="118" height="28" rx="2" fill="#e7dfd0" stroke="#2c2620" stroke-width="2"/>
+      <text x="59" y="19" text-anchor="middle" class="mono small" fill="#16130f">WARM WHITE</text>
+      <rect x="128" width="118" height="28" rx="2" fill="#27231f" stroke="#3b352e"/>
+      <text x="187" y="19" text-anchor="middle" class="mono small" fill="#f5f0e6">CHARCOAL</text>
+      <rect x="256" width="118" height="28" rx="2" fill="#3f7786"/>
+      <text x="315" y="19" text-anchor="middle" class="mono small" fill="#f5f0e6">MUTED BLUE</text>
+      <rect x="384" width="118" height="28" rx="2" fill="#a84b3d"/>
+      <text x="443" y="19" text-anchor="middle" class="mono small" fill="#f5f0e6">OXIDE RED</text>
+      <rect x="512" width="118" height="28" rx="2" fill="#d0a23a"/>
+      <text x="571" y="19" text-anchor="middle" class="mono small" fill="#16130f">OCHRE</text>
+    </g>
+  </g>
+
+  <!-- Panels -->
+  <g>
+    <rect x="42" y="270" width="412" height="760" rx="5" fill="#16130f" stroke="#2c2620"/>
+    <text x="66" y="307" class="mono eyebrow">A · PRINTED PAPER</text>
+    <text x="66" y="346" class="display title">FLAT AND EXACT</text>
+    <text x="66" y="372" class="mono body">One face, fine scoring lines, soft cast shadow.</text>
+
+    <g transform="translate(248 595)" filter="url(#cast)">
+      <circle r="166" fill="#090806" opacity=".6"/>
+      <circle r="158" fill="url(#paperShade)"/>
+      <circle r="126.4" fill="#27231f"/>
+      <circle r="94.8" fill="#3f7786"/>
+      <circle r="63.2" fill="#a84b3d"/>
+      <circle r="31.6" fill="#d0a23a"/>
+      <circle r="158" fill="url(#paper)"/>
+      <circle r="158" class="keyline"/>
+      <circle r="142.2" class="scoreline"/>
+      <circle r="110.6" class="scoreline" stroke="#e7dfd0"/>
+      <circle r="79" class="scoreline"/>
+      <circle r="47.4" class="scoreline"/>
+      <circle r="15.8" class="scoreline"/>
+      <circle r="3" fill="#2c2620"/>
+    </g>
+
+    <g transform="translate(66 815)">
+      <text class="mono label" y="0">EDGE</text><text class="mono body" x="74" y="0">10 px charcoal keyline</text>
+      <text class="mono label" y="30">DEPTH</text><text class="mono body" x="74" y="30">One soft shadow</text>
+      <text class="mono label" y="60">CHARACTER</text><text class="mono body" x="104" y="60">Quiet, accurate, replaceable</text>
+    </g>
+    <line x1="66" y1="922" x2="430" y2="922" class="rule"/>
+    <text x="66" y="954" class="mono small">Best when arrows and hit feedback carry the personality.</text>
+  </g>
+
+  <g>
+    <rect x="494" y="270" width="412" height="760" rx="5" fill="#16130f" stroke="#2c2620"/>
+    <text x="518" y="307" class="mono eyebrow">B · PAINTED CANVAS</text>
+    <g transform="translate(790 290)">
+      <rect width="92" height="25" rx="2" fill="#c9a227"/>
+      <text x="46" y="17" text-anchor="middle" class="mono label" fill="#16130f">SELECTED</text>
+    </g>
+    <text x="518" y="346" class="display title">TACTILE, NOT WOBBLY</text>
+    <text x="518" y="372" class="mono body">True circles on a stitched, slightly worn face.</text>
+
+    <g transform="translate(700 595)" filter="url(#cast)">
+      <circle cx="10" cy="12" r="169" fill="#090806" opacity=".65"/>
+      <circle r="166" fill="#6a351d" stroke="#2c2620" stroke-width="9"/>
+      <circle r="156" fill="url(#canvasShade)"/>
+      <circle r="124.8" fill="#292521"/>
+      <circle r="93.6" fill="#3b7482"/>
+      <circle r="62.4" fill="#a3483c"/>
+      <circle r="31.2" fill="#cea03a"/>
+      <circle r="156" fill="url(#canvas)"/>
+      <circle r="156" fill="none" stroke="#2c2620" stroke-width="5"/>
+      <circle r="161" fill="none" stroke="#c9a227" stroke-width="2" stroke-dasharray="4 7" opacity=".66"/>
+      <circle r="140.4" class="scoreline"/>
+      <circle r="109.2" class="scoreline" stroke="#e7dfd0"/>
+      <circle r="78" class="scoreline"/>
+      <circle r="46.8" class="scoreline"/>
+      <circle r="15.6" class="scoreline"/>
+      <path d="M-132 -75Q-126 -80 -121 -73M102 104Q108 99 113 106M-65 132Q-59 126 -52 131" fill="none" stroke="#f5f0e6" stroke-width="2" opacity=".25"/>
+      <circle r="3" fill="#2c2620"/>
+    </g>
+
+    <g transform="translate(518 815)">
+      <text class="mono label" y="0">EDGE</text><text class="mono body" x="74" y="0">Wood hoop + dark keyline</text>
+      <text class="mono label" y="30">DEPTH</text><text class="mono body" x="74" y="30">Hoop and soft floor shadow</text>
+      <text class="mono label" y="60">CHARACTER</text><text class="mono body" x="104" y="60">Handmade without losing aim</text>
+    </g>
+    <line x1="518" y1="922" x2="882" y2="922" class="rule"/>
+    <text x="518" y="954" class="mono small">Carries the carnival warmth without distorting the rings.</text>
+  </g>
+
+  <g>
+    <rect x="946" y="270" width="412" height="760" rx="5" fill="#16130f" stroke="#2c2620"/>
+    <text x="970" y="307" class="mono eyebrow">C · STACKED PLATES</text>
+    <text x="970" y="346" class="display title">HARD, LAYERED DEPTH</text>
+    <text x="970" y="372" class="mono body">Each band is a physical disc above the next.</text>
+
+    <g transform="translate(1152 595)">
+      <circle cx="14" cy="20" r="169" fill="#000" opacity=".7" filter="url(#cast)"/>
+      <circle cx="10" cy="12" r="164" fill="#9d9282" stroke="#2c2620" stroke-width="11"/>
+      <circle r="158" fill="#e7dfd0" filter="url(#shortCast)"/>
+      <circle r="126.4" fill="#27231f" filter="url(#shortCast)"/>
+      <circle r="94.8" fill="#3f7786" filter="url(#shortCast)"/>
+      <circle r="63.2" fill="#a84b3d" filter="url(#shortCast)"/>
+      <circle r="31.6" fill="#d0a23a" filter="url(#shortCast)"/>
+      <circle r="158" class="keyline"/>
+      <circle r="142.2" class="scoreline"/>
+      <circle r="110.6" class="scoreline" stroke="#e7dfd0" opacity=".28"/>
+      <circle r="79" class="scoreline"/>
+      <circle r="47.4" class="scoreline"/>
+      <circle r="15.8" class="scoreline"/>
+      <path d="M-106 -106A150 150 0 0 1 106 -106" fill="none" stroke="#fff6e8" stroke-width="3" opacity=".18"/>
+      <circle r="3" fill="#2c2620"/>
+    </g>
+
+    <g transform="translate(970 815)">
+      <text class="mono label" y="0">EDGE</text><text class="mono body" x="74" y="0">Deep charcoal casing</text>
+      <text class="mono label" y="30">DEPTH</text><text class="mono body" x="74" y="30">A short shadow per band</text>
+      <text class="mono label" y="60">CHARACTER</text><text class="mono body" x="104" y="60">Mechanical, chunky, dramatic</text>
+    </g>
+    <line x1="970" y1="922" x2="1334" y2="922" class="rule"/>
+    <text x="970" y="954" class="mono small">Strongest 2.5D read; needs restraint once arrows accumulate.</text>
+  </g>
+
+  <!-- Shared impact study -->
+  <line x1="42" y1="1070" x2="1358" y2="1070" class="rule"/>
+  <text x="42" y="1110" class="mono eyebrow">SHARED HIT LANGUAGE · ADA / IDENTITY 4</text>
+  <text x="42" y="1147" class="display title">THE FACE STAYS ARCHERY. OWNERSHIP RIDES ABOVE IT.</text>
+  <g transform="translate(112 1262)">
+    <g transform="translate(0 0)">
+      <circle r="54" fill="#e7dfd0" stroke="#2c2620" stroke-width="5"/>
+      <circle r="43.2" fill="#27231f"/><circle r="32.4" fill="#3f7786"/><circle r="21.6" fill="#a84b3d"/><circle r="10.8" fill="#d0a23a"/>
+      <text x="0" y="82" text-anchor="middle" class="mono small">IMPACT</text>
+    </g>
+    <path d="M88 0H166" stroke="#2c2620" stroke-width="2"/><path d="M154 -7L166 0L154 7" fill="#2c2620"/>
+    <g transform="translate(230 0)">
+      <circle r="54" fill="#e7dfd0" stroke="#2c2620" stroke-width="5"/>
+      <circle r="43.2" fill="#27231f"/><circle r="32.4" fill="#3f7786"/><circle r="21.6" fill="#a84b3d"/><circle r="10.8" fill="#d0a23a"/>
+      <circle cx="8" cy="-6" r="23" fill="none" stroke="#8f6cff" stroke-width="5"/>
+      <circle cx="8" cy="-6" r="37" fill="none" stroke="#8f6cff" stroke-width="3" opacity=".55"/>
+      <circle cx="8" cy="-6" r="50" fill="none" stroke="#8f6cff" stroke-width="2" opacity=".25" filter="url(#ringGlow)"/>
+      <text x="0" y="82" text-anchor="middle" class="mono small">IDENTITY RIPPLE</text>
+    </g>
+    <path d="M318 0H396" stroke="#2c2620" stroke-width="2"/><path d="M384 -7L396 0L384 7" fill="#2c2620"/>
+    <g transform="translate(460 0)">
+      <circle r="54" fill="#e7dfd0" stroke="#2c2620" stroke-width="5"/>
+      <circle r="43.2" fill="#27231f"/><circle r="32.4" fill="#3f7786"/><circle r="21.6" fill="#a84b3d"/><circle r="10.8" fill="#d0a23a"/>
+      <circle cx="8" cy="-6" r="59" fill="none" stroke="#8f6cff" stroke-width="2" opacity=".25"/>
+      <circle cx="8" cy="-6" r="4" fill="#8f6cff"/>
+      <text x="0" y="82" text-anchor="middle" class="mono small">AFTERGLOW + HIT MARK</text>
+    </g>
+    <text x="575" y="-10" class="mono body">Ring colours never change.</text>
+    <text x="575" y="16" class="mono body">The shooter's identity appears as a transient layer.</text>
+    <text x="575" y="42" class="mono small">Arrow silhouette study follows after target construction is chosen.</text>
+  </g>
+
+  <line x1="42" y1="1360" x2="1358" y2="1360" class="rule"/>
+</svg>

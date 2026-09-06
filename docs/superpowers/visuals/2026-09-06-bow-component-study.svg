@@ -1,0 +1,194 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1400" viewBox="0 0 1400 1400" role="img" aria-labelledby="title desc">
+  <title id="title">Bow minigame bow component study</title>
+  <desc id="desc">Three bow constructions and a shared draw-and-release shape sequence.</desc>
+  <defs>
+    <filter id="cast" x="-80%" y="-40%" width="260%" height="200%">
+      <feDropShadow dx="10" dy="12" stdDeviation="8" flood-color="#000" flood-opacity=".72"/>
+    </filter>
+    <filter id="shortCast" x="-80%" y="-40%" width="260%" height="200%">
+      <feDropShadow dx="5" dy="7" stdDeviation="4" flood-color="#000" flood-opacity=".75"/>
+    </filter>
+    <linearGradient id="cedar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#6a351d"/>
+      <stop offset=".42" stop-color="#b66535"/>
+      <stop offset=".7" stop-color="#d28b47"/>
+      <stop offset="1" stop-color="#7a3b10"/>
+    </linearGradient>
+    <linearGradient id="brass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f0ca58"/>
+      <stop offset=".45" stop-color="#c9a227"/>
+      <stop offset="1" stop-color="#745517"/>
+    </linearGradient>
+    <pattern id="wear" width="19" height="19" patternUnits="userSpaceOnUse">
+      <path d="M2 5h7M13 14h3" stroke="#f5f0e6" stroke-width="1" opacity=".1"/>
+    </pattern>
+    <style>
+      .display { font-family: "Big Shoulders Display", "Arial Narrow", sans-serif; font-weight: 800; }
+      .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+      .eyebrow { font-size: 13px; font-weight: 600; letter-spacing: .16em; fill: #8a8073; }
+      .headline { font-size: 52px; fill: #f5f0e6; }
+      .title { font-size: 31px; fill: #f5f0e6; }
+      .body { font-size: 14px; fill: #b7ad9f; }
+      .small { font-size: 12px; fill: #8a8073; }
+      .label { font-size: 12px; font-weight: 600; letter-spacing: .1em; fill: #f5f0e6; }
+      .rule { stroke: #2c2620; stroke-width: 1; }
+      .string { fill: none; stroke: #f5f0e6; stroke-width: 2.5; stroke-linecap: round; }
+    </style>
+  </defs>
+
+  <rect width="1400" height="1400" fill="#0b0a08"/>
+  <rect width="1400" height="10" fill="#ffb454"/>
+  <text x="42" y="62" class="mono eyebrow">BOW MINIGAME · COMPONENT STUDY 03</text>
+  <text x="42" y="118" class="display headline">THE BOW</text>
+  <text x="42" y="151" class="mono body">A readable recurve silhouette, one identity grip, and deformation that explains stored tension.</text>
+  <line x1="42" y1="180" x2="1358" y2="180" class="rule"/>
+  <g transform="translate(42 208)">
+    <text y="12" class="mono eyebrow">FIXED ANATOMY</text>
+    <text x="170" y="12" class="mono body">Recurved limbs · grip · string · identity wrap</text>
+    <circle cx="632" cy="7" r="7" fill="#8f6cff"/>
+    <text x="648" y="12" class="mono small">Ada identity</text>
+    <text x="790" y="12" class="mono small">The bow remains warm equipment; identity stays at the hand.</text>
+  </g>
+
+  <!-- A: tournament recurve -->
+  <g>
+    <rect x="42" y="270" width="412" height="720" rx="5" fill="#16130f" stroke="#2c2620"/>
+    <text x="66" y="307" class="mono eyebrow">A · TOURNAMENT RECURVE</text>
+    <text x="66" y="346" class="display title">LIGHT AND CONTROLLED</text>
+    <text x="66" y="372" class="mono body">Slim brass limbs and a quiet instrument profile.</text>
+    <g transform="translate(218 580)" filter="url(#cast)">
+      <path d="M72 -176C49 -154 30 -112 32 -72C34 -38 48 -14 45 0C48 14 34 38 32 72C30 112 49 154 72 176" fill="none" stroke="#2c2620" stroke-width="13" stroke-linecap="round" transform="translate(104 0) scale(-1 1)"/>
+      <path d="M72 -176C49 -154 30 -112 32 -72C34 -38 48 -14 45 0C48 14 34 38 32 72C30 112 49 154 72 176" fill="none" stroke="#c9a227" stroke-width="7" stroke-linecap="round" transform="translate(104 0) scale(-1 1)"/>
+      <path d="M32 -176L-76 0L32 176" class="string"/>
+      <path d="M-48 0H184" stroke="#2c2620" stroke-width="11" stroke-linecap="round"/>
+      <path d="M-48 0H184" stroke="#a65f32" stroke-width="7" stroke-linecap="round"/>
+      <path d="M181 -10L211 0L181 10L190 0Z" fill="#b8bcc4" stroke="#2c2620" stroke-width="4"/>
+      <rect x="-78" y="-5.5" width="30" height="11" rx="2" fill="#8f6cff"/>
+      <rect x="50" y="-28" width="18" height="56" rx="7" fill="#8f6cff" stroke="#2c2620" stroke-width="3"/>
+      <circle cx="32" cy="-176" r="5" fill="#f5f0e6"/>
+      <circle cx="32" cy="176" r="5" fill="#f5f0e6"/>
+    </g>
+    <g transform="translate(66 775)">
+      <text class="mono label">BOARD SILHOUETTE</text>
+      <g transform="translate(123 69) scale(.32)">
+        <path d="M72 -176C49 -154 30 -112 32 -72C34 -38 48 -14 45 0C48 14 34 38 32 72C30 112 49 154 72 176" fill="none" stroke="#c9a227" stroke-width="17" stroke-linecap="round" transform="translate(104 0) scale(-1 1)"/>
+        <path d="M32 -176L-76 0L32 176" class="string" stroke-width="6"/>
+        <rect x="50" y="-28" width="18" height="56" rx="7" fill="#8f6cff"/>
+      </g>
+      <text x="0" y="139" class="mono small">Clean, but the limbs become delicate at distance.</text>
+    </g>
+    <line x1="66" y1="940" x2="430" y2="940" class="rule"/>
+    <text x="66" y="970" class="mono small">Best when the field is sparse and measurement leads.</text>
+  </g>
+
+  <!-- B: painted field bow -->
+  <g>
+    <rect x="494" y="270" width="412" height="720" rx="5" fill="#16130f" stroke="#2c2620"/>
+    <text x="518" y="307" class="mono eyebrow">B · PAINTED FIELD BOW</text>
+    <g transform="translate(790 290)">
+      <rect width="92" height="25" rx="2" fill="#c9a227"/>
+      <text x="46" y="17" text-anchor="middle" class="mono label" fill="#16130f">SELECTED</text>
+    </g>
+    <text x="518" y="346" class="display title">HANDMADE, KEPT TRUE</text>
+    <text x="518" y="372" class="mono body">Laminated cedar, leather grip, painted bindings.</text>
+    <g transform="translate(670 580)" filter="url(#cast)">
+      <path d="M82 -178C70 -164 46 -155 36 -126C22 -87 29 -42 51 0C29 42 22 87 36 126C46 155 70 164 82 178" fill="none" stroke="#2c2620" stroke-width="21" stroke-linecap="round" transform="translate(104 0) scale(-1 1)"/>
+      <path d="M82 -178C70 -164 46 -155 36 -126C22 -87 29 -42 51 0C29 42 22 87 36 126C46 155 70 164 82 178" fill="none" stroke="url(#cedar)" stroke-width="13" stroke-linecap="round" transform="translate(104 0) scale(-1 1)"/>
+      <path d="M22 -178L-78 0L22 178" class="string" stroke-width="3"/>
+      <path d="M-48 0H184" stroke="#2c2620" stroke-width="11" stroke-linecap="round"/>
+      <path d="M-48 0H184" stroke="#a65f32" stroke-width="7" stroke-linecap="round"/>
+      <path d="M181 -10L211 0L181 10L190 0Z" fill="#b8bcc4" stroke="#2c2620" stroke-width="4"/>
+      <rect x="-78" y="-5.5" width="30" height="11" rx="2" fill="#8f6cff"/>
+      <rect x="39" y="-32" width="24" height="64" rx="8" fill="#3b2418" stroke="#2c2620" stroke-width="4"/>
+      <path d="M40 -20H62M40 -10H62M40 0H62M40 10H62M40 20H62" stroke="#8f6cff" stroke-width="4"/>
+      <path d="M75 -174L87 -181M75 174L87 181" stroke="url(#brass)" stroke-width="8" stroke-linecap="round" transform="translate(104 0) scale(-1 1)"/>
+      <path d="M37 -123C32 -101 32 -81 35 -62M35 62C32 81 32 101 37 123" fill="none" stroke="#f5f0e6" stroke-width="2" opacity=".2" transform="translate(104 0) scale(-1 1)"/>
+    </g>
+    <g transform="translate(518 775)">
+      <text class="mono label">BOARD SILHOUETTE</text>
+      <g transform="translate(123 69) scale(.32)">
+        <path d="M82 -178C70 -164 46 -155 36 -126C22 -87 29 -42 51 0C29 42 22 87 36 126C46 155 70 164 82 178" fill="none" stroke="#2c2620" stroke-width="29" stroke-linecap="round" transform="translate(104 0) scale(-1 1)"/>
+        <path d="M82 -178C70 -164 46 -155 36 -126C22 -87 29 -42 51 0C29 42 22 87 36 126C46 155 70 164 82 178" fill="none" stroke="#a65f32" stroke-width="19" stroke-linecap="round" transform="translate(104 0) scale(-1 1)"/>
+        <path d="M22 -178L-78 0L22 178" class="string" stroke-width="7"/>
+        <rect x="39" y="-32" width="24" height="64" rx="8" fill="#8f6cff"/>
+      </g>
+      <text x="0" y="139" class="mono small">Strong silhouette without turning into a prop icon.</text>
+    </g>
+    <line x1="518" y1="940" x2="882" y2="940" class="rule"/>
+    <text x="518" y="970" class="mono small">Matches the canvas target and painted cedar arrow.</text>
+  </g>
+
+  <!-- C: mechanical takedown -->
+  <g>
+    <rect x="946" y="270" width="412" height="720" rx="5" fill="#16130f" stroke="#2c2620"/>
+    <text x="970" y="307" class="mono eyebrow">C · MECHANICAL TAKEDOWN</text>
+    <text x="970" y="346" class="display title">BOLTED AND LAYERED</text>
+    <text x="970" y="372" class="mono body">Plate limbs, visible joints, hard shadow.</text>
+    <g transform="translate(1122 580)" filter="url(#shortCast)">
+      <path d="M86 -178L54 -148L31 -86L52 0L31 86L54 148L86 178" fill="none" stroke="#2c2620" stroke-width="27" stroke-linejoin="round" transform="translate(117 0) scale(-1 1)"/>
+      <path d="M86 -178L54 -148L31 -86L52 0L31 86L54 148L86 178" fill="none" stroke="#c9a227" stroke-width="17" stroke-linejoin="round" transform="translate(117 0) scale(-1 1)"/>
+      <path d="M31 -178L-78 0L31 178" class="string" stroke-width="3"/>
+      <path d="M-48 0H184" stroke="#2c2620" stroke-width="11" stroke-linecap="round"/>
+      <path d="M-48 0H184" stroke="#a65f32" stroke-width="7" stroke-linecap="round"/>
+      <path d="M181 -10L211 0L181 10L190 0Z" fill="#b8bcc4" stroke="#2c2620" stroke-width="4"/>
+      <rect x="-78" y="-5.5" width="30" height="11" rx="2" fill="#8f6cff"/>
+      <path d="M53 -38H84V38H53L42 0Z" fill="#b8bcc4" stroke="#2c2620" stroke-width="6"/>
+      <rect x="56" y="-29" width="24" height="58" rx="3" fill="#8f6cff"/>
+      <circle cx="79" cy="-88" r="7" fill="#f5f0e6" stroke="#2c2620" stroke-width="3"/>
+      <circle cx="79" cy="88" r="7" fill="#f5f0e6" stroke="#2c2620" stroke-width="3"/>
+      <path d="M23 -177H39M23 177H39" stroke="#ffb454" stroke-width="8"/>
+    </g>
+    <g transform="translate(970 775)">
+      <text class="mono label">BOARD SILHOUETTE</text>
+      <g transform="translate(123 69) scale(.32)">
+        <path d="M86 -178L54 -148L31 -86L52 0L31 86L54 148L86 178" fill="none" stroke="#2c2620" stroke-width="35" stroke-linejoin="round" transform="translate(117 0) scale(-1 1)"/>
+        <path d="M86 -178L54 -148L31 -86L52 0L31 86L54 148L86 178" fill="none" stroke="#c9a227" stroke-width="23" stroke-linejoin="round" transform="translate(117 0) scale(-1 1)"/>
+        <path d="M31 -178L-78 0L31 178" class="string" stroke-width="7"/>
+        <rect x="54" y="-32" width="28" height="64" rx="3" fill="#8f6cff"/>
+      </g>
+      <text x="0" y="139" class="mono small">Very legible; rigid joints fight the elastic gesture.</text>
+    </g>
+    <line x1="970" y1="940" x2="1334" y2="940" class="rule"/>
+    <text x="970" y="970" class="mono small">Useful if another minigame needs industrial equipment.</text>
+  </g>
+
+  <!-- Draw sequence -->
+  <line x1="42" y1="1030" x2="1358" y2="1030" class="rule"/>
+  <text x="42" y="1072" class="mono eyebrow">B-FAMILY DRAW LANGUAGE · SHAPE STUDY</text>
+  <text x="42" y="1112" class="display title">THE LIMBS LOAD GRADUALLY; RELEASE ARRIVES AS ONE SHARP SNAP.</text>
+
+  <g transform="translate(132 1240) scale(.36)">
+    <path d="M22 -178C34 -164 58 -155 68 -126C82 -87 75 -42 53 0C75 42 82 87 68 126C58 155 34 164 22 178" fill="none" stroke="#a65f32" stroke-width="22" stroke-linecap="round"/>
+    <path d="M22 -178V178" class="string" stroke-width="7"/>
+    <rect x="39" y="-32" width="24" height="64" rx="8" fill="#8f6cff"/>
+  </g>
+  <text x="160" y="1342" text-anchor="middle" class="mono small">REST</text>
+  <path d="M282 1240H342" stroke="#2c2620" stroke-width="2"/><path d="M330 1233L342 1240L330 1247" fill="#2c2620"/>
+
+  <g transform="translate(486 1240) scale(.36)">
+    <path d="M14 -174C27 -160 52 -151 64 -125C76 -86 72 -41 53 0C72 41 76 86 64 125C52 151 27 160 14 174" fill="none" stroke="#a65f32" stroke-width="22" stroke-linecap="round"/>
+    <path d="M14 -174L-18 0L14 174" class="string" stroke-width="7"/>
+    <rect x="39" y="-32" width="24" height="64" rx="8" fill="#8f6cff"/>
+  </g>
+  <text x="510" y="1342" text-anchor="middle" class="mono small">HALF DRAW</text>
+  <path d="M632 1240H692" stroke="#2c2620" stroke-width="2"/><path d="M680 1233L692 1240L680 1247" fill="#2c2620"/>
+
+  <g transform="translate(836 1240) scale(.36)">
+    <path d="M6 -168C20 -157 45 -149 58 -124C69 -84 70 -40 53 0C70 40 69 84 58 124C45 149 20 157 6 168" fill="none" stroke="#a65f32" stroke-width="22" stroke-linecap="round"/>
+    <path d="M6 -168L-78 0L6 168" class="string" stroke-width="7"/>
+    <rect x="39" y="-32" width="24" height="64" rx="8" fill="#8f6cff"/>
+  </g>
+  <text x="858" y="1342" text-anchor="middle" class="mono small">FULL DRAW</text>
+  <path d="M982 1240H1042" stroke="#2c2620" stroke-width="2"/><path d="M1030 1233L1042 1240L1030 1247" fill="#2c2620"/>
+
+  <g transform="translate(1186 1240) scale(.36)">
+    <path d="M30 -183C42 -168 66 -158 75 -128C88 -87 77 -40 53 0C77 40 88 87 75 128C66 158 42 168 30 183" fill="none" stroke="#a65f32" stroke-width="22" stroke-linecap="round"/>
+    <path d="M30 -183V183" class="string" stroke-width="7"/>
+    <rect x="42" y="-32" width="24" height="64" rx="8" fill="#8f6cff"/>
+  </g>
+  <path d="M1238 1240H1326" stroke="#a65f32" stroke-width="7"/>
+  <path d="M1323 1232L1348 1240L1323 1248L1330 1240Z" fill="#b8bcc4" stroke="#2c2620" stroke-width="3"/>
+  <text x="1228" y="1342" text-anchor="middle" class="mono small">RELEASE + RECOIL</text>
+
+  <line x1="42" y1="1360" x2="1358" y2="1360" class="rule"/>
+</svg>

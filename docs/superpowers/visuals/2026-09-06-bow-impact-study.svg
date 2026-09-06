@@ -1,0 +1,203 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1400" viewBox="0 0 1400 1400" role="img" aria-labelledby="title desc">
+  <title id="title">Bow minigame target impact study</title>
+  <desc id="desc">Three player-ownership effects on the selected painted-canvas target.</desc>
+  <defs>
+    <filter id="cast" x="-70%" y="-70%" width="240%" height="240%">
+      <feDropShadow dx="10" dy="14" stdDeviation="9" flood-color="#000" flood-opacity=".72"/>
+    </filter>
+    <filter id="glow" x="-120%" y="-120%" width="340%" height="340%">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+    <filter id="smallGlow" x="-120%" y="-120%" width="340%" height="340%">
+      <feGaussianBlur stdDeviation="4"/>
+    </filter>
+    <filter id="pulseFuzz" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation=".65"/>
+    </filter>
+    <filter id="pulseHalo" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="3.2"/>
+    </filter>
+    <radialGradient id="edgeBloom">
+      <stop offset="0" stop-color="#8f6cff" stop-opacity=".58"/>
+      <stop offset=".46" stop-color="#8f6cff" stop-opacity=".3"/>
+      <stop offset="1" stop-color="#8f6cff" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="canvas" width="8" height="8" patternUnits="userSpaceOnUse">
+      <path d="M0 2H8M0 6H8M2 0V8M6 0V8" stroke="#f5f0e6" stroke-width=".45" opacity=".08"/>
+    </pattern>
+    <mask id="outsideTarget">
+      <rect x="-320" y="-320" width="640" height="640" fill="white"/>
+      <circle r="153" fill="black"/>
+    </mask>
+    <mask id="outsideMini">
+      <rect x="-120" y="-120" width="240" height="240" fill="white"/>
+      <circle r="57" fill="black"/>
+    </mask>
+    <style>
+      .display { font-family: "Big Shoulders Display", "Arial Narrow", sans-serif; font-weight: 800; }
+      .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+      .eyebrow { font-size: 13px; font-weight: 600; letter-spacing: .16em; fill: #8a8073; }
+      .headline { font-size: 52px; fill: #f5f0e6; }
+      .title { font-size: 31px; fill: #f5f0e6; }
+      .body { font-size: 14px; fill: #b7ad9f; }
+      .small { font-size: 12px; fill: #8a8073; }
+      .label { font-size: 12px; font-weight: 600; letter-spacing: .1em; fill: #f5f0e6; }
+      .rule { stroke: #2c2620; stroke-width: 1; }
+    </style>
+
+    <!-- The chosen target is reused unchanged in all options. -->
+    <g id="target">
+      <circle cx="10" cy="12" r="151" fill="#090806" opacity=".65"/>
+      <circle r="148" fill="#6a351d" stroke="#2c2620" stroke-width="9"/>
+      <circle r="139" fill="#e7dfd0"/>
+      <circle r="111.2" fill="#292521"/>
+      <circle r="83.4" fill="#3b7482"/>
+      <circle r="55.6" fill="#a3483c"/>
+      <circle r="27.8" fill="#cea03a"/>
+      <circle r="139" fill="url(#canvas)"/>
+      <circle r="139" fill="none" stroke="#2c2620" stroke-width="5"/>
+      <circle r="144" fill="none" stroke="#c9a227" stroke-width="2" stroke-dasharray="4 7" opacity=".66"/>
+      <circle r="125.1" fill="none" stroke="#16130f" opacity=".4"/>
+      <circle r="97.3" fill="none" stroke="#e7dfd0" opacity=".25"/>
+      <circle r="69.5" fill="none" stroke="#16130f" opacity=".4"/>
+      <circle r="41.7" fill="none" stroke="#16130f" opacity=".4"/>
+      <circle r="13.9" fill="none" stroke="#16130f" opacity=".4"/>
+    </g>
+    <g id="arrow-in">
+      <path d="M-182 0H-8" stroke="#2c2620" stroke-width="11" stroke-linecap="round"/>
+      <path d="M-182 0H-8" stroke="#a65f32" stroke-width="7" stroke-linecap="round"/>
+      <rect x="-212" y="-5.5" width="30" height="11" rx="2" fill="#8f6cff"/>
+      <path d="M-8 -10L20 0L-8 10L1 0Z" fill="#b8bcc4" stroke="#2c2620" stroke-width="4"/>
+    </g>
+  </defs>
+
+  <rect width="1400" height="1400" fill="#0b0a08"/>
+  <rect width="1400" height="10" fill="#ffb454"/>
+  <text x="42" y="62" class="mono eyebrow">BOW MINIGAME · MICROFEEDBACK STUDY 01</text>
+  <text x="42" y="118" class="display headline">TARGET HIT + OWNERSHIP</text>
+  <text x="42" y="151" class="mono body">The arrow stops at the collision edge. Ada's identity light travels only through the surrounding field.</text>
+  <line x1="42" y1="180" x2="1358" y2="180" class="rule"/>
+  <g transform="translate(42 208)">
+    <text y="12" class="mono eyebrow">CONTROLLED VARIABLES</text>
+    <text x="205" y="12" class="mono body">Same target · same arrow · same left-edge collision</text>
+    <circle cx="701" cy="7" r="7" fill="#8f6cff"/>
+    <text x="717" y="12" class="mono small">Ada</text>
+    <circle cx="781" cy="7" r="7" fill="#43d09d"/>
+    <text x="797" y="12" class="mono small">Bo</text>
+  </g>
+
+  <!-- A -->
+  <g>
+    <rect x="42" y="270" width="412" height="730" rx="5" fill="#16130f" stroke="#2c2620"/>
+    <text x="66" y="307" class="mono eyebrow">A · INSTRUMENT RINGS</text>
+    <g transform="translate(338 290)">
+      <rect width="92" height="25" rx="2" fill="#7a3b10" stroke="#c9a227"/>
+      <text x="46" y="17" text-anchor="middle" class="mono label">SELECTED</text>
+    </g>
+    <text x="66" y="346" class="display title">CLEAN CONCENTRIC PULSE</text>
+    <text x="66" y="372" class="mono body">Two softened rings leave the struck edge.</text>
+    <g transform="translate(297 600) scale(.78)" mask="url(#outsideTarget)" fill="none" stroke="#8f6cff">
+      <circle cx="-148" r="38" stroke-width="12" opacity=".2" filter="url(#pulseHalo)"/>
+      <circle cx="-148" r="76" stroke-width="10" opacity=".15" filter="url(#pulseHalo)"/>
+      <circle cx="-148" r="38" stroke-width="5" opacity=".92" filter="url(#pulseFuzz)"/>
+      <circle cx="-148" r="76" stroke-width="3.5" opacity=".58" filter="url(#pulseFuzz)"/>
+    </g>
+    <g transform="translate(169.8 600) scale(.5)"><use href="#arrow-in"/></g>
+    <g transform="translate(297 600) scale(.78)" filter="url(#cast)"><use href="#target"/></g>
+    <g transform="translate(66 825)">
+      <text class="mono label">MATERIAL</text><text x="96" class="mono body">No deformation</text>
+      <text y="30" class="mono label">OWNER</text><text x="96" y="30" class="mono body">Tail cap + twin pulse glow</text>
+      <text y="60" class="mono label">FEEL</text><text x="96" y="60" class="mono body">Fast, exact, restrained</text>
+    </g>
+    <line x1="66" y1="927" x2="430" y2="927" class="rule"/>
+    <text x="66" y="959" class="mono small">Clear with many hits; mechanically exact.</text>
+  </g>
+
+  <!-- B -->
+  <g>
+    <rect x="494" y="270" width="412" height="730" rx="5" fill="#16130f" stroke="#2c2620"/>
+    <text x="518" y="307" class="mono eyebrow">B · PAINTED RIPPLE</text>
+    <text x="518" y="346" class="display title">EDGE KICKS THE FIELD</text>
+    <text x="518" y="372" class="mono body">A warm, uneven wave sheds from the struck edge.</text>
+    <g transform="translate(749 600) scale(.78)" mask="url(#outsideTarget)" fill="none" stroke="#8f6cff" stroke-linecap="round">
+      <path d="M-166 -21C-142 -34 -119 -18 -118 4C-116 26 -142 41 -165 25C-187 10 -187 -9 -166 -21" stroke-width="8"/>
+      <path d="M-184 -55C-141 -79 -90 -50 -86 -4C-82 44 -132 78 -181 55C-229 32 -235 -25 -184 -55" stroke-width="4" opacity=".34"/>
+    </g>
+    <g transform="translate(621.8 600) scale(.5)"><use href="#arrow-in"/></g>
+    <g transform="translate(749 600) scale(.78)" filter="url(#cast)"><use href="#target"/></g>
+    <g transform="translate(518 825)">
+      <text class="mono label">BOUNDARY</text><text x="96" class="mono body">Tiny edge compression</text>
+      <text y="30" class="mono label">OWNER</text><text x="96" y="30" class="mono body">Tail cap + painted light</text>
+      <text y="60" class="mono label">FEEL</text><text x="96" y="60" class="mono body">Tactile, warm, responsive</text>
+    </g>
+    <line x1="518" y1="927" x2="882" y2="927" class="rule"/>
+    <text x="518" y="959" class="mono small">Fits the chosen family; short decay keeps overlaps clean.</text>
+  </g>
+
+  <!-- C -->
+  <g>
+    <rect x="946" y="270" width="412" height="730" rx="5" fill="#16130f" stroke="#2c2620"/>
+    <text x="970" y="307" class="mono eyebrow">C · BACKLIGHT BLOOM</text>
+    <text x="970" y="346" class="display title">LIGHT SPILLS OFF THE EDGE</text>
+    <text x="970" y="372" class="mono body">A soft bloom hangs outside the struck edge.</text>
+    <g transform="translate(1201 600) scale(.78)" mask="url(#outsideTarget)">
+      <circle cx="-148" r="132" fill="url(#edgeBloom)"/>
+      <circle cx="-148" r="35" fill="none" stroke="#8f6cff" stroke-width="5"/>
+    </g>
+    <g transform="translate(1073.8 600) scale(.5)"><use href="#arrow-in"/></g>
+    <g transform="translate(1201 600) scale(.78)" filter="url(#cast)"><use href="#target"/></g>
+    <g transform="translate(970 825)">
+      <text class="mono label">BOUNDARY</text><text x="96" class="mono body">Face stays untouched</text>
+      <text y="30" class="mono label">OWNER</text><text x="96" y="30" class="mono body">Identity-colour light</text>
+      <text y="60" class="mono label">FEEL</text><text x="96" y="60" class="mono body">Dramatic, luminous, deep</text>
+    </g>
+    <line x1="970" y1="927" x2="1334" y2="927" class="rule"/>
+    <text x="970" y="959" class="mono small">Strong at distance; risks competing with game signals.</text>
+  </g>
+
+  <!-- Timing strip -->
+  <line x1="42" y1="1040" x2="1358" y2="1040" class="rule"/>
+  <text x="42" y="1082" class="mono eyebrow">SELECTED A TIMING · ONE HIT</text>
+  <text x="42" y="1122" class="display title">CONTACT IS SHARP. TWO SOFT-EDGED PULSES LEAVE THE TARGET AND FADE.</text>
+  <g transform="translate(142 1245)">
+    <path d="M-100 0H-65" stroke="#a65f32" stroke-width="5"/><path d="M-65 -6L-55.25 0L-65 6Z" fill="#b8bcc4" stroke="#2c2620" stroke-width="2"/>
+    <circle r="54" fill="#e7dfd0" stroke="#2c2620" stroke-width="5"/><circle r="43" fill="#292521"/><circle r="32" fill="#3b7482"/><circle r="21" fill="#a3483c"/><circle r="10" fill="#cea03a"/>
+    <text y="82" text-anchor="middle" class="mono small">CONTACT · 0 MS</text>
+  </g>
+  <path d="M236 1245H306" class="rule"/><path d="M294 1238L306 1245L294 1252" fill="#2c2620"/>
+  <g transform="translate(396 1245)">
+    <g mask="url(#outsideMini)" fill="none" stroke="#8f6cff">
+      <circle cx="-54" r="18" stroke-width="9" opacity=".2" filter="url(#pulseHalo)"/><circle cx="-54" r="18" stroke-width="4" opacity=".9" filter="url(#pulseFuzz)"/>
+    </g>
+    <path d="M-100 0H-65" stroke="#a65f32" stroke-width="5"/><path d="M-65 -6L-55.25 0L-65 6Z" fill="#b8bcc4" stroke="#2c2620" stroke-width="2"/>
+    <circle r="54" fill="#e7dfd0" stroke="#2c2620" stroke-width="5"/><circle r="43" fill="#292521"/><circle r="32" fill="#3b7482"/><circle r="21" fill="#a3483c"/><circle r="10" fill="#cea03a"/>
+    <text y="82" text-anchor="middle" class="mono small">KICK · 70 MS</text>
+  </g>
+  <path d="M490 1245H560" class="rule"/><path d="M548 1238L560 1245L548 1252" fill="#2c2620"/>
+  <g transform="translate(650 1245)">
+    <g mask="url(#outsideMini)" fill="none" stroke="#8f6cff">
+      <circle cx="-54" r="27" stroke-width="9" opacity=".18" filter="url(#pulseHalo)"/><circle cx="-54" r="51" stroke-width="8" opacity=".13" filter="url(#pulseHalo)"/>
+      <circle cx="-54" r="27" stroke-width="4" opacity=".82" filter="url(#pulseFuzz)"/><circle cx="-54" r="51" stroke-width="3" opacity=".54" filter="url(#pulseFuzz)"/>
+    </g>
+    <path d="M-100 0H-65" stroke="#a65f32" stroke-width="5"/><path d="M-65 -6L-55.25 0L-65 6Z" fill="#b8bcc4" stroke="#2c2620" stroke-width="2"/>
+    <circle r="54" fill="#e7dfd0" stroke="#2c2620" stroke-width="5"/><circle r="43" fill="#292521"/><circle r="32" fill="#3b7482"/><circle r="21" fill="#a3483c"/><circle r="10" fill="#cea03a"/>
+    <text y="82" text-anchor="middle" class="mono small">OPEN · 170 MS</text>
+  </g>
+  <path d="M744 1245H814" class="rule"/><path d="M802 1238L814 1245L802 1252" fill="#2c2620"/>
+  <g transform="translate(904 1245)">
+    <g mask="url(#outsideMini)" fill="none" stroke="#8f6cff">
+      <circle cx="-54" r="45" stroke-width="7" opacity=".1" filter="url(#pulseHalo)"/><circle cx="-54" r="68" stroke-width="7" opacity=".08" filter="url(#pulseHalo)"/>
+      <circle cx="-54" r="45" stroke-width="2.5" opacity=".34" filter="url(#pulseFuzz)"/><circle cx="-54" r="68" stroke-width="2" opacity=".2" filter="url(#pulseFuzz)"/>
+    </g>
+    <path d="M-100 0H-65" stroke="#a65f32" stroke-width="5"/><path d="M-65 -6L-55.25 0L-65 6Z" fill="#b8bcc4" stroke="#2c2620" stroke-width="2"/>
+    <circle r="54" fill="#e7dfd0" stroke="#2c2620" stroke-width="5"/><circle r="43" fill="#292521"/><circle r="32" fill="#3b7482"/><circle r="21" fill="#a3483c"/><circle r="10" fill="#cea03a"/>
+    <text y="82" text-anchor="middle" class="mono small">AFTERGLOW · 320 MS</text>
+  </g>
+  <path d="M998 1245H1068" class="rule"/><path d="M1056 1238L1068 1245L1056 1252" fill="#2c2620"/>
+  <g transform="translate(1158 1245)">
+    <path d="M-100 0H-65" stroke="#a65f32" stroke-width="5"/><path d="M-65 -6L-55.25 0L-65 6Z" fill="#b8bcc4" stroke="#2c2620" stroke-width="2"/>
+    <circle r="54" fill="#e7dfd0" stroke="#2c2620" stroke-width="5"/><circle r="43" fill="#292521"/><circle r="32" fill="#3b7482"/><circle r="21" fill="#a3483c"/><circle r="10" fill="#cea03a"/>
+    <text y="82" text-anchor="middle" class="mono small">MARK · 600 MS</text>
+  </g>
+  <line x1="42" y1="1360" x2="1358" y2="1360" class="rule"/>
+</svg>
