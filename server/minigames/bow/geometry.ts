@@ -67,3 +67,57 @@ function pointSegmentDistance(p: Vec2, a: Vec2, b: Vec2): number {
   ))
   return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy)
 }
+
+export type SweepHit = { t: number; normal: Vec2 }
+
+// First contact between translating capsules. Radius is the sum of their radii.
+// Relative motion compares shafts at the SAME time, avoiding swept-footprint
+// false positives. Directions are fixed over the sweep (no angular dynamics).
+export function sweptSegmentHit(
+  a: Vec2, b: Vec2, delta: Vec2, c: Vec2, d: Vec2, otherDelta: Vec2, radius: number,
+): SweepHit | null {
+  const relative = sub(delta, otherDelta)
+  if (segmentDistance(a, b, c, d) <= radius) {
+    let separation = sub(a, closestPointOnSegment(a, c, d).point)
+    let distance = length(separation)
+    for (const [p, start, end, sign] of [[b, c, d, 1], [c, a, b, -1], [d, a, b, -1]] as const) {
+      const candidate = scale(sub(p, closestPointOnSegment(p, start, end).point), sign)
+      if (length(candidate) < distance) {
+        separation = candidate
+        distance = length(candidate)
+      }
+    }
+    // Crossing interiors have no unique normal. Use the incoming motion;
+    // coincident stationary shafts inherit normalize's deterministic fallback.
+    return { t: 0, normal: normalize(distance > radius || distance === 0 ? scale(relative, -1) : separation) }
+  }
+  let first: SweepHit | null = null
+  // For disjoint 2D segments, first contact involves at least one endpoint.
+  for (const [p, start, end, sign] of [[a, c, d, 1], [b, c, d, 1], [c, a, b, -1], [d, a, b, -1]] as const) {
+    const hit = pointCapsuleHit(p, scale(relative, sign), start, end, radius)
+    if (hit && (!first || hit.t < first.t)) first = { t: hit.t, normal: scale(hit.normal, sign) }
+  }
+  return first
+}
+
+function pointCapsuleHit(p: Vec2, delta: Vec2, a: Vec2, b: Vec2, radius: number): SweepHit | null {
+  const end = add(p, delta)
+  let first: SweepHit | null = segmentCircleHit(p, end, a, radius)
+  const cap = segmentCircleHit(p, end, b, radius)
+  if (cap && (!first || cap.t < first.t)) first = cap
+  const shaft = sub(b, a)
+  const size = length(shaft)
+  if (size === 0) return first
+  const axis = scale(shaft, 1 / size)
+  const normal = { x: -axis.y, y: axis.x }
+  const startDistance = dot(sub(p, a), normal)
+  const normalTravel = dot(delta, normal)
+  if (normalTravel === 0) return first
+  for (const sign of [-1, 1]) {
+    const t = (sign * radius - startDistance) / normalTravel
+    if (t < 0 || t > 1 || (first && t >= first.t)) continue
+    const along = dot(sub(add(p, scale(delta, t)), a), axis)
+    if (along >= 0 && along <= size) first = { t, normal: scale(normal, sign) }
+  }
+  return first
+}

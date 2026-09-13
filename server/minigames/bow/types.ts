@@ -63,3 +63,5 @@ export type BowCommandResult =
 export type BowReleaseResult =
   | { status: 'accepted'; arrowId: string; reloadUntilMs: number }
   | { status: 'refused'; reason: 'unknown-player' | 'reloading' | 'capacity' }
+
+export type BowResult = { playerId: string; points: number; shots: number }

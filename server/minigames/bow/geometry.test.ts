@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   add, sub, scale, dot, length, normalize,
-  closestPointOnSegment, segmentCircleHit, segmentDistance,
+  closestPointOnSegment, segmentCircleHit, segmentDistance, sweptSegmentHit,
 } from './geometry.ts'
 
 test('vector helpers preserve inputs and normalize with a stable zero fallback', () => {
@@ -72,5 +72,48 @@ test('segment distance handles crossings, parallel, collinear, and degenerate sh
     const c = { x: cx, y: cy }, d = { x: dx, y: dy }
     assert.equal(segmentDistance(a, b, c, d), expected)
     assert.equal(segmentDistance(d, c, b, a), expected)
+  }
+})
+
+test('swept shafts collide at the same instant even when both finish beyond contact', () => {
+  const hit = sweptSegmentHit(
+    { x: 0, y: 0 }, { x: -48, y: 0 }, { x: 200, y: 0 },
+    { x: 100, y: 0 }, { x: 148, y: 0 }, { x: -200, y: 0 }, 8,
+  )
+  assert.ok(hit)
+  assert.ok(Math.abs(hit.t - 0.23) < 1e-9)
+  assert.deepEqual(hit.normal, { x: -1, y: 0 })
+})
+
+test('swept shaft sides and rounded ends include contact but exclude parallel near misses', () => {
+  const hit = sweptSegmentHit(
+    { x: 0, y: -20 }, { x: 0, y: -68 }, { x: 0, y: 40 },
+    { x: -24, y: 0 }, { x: 24, y: 0 }, { x: 0, y: 0 }, 8,
+  )
+  assert.ok(hit)
+  assert.ok(Math.abs(hit.t - 0.3) < 1e-9)
+  assert.deepEqual(hit.normal, { x: 0, y: -1 })
+  assert.equal(sweptSegmentHit(
+    { x: 0, y: 0 }, { x: -48, y: 0 }, { x: 200, y: 0 },
+    { x: 100, y: 8.01 }, { x: 148, y: 8.01 }, { x: -200, y: 0 }, 8,
+  ), null)
+})
+
+test('crossing swept footprints at different times are not a collision', () => {
+  assert.equal(sweptSegmentHit(
+    { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 100, y: 0 },
+    { x: 80, y: -20 }, { x: 80, y: -20 }, { x: 0, y: 100 }, 8,
+  ), null)
+})
+
+test('initial shaft overlaps, including crossings and stationary points, have finite normals', () => {
+  for (const [a, b, c, d] of [
+    [{ x: -24, y: 0 }, { x: 24, y: 0 }, { x: 0, y: -24 }, { x: 0, y: 24 }],
+    [{ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }],
+  ]) {
+    const hit = sweptSegmentHit(a, b, { x: 0, y: 0 }, c, d, { x: 0, y: 0 }, 8)
+    assert.ok(hit)
+    assert.equal(hit.t, 0)
+    assert.ok(Math.abs(Math.hypot(hit.normal.x, hit.normal.y) - 1) < 1e-9)
   }
 })
