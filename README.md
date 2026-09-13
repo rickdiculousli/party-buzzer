@@ -150,6 +150,7 @@ With a game server running:
 
 ```sh
 npm run sim -- 5 2
+npm run sim-bow -- 3 20
 npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@140 correct
 ```
 

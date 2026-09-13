@@ -18,7 +18,7 @@ body {
 
 /* Bow is intentionally geometric placeholder UI while mechanics are tested. */
 .bow-board, .bow-results { min-height: 100vh; background: var(--stage); color: var(--chalk); }
-.bow-board { display: grid; grid-template-rows: auto 1fr; padding: var(--s4); }
+.bow-board { height: 100dvh; display: grid; grid-template-rows: auto minmax(0, 1fr); padding: var(--s4); overflow: hidden; }
 .bow-board__header { display: flex; justify-content: space-between; font: 600 var(--t-lg)/1 var(--mono); }
 .bow-field { width: 100%; height: 100%; min-height: 0; }
 .bow-field__ground { fill: var(--panel); stroke: var(--rule); stroke-width: 4; }

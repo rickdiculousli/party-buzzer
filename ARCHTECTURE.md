@@ -122,7 +122,7 @@ Bow traffic uses that same continuously open WebSocket. Durable lifecycle
 changes (`ready`, `countdown`, `playing`, `results`) ride ordinary projected
 state. Aim and release inputs use `minigameInput`; accepted releases enter the
 runtime queue and receive `minigameAck` when the next fixed step fires them.
-At roughly 20 Hz, `minigameFrame` sends the shared field to the board and only
+On every runtime pump (roughly 60 Hz), `minigameFrame` sends the shared field to the board and only
 the local control projection to a participating phone. The live `BowWorld` is
 never written to snapshots. A restart or undo cannot reconstruct an in-flight
 world, so it restores the match ready to replay.
