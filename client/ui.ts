@@ -28,6 +28,8 @@ export const REFUSAL_TEXT: Record<Refusal, string> = {
   'unknown-mode': 'This room has no game by that name.',
   'unknown-duel-rule': 'This room has no duel rule by that name.',
   'no-setlist': 'There is no setlist to move through.',
+  'no-players': 'No players are connected — wait for someone to join.',
+  'minigame-active': 'A minigame is active — close it before changing the quiz.',
 }
 
 /** Accepted changes already explain themselves through the state update. */

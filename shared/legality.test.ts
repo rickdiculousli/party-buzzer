@@ -89,6 +89,14 @@ const LEGAL: Record<HostAction['a'], [State, HostAction]> = {
     return s
   })(), { a: 'setlistJump', at: 0 }],
   clearSetlist: [room(), { a: 'clearSetlist' }],
+  prepareMinigame: [room(), { a: 'prepareMinigame', id: 'bow', options: {} }],
+  startMinigame: [(() => {
+    const s = room()
+    s.players = [{ id: 'a', name: 'Ada', connected: true }]
+    return s
+  })(), { a: 'startMinigame' }],
+  cancelMinigame: [room(), { a: 'cancelMinigame' }],
+  closeMinigame: [room(), { a: 'closeMinigame' }],
 }
 
 test('every action kind has a shape it is legal in', () => {
@@ -161,6 +169,16 @@ const REFUSED: [Refusal, State, HostAction][] = [
     return s
   })(), { a: 'setMode', id: 'buzzword-bingo', options: {} }],
   ['no-setlist', room(), { a: 'setlistJump', at: 1 }],
+  ['no-players', (() => {
+    const s = room()
+    for (const player of s.players) player.connected = false
+    return s
+  })(), { a: 'startMinigame' }],
+  ['minigame-active', (() => {
+    const s = room()
+    s.minigame = { id: 'bow', matchId: 'm', phase: 'ready', options: { durationSec: 40, reloadMs: 700, seed: 1 }, participants: [] }
+    return s
+  })(), { a: 'arm' }],
 ]
 
 test('each code comes back from the shape that earns it', () => {
@@ -187,7 +205,7 @@ test('arming a LOCKED round stays legal', () => {
 test('every code in the union is covered by a case', () => {
   const codes: Refusal[] = [
     'not-idle', 'no-leader', 'already-scored', 'nothing-held',
-    'no-duel', 'duel-seated', 'unknown-mode', 'no-setlist',
+    'no-duel', 'duel-seated', 'unknown-mode', 'unknown-duel-rule', 'no-setlist', 'no-players', 'minigame-active',
   ]
   const seen = new Set(REFUSED.map(([code]) => code))
   for (const code of codes) assert.ok(seen.has(code), `no case refuses ${code}`)

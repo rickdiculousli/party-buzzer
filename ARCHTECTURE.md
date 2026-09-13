@@ -21,6 +21,7 @@ flowchart TD
     Player --> Upload["POST /spoken"]
     Upload --> Judge["Judge: answer window and verdict"]
     Hub --> State["state.ts: host actions and transitions"]
+    Hub <--> Mini["Minigame runtime: fixed-step world and frames"]
     State --> Rules["Modes, scoring, items, duels, setlists"]
     Hub --> Snapshot["snapshot.ts + state.json"]
     Hub <--> Reader["Reader: packs, playback, autoplay"]
@@ -42,6 +43,7 @@ are objects in the same process as `Hub`. The composition root is
 | Startup and transport | `server/index.ts` | Load state, construct services, HTTP(S), WebSocket, spoken uploads, shutdown flush |
 | Room coordination | `server/hub.ts` | Connections, dispatch, undo history, collection timers, role views, change notification |
 | Game transitions | `server/state.ts` | Apply host actions, distinguish outcomes, coordinate rule modules, load/save state |
+| Minigame runtime | `server/minigames/runtime.ts`, `server/minigames/bow/` | Match lifecycle, fixed-step simulation, queued releases, role frames and bow rules |
 | Buzz ranking | `server/resolve.ts` | Clamp and sort timestamps, deduplicate players, exclude lockouts |
 | Gameplay framework | `server/items.ts`, `duel.ts`, `setlist.ts`, `eligibility.ts` | Inventories/effects, seating, block progression, effect and mode eligibility |
 | Mode rules | `server/modes/` | Static registry, options, mode memory, scoring hooks and host status |
@@ -115,6 +117,20 @@ runtime publications such as fragments, revealed answers, and judge windows.
 Those paths do not automatically inherit dispatch acknowledgments or undo.
 Reader/Judge runtime publications use in-process connection objects, not an
 extra network socket.
+
+Bow traffic uses that same continuously open WebSocket. Durable lifecycle
+changes (`ready`, `countdown`, `playing`, `results`) ride ordinary projected
+state. Aim and release inputs use `minigameInput`; accepted releases enter the
+runtime queue and receive `minigameAck` when the next fixed step fires them.
+At roughly 20 Hz, `minigameFrame` sends the shared field to the board and only
+the local control projection to a participating phone. The live `BowWorld` is
+never written to snapshots. A restart or undo cannot reconstruct an in-flight
+world, so it restores the match ready to replay.
+
+The first client route is freehand Bow with geometric placeholders. Setlist
+blocks and a generic client renderer registry remain future work; the runtime
+wire envelope and lifecycle boundary are already named for additional
+minigames rather than question modes.
 
 `Hub.fragmentEnded(questionId, completed)` is a dedicated playback-to-mode
 boundary. It rejects stale questions and non-armed phases, calls the current

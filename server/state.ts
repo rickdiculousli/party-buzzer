@@ -255,6 +255,13 @@ function mutateHostAction(state: State, action: HostAction): void {
       // Handled by the hub, which owns the snapshot stack.
       return
 
+    case 'prepareMinigame':
+    case 'startMinigame':
+    case 'cancelMinigame':
+    case 'closeMinigame':
+      // Owned by MinigameRuntime through Hub.dispatch.
+      return
+
     case 'setMode': {
       // A pool was built under the old game's room; a seated pair is a
       // commitment and survives.

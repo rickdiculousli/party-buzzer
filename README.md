@@ -58,6 +58,20 @@ A **setlist** is a sequence of blocks, each choosing a game, options, value,
 duel rule, question count, and optionally a pack. A block without a pack is
 read aloud by the host. Saved setlists are JSON files in `setlists/`.
 
+### Bow minigame
+
+Bow is available as a freehand mechanics preview. Join every player before the
+match, open `/board`, then press **Prepare Bow** and **Start match** on `/host`.
+On a phone, drag down in the bow control and release. Every phone fires into the
+same server-authoritative field; target points are added to the normal scores
+once the 40-second match and three-second landing grace finish.
+
+Players who join after the host starts spectate until the next match. The host
+can cancel without awarding, replay from results, or return to quiz play. Bow
+setlist blocks and final visual styling are not implemented yet; the current
+shapes are placeholders for testing aim, release, flight, collisions, scoring,
+and simultaneous play.
+
 ## Question packs and spoken play
 
 Put `.txt` files in `packs/`, select one, and press **Read**. For example:

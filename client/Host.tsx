@@ -9,6 +9,49 @@ import { momentOf, type Moment } from '../shared/wall.ts'
 import { isPenalty } from '../shared/protocol.ts'
 import type { HostAction, ScoreKey } from '../shared/protocol.ts'
 
+function BowHost({ state, connected, act, actionMessage, now }: {
+  state: import('../shared/protocol.ts').State
+  connected: boolean
+  act: (action: HostAction) => void
+  actionMessage: string | null
+  now: () => number
+}) {
+  const session = state.minigame!
+  const remaining = session.endsAt ? Math.max(0, Math.ceil((session.endsAt - now()) / 1000)) : session.options.durationSec
+  return <main class="host bow-host">
+    <div class="host__bar">
+      <span class="host__title">Bow</span>
+      <span class="lamp"><span class={connected ? 'lamp-dot is-on' : 'lamp-dot is-off'} />{connected ? 'Connected' : 'Disconnected'}</span>
+      <span class="chip">{session.phase}</span>
+      <span class="host__spacer" />
+      <button class="btn btn--ghost" onClick={() => act({ a: 'undo' })}>Undo</button>
+    </div>
+    {actionMessage && <p class="muted" role="status">{actionMessage}</p>}
+    <section class="bow-host__panel">
+      <p class="eyebrow">Match control</p>
+      <p>{session.phase === 'playing' ? `${remaining} seconds left` : `${session.options.durationSec} second match`}</p>
+      <p class="muted">{session.participants.length} players in this match</p>
+      {session.phase === 'ready' && <div class="host__minor">
+        <button class="btn btn--major btn--primary" onClick={() => act({ a: 'startMinigame' })}>Start match</button>
+        <button class="btn" onClick={() => act({ a: 'closeMinigame' })}>Return to quiz</button>
+      </div>}
+      {(session.phase === 'countdown' || session.phase === 'playing') && <button class="btn btn--major btn--no" onClick={() => act({ a: 'cancelMinigame' })}>Cancel match</button>}
+      {session.phase === 'results' && <>
+        <ol class="host__order">
+          {session.results?.map((result) => <li key={result.playerId} class="row">
+            <span class="row__label">{state.players.find((player) => player.id === result.playerId)?.name ?? '?'}</span>
+            <span class="readout">+{result.points}</span>
+          </li>)}
+        </ol>
+        <div class="host__minor">
+          <button class="btn btn--primary" onClick={() => act({ a: 'cancelMinigame' })}>Play again</button>
+          <button class="btn" onClick={() => act({ a: 'closeMinigame' })}>Return to quiz</button>
+        </div>
+      </>}
+    </section>
+  </main>
+}
+
 /**
  * The host runs the game from a laptop and presses the same five controls all
  * night. Reaching for the mouse between every question is the single biggest
@@ -106,9 +149,12 @@ export function Host() {
   value.current = state?.round.value ?? 0
   const judgeableRef = useRef(false)
   const reopenableRef = useRef(false)
+  const minigameRef = useRef(false)
+  minigameRef.current = !!state?.minigame
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (minigameRef.current) return
       const el = e.target as HTMLElement | null
       // Never steal a keystroke from something the host is typing into.
       if (el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.isContentEditable)) return
@@ -145,6 +191,8 @@ export function Host() {
   }, [])
 
   if (!state) return <main class="host"><p class="muted">Connecting…</p></main>
+
+  if (state.minigame) return <BowHost state={state} connected={connected} act={act} actionMessage={actionMessage} now={now} />
 
   const { round } = state
   const leader = round.order[0]
@@ -263,6 +311,11 @@ export function Host() {
       </div>
 
       <section>
+        <div class="host__minor" style={{ marginBottom: 'var(--s4)' }}>
+          <button class="btn" onClick={() => act({ a: 'prepareMinigame', id: 'bow', options: {} })}>
+            Prepare Bow
+          </button>
+        </div>
         {state.setlist && (() => {
           const at = state.setlist.at
           const block = state.setlist.blocks[at]

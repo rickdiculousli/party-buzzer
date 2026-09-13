@@ -16,6 +16,7 @@ import { render as renderClip } from './speech.ts'
 import { lanAddresses, pickAddress, banner, qrFor, qrSvg } from './net.ts'
 import { certHost, ensureCert } from './cert.ts'
 import type { ClientMsg } from '../shared/protocol.ts'
+import { MinigameRuntime } from './minigames/runtime.ts'
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
 const DIST = join(ROOT, 'dist')
@@ -93,6 +94,15 @@ export async function startServer(opts: {
     tracePath: process.env.TRACE ? 'trace.jsonl' : undefined,
     onChange: (s) => saveState(statePath, s),
   })
+  const minigame = new MinigameRuntime(state, {
+    onState: (cause) => hub.minigameChanged(cause),
+    onFrame: () => hub.broadcastMinigame(),
+    onAck: (playerId, ack) => hub.acknowledgeMinigame(playerId, ack),
+    onComplete: (matchId, results) => hub.completeMinigame(matchId, results),
+  })
+  hub.setMinigameRuntime(minigame)
+  const minigameTimer = setInterval(() => minigame.pump(), 16)
+  minigameTimer.unref?.()
 
   let transcribe = opts.transcribe ?? undefined
   let realStt = false
@@ -232,6 +242,8 @@ export async function startServer(opts: {
     port: actualPort,
     hub,
     close: async () => {
+      clearInterval(minigameTimer)
+      minigame.stop()
       for (const client of wss.clients) client.terminate()
       wss.close()
       // http.close() only stops new connections and waits for existing ones to
