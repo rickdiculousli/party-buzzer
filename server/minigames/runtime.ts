@@ -58,7 +58,7 @@ export class MinigameRuntime {
       }
       const options = {
         durationSec: numberOption(action.options.durationSec, 40, 5, 180),
-        reloadMs: numberOption(action.options.reloadMs, 700, 200, 5_000),
+        reloadMs: numberOption(action.options.reloadMs, 100, 0, 5_000),
         seed: numberOption(action.options.seed, Math.floor(this.now()), 0, 2_147_483_647),
       }
       this.resetTransient()

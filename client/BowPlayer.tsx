@@ -1,6 +1,6 @@
 import { useRef, useState } from 'preact/hooks'
 import type { BowInputAck, ClientMsg, MinigameFrame, State } from '../shared/protocol.ts'
-import { aimFromDrag, canBowShoot, nextBowSequence } from './bow-control.ts'
+import { aimDegrees, aimFromDrag, canBowShoot, nextBowSequence } from './bow-control.ts'
 
 export function BowPlayer({ state, frame, now, send, ack }: {
   state: State
@@ -14,31 +14,46 @@ export function BowPlayer({ state, frame, now, send, ack }: {
   const spectator = frame?.matchId === session.matchId && frame.role === 'spectator'
   const start = useRef<{ x: number; y: number } | null>(null)
   const [aim, setAim] = useState({ angle: 0, tension: 0 })
+  // The drawn bow rests at the last shot's direction and eases toward the live aim
+  // as tension builds; the aim sent to the server is unaffected.
+  const restAngle = useRef(0)
+  // One pulse on reaching full draw. It re-arms only after tension drops below 95%,
+  // and never pulses within 100ms of the last, so hovering at the edge stays quiet.
+  const fullDrawArmed = useRef(true)
+  const lastFullDrawPulse = useRef(0)
 
   const update = (event: PointerEvent) => {
     if (!start.current) return
     const dx = event.clientX - start.current.x
     const dy = Math.max(0, event.clientY - start.current.y)
     const next = aimFromDrag(dx, dy)
+    if (next.tension < 0.95) fullDrawArmed.current = true
+    else if (next.tension >= 1 && fullDrawArmed.current && event.timeStamp - lastFullDrawPulse.current >= 100) {
+      fullDrawArmed.current = false
+      lastFullDrawPulse.current = event.timeStamp
+      navigator.vibrate?.(10)
+    }
     setAim(next)
     send({ t: 'minigameInput', matchId: session.matchId, seq: nextBowSequence(localStorage), input: { kind: 'aim', ...next } })
+    return next
   }
 
   const release = (event: PointerEvent) => {
     if (!start.current) return
-    update(event)
+    const shot = update(event)!
     start.current = null
     send({ t: 'minigameInput', matchId: session.matchId, seq: nextBowSequence(localStorage), input: { kind: 'release', at: now() } })
     navigator.vibrate?.(45)
-    setAim({ angle: 0, tension: 0 })
+    restAngle.current = shot.angle
+    setAim({ angle: shot.angle, tension: 0 })
   }
 
   const countdown = session.startsAt ? Math.max(0, Math.ceil((session.startsAt - now()) / 1000)) : 0
   const reloading = !!mine && now() < mine.player.reloadUntilMs
   const landing = session.phase === 'playing' && !!session.endsAt && now() >= session.endsAt
   const active = canBowShoot(session.phase, session.endsAt, now(), !!mine, reloading)
-  const pullX = 200 - aim.angle * 70
-  const arrowTipX = 200 + aim.angle * 95
+  const nockY = 255 + aim.tension * 190
+  const shownAngle = restAngle.current + (aim.angle - restAngle.current) * Math.min(1, aim.tension / 0.1)
 
   return (
     <main class="bow-phone">
@@ -53,18 +68,19 @@ export function BowPlayer({ state, frame, now, send, ack }: {
           if (!active) return
           ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
           start.current = { x: event.clientX, y: event.clientY }
-          setAim({ angle: 0, tension: 0 })
         }}
         onPointerMove={update}
         onPointerUp={release}
-        onPointerCancel={() => { start.current = null; setAim({ angle: 0, tension: 0 }) }}
+        onPointerCancel={() => { start.current = null; setAim((last) => ({ angle: last.angle, tension: 0 })) }}
       >
         <svg viewBox="0 0 400 600" aria-label="Bow control">
-          <path d="M 95 255 Q 200 150 305 255" class="bow-control__body" />
-          <path d={`M 95 255 L ${pullX} ${255 + aim.tension * 190} L 305 255`} class="bow-control__string" />
-          <line x1={pullX} y1={255 + aim.tension * 190} x2={arrowTipX} y2={120} class="bow-control__arrow" />
-          <circle cx={pullX} cy={255 + aim.tension * 190} r="15" class="bow-control__touch-outer" />
-          <circle cx={pullX} cy={255 + aim.tension * 190} r="7" class="bow-control__touch-inner" />
+          <g transform={`rotate(${aimDegrees(shownAngle)} 200 203)`}>
+            <path d="M 95 255 Q 200 150 305 255" class="bow-control__body" />
+            <path d={`M 95 255 L 200 ${nockY} L 305 255`} class="bow-control__string" />
+            <line x1="200" y1={nockY} x2="200" y2="120" class="bow-control__arrow" />
+            <circle cx="200" cy={nockY} r="15" class="bow-control__touch-outer" />
+            <circle cx="200" cy={nockY} r="7" class="bow-control__touch-inner" />
+          </g>
         </svg>
       </div>
     </main>

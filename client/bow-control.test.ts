@@ -7,6 +7,10 @@ test('pulling the string horizontally aims in the opposite direction', () => {
   assert.ok(aimFromDrag(-100, 100).angle > 0)
 })
 
+test('aim follows the drag direction, not its length', () => {
+  assert.equal(aimFromDrag(10, 20).angle, aimFromDrag(100, 200).angle)
+})
+
 test('bow input sequences continue across component reloads', () => {
   const values = new Map<string, string>()
   const storage = {

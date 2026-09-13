@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   add, sub, scale, dot, length, normalize,
-  closestPointOnSegment, segmentCircleHit, segmentDistance, sweptSegmentHit,
+  closestPointOnSegment, segmentCircleHit, segmentDistance, sweptSegmentHit, tipCapsuleHit,
 } from './geometry.ts'
 
 test('vector helpers preserve inputs and normalize with a stable zero fallback', () => {
@@ -112,6 +112,27 @@ test('initial shaft overlaps, including crossings and stationary points, have fi
     [{ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }],
   ]) {
     const hit = sweptSegmentHit(a, b, { x: 0, y: 0 }, c, d, { x: 0, y: 0 }, 8)
+    assert.ok(hit)
+    assert.equal(hit.t, 0)
+    assert.ok(Math.abs(Math.hypot(hit.normal.x, hit.normal.y) - 1) < 1e-9)
+  }
+})
+
+test('a moving tip hits shaft sides and rounded ends but not a parallel near miss', () => {
+  const hit = tipCapsuleHit({ x: 0, y: -20 }, { x: 0, y: 40 }, { x: -24, y: 0 }, { x: 24, y: 0 }, 4)
+  assert.ok(hit)
+  assert.ok(Math.abs(hit.t - 0.4) < 1e-9)
+  assert.deepEqual(hit.normal, { x: 0, y: -1 })
+  const end = tipCapsuleHit({ x: 0, y: 0 }, { x: 200, y: 0 }, { x: 100, y: 0 }, { x: 148, y: 0 }, 4)
+  assert.ok(end)
+  assert.ok(Math.abs(end.t - 0.48) < 1e-9)
+  assert.deepEqual(end.normal, { x: -1, y: 0 })
+  assert.equal(tipCapsuleHit({ x: 0, y: 0 }, { x: 200, y: 0 }, { x: 100, y: 4.01 }, { x: 148, y: 4.01 }, 4), null)
+})
+
+test('a tip already touching a shaft is contact now with a finite normal', () => {
+  for (const [p, delta] of [[{ x: 0, y: 2 }, { x: 0, y: 0 }], [{ x: 0, y: 0 }, { x: 0, y: 0 }]]) {
+    const hit = tipCapsuleHit(p, delta, { x: -24, y: 0 }, { x: 24, y: 0 }, 4)
     assert.ok(hit)
     assert.equal(hit.t, 0)
     assert.ok(Math.abs(Math.hypot(hit.normal.x, hit.normal.y) - 1) < 1e-9)

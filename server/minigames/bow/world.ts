@@ -1,4 +1,4 @@
-import { add, sub, scale, dot, length, normalize, segmentCircleHit, sweptSegmentHit } from './geometry.ts'
+import { add, sub, scale, dot, length, normalize, segmentCircleHit, sweptSegmentHit, tipCapsuleHit } from './geometry.ts'
 import { BOW_FIELD, BOW_STEP_MS } from './types.ts'
 import type {
   BowResult, BowArrow, Vec2, BowAim, BowCommandResult, BowConfig, BowPlayer, BowReleaseResult,
@@ -6,7 +6,7 @@ import type {
 } from './types.ts'
 
 const DEFAULT_CONFIG: Readonly<BowConfig> = {
-  reloadMs: 700,
+  reloadMs: 100,
   gravity: 980,
   minSpeed: 700,
   maxSpeed: 1500,
@@ -185,7 +185,8 @@ function lodge(world: BowWorld, arrow: BowArrow, hit: SurfaceHit): void {
 }
 
 const SHAFT_LENGTH = 48
-const PAIR_RADIUS = 8 // Two radius-4 capsules.
+const PAIR_RADIUS = 8 // Two radius-4 shafts in flight.
+const TIP_RADIUS = 4 // A flying tip point against a stuck radius-4 shaft.
 const RESTITUTION = 0.35
 const tail = (arrow: BowArrow): Vec2 => ({
   x: arrow.position.x - SHAFT_LENGTH * Math.cos(arrow.angle),
@@ -193,6 +194,8 @@ const tail = (arrow: BowArrow): Vec2 => ({
 })
 const motion = (arrow: BowArrow): Vec2 => arrow.state === 'flying' ? arrow.velocity : { x: 0, y: 0 }
 
+// Arrows in flight collide shaft to shaft. A flying arrow meets a stuck one only
+// with its tip, as `a`; the normal points from `b` toward `a`.
 function collide(a: BowArrow, b: BowArrow, normal: Vec2): number {
   const aFree = a.state === 'flying', bFree = b.state === 'flying'
   const relativeNormal = dot(sub(motion(a), motion(b)), normal)
@@ -210,11 +213,13 @@ function collide(a: BowArrow, b: BowArrow, normal: Vec2): number {
   }
   if (aFree) a.angle = Math.atan2(a.velocity.y, a.velocity.x)
   if (bFree) b.angle = Math.atan2(b.velocity.y, b.velocity.x)
-  // Reorienting a reflected arrow can put its tail through the other shaft.
-  // Return each free capsule's separation distance for a surface sweep.
-  const aMin = Math.min(dot(a.position, normal), dot(tail(a), normal))
+  // Return each free arrow's separation distance for a surface sweep. A tip
+  // clears the stuck shaft; reorienting shafts in flight can put a tail through
+  // the other, so both whole shafts clear.
   const bMax = Math.max(dot(b.position, normal), dot(tail(b), normal))
-  const separation = Math.max(0, PAIR_RADIUS + 1e-7 - (aMin - bMax))
+  const separation = aFree && bFree
+    ? Math.max(0, PAIR_RADIUS + 1e-7 - (Math.min(dot(a.position, normal), dot(tail(a), normal)) - bMax))
+    : Math.max(0, TIP_RADIUS + 1e-7 - (dot(a.position, normal) - bMax))
   return separation / (Number(aFree) + Number(bFree))
 }
 
@@ -264,9 +269,15 @@ export function stepBow(world: BowWorld): void {
       for (let j = i + 1; j < arrows.length; j++) {
         const b = arrows[j], key = `${i}:${j}`
         if (removed.has(b) || paired.has(key) || (a.state !== 'flying' && b.state !== 'flying')) continue
-        const hit = sweptSegmentHit(a.position, tail(a), scale(motion(a), remaining),
-          b.position, tail(b), scale(motion(b), remaining), PAIR_RADIUS)
-        if (hit && (!first || hit.t < first.t)) first = { ...hit, a, b, key }
+        if (a.state === 'flying' && b.state === 'flying') {
+          const hit = sweptSegmentHit(a.position, tail(a), scale(a.velocity, remaining),
+            b.position, tail(b), scale(b.velocity, remaining), PAIR_RADIUS)
+          if (hit && (!first || hit.t < first.t)) first = { ...hit, a, b, key }
+          continue
+        }
+        const [flyer, fixed] = a.state === 'flying' ? [a, b] : [b, a]
+        const hit = tipCapsuleHit(flyer.position, scale(flyer.velocity, remaining), fixed.position, tail(fixed), TIP_RADIUS)
+        if (hit && (!first || hit.t < first.t)) first = { ...hit, a: flyer, b: fixed, key }
       }
     }
     const elapsed = remaining * (first?.t ?? 1)

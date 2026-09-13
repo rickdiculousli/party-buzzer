@@ -1,5 +1,6 @@
 import type { MinigameFrame, State } from '../shared/protocol.ts'
 import { colorForPlayer } from './ui.ts'
+import { aimDegrees } from './bow-control.ts'
 
 type BoardFrame = Extract<MinigameFrame, { role: 'board' }>
 
@@ -10,7 +11,7 @@ function Arrow({ arrow, color }: { arrow: BoardFrame['arrows'][number]; color: s
   return (
     <g style={{ color }}>
       <line x1={tailX} y1={tailY} x2={arrow.position.x} y2={arrow.position.y} class="bow-field__arrow" />
-      <circle cx={arrow.position.x} cy={arrow.position.y} r="5" fill="currentColor" />
+      <circle cx={arrow.position.x} cy={arrow.position.y} r="5" class="bow-field__tip" />
     </g>
   )
 }
@@ -56,8 +57,12 @@ export function BowBoard({ state, frame, now }: { state: State; frame: MinigameF
         {board?.players.map((player) => {
           const color = colorForPlayer(state, player.id)
           const name = state.players.find((candidate) => candidate.id === player.id)?.name ?? '?'
+          const { x, y } = player.origin
           return <g key={player.id} style={{ color }}>
-            <path d={`M ${player.origin.x - 35} ${player.origin.y} Q ${player.origin.x} ${player.origin.y - 28} ${player.origin.x + 35} ${player.origin.y}`} class="bow-field__bow" />
+            <g transform={`rotate(${aimDegrees(player.aim.angle)} ${x} ${y - 14})`}>
+              <line x1={x} y1={y - 20} x2={x} y2={y - 50 - player.aim.tension * 60} class="bow-field__aim" />
+              <path d={`M ${x - 35} ${y} Q ${x} ${y - 28} ${x + 35} ${y}`} class="bow-field__bow" />
+            </g>
             <text x={player.origin.x} y={player.origin.y + 30} class="bow-field__name">{name} · {player.score}</text>
           </g>
         })}

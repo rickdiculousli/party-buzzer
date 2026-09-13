@@ -90,7 +90,7 @@ test('an accepted release fires once on the next legal fixed step', () => {
 
 test('dropped catch-up time keeps projected reload aligned with server acceptance', () => {
   const r = rig()
-  r.runtime.host({ a: 'prepareMinigame', id: 'bow', options: {} })
+  r.runtime.host({ a: 'prepareMinigame', id: 'bow', options: { reloadMs: 700 } })
   r.runtime.host({ a: 'startMinigame' })
   r.setNow(r.state.minigame!.startsAt!)
   r.runtime.pump()

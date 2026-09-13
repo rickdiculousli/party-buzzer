@@ -100,6 +100,14 @@ export function sweptSegmentHit(
   return first
 }
 
+// First contact of a moving arrow tip with a stuck arrow's shaft (a capsule).
+// Initial overlap is contact now; a tip exactly on the shaft uses the incoming motion.
+export function tipCapsuleHit(p: Vec2, delta: Vec2, a: Vec2, b: Vec2, radius: number): SweepHit | null {
+  const away = sub(p, closestPointOnSegment(p, a, b).point)
+  if (length(away) <= radius) return { t: 0, normal: normalize(length(away) === 0 ? scale(delta, -1) : away) }
+  return pointCapsuleHit(p, delta, a, b, radius)
+}
+
 function pointCapsuleHit(p: Vec2, delta: Vec2, a: Vec2, b: Vec2, radius: number): SweepHit | null {
   const end = add(p, delta)
   let first: SweepHit | null = segmentCircleHit(p, end, a, radius)

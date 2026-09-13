@@ -29,6 +29,8 @@ body {
 .bow-field__target-red { fill: #b85147; }
 .bow-field__target-yellow { fill: #d5ad45; }
 .bow-field__bow { fill: none; stroke: currentColor; stroke-width: 10; }
+.bow-field__aim { stroke: currentColor; stroke-width: 4; stroke-dasharray: 8 8; opacity: .6; }
+.bow-field__tip { fill: #b6b0a6; }
 .bow-field__arrow { stroke: currentColor; stroke-width: 7; stroke-linecap: round; transition: all 50ms linear; }
 .bow-field__name { fill: currentColor; text-anchor: middle; font: 24px var(--mono); }
 .bow-phone { min-height: 100dvh; display: grid; grid-template-rows: auto 1fr; background: var(--stage); color: var(--chalk); touch-action: none; }

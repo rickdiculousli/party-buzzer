@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BOW_FIELD, BOW_STEP_MS } from './types.ts'
 import type { BowArrow, BowWorld, CreateBowWorld } from './types.ts'
-import { segmentDistance } from './geometry.ts'
+import { closestPointOnSegment, segmentDistance } from './geometry.ts'
 import { createBowWorld, releaseBow, setBowAim, stepBow, sampleBowTrajectory, bowResults } from './world.ts'
 
 const world = () => createBowWorld({
@@ -95,7 +95,7 @@ test('release maps angle to 65 degrees from up and tension to configured speed',
     for (const tension of [0, 0.5, 1]) {
       const w = createBowWorld({ seed: 1, playerIds: ['ada'], targets: [], config: { minSpeed: 600, maxSpeed: 1200 } })
       setBowAim(w, 'ada', { angle, tension })
-      assert.deepEqual(releaseBow(w, 'ada'), { status: 'accepted', arrowId: 'arrow-0', reloadUntilMs: 700 })
+      assert.deepEqual(releaseBow(w, 'ada'), { status: 'accepted', arrowId: 'arrow-0', reloadUntilMs: 100 })
       const arrow = w.arrows[0]
       near(Math.hypot(arrow.velocity.x, arrow.velocity.y), 600 + 600 * tension)
       near(Math.atan2(arrow.velocity.x, -arrow.velocity.y), angle * 65 * Math.PI / 180)
@@ -285,6 +285,12 @@ test('bottom exits remove misses and earlier surfaces win regardless of target o
 const tail = (a: BowArrow) => ({
   x: a.position.x - 48 * Math.cos(a.angle), y: a.position.y - 48 * Math.sin(a.angle),
 })
+const tipGap = (tip: BowArrow, shaft: BowArrow) => {
+  const { point } = closestPointOnSegment(tip.position, shaft.position, tail(shaft))
+  return Math.hypot(tip.position.x - point.x, tip.position.y - point.y)
+}
+const stuck = (id: string, x: number, y: number, angle: number): BowArrow =>
+  ({ ...arrow(id, x, y, 0, 0), angle, state: 'lodged-boundary', lodgedAtMs: 0 })
 
 test('a lodged shaft deflects a swept arrow, loses energy, and kicks without moving', () => {
   const w = empty()
@@ -297,7 +303,7 @@ test('a lodged shaft deflects a swept arrow, loses energy, and kicks without mov
   assert.equal(flying.state, 'flying')
   assert.ok(flying.velocity.x < 0)
   near(Math.hypot(flying.velocity.x, flying.velocity.y), 9600)
-  assert.ok(segmentDistance(flying.position, tail(flying), fixed.position, tail(fixed)) > 8)
+  assert.ok(tipGap(flying, fixed) > 4)
   assert.ok(Math.abs(fixed.tailKick) > 0 && Math.abs(fixed.tailKick) <= 1)
   assert.deepEqual({ ...fixed, tailKick: 0 }, before)
   const kick = Math.abs(fixed.tailKick)
@@ -336,9 +342,19 @@ test('parallel near misses and separated moving-away arrows keep their velocity'
   }
 })
 
+test('a tip passing just outside a stuck shaft, or moving away from it, keeps its velocity', () => {
+  for (const [y, vx] of [[495.99, 12000], [500, -600]]) {
+    const w = empty()
+    const a = arrow('a', 700, y, vx, 0)
+    w.arrows.push(a, stuck('fixed', 848, 500, 0))
+    stepBow(w)
+    assert.deepEqual(a.velocity, { x: vx, y: 0 })
+  }
+})
+
 test('simultaneous collision pairs resolve identically in lexical id order', () => {
   const a = empty(), b = empty()
-  a.arrows = [arrow('arrow-2', 800, 500, 0, 0), arrow('arrow-10', 652, 500, 12000, 0), arrow('arrow-1', 900, 500, -12000, 0)]
+  a.arrows = [stuck('arrow-2', 800, 500, 0), arrow('arrow-10', 652, 500, 12000, 0), arrow('arrow-1', 900, 500, -12000, 0)]
   b.arrows = structuredClone(a.arrows).reverse()
   stepBow(a); stepBow(b)
   assert.notEqual(a.arrows.find(a => a.id === 'arrow-10')?.velocity.x, 12000)
@@ -442,8 +458,8 @@ test('results include every player and sort by score, shots, then lexical id wit
 test('collision separation near an edge cannot leave a flying tip outside the field', () => {
   const w = empty()
   w.arrows = [
-    { ...arrow('fixed', 40, 524, 0, 0), angle: Math.PI / 2, state: 'lodged-boundary', lodgedAtMs: 0 },
-    arrow('flying', 20, 500, 1200, 0),
+    stuck('fixed', 3, 524, Math.PI / 2),
+    arrow('flying', 1, 500, 1200, 0),
   ]
   stepBow(w)
   const a = w.arrows[1]
@@ -453,8 +469,8 @@ test('collision separation near an edge cannot leave a flying tip outside the fi
 })
 
 for (const [name, x, radius, entryX] of [
-  ['cannot skip a target', 765, 10, 775],
-  ['stops at the target perimeter', 730, 40, 770],
+  ['cannot skip a target', 797.5, 1, 798.5],
+  ['stops at the target perimeter', 757, 40, 797],
 ] as const) {
   test(`collision separation ${name}`, () => {
     for (const reverse of [false, true]) {
@@ -463,9 +479,10 @@ for (const [name, x, radius, entryX] of [
         { id: 'earlier', center: { x, y: 500 }, radius },
         { id: 'later', center: { x: 720, y: 500 }, radius: 10 },
       ]
-      const flying = arrow('flying', 780, 500, 1200, 0)
+      // Starting inside the shaft's radius forces a 3.5-unit separation push.
+      const flying = arrow('flying', 799.5, 500, 1200, 0)
       w.arrows = [
-        { ...arrow('fixed', 800, 524, 0, 0), angle: Math.PI / 2, state: 'lodged-boundary', lodgedAtMs: 0 },
+        stuck('fixed', 800, 524, Math.PI / 2),
         flying,
       ]
       if (reverse) { w.arrows.reverse(); w.targets.reverse() }
