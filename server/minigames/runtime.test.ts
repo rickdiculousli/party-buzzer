@@ -52,6 +52,18 @@ test('countdown publishes frames so every surface can advance its clock', () => 
   assert.equal(r.state.minigame?.phase, 'countdown')
 })
 
+test('playing publishes a fresh frame on every 16ms runtime pump', () => {
+  const r = rig()
+  r.runtime.host({ a: 'prepareMinigame', id: 'bow', options: {} })
+  r.runtime.host({ a: 'startMinigame' })
+  r.setNow(r.state.minigame!.startsAt!)
+  r.runtime.pump()
+  const before = r.frames.length
+  r.advance(16)
+  r.advance(16)
+  assert.equal(r.frames.length, before + 2)
+})
+
 test('an accepted release fires once on the next legal fixed step', () => {
   const r = rig()
   r.runtime.host({ a: 'prepareMinigame', id: 'bow', options: { durationSec: 10, seed: 7 } })

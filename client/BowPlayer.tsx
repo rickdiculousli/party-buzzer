@@ -37,6 +37,8 @@ export function BowPlayer({ state, frame, now, send, ack }: {
   const reloading = !!mine && now() < mine.player.reloadUntilMs
   const landing = session.phase === 'playing' && !!session.endsAt && now() >= session.endsAt
   const active = canBowShoot(session.phase, session.endsAt, now(), !!mine, reloading)
+  const pullX = 200 - aim.angle * 70
+  const arrowTipX = 200 + aim.angle * 95
 
   return (
     <main class="bow-phone">
@@ -59,10 +61,10 @@ export function BowPlayer({ state, frame, now, send, ack }: {
       >
         <svg viewBox="0 0 400 600" aria-label="Bow control">
           <path d="M 95 255 Q 200 150 305 255" class="bow-control__body" />
-          <path d={`M 95 255 L ${200 + aim.angle * 70} ${255 + aim.tension * 190} L 305 255`} class="bow-control__string" />
-          <line x1={200 + aim.angle * 70} y1={255 + aim.tension * 190} x2={200 + aim.angle * 95} y2={120} class="bow-control__arrow" />
-          <circle cx={200 + aim.angle * 70} cy={255 + aim.tension * 190} r="15" class="bow-control__touch-outer" />
-          <circle cx={200 + aim.angle * 70} cy={255 + aim.tension * 190} r="7" class="bow-control__touch-inner" />
+          <path d={`M 95 255 L ${pullX} ${255 + aim.tension * 190} L 305 255`} class="bow-control__string" />
+          <line x1={pullX} y1={255 + aim.tension * 190} x2={arrowTipX} y2={120} class="bow-control__arrow" />
+          <circle cx={pullX} cy={255 + aim.tension * 190} r="15" class="bow-control__touch-outer" />
+          <circle cx={pullX} cy={255 + aim.tension * 190} r="7" class="bow-control__touch-inner" />
         </svg>
       </div>
     </main>
