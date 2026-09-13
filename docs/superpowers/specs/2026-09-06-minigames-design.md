@@ -11,6 +11,12 @@ This document defines behavior and ownership. The visual language,
 microinteractions, motion studies, and impact feedback belong in a separate
 design document supported by comparative SVG studies.
 
+**Implementation note, 2026-09-11:** Build and validate the mechanics with
+plain geometric placeholders before returning to visual design. The September
+6 visual studies were exploratory and are not implementation references. A
+future visual pass must first establish one coherent style for the whole
+minigame, then apply it consistently to individual components.
+
 ## Decisions
 
 - A minigame is a normal setlist block and contributes to the existing scores
@@ -326,9 +332,12 @@ reconnection, multi-device synchronization, and board readability.
 The completed change runs the focused tests, `npm test`, `npm run typecheck`,
 and `npm run build`.
 
-## Separate visual design
+## Deferred visual design
 
-The following deserves its own design and review cycle before implementation:
+The first implementation uses plain shapes, existing typography, and existing
+color tokens only where they convey identity, measurement, or state. It does
+not reproduce the exploratory artwork. After the mechanics are playable, the
+following deserves a new design and review cycle:
 
 - field composition, target and bow silhouettes, and depth treatment;
 - target hit ownership, including identity-coloured ripple or glow studies;
@@ -339,10 +348,9 @@ The following deserves its own design and review cycle before implementation:
 - feedback priority when several impacts happen together;
 - reduced-motion versions and performance fallbacks.
 
-That process should present two or three comparative SVG treatments for each
-material decision, including key animation frames where motion carries the
-meaning. Approved studies become the source for a visual/microinteraction spec
-and real-component motion scenarios.
+That process begins with a single coherent field, material, typography, and
+motion direction. Only after that direction is accepted should it present
+component variants or real-component motion scenarios.
 
 ## Deferred scope
 

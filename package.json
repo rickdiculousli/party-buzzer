@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node server/index.ts",
+    "kill": "sh -c 'pid=$(lsof -tiTCP:8080 -sTCP:LISTEN); test -z \"$pid\" || kill $pid'",
     "dev": "vite",
     "build": "vite build",
     "sim": "node tools/sim.ts",
