@@ -186,10 +186,7 @@ export class MinigameRuntime {
       this.skippedMs += this.accumulator - remainder
       this.accumulator = remainder
     }
-    if (now - this.lastFrame >= FRAME_MS) {
-      this.lastFrame = now
-      this.hooks.onFrame()
-    }
+    this.hooks.onFrame()
     if (!this.completed && now >= session.endsAt + LANDING_GRACE_MS) {
       this.completed = true
       this.hooks.onComplete(session.matchId, bowResults(this.world))

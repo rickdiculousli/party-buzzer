@@ -1,6 +1,6 @@
 export function aimFromDrag(dx: number, dy: number) {
   return {
-    angle: Math.max(-1, Math.min(1, dx / 140)),
+    angle: Math.max(-1, Math.min(1, -dx / 140)),
     tension: Math.max(0, Math.min(1, Math.hypot(dx, Math.max(0, dy)) / 220)),
   }
 }

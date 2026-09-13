@@ -2,9 +2,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { aimFromDrag, canBowShoot, nextBowSequence } from './bow-control.ts'
 
-test('drag direction matches the horizontal direction sent to the bow world', () => {
-  assert.ok(aimFromDrag(100, 100).angle > 0)
-  assert.ok(aimFromDrag(-100, 100).angle < 0)
+test('pulling the string horizontally aims in the opposite direction', () => {
+  assert.ok(aimFromDrag(100, 100).angle < 0)
+  assert.ok(aimFromDrag(-100, 100).angle > 0)
 })
 
 test('bow input sequences continue across component reloads', () => {
