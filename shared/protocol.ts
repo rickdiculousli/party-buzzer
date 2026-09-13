@@ -234,6 +234,66 @@ export type ReadingState = {
 
 export type ReadingUpdate = { progress: ReadingState; active: boolean }
 
+export type MinigamePhase = 'ready' | 'countdown' | 'playing' | 'results'
+export type MinigameResult = { playerId: PlayerId; points: number; shots: number }
+export type MinigameState = {
+  id: 'bow'
+  matchId: string
+  phase: MinigamePhase
+  options: { durationSec: number; reloadMs: number; seed: number }
+  participants: PlayerId[]
+  startsAt?: number
+  endsAt?: number
+  results?: MinigameResult[]
+}
+
+export type BowInput =
+  | { kind: 'aim'; angle: number; tension: number }
+  | { kind: 'release'; at: number }
+
+export type BowInputMsg = {
+  t: 'minigameInput'
+  matchId: string
+  seq: number
+  input: BowInput
+}
+
+export type BowInputAck = {
+  matchId: string
+  seq: number
+  status: 'accepted' | 'refused'
+  reason?: 'stale-match' | 'not-playing' | 'not-participant' | 'invalid' | 'reloading' | 'capacity'
+}
+
+export type BowFramePlayer = {
+  id: PlayerId
+  origin: { x: number; y: number }
+  aim: { angle: number; tension: number }
+  score: number
+  reloadUntilMs: number
+}
+
+export type BowFrameArrow = {
+  id: string
+  playerId: PlayerId
+  position: { x: number; y: number }
+  angle: number
+  state: 'flying' | 'lodged-target' | 'lodged-boundary'
+  tailKick: number
+}
+
+type BowFrameBase = { id: 'bow'; matchId: string; tick: number; serverTime: number }
+export type MinigameFrame =
+  | (BowFrameBase & {
+      role: 'board'
+      field: { width: number; height: number }
+      targets: { id: string; center: { x: number; y: number }; radius: number }[]
+      players: BowFramePlayer[]
+      arrows: BowFrameArrow[]
+    })
+  | (BowFrameBase & { role: 'player'; player: BowFramePlayer; trajectory: { x: number; y: number }[] })
+  | (BowFrameBase & { role: 'spectator' })
+
 /**
  * Autoplay: the two beats a human host provides by instinct and the reader
  * otherwise waits on forever. `on` only removes keypresses — the host still
@@ -281,6 +341,8 @@ export type State = {
   /** Public gameplay fact, independent of private pack progress. */
   readingActive: boolean
   reading?: ReadingState
+  /** Durable lifecycle only. The live world travels in role-specific frames. */
+  minigame?: MinigameState
 }
 
 export type HostAction =
@@ -313,6 +375,10 @@ export type HostAction =
   | { a: 'setSetlist'; blocks: SetlistBlock[] }
   | { a: 'setlistJump'; at: number }
   | { a: 'clearSetlist' }
+  | { a: 'prepareMinigame'; id: 'bow'; options: Record<string, unknown> }
+  | { a: 'startMinigame' }
+  | { a: 'cancelMinigame' }
+  | { a: 'closeMinigame' }
 
 export type ClientMsg =
   | { t: 'hello'; role: Role; playerId?: PlayerId; name?: string }
@@ -321,12 +387,15 @@ export type ClientMsg =
   | { t: 'host'; action: HostAction }
   /** Module and item actions. Dispatched by the hub; unknown acts are dropped. */
   | { t: 'act'; act: string; data?: unknown }
+  | BowInputMsg
 
 export type ServerMsg =
   | { t: 'welcome'; playerId: PlayerId; serverTime: number }
   | { t: 'pong'; t0: number; serverTime: number }
   | { t: 'state'; state: State }
   | { t: 'actionResult'; action: HostAction['a'] | 'loadSetlist'; result: ActionResult }
+  | { t: 'minigameFrame'; frame: MinigameFrame }
+  | { t: 'minigameAck'; ack: BowInputAck }
 
 /** A command outcome, distinct from the state updates it may produce. */
 export type ActionResult =

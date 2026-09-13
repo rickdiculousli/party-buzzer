@@ -109,3 +109,23 @@ test('undo publishes a complete restoration after stopping reader runtime', () =
   hub.dispatch({ a: 'undo' })
   assert.deepEqual(values, [400, 100], 'no intermediate pre-restore frame reaches subscribers')
 })
+
+test('preparing a minigame stops reader work before the new state is published', () => {
+  const { state, hub, host, changes } = rig()
+  let stopped = 0
+  hub.setReader({ async select() {}, start() {}, pause() {}, resume() {}, rewind() {}, stop() { stopped++ } })
+  hub.setMinigameRuntime({
+    host() {
+      state.minigame = { id: 'bow', matchId: 'm', phase: 'ready', options: { durationSec: 40, reloadMs: 700, seed: 1 }, participants: [] }
+      return { status: 'applied' }
+    },
+  } as never)
+  host.send = (message) => {
+    if (message.t === 'state') assert.equal(stopped, 1, 'reader stops before the minigame state broadcast')
+  }
+
+  hub.handle(host, { t: 'host', action: { a: 'prepareMinigame', id: 'bow', options: {} } })
+
+  assert.equal(stopped, 1)
+  assert.deepEqual(changes, ['IDLE'])
+})

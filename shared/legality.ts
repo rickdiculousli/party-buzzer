@@ -62,9 +62,16 @@ export type Refusal =
   | 'unknown-mode'
   | 'unknown-duel-rule'
   | 'no-setlist'
+  | 'no-players'
+  | 'minigame-active'
 
 export function refuses(s: State, a: HostAction): Refusal | null {
   const r = s.round
+
+  if (s.minigame && ![
+    'undo', 'setScore', 'rename', 'kick',
+    'prepareMinigame', 'startMinigame', 'cancelMinigame', 'closeMinigame',
+  ].includes(a.a)) return 'minigame-active'
 
   // Annotated, not inferred: without it this widens to `string | null` and the
   // return type stops checking anything — every code in the switch would typecheck
@@ -144,6 +151,15 @@ export function refuses(s: State, a: HostAction): Refusal | null {
     // `undo` case is an empty `return`, which reads like a refusal and is not
     // one. It is always legal; there is simply nobody here to serve it.
     case 'undo':
+      return null
+
+    case 'prepareMinigame':
+      return idle ?? (s.minigame?.phase === 'playing' || s.minigame?.phase === 'countdown' ? 'not-idle' : null)
+
+    case 'startMinigame':
+      return s.players.some((player) => player.connected) ? null : 'no-players'
+    case 'cancelMinigame':
+    case 'closeMinigame':
       return null
 
     // The round moves. `next` and `resetRound` are how a host gets *out* of a

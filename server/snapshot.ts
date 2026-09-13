@@ -44,6 +44,17 @@ export function restoreGame(state: State, snapshot: GameSnapshot): void {
       if (effect.attemptId !== undefined) effect.attemptId = state.round.attemptId
     }
   }
+  if (state.minigame?.phase === 'countdown' || state.minigame?.phase === 'playing') {
+    state.minigame = {
+      ...state.minigame,
+      matchId: randomUUID(),
+      phase: 'ready',
+      participants: [],
+      startsAt: undefined,
+      endsAt: undefined,
+      results: undefined,
+    }
+  }
 }
 
 /** Versioned disk data intentionally excludes the question and all runtime state. */
@@ -63,6 +74,11 @@ export function persistedSnapshot(state: State) {
       mirrorFragments: state.mirrorFragments,
       answerWindowSec: state.answerWindowSec,
       autoplay: state.autoplay,
+      minigame: state.minigame && (state.minigame.phase === 'ready' || state.minigame.phase === 'results')
+        ? state.minigame
+        : state.minigame
+          ? { ...state.minigame, matchId: randomUUID(), phase: 'ready' as const, participants: [], startsAt: undefined, endsAt: undefined, results: undefined }
+          : undefined,
     },
   }
 }

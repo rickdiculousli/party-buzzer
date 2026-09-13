@@ -614,6 +614,9 @@ disagree, the code is what gets renamed.
 - **wall / stage** — `board__wall` renders the `Wall`. `--stage` is only the
   backdrop colour, and the word belongs to the theatrical metaphor, never to
   a region or a position in a sequence.
+- **match / minigame / field** — a match is one synchronized minigame
+  start-to-results cycle; a minigame is the kind of play; its shared 2D space
+  is the field. A match is not a question, and the field is not the stage.
 
 ---
 

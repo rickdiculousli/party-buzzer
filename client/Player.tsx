@@ -8,6 +8,7 @@ import { momentOf, phoneOf } from '../shared/wall.ts'
 import type { Mood } from '../shared/wall.ts'
 import type { State } from '../shared/protocol.ts'
 import { scoreKey } from '../shared/scoring.ts'
+import { BowPlayer } from './BowPlayer.tsx'
 
 /** `phoneOf` names the mood; the stylesheet is where it becomes a colour. */
 const MOOD_CLASS: Record<Mood, string> = {
@@ -66,7 +67,7 @@ function StandingsDial({ state }: { state: State }) {
 }
 
 export function Player() {
-  const { state, playerId, connected, now, send } = useSocket('player')
+  const { state, playerId, connected, now, send, minigameFrame, minigameAck } = useSocket('player')
   const [name, setName] = useState(() => localStorage.getItem('playerName') ?? '')
   // Always start behind the tap, even for a phone we recognise. Audio only
   // unlocks inside a user gesture, so skipping the tap means silence all game.
@@ -186,6 +187,8 @@ export function Player() {
       </main>
     )
   }
+
+  if (state?.minigame) return <BowPlayer state={state} frame={minigameFrame} now={now} send={send} ack={minigameAck} />
 
   const buzz = () => {
     if (!open || barred || pressed || frozen || spectator) return

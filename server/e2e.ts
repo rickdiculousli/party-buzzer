@@ -17,6 +17,8 @@ export class FakeClient {
   playerId = ''
   states: State[] = []
   results: Extract<ServerMsg, { t: 'actionResult' }>[] = []
+  minigameFrames: Extract<ServerMsg, { t: 'minigameFrame' }>[] = []
+  minigameAcks: Extract<ServerMsg, { t: 'minigameAck' }>[] = []
   offset = 0
   private url: string
   private role: Role
@@ -39,6 +41,8 @@ export class FakeClient {
       const msg = JSON.parse(ev.data as string) as ServerMsg
       if (msg.t === 'state') this.states.push(msg.state)
       else if (msg.t === 'actionResult') this.results.push(msg)
+      else if (msg.t === 'minigameFrame') this.minigameFrames.push(msg)
+      else if (msg.t === 'minigameAck') this.minigameAcks.push(msg)
       else if (msg.t === 'welcome') this.playerId = msg.playerId
       else if (msg.t === 'pong') {
         this.offset = msg.serverTime - (msg.t0 + performance.now()) / 2

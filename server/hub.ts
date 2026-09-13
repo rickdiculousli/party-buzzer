@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { resolveBuzzes, type RawBuzz, type Resolved } from './resolve.ts'
 import { applyHostAction } from './state.ts'
 import { buzzBlockReason } from './eligibility.ts'
-import { lockedPlayerIds } from '../shared/scoring.ts'
+import { bump, lockedPlayerIds, scoreKey } from '../shared/scoring.ts'
 import { catalog, moduleFor } from './modes/index.ts'
 import { useItem } from './items.ts'
 import { duelAct, duelCatalog } from './duel.ts'
@@ -12,6 +12,7 @@ import { refuses } from '../shared/legality.ts'
 import { COLLECT_MS } from '../shared/protocol.ts'
 import { makeTracer, type Tracer } from './trace.ts'
 import { gameSnapshot, restoreGame, type GameSnapshot } from './snapshot.ts'
+import type { MinigameRuntime } from './minigames/runtime.ts'
 import type {
   ClientMsg, PlayerId, Role, ServerMsg, State, ReadingUpdate, HostAction, ActionResult,
 } from '../shared/protocol.ts'
@@ -31,7 +32,7 @@ export type Conn = {
 const UNDO_DEPTH = 20
 
 /** Host actions that end or restart the question, and so close collection. */
-const RESETS = new Set(['arm', 'wrong', 'correct', 'next', 'resetRound', 'undo'])
+const RESETS = new Set(['arm', 'wrong', 'correct', 'next', 'resetRound', 'undo', 'prepareMinigame', 'startMinigame', 'cancelMinigame', 'closeMinigame'])
 
 /**
  * How long after the first buzz the room sees a provisional leader. This is
@@ -83,6 +84,7 @@ export class Hub {
   private setlistDir: string | undefined
   private trace: Tracer
   private restoring = false
+  private minigame: MinigameRuntime | undefined
 
   constructor(state: State, opts: HubOpts = {}) {
     this.state = state
@@ -127,6 +129,10 @@ export class Hub {
     this.reader = reader
   }
 
+  setMinigameRuntime(runtime: MinigameRuntime): void {
+    this.minigame = runtime
+  }
+
   /** Internal reader/judge publications use the same handler as wire messages. */
   send(conn: Conn, msg: ClientMsg): void {
     this.handle(conn, msg)
@@ -157,6 +163,10 @@ export class Hub {
       case 'act':
         this.act(conn, msg.act, msg.data)
         return
+
+      case 'minigameInput':
+        if (conn.role === 'player' && conn.playerId) this.minigame?.input(conn.playerId, msg)
+        return
     }
   }
 
@@ -165,6 +175,25 @@ export class Hub {
     let result: ActionResult
     if (action.a === 'undo') {
       result = { status: this.undo() ? 'applied' : 'unchanged' }
+    } else if (
+      action.a === 'prepareMinigame' || action.a === 'startMinigame' ||
+      action.a === 'cancelMinigame' || action.a === 'closeMinigame'
+    ) {
+      const before = gameSnapshot(this.state)
+      const reason = refuses(this.state, action)
+      result = reason ? { status: 'refused', reason } : this.minigame?.host(action) ?? { status: 'unchanged' }
+      if (result.status === 'applied') {
+        if (action.a === 'prepareMinigame') {
+          this.restoring = true
+          try {
+            this.reader?.stop()
+          } finally {
+            this.restoring = false
+          }
+        }
+        this.history.push(before)
+        if (this.history.length > UNDO_DEPTH) this.history.shift()
+      }
     } else {
       const before = gameSnapshot(this.state)
       result = applyHostAction(this.state, action)
@@ -176,6 +205,7 @@ export class Hub {
     if (result.status === 'applied') {
       if (RESETS.has(action.a)) this.clearWindow()
       this.changed(`host:${action.a}`)
+      if (action.a === 'startMinigame') this.broadcastMinigame()
     }
     return result
   }
@@ -436,6 +466,7 @@ export class Hub {
     this.restoring = true
     try {
       this.reader?.stop()
+      this.minigame?.stop()
       restoreGame(this.state, prev)
     } finally {
       this.restoring = false
@@ -494,6 +525,34 @@ export class Hub {
     for (const conn of this.conns) {
       conn.send({ t: 'state', state: this.viewFor(conn) })
     }
+  }
+
+  minigameChanged(cause: string): void {
+    this.changed(cause)
+  }
+
+  broadcastMinigame(): void {
+    if (!this.minigame) return
+    for (const conn of this.conns) {
+      const frame = this.minigame.frameFor(conn.role, conn.playerId)
+      if (frame) conn.send({ t: 'minigameFrame', frame })
+    }
+  }
+
+  acknowledgeMinigame(playerId: PlayerId, ack: import('../shared/protocol.ts').BowInputAck): void {
+    for (const conn of this.conns) {
+      if (conn.role === 'player' && conn.playerId === playerId) conn.send({ t: 'minigameAck', ack })
+    }
+  }
+
+  completeMinigame(matchId: string, results: import('../shared/protocol.ts').MinigameResult[]): void {
+    if (!this.minigame || this.state.minigame?.matchId !== matchId) return
+    const before = gameSnapshot(this.state)
+    if (!this.minigame.finish(matchId, results)) return
+    for (const result of results) bump(this.state, scoreKey(this.state, result.playerId), result.points)
+    this.history.push(before)
+    if (this.history.length > UNDO_DEPTH) this.history.shift()
+    this.changed('minigame:results')
   }
 
   private changed(cause = 'change'): void {

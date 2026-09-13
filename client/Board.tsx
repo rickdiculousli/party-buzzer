@@ -8,6 +8,7 @@ import { wallOf, type Wall } from '../shared/wall.ts'
 import { isPenalty } from '../shared/protocol.ts'
 import { useReveal } from './useReveal.ts'
 import { COLLECT_MS, type BuzzEntry, type State } from '../shared/protocol.ts'
+import { BowBoard } from './BowBoard.tsx'
 
 type Mark = BuzzEntry & { lane: number }
 
@@ -196,7 +197,7 @@ function Question({ whole, shown }: { whole?: string; shown: string }) {
 }
 
 export function Board() {
-  const { state, now, connected } = useSocket('board')
+  const { state, now, connected, minigameFrame } = useSocket('board')
   // The big screen is what the room watches, so it must not light up before
   // the phones do. Same countdown to armedAt as every other surface.
   const { open, delay } = useOpen(state?.round, now)
@@ -299,6 +300,7 @@ export function Board() {
   const { settled, retired, onSettled } = useReveal(state?.round)
 
   if (!state) return <main class="board"><p class="board__idle">Connecting</p></main>
+  if (state.minigame) return <BowBoard state={state} frame={minigameFrame} now={now} />
 
   const { round } = state
   /**
