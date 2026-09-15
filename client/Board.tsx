@@ -8,7 +8,7 @@ import { wallOf, type Wall } from '../shared/wall.ts'
 import { isPenalty } from '../shared/protocol.ts'
 import { useReveal } from './useReveal.ts'
 import { COLLECT_MS, type BuzzEntry, type State } from '../shared/protocol.ts'
-import { BowBoard } from './BowBoard.tsx'
+import { MINIGAME_BOARDS } from './minigames.tsx'
 
 type Mark = BuzzEntry & { lane: number }
 
@@ -300,7 +300,10 @@ export function Board() {
   const { settled, retired, onSettled } = useReveal(state?.round)
 
   if (!state) return <main class="board"><p class="board__idle">Connecting</p></main>
-  if (state.minigame) return <BowBoard state={state} frame={minigameFrame} now={now} />
+  if (state.minigame) {
+    const Surface = MINIGAME_BOARDS[state.minigame.id]
+    return <Surface state={state} frame={minigameFrame} now={now} />
+  }
 
   const { round } = state
   /**

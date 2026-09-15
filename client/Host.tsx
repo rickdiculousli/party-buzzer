@@ -20,7 +20,7 @@ function BowHost({ state, connected, act, actionMessage, now }: {
   const remaining = session.endsAt ? Math.max(0, Math.ceil((session.endsAt - now()) / 1000)) : session.options.durationSec
   return <main class="host bow-host">
     <div class="host__bar">
-      <span class="host__title">Bow</span>
+      <span class="host__title">{session.id === 'tank' ? 'Tank battle' : 'Bow'}</span>
       <span class="lamp"><span class={connected ? 'lamp-dot is-on' : 'lamp-dot is-off'} />{connected ? 'Connected' : 'Disconnected'}</span>
       <span class="chip">{session.phase}</span>
       <span class="host__spacer" />
@@ -314,6 +314,9 @@ export function Host() {
         <div class="host__minor" style={{ marginBottom: 'var(--s4)' }}>
           <button class="btn" onClick={() => act({ a: 'prepareMinigame', id: 'bow', options: {} })}>
             Prepare Bow
+          </button>
+          <button class="btn" onClick={() => act({ a: 'prepareMinigame', id: 'tank', options: { durationSec: 60 } })}>
+            Prepare Tank
           </button>
         </div>
         {state.setlist && (() => {
