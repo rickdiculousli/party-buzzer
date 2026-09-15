@@ -16,7 +16,7 @@ Mechanics come first with placeholder shapes, as for bow.
 ## Decisions
 
 - Timed free-for-all. Destroyed tanks respawn; nobody sits out.
-- Crews are random pairs made at **Prepare**, with random roles. An odd player
+- Crews are random pairs made at **Start**, when participants are fixed, with random roles. An odd player
   out gets a solo tank and a phone showing both control panels. Replay
   reshuffles.
 - A wheel's rotation maps to heading at a fixed gear ratio with no rate cap.
@@ -46,6 +46,7 @@ the spawn corners clear. Spawn points are symmetric around the field.
 - Gun world direction is hull heading plus turret angle. When the hull turns,
   the gun swings with it.
 - A tank is stopped by cover cells, edge walls, and other tanks.
+- Tanks collide and are hit as 22 px circles.
 
 ### Weapons
 
@@ -121,8 +122,8 @@ and grace rules.
 
 - Board: tanks (position, hull angle, turret angle, HP, respawn state and
   countdown, invulnerability), projectiles, blasts from the last step, and
-  cover cells changed that step as indices. The full cover grid is sent at
-  countdown and whenever a board connects.
+  cover cells changed that step as indices. The full cover grid is sent on
+  the first frame and then once per second.
 - Player: own crew's HP, respawn state, gun clip count, and reload progress
   for each weapon.
 
@@ -153,10 +154,11 @@ other turns the wheel.
 
 ### Board
 
-Cover draws on a `<canvas>` at the fixed 1600×900 field size and redraws only
-changed cells. Tanks, HP bars, projectiles, and blasts are SVG layered on top
-with the same viewBox scaling as bow. Each tank shows a gun aim line along its
-world gun direction that fades from full opacity to zero over about 400 px.
+Cover draws as one SVG path rebuilt when cover changes, inside the same
+viewBox as the rest of the field. Tanks, HP bars, projectiles, and blasts are
+SVG layered on top with the same viewBox scaling as bow. Each tank shows a gun
+aim line along its world gun direction that fades from full opacity to zero
+over about 400 px.
 
 ## Testing
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { ARM_DELAY_MS } from '../shared/protocol.ts'
-import type { BowInputAck, ClientMsg, MinigameFrame, Role, ServerMsg, State } from '../shared/protocol.ts'
+import type { MinigameInputAck, ClientMsg, MinigameFrame, Role, ServerMsg, State } from '../shared/protocol.ts'
 import { actionFeedback } from './ui.ts'
 
 const SAMPLES = 7
@@ -73,7 +73,7 @@ export function useSocket(role: Role) {
   const [connected, setConnected] = useState(false)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
   const [minigameFrame, setMinigameFrame] = useState<MinigameFrame | null>(null)
-  const [minigameAck, setMinigameAck] = useState<BowInputAck | null>(null)
+  const [minigameAck, setMinigameAck] = useState<MinigameInputAck | null>(null)
 
   const socket = useRef<WebSocket | null>(null)
   // Seeded from this device's own wall clock so `now()` is in the server's

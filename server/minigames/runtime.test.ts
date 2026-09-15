@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { newState } from '../state.ts'
 import { MinigameRuntime } from './runtime.ts'
-import type { BowInputAck, HostAction, MinigameFrame } from '../../shared/protocol.ts'
+import type { MinigameInputAck, HostAction, MinigameFrame } from '../../shared/protocol.ts'
 
 function rig() {
   let now = 1_000
@@ -13,7 +13,7 @@ function rig() {
   ]
   const changes: string[] = []
   const frames: MinigameFrame[] = []
-  const acks: BowInputAck[] = []
+  const acks: MinigameInputAck[] = []
   const completions: unknown[] = []
   const runtime = new MinigameRuntime(state, {
     now: () => now,
@@ -139,6 +139,15 @@ test('cancel clears transient play without awarding', () => {
   assert.equal(r.state.minigame?.phase, 'ready')
   assert.notEqual(r.state.minigame?.matchId, first)
   assert.equal(r.completions.length, 0)
+})
+
+test('prepare refuses a minigame the registry does not know', () => {
+  const r = rig()
+  assert.deepEqual(
+    r.runtime.host({ a: 'prepareMinigame', id: 'nope' as 'bow', options: {} }),
+    { status: 'refused', reason: 'unknown-mode' },
+  )
+  assert.equal(r.state.minigame, undefined)
 })
 
 // Compile-time exhaustiveness helper: these are the runtime-owned actions.

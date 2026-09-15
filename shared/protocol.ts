@@ -234,13 +234,15 @@ export type ReadingState = {
 
 export type ReadingUpdate = { progress: ReadingState; active: boolean }
 
+export type MinigameId = 'bow'
 export type MinigamePhase = 'ready' | 'countdown' | 'playing' | 'results'
 export type MinigameResult = { playerId: PlayerId; points: number; shots: number }
 export type MinigameState = {
-  id: 'bow'
+  id: MinigameId
   matchId: string
   phase: MinigamePhase
-  options: { durationSec: number; reloadMs: number; seed: number }
+  /** The runtime owns duration and seed; each minigame adds its own numeric options. */
+  options: { durationSec: number; seed: number } & Record<string, number>
   participants: PlayerId[]
   startsAt?: number
   endsAt?: number
@@ -251,14 +253,14 @@ export type BowInput =
   | { kind: 'aim'; angle: number; tension: number }
   | { kind: 'release'; at: number }
 
-export type BowInputMsg = {
+export type MinigameInputMsg = {
   t: 'minigameInput'
   matchId: string
   seq: number
   input: BowInput
 }
 
-export type BowInputAck = {
+export type MinigameInputAck = {
   matchId: string
   seq: number
   status: 'accepted' | 'refused'
@@ -282,7 +284,7 @@ export type BowFrameArrow = {
   tailKick: number
 }
 
-type BowFrameBase = { id: 'bow'; matchId: string; tick: number; serverTime: number }
+type BowFrameBase = { id: MinigameId; matchId: string; tick: number; serverTime: number }
 export type MinigameFrame =
   | (BowFrameBase & {
       role: 'board'
@@ -375,7 +377,7 @@ export type HostAction =
   | { a: 'setSetlist'; blocks: SetlistBlock[] }
   | { a: 'setlistJump'; at: number }
   | { a: 'clearSetlist' }
-  | { a: 'prepareMinigame'; id: 'bow'; options: Record<string, unknown> }
+  | { a: 'prepareMinigame'; id: MinigameId; options: Record<string, unknown> }
   | { a: 'startMinigame' }
   | { a: 'cancelMinigame' }
   | { a: 'closeMinigame' }
@@ -387,7 +389,7 @@ export type ClientMsg =
   | { t: 'host'; action: HostAction }
   /** Module and item actions. Dispatched by the hub; unknown acts are dropped. */
   | { t: 'act'; act: string; data?: unknown }
-  | BowInputMsg
+  | MinigameInputMsg
 
 export type ServerMsg =
   | { t: 'welcome'; playerId: PlayerId; serverTime: number }
@@ -395,7 +397,7 @@ export type ServerMsg =
   | { t: 'state'; state: State }
   | { t: 'actionResult'; action: HostAction['a'] | 'loadSetlist'; result: ActionResult }
   | { t: 'minigameFrame'; frame: MinigameFrame }
-  | { t: 'minigameAck'; ack: BowInputAck }
+  | { t: 'minigameAck'; ack: MinigameInputAck }
 
 /** A command outcome, distinct from the state updates it may produce. */
 export type ActionResult =

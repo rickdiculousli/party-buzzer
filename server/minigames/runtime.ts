@@ -1,10 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import type {
-  ActionResult, BowInputAck, BowInputMsg, HostAction, MinigameFrame, MinigameResult, Role, State,
+  ActionResult, HostAction, MinigameFrame, MinigameInputAck, MinigameInputMsg, MinigameResult, Role, State,
 } from '../../shared/protocol.ts'
-import { BOW_FIELD, BOW_STEP_MS } from './bow/types.ts'
-import { bowResults, createBowWorld, releaseBow, sampleBowTrajectory, setBowAim, stepBow } from './bow/world.ts'
-import type { BowWorld } from './bow/types.ts'
+import { numberOption, type MinigameDefinition } from './definition.ts'
+import { MINIGAMES } from './registry.ts'
 
 const COUNTDOWN_MS = 3_000
 const LANDING_GRACE_MS = 3_000
@@ -19,30 +18,23 @@ type Hooks = {
   now?: () => number
   onState: (cause: string) => void
   onFrame: () => void
-  onAck: (playerId: string, ack: BowInputAck) => void
+  onAck: (playerId: string, ack: MinigameInputAck) => void
   onComplete: (matchId: string, results: MinigameResult[]) => void
 }
 
-type PendingRelease = { playerId: string; seq: number }
-
-function numberOption(value: unknown, fallback: number, min: number, max: number): number {
-  return typeof value === 'number' && Number.isFinite(value)
-    ? Math.min(max, Math.max(min, Math.round(value)))
-    : fallback
-}
+type Pending = { playerId: string; seq: number; input: unknown; discrete: boolean }
 
 export class MinigameRuntime {
   private state: State
   private hooks: Hooks
-  private world: BowWorld | null = null
+  private world: unknown = null
   private readonly now: () => number
   private lastPump = 0
   private accumulator = 0
   private skippedMs = 0
   private lastFrame = 0
-  private pendingAim = new Map<string, { angle: number; tension: number }>()
-  private pendingRelease: PendingRelease[] = []
-  private dispositions = new Map<string, BowInputAck>()
+  private pending: Pending[] = []
+  private dispositions = new Map<string, MinigameInputAck>()
   private completed = false
 
   constructor(state: State, hooks: Hooks) {
@@ -51,25 +43,32 @@ export class MinigameRuntime {
     this.now = hooks.now ?? Date.now
   }
 
+  private definition(): MinigameDefinition<unknown> | null {
+    const id = this.state.minigame?.id
+    return id && Object.hasOwn(MINIGAMES, id) ? MINIGAMES[id] : null
+  }
+
   host(action: RuntimeAction): ActionResult {
     if (action.a === 'prepareMinigame') {
       if (this.state.round.phase !== 'IDLE' || this.state.minigame?.phase === 'playing' || this.state.minigame?.phase === 'countdown') {
         return { status: 'refused', reason: 'not-idle' }
       }
+      if (!Object.hasOwn(MINIGAMES, action.id)) return { status: 'refused', reason: 'unknown-mode' }
       const options = {
+        ...MINIGAMES[action.id].options(action.options),
         durationSec: numberOption(action.options.durationSec, 40, 5, 180),
-        reloadMs: numberOption(action.options.reloadMs, 100, 0, 5_000),
         seed: numberOption(action.options.seed, Math.floor(this.now()), 0, 2_147_483_647),
       }
       this.resetTransient()
       this.state.minigame = {
-        id: 'bow', matchId: randomUUID(), phase: 'ready', options, participants: [],
+        id: action.id, matchId: randomUUID(), phase: 'ready', options, participants: [],
       }
       return { status: 'applied' }
     }
 
     const session = this.state.minigame
-    if (!session) return { status: 'unchanged' }
+    const definition = this.definition()
+    if (!session || !definition) return { status: 'unchanged' }
 
     if (action.a === 'startMinigame') {
       if (session.phase !== 'ready') return { status: 'unchanged' }
@@ -82,11 +81,7 @@ export class MinigameRuntime {
       session.startsAt = startsAt
       session.endsAt = startsAt + session.options.durationSec * 1_000
       delete session.results
-      this.world = createBowWorld({
-        seed: session.options.seed,
-        playerIds: participants,
-        config: { reloadMs: session.options.reloadMs },
-      })
+      this.world = definition.create(session.options.seed, participants, session.options).world
       this.lastPump = startsAt
       this.lastFrame = 0
       this.skippedMs = 0
@@ -109,7 +104,7 @@ export class MinigameRuntime {
     return { status: 'applied' }
   }
 
-  input(playerId: string, msg: BowInputMsg): void {
+  input(playerId: string, msg: MinigameInputMsg): void {
     const session = this.state.minigame
     const key = `${playerId}:${msg.seq}`
     const prior = this.dispositions.get(key)
@@ -117,42 +112,42 @@ export class MinigameRuntime {
       this.hooks.onAck(playerId, prior)
       return
     }
-    const refuse = (reason: NonNullable<BowInputAck['reason']>) => {
-      if (msg.input.kind !== 'release') return
-      const ack: BowInputAck = { matchId: msg.matchId, seq: msg.seq, status: 'refused', reason }
+    const kind = this.definition()?.classify(msg.input) ?? null
+    const refuse = (reason: NonNullable<MinigameInputAck['reason']>) => {
+      if (kind !== 'discrete') return
+      const ack: MinigameInputAck = { matchId: msg.matchId, seq: msg.seq, status: 'refused', reason }
       this.dispositions.set(key, ack)
       this.hooks.onAck(playerId, ack)
     }
     if (!session || msg.matchId !== session.matchId || !this.world) return refuse('stale-match')
     if (!session.participants.includes(playerId)) return refuse('not-participant')
     if (!Number.isSafeInteger(msg.seq) || msg.seq < 0) return refuse('invalid')
-
-    if (msg.input.kind === 'aim') {
-      if (!Number.isFinite(msg.input.angle) || !Number.isFinite(msg.input.tension)) return
-      this.pendingAim.set(playerId, { angle: msg.input.angle, tension: msg.input.tension })
+    if (!kind) return
+    if (kind === 'continuous') {
+      this.pending.push({ playerId, seq: msg.seq, input: msg.input, discrete: false })
       return
     }
 
     const arrival = this.now()
-    const releaseAt = msg.input.at
-    if (!Number.isFinite(releaseAt)) return refuse('invalid')
+    const at = (msg.input as { at: number }).at
     if (session.phase !== 'playing') return refuse('not-playing')
-    if (arrival > (session.endsAt ?? 0) + INPUT_GRACE_MS || Math.min(arrival, Math.max(session.startsAt ?? 0, releaseAt)) > (session.endsAt ?? 0)) {
+    if (arrival > (session.endsAt ?? 0) + INPUT_GRACE_MS || Math.min(arrival, Math.max(session.startsAt ?? 0, at)) > (session.endsAt ?? 0)) {
       return refuse('not-playing')
     }
-    if (this.pendingRelease.some((release) => release.playerId === playerId && release.seq === msg.seq)) return
-    this.pendingRelease.push({ playerId, seq: msg.seq })
+    if (this.pending.some((item) => item.discrete && item.playerId === playerId && item.seq === msg.seq)) return
+    this.pending.push({ playerId, seq: msg.seq, input: msg.input, discrete: true })
   }
 
   pump(): void {
     const session = this.state.minigame
-    if (!session || !this.world || !session.startsAt || !session.endsAt) return
+    const definition = this.definition()
+    if (!session || !definition || !this.world || !session.startsAt || !session.endsAt) return
     const now = this.now()
     if (session.phase === 'countdown') {
       if (now < session.startsAt) {
         if (now - this.lastFrame >= FRAME_MS) {
           this.lastFrame = now
-          this.hooks.onFrame()
+          this.broadcast(definition)
         }
         return
       }
@@ -166,60 +161,43 @@ export class MinigameRuntime {
     this.accumulator += Math.max(0, until - this.lastPump)
     this.lastPump = until
     let steps = 0
-    while (this.accumulator + 1e-9 >= BOW_STEP_MS && steps < MAX_STEPS_PER_PUMP) {
-      for (const [playerId, aim] of this.pendingAim) setBowAim(this.world, playerId, aim)
-      this.pendingAim.clear()
-      for (const release of this.pendingRelease.splice(0)) {
-        const result = releaseBow(this.world, release.playerId)
-        const ack: BowInputAck = result.status === 'accepted'
-          ? { matchId: session.matchId, seq: release.seq, status: 'accepted' }
-          : { matchId: session.matchId, seq: release.seq, status: 'refused', reason: result.reason === 'unknown-player' ? 'not-participant' : result.reason }
-        this.dispositions.set(`${release.playerId}:${release.seq}`, ack)
-        this.hooks.onAck(release.playerId, ack)
+    while (this.accumulator + 1e-9 >= definition.stepMs && steps < MAX_STEPS_PER_PUMP) {
+      for (const item of this.pending.splice(0)) {
+        const outcome = definition.apply(this.world, item.playerId, item.input)
+        if (!item.discrete) continue
+        const ack: MinigameInputAck = outcome.status === 'accepted'
+          ? { matchId: session.matchId, seq: item.seq, status: 'accepted' }
+          : { matchId: session.matchId, seq: item.seq, status: 'refused', reason: outcome.reason }
+        this.dispositions.set(`${item.playerId}:${item.seq}`, ack)
+        this.hooks.onAck(item.playerId, ack)
       }
-      stepBow(this.world)
-      this.accumulator -= BOW_STEP_MS
+      definition.step(this.world)
+      this.accumulator -= definition.stepMs
       steps++
     }
-    if (steps === MAX_STEPS_PER_PUMP && this.accumulator >= BOW_STEP_MS) {
-      const remainder = this.accumulator % BOW_STEP_MS
+    if (steps === MAX_STEPS_PER_PUMP && this.accumulator >= definition.stepMs) {
+      const remainder = this.accumulator % definition.stepMs
       this.skippedMs += this.accumulator - remainder
       this.accumulator = remainder
     }
-    this.hooks.onFrame()
+    this.broadcast(definition)
     if (!this.completed && now >= session.endsAt + LANDING_GRACE_MS) {
       this.completed = true
-      this.hooks.onComplete(session.matchId, bowResults(this.world))
+      this.hooks.onComplete(session.matchId, definition.results(this.world))
     }
   }
 
   frameFor(role: Role, playerId?: string): MinigameFrame | null {
     const session = this.state.minigame
+    const definition = this.definition()
     const world = this.world
-    if (!session || !world) return null
-    const base = { id: 'bow' as const, matchId: session.matchId, tick: world.tick, serverTime: this.now() }
-    if (role === 'board') return {
-      ...base, role: 'board', field: BOW_FIELD,
-      targets: world.targets.map((target) => ({ ...target, center: { ...target.center } })),
-      players: Object.values(world.players).map((player) => ({
-        id: player.id, origin: { ...player.origin }, aim: { ...player.aim }, score: player.score,
-        reloadUntilMs: session.startsAt! + this.skippedMs + player.reloadUntilMs,
-      })),
-      arrows: world.arrows.map((arrow) => ({
-        id: arrow.id, playerId: arrow.playerId, position: { ...arrow.position }, angle: arrow.angle,
-        state: arrow.state, tailKick: arrow.tailKick,
-      })),
-    }
-    const player = playerId ? world.players[playerId] : undefined
-    if (!player) return { ...base, role: 'spectator' }
-    return {
-      ...base, role: 'player',
-      player: {
-        id: player.id, origin: { ...player.origin }, aim: { ...player.aim }, score: player.score,
-        reloadUntilMs: session.startsAt! + this.skippedMs + player.reloadUntilMs,
-      },
-      trajectory: sampleBowTrajectory(world, player.id, 18),
-    }
+    if (!session || !definition || !world) return null
+    const base = { id: session.id, matchId: session.matchId, tick: definition.tick(world), serverTime: this.now() }
+    const clock = (worldMs: number) => session.startsAt! + this.skippedMs + worldMs
+    if (role === 'board') return { ...base, role: 'board', ...definition.boardFrame(world, clock) } as MinigameFrame
+    const player = playerId ? definition.playerFrame(world, playerId, clock) : null
+    if (!player) return { ...base, role: 'spectator' } as MinigameFrame
+    return { ...base, role: 'player', ...player } as MinigameFrame
   }
 
   finish(matchId: string, results: MinigameResult[]): boolean {
@@ -233,10 +211,14 @@ export class MinigameRuntime {
 
   stop(): void { this.resetTransient() }
 
+  private broadcast(definition: MinigameDefinition<unknown>): void {
+    this.hooks.onFrame()
+    definition.afterFrame?.(this.world)
+  }
+
   private resetTransient(clearCompleted = true): void {
     this.world = null
-    this.pendingAim.clear()
-    this.pendingRelease = []
+    this.pending = []
     this.dispositions.clear()
     this.accumulator = 0
     this.skippedMs = 0

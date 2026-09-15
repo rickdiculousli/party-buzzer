@@ -539,7 +539,7 @@ export class Hub {
     }
   }
 
-  acknowledgeMinigame(playerId: PlayerId, ack: import('../shared/protocol.ts').BowInputAck): void {
+  acknowledgeMinigame(playerId: PlayerId, ack: import('../shared/protocol.ts').MinigameInputAck): void {
     for (const conn of this.conns) {
       if (conn.role === 'player' && conn.playerId === playerId) conn.send({ t: 'minigameAck', ack })
     }
