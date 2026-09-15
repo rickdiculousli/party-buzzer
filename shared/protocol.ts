@@ -260,6 +260,8 @@ export type BowInput =
 
 export type TankInput =
   | { kind: 'wheel'; turns: number; part?: 'hull' | 'turret' }
+  | { kind: 'turn'; rate: number; part?: 'hull' | 'turret' }
+  | { kind: 'turretAim'; angle: number }
   | { kind: 'drive'; dir: -1 | 0 | 1 }
   | { kind: 'trigger'; weapon: 'gun' | 'cannon'; down: boolean; at: number }
 

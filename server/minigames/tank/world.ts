@@ -23,6 +23,8 @@ export const DEFAULT_TANK_CONFIG: Readonly<TankConfig> = {
 // Tick times are multiples of a repeating fraction; compare deadlines with a tolerance.
 const reached = (world: TankWorld, ms: number) => world.nowMs + 1e-6 >= ms
 const wrap = (radians: number) => Math.atan2(Math.sin(radians), Math.cos(radians))
+const TURN_INPUT_TTL_MS = 200
+const TURRET_AIM_RADIANS_PER_SEC = Math.PI * 4
 
 export function formCrews(random: () => number, participants: string[]): TankCrew[] {
   const order = [...participants].sort()
@@ -56,7 +58,9 @@ export function createTankWorld(input: {
   const tanks: Tank[] = input.crews.map((crew, index) => {
     const position = spawnPoint(SPAWNS, index)
     return {
-      id: crew.id, crew, position, hull: facingCenter(position), turret: 0, hp: config.hp,
+      id: crew.id, crew, position, hull: facingCenter(position), turret: 0, turretTarget: null,
+      hullTurnRate: 0, turretTurnRate: 0, hullTurnUntilMs: 0, turretTurnUntilMs: 0,
+      hp: config.hp,
       drive: 0, gunHeld: false,
       gunClip: config.gun.clip, gunNextShotMs: 0, gunReloadUntilMs: 0,
       cannonClip: config.cannon.clip, cannonReloadUntilMs: 0,
@@ -83,10 +87,30 @@ export function applyTankInput(world: TankWorld, playerId: string, input: TankIn
   const gunner = tank.crew.gunner === playerId
 
   if (input.kind === 'wheel') {
-    const part = driver && gunner ? input.part : driver ? 'hull' : 'turret'
+    if (driver && gunner && input.part === 'turret') return { status: 'refused', reason: 'invalid' }
+    const part = driver ? 'hull' : gunner ? 'turret' : null
     if (part !== 'hull' && part !== 'turret') return { status: 'refused', reason: 'invalid' }
     const radians = Math.max(-4, Math.min(4, input.turns)) * world.config.radiansPerTurn
     tank[part] = wrap(tank[part] + radians)
+    return { status: 'accepted' }
+  }
+  if (input.kind === 'turn') {
+    if (driver && gunner && input.part === 'turret') return { status: 'refused', reason: 'invalid' }
+    const part = driver ? 'hull' : gunner ? 'turret' : null
+    if (part !== 'hull' && part !== 'turret') return { status: 'refused', reason: 'invalid' }
+    const rate = Math.max(-4, Math.min(4, input.rate))
+    if (part === 'hull') {
+      tank.hullTurnRate = rate
+      tank.hullTurnUntilMs = rate === 0 ? world.nowMs : world.nowMs + TURN_INPUT_TTL_MS
+    } else {
+      tank.turretTurnRate = rate
+      tank.turretTurnUntilMs = rate === 0 ? world.nowMs : world.nowMs + TURN_INPUT_TTL_MS
+    }
+    return { status: 'accepted' }
+  }
+  if (input.kind === 'turretAim') {
+    if (!gunner || driver) return { status: 'refused', reason: 'invalid' }
+    tank.turretTarget = wrap(input.angle)
     return { status: 'accepted' }
   }
   if (input.kind === 'drive') {
@@ -196,11 +220,28 @@ function respawn(world: TankWorld, tank: Tank): void {
   const spot = world.spawns.reduce((best, spawn) => clearance(spawn) > clearance(best) ? spawn : best)
   const { config } = world
   Object.assign(tank, {
-    position: { ...spot }, hull: facingCenter(spot), turret: 0, hp: config.hp,
+    position: { ...spot }, hull: facingCenter(spot), turret: 0, turretTarget: null, hp: config.hp,
+    hullTurnRate: 0, turretTurnRate: 0, hullTurnUntilMs: 0, turretTurnUntilMs: 0,
     gunClip: config.gun.clip, gunNextShotMs: 0, gunReloadUntilMs: 0,
     cannonClip: config.cannon.clip, cannonReloadUntilMs: 0,
     deadUntilMs: null, invulnerableUntilMs: world.nowMs + config.invulnerableMs,
   })
+}
+
+function turn(world: TankWorld, tank: Tank, dt: number): void {
+  if (reached(world, tank.hullTurnUntilMs)) tank.hullTurnRate = 0
+  if (reached(world, tank.turretTurnUntilMs)) tank.turretTurnRate = 0
+  tank.hull = wrap(tank.hull + tank.hullTurnRate * world.config.radiansPerTurn * dt)
+  if (tank.turretTarget === null) {
+    tank.turret = wrap(tank.turret + tank.turretTurnRate * world.config.radiansPerTurn * dt)
+    return
+  }
+  const targetRelativeToHull = wrap(tank.turretTarget - tank.hull)
+  const remaining = wrap(targetRelativeToHull - tank.turret)
+  const step = TURRET_AIM_RADIANS_PER_SEC * dt
+  tank.turret = Math.abs(remaining) <= step
+    ? targetRelativeToHull
+    : wrap(tank.turret + Math.sign(remaining) * step)
 }
 
 export function tankResults(world: TankWorld): MinigameResult[] {
@@ -245,6 +286,7 @@ export function stepTank(world: TankWorld): void {
     respawn(world, tank)
     reload(world, tank)
     if (tank.deadUntilMs !== null) continue
+    turn(world, tank, dt)
     move(world, tank, dt)
     if (tank.gunHeld && tank.gunClip > 0 && world.nowMs < world.config.ceaseFireMs && reached(world, tank.gunNextShotMs)) fire(world, tank, 'gun')
   }

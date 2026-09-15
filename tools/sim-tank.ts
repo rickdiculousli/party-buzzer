@@ -61,13 +61,13 @@ async function crewLoop(crew: TankCrew, bots: Map<string, Bot>, board: Conn, mat
     if (stuckTicks > 10) escapeTicks = 15
     const hullError = wrap(bearing - me.hull)
     let nextDrive: -1 | 0 | 1 = Math.abs(hullError) > 1 ? 0 : distance > 380 ? 1 : distance < 220 ? -1 : 0
-    let hullTurns = clamp(hullError / (Math.PI / 2), -0.15, 0.15)
+    let hullRate = clamp(hullError / (Math.PI / 2), -1, 1)
     if (escapeTicks > 0) {
       escapeTicks--
       nextDrive = -1
-      hullTurns = 0.12
+      hullRate = 0.8
     }
-    send(driver, solo ? { kind: 'wheel', turns: hullTurns, part: 'hull' } : { kind: 'wheel', turns: hullTurns })
+    send(driver, solo ? { kind: 'turn', rate: hullRate, part: 'hull' } : { kind: 'turn', rate: hullRate })
     if (nextDrive !== drive) {
       drive = nextDrive
       send(driver, { kind: 'drive', dir: drive })
@@ -75,8 +75,8 @@ async function crewLoop(crew: TankCrew, bots: Map<string, Bot>, board: Conn, mat
 
     // Gunner: correct for the hull, with a little hand wobble.
     const aimError = wrap(bearing - me.hull - me.turret) + (Math.random() - 0.5) * 0.1
-    const turretTurns = clamp(aimError / (Math.PI / 2), -0.2, 0.2)
-    send(gunner, solo ? { kind: 'wheel', turns: turretTurns, part: 'turret' } : { kind: 'wheel', turns: turretTurns })
+    const turretRate = clamp(aimError / (Math.PI / 2), -4 / 3, 4 / 3)
+    if (!solo) send(gunner, { kind: 'turn', rate: turretRate })
     const aligned = Math.abs(aimError) < 0.08
     if (aligned !== gunDown) {
       gunDown = aligned

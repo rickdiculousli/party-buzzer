@@ -28,8 +28,10 @@ export const tank: MinigameDefinition<TankWorld> = {
     return { world: createTankWorld({ seed, crews, config: { ceaseFireMs: options.durationSec * 1_000 } }), crews }
   },
   classify(input) {
-    const i = input as { kind?: unknown; turns?: unknown; part?: unknown; dir?: unknown; weapon?: unknown; down?: unknown; at?: unknown } | null
+    const i = input as { kind?: unknown; turns?: unknown; rate?: unknown; angle?: unknown; part?: unknown; dir?: unknown; weapon?: unknown; down?: unknown; at?: unknown } | null
     if (i?.kind === 'wheel') return finite(i.turns) && (i.part === undefined || i.part === 'hull' || i.part === 'turret') ? 'continuous' : null
+    if (i?.kind === 'turn') return finite(i.rate) && (i.part === undefined || i.part === 'hull' || i.part === 'turret') ? 'continuous' : null
+    if (i?.kind === 'turretAim') return finite(i.angle) ? 'continuous' : null
     if (i?.kind === 'drive') return i.dir === -1 || i.dir === 0 || i.dir === 1 ? 'continuous' : null
     if (i?.kind === 'trigger') {
       return (i.weapon === 'gun' || i.weapon === 'cannon') && typeof i.down === 'boolean' && finite(i.at) ? 'discrete' : null

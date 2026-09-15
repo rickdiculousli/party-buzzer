@@ -3,52 +3,90 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import type { TankFrameWeapon, TankInput } from '../shared/protocol.ts'
 import { nextBowSequence } from './bow-control.ts'
 import type { MinigamePlayerProps } from './minigames.tsx'
-import { reloadProgress, wheelTurns } from './tank-control.ts'
+import {
+  lengthwiseTilt, reloadProgress, tankViewRotation, tiltIndicatorFeedback, tiltTurnRate,
+  wheelTurns, type TankViewRotation,
+} from './tank-control.ts'
 
-type Part = 'hull' | 'turret'
-const SPOKES = [0, 60, 120, 180, 240, 300]
+type MotionState = 'checking' | 'needs-permission' | 'ready' | 'denied' | 'unavailable'
+const CRANK_SPOKES = [0, 60, 120, 180, 240, 300]
 
-function Wheel({ label, onTurn }: { label: string; onTurn: (turns: number) => void }) {
+function screenAngle(): number {
+  if (typeof screen.orientation?.angle === 'number') return screen.orientation.angle
+  return (window as Window & { orientation?: number }).orientation ?? 0
+}
+
+function currentViewRotation(): TankViewRotation {
+  return tankViewRotation(screenAngle(), window.innerWidth >= window.innerHeight)
+}
+
+function TiltMeter({ tilt }: { tilt: number | null }) {
+  const feedback = tiltIndicatorFeedback(tilt)
+  return (
+    <div
+      class={feedback.maxed ? 'tank-tilt is-maxed' : 'tank-tilt'}
+      aria-label={tilt === null ? 'Waiting for phone tilt' : `${Math.round(feedback.angle)} degrees tilt`}
+    >
+      <svg viewBox="-110 -45 220 90" aria-hidden="true">
+        <path d="M-95 0H95" class="tank-tilt__level" />
+        <path d="M0-32V32" class="tank-tilt__center" />
+        <g transform={`rotate(${feedback.angle})`}>
+          <path d="M-88 0H88" class="tank-tilt__phone" />
+          <circle cx="-88" r="7" class="tank-tilt__end" />
+          <circle cx="88" r="7" class="tank-tilt__end" />
+        </g>
+      </svg>
+      <span>{tilt === null ? 'Hold level' : `${Math.round(Math.abs(feedback.angle))}° ${feedback.angle < 0 ? 'left' : feedback.angle > 0 ? 'right' : 'center'}`}</span>
+    </div>
+  )
+}
+
+function Crank({ viewRotation, onAim }: { viewRotation: TankViewRotation; onAim: (angle: number) => void }) {
   const last = useRef<number | null>(null)
-  const total = useRef(0)
+  const unwrapped = useRef(0)
   const [shown, setShown] = useState(0)
   const angleOf = (event: PointerEvent) => {
     const box = (event.currentTarget as Element).getBoundingClientRect()
-    return Math.atan2(event.clientY - (box.top + box.height / 2), event.clientX - (box.left + box.width / 2))
+    const viewportAngle = Math.atan2(event.clientY - (box.top + box.height / 2), event.clientX - (box.left + box.width / 2))
+    return viewportAngle - viewRotation * Math.PI / 180
   }
   return (
     <div
       class="tank-wheel"
-      aria-label={label}
+      aria-label="Turret crank"
       onPointerDown={(event) => {
         ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
-        last.current = angleOf(event)
+        const angle = angleOf(event)
+        last.current = angle
+        unwrapped.current = angle
+        setShown(angle)
+        onAim(angle)
       }}
       onPointerMove={(event) => {
         if (last.current === null) return
         const next = angleOf(event)
-        const turns = wheelTurns(last.current, next)
+        const before = unwrapped.current
+        unwrapped.current += wheelTurns(last.current, next) * Math.PI * 2
         last.current = next
-        const before = total.current
-        total.current += turns
-        // A light tick every eighth of a turn.
-        if (Math.floor(before * 8) !== Math.floor(total.current * 8)) navigator.vibrate?.(5)
-        setShown(total.current)
-        onTurn(turns)
+        if (Math.floor(before / (Math.PI / 2)) !== Math.floor(unwrapped.current / (Math.PI / 2))) navigator.vibrate?.(8)
+        setShown(next)
+        onAim(next)
       }}
       onPointerUp={() => { last.current = null }}
       onPointerCancel={() => { last.current = null }}
+      onContextMenu={(event) => event.preventDefault()}
     >
-      <svg viewBox="-100 -100 200 200">
-        <g transform={`rotate(${shown * 360})`}>
+      <svg viewBox="-105 -105 210 210" aria-hidden="true">
+        <g transform={`rotate(${shown * 180 / Math.PI})`}>
           <circle r="80" class="tank-wheel__rim" />
-          {SPOKES.map((deg) => (
+          {CRANK_SPOKES.map((deg) => (
             <line key={deg} x2={80 * Math.cos(deg * Math.PI / 180)} y2={80 * Math.sin(deg * Math.PI / 180)} class="tank-wheel__spoke" />
           ))}
           <circle r="14" class="tank-wheel__hub" />
           <circle cx="80" r="15" class="tank-wheel__knob" />
         </g>
       </svg>
+      <span>Point where you want to fire</span>
     </div>
   )
 }
@@ -105,21 +143,76 @@ export function TankPlayer({ state, playerId, frame, now, send }: MinigamePlayer
   const input = (value: TankInput) =>
     sendRef.current({ t: 'minigameInput', matchId: session.matchId, seq: nextBowSequence(localStorage), input: value })
 
-  // Wheel turns accumulate and go out about 30 times a second.
-  const pending = useRef<Record<Part, number>>({ hull: 0, turret: 0 })
+  const [motion, setMotion] = useState<MotionState>('checking')
+  const [shownTilt, setShownTilt] = useState<number | null>(null)
+  const [viewRotation, setViewRotation] = useState(currentViewRotation)
+  const tilt = useRef<number | null>(null)
+  const shownDegrees = useRef<number | null>(null)
   useEffect(() => {
-    const id = setInterval(() => {
-      for (const part of ['hull', 'turret'] as const) {
-        const turns = pending.current[part]
-        if (!turns) continue
-        pending.current[part] = 0
-        input(solo ? { kind: 'wheel', turns, part } : { kind: 'wheel', turns })
+    const update = () => setViewRotation(currentViewRotation())
+    window.addEventListener('resize', update)
+    window.addEventListener('orientationchange', update)
+    screen.orientation?.addEventListener('change', update)
+    return () => {
+      window.removeEventListener('resize', update)
+      window.removeEventListener('orientationchange', update)
+      screen.orientation?.removeEventListener('change', update)
+    }
+  }, [])
+  useEffect(() => {
+    if (!driver) return
+    if (typeof DeviceOrientationEvent === 'undefined') {
+      setMotion('unavailable')
+      return
+    }
+    const sensor = DeviceOrientationEvent as typeof DeviceOrientationEvent & {
+      requestPermission?: () => Promise<'granted' | 'denied'>
+    }
+    setMotion(sensor.requestPermission ? 'needs-permission' : 'ready')
+  }, [driver])
+
+  const enableMotion = async () => {
+    const sensor = DeviceOrientationEvent as typeof DeviceOrientationEvent & {
+      requestPermission?: () => Promise<'granted' | 'denied'>
+    }
+    try {
+      setMotion(!sensor.requestPermission || await sensor.requestPermission() === 'granted' ? 'ready' : 'denied')
+    } catch {
+      setMotion('denied')
+    }
+  }
+
+  useEffect(() => {
+    if (!driver || motion !== 'ready') return
+    const orient = (event: DeviceOrientationEvent) => {
+      if (event.beta === null) return
+      const next = lengthwiseTilt(event.beta)
+      tilt.current = next
+      const rounded = Math.round(next)
+      if (shownDegrees.current !== rounded) {
+        shownDegrees.current = rounded
+        setShownTilt(next)
       }
-    }, 33)
-    return () => clearInterval(id)
-  }, [session.matchId, solo])
+    }
+    window.addEventListener('deviceorientation', orient)
+    return () => {
+      window.removeEventListener('deviceorientation', orient)
+      tilt.current = null
+      shownDegrees.current = null
+      setShownTilt(null)
+    }
+  }, [driver, motion])
 
   const held = useRef({ forward: false, back: false })
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (!driver || session.phase !== 'playing' || tilt.current === null) return
+      const rate = tiltTurnRate(tilt.current, 'driver')
+      input(solo ? { kind: 'turn', rate, part: 'hull' } : { kind: 'turn', rate })
+    }, 33)
+    return () => clearInterval(id)
+  }, [session.matchId, session.phase, driver, solo])
+
   const drive = (key: 'forward' | 'back', down: boolean) => {
     held.current[key] = down
     input({ kind: 'drive', dir: held.current.forward ? 1 : held.current.back ? -1 : 0 })
@@ -134,17 +227,30 @@ export function TankPlayer({ state, playerId, frame, now, send }: MinigamePlayer
     : session.phase === 'ready' ? 'Waiting for host'
     : respawn !== null ? `Respawning in ${respawn}`
     : role
+  const controlMessage = !driver ? gunner ? 'Point the dial where you want to fire' : 'Watching this match'
+    : motion === 'needs-permission' ? 'Enable tilt controls'
+    : motion === 'denied' ? 'Tilt access denied — allow Motion & Orientation in browser settings'
+    : motion === 'unavailable' ? 'This browser does not provide tilt controls'
+    : shownTilt === null ? 'Turn sideways and hold the phone level'
+    : 'Tilt to steer · hold Forward or Back to drive'
+  const rotationClass = viewRotation === 90 ? ' tank-phone--rotate-cw'
+    : viewRotation === -90 ? ' tank-phone--rotate-ccw'
+    : viewRotation === 180 ? ' tank-phone--rotate-half'
+    : ''
 
   return (
-    <main class="tank-phone">
+    <main class={`tank-phone${rotationClass}`}>
       <header class="bow-phone__instructions">
         <strong>{status}</strong>
         <span>{crew ? `${role}${partner && !solo ? ` with ${partner}` : ''} · ${mine?.tank.hp ?? 100} HP · ${mine?.tank.score ?? 0} pts` : 'Spectating until the next match'}</span>
+        <span>{controlMessage}</span>
+        {viewRotation !== 0 && <span class="tank-orientation-hint">Turn sideways · speaker end left</span>}
+        {driver && (motion === 'needs-permission' || motion === 'denied') && <button class="tank-motion" onClick={enableMotion}>Enable tilt</button>}
       </header>
       <div class={mine && session.phase === 'playing' ? 'tank-phone__roles is-active' : 'tank-phone__roles'}>
         {driver && (
           <section class="tank-role">
-            <Wheel label="Hull wheel" onTurn={(turns) => { pending.current.hull += turns }} />
+            <TiltMeter tilt={shownTilt} />
             <div class="tank-buttons">
               <HoldButton class="tank-btn" onHold={(down) => drive('back', down)}><span class="tank-btn__text">Back</span></HoldButton>
               <HoldButton class="tank-btn" onHold={(down) => drive('forward', down)}><span class="tank-btn__text">Forward</span></HoldButton>
@@ -152,8 +258,10 @@ export function TankPlayer({ state, playerId, frame, now, send }: MinigamePlayer
           </section>
         )}
         {gunner && (
-          <section class="tank-role">
-            <Wheel label="Turret wheel" onTurn={(turns) => { pending.current.turret += turns }} />
+          <section class="tank-role tank-role--gunner">
+            {solo
+              ? <div class="tank-turret-lock"><strong>Turret forward</strong><span>Aim by steering the hull</span></div>
+              : <Crank viewRotation={viewRotation} onAim={(angle) => input({ kind: 'turretAim', angle })} />}
             <div class="tank-buttons">
               <WeaponButton name="Gun" weapon={mine?.tank.gun} now={now()} onHold={(down) => trigger('gun', down)} />
               <WeaponButton name="Cannon" weapon={mine?.tank.cannon} now={now()} onHold={(down) => trigger('cannon', down)} />

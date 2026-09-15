@@ -42,11 +42,34 @@ test('endless spinning keeps angles bounded', () => {
   assert.ok(Math.abs(world.tanks[0].hull) <= Math.PI)
 })
 
-test('a solo crew names which part its wheel turns', () => {
+test('a solo crew turns only its hull and keeps the turret pointing forward', () => {
   const world = open([{ id: 'crew-0', driver: 's', gunner: 's' }])
-  assert.deepEqual(applyTankInput(world, 's', { kind: 'wheel', turns: 1 }), { status: 'refused', reason: 'invalid' })
-  applyTankInput(world, 's', { kind: 'wheel', turns: 1, part: 'turret' })
-  close(world.tanks[0].turret, Math.PI / 2)
+  assert.deepEqual(applyTankInput(world, 's', { kind: 'wheel', turns: 1, part: 'hull' }), { status: 'accepted' })
+  close(world.tanks[0].hull, Math.PI / 2)
+  assert.deepEqual(applyTankInput(world, 's', { kind: 'wheel', turns: 1, part: 'turret' }), { status: 'refused', reason: 'invalid' })
+  assert.equal(world.tanks[0].turret, 0)
+})
+
+test('a turn rate rotates on every fixed simulation step', () => {
+  const world = open([DG])
+  const turn = { kind: 'turn', rate: 1 } as const
+  assert.deepEqual(applyTankInput(world, 'd', turn), { status: 'accepted' })
+  stepTank(world)
+  const first = world.tanks[0].hull
+  stepTank(world)
+  close(first, Math.PI / 120)
+  close(world.tanks[0].hull - first, Math.PI / 120)
+})
+
+test('a stale turn rate expires when its phone stops refreshing it', () => {
+  const world = open([DG])
+  const turn = { kind: 'turn', rate: 1 } as const
+  applyTankInput(world, 'd', turn)
+  steps(world, 30)
+  const stoppedAt = world.tanks[0].hull
+  assert.notEqual(stoppedAt, 0)
+  steps(world, 10)
+  close(world.tanks[0].hull, stoppedAt)
 })
 
 test('only the driver drives: 160 px/s forward, 100 px/s back', () => {

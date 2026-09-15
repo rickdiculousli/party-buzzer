@@ -49,6 +49,13 @@ export type Tank = {
   hull: number
   /** Radians relative to the hull. */
   turret: number
+  /** Absolute world heading selected by the gunner. */
+  turretTarget: number | null
+  /** Wheel turns per second, refreshed by the controlling phone. */
+  hullTurnRate: number
+  turretTurnRate: number
+  hullTurnUntilMs: number
+  turretTurnUntilMs: number
   hp: number
   drive: -1 | 0 | 1
   gunHeld: boolean

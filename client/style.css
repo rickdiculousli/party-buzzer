@@ -50,23 +50,47 @@ body {
 .bow-host__panel { max-width: 48rem; }
 
 /* Tank is geometric placeholder UI while mechanics are tested. */
-.tank-phone { height: 100dvh; display: grid; grid-template-rows: auto minmax(0, 1fr); background: var(--stage); color: var(--chalk); touch-action: none; user-select: none; -webkit-user-select: none; }
+.tank-phone { position: relative; height: 100dvh; display: grid; grid-template-rows: auto minmax(0, 1fr); background: var(--stage); color: var(--chalk); touch-action: none; user-select: none; -webkit-user-select: none; }
 .tank-phone__roles { display: grid; grid-auto-rows: minmax(0, 1fr); min-height: 0; opacity: .5; }
 .tank-phone__roles.is-active { opacity: 1; }
 .tank-role { display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: var(--s3); padding: var(--s4); min-height: 0; }
-.tank-wheel { justify-self: center; height: 100%; max-width: 100%; aspect-ratio: 1; min-height: 0; touch-action: none; }
-.tank-wheel svg { width: 100%; height: 100%; }
+.tank-tilt { align-self: center; display: grid; justify-items: center; color: var(--cyan); font: 600 var(--t-sm)/1 var(--mono); }
+.tank-tilt.is-maxed { color: var(--tungsten); }
+.tank-tilt svg { width: min(28rem, 100%); max-height: 8rem; }
+.tank-tilt__level { stroke: var(--rule); stroke-width: 3; stroke-dasharray: 5 5; }
+.tank-tilt__center { stroke: var(--dim); stroke-width: 2; }
+.tank-tilt__phone { stroke: currentColor; stroke-width: 10; stroke-linecap: round; }
+.tank-tilt__end { fill: currentColor; }
+.tank-wheel { justify-self: center; height: 100%; max-width: 100%; aspect-ratio: 1; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; justify-items: center; color: var(--dim); font: 600 var(--t-xs)/1 var(--mono); touch-action: none; }
+.tank-wheel svg { width: 100%; height: 100%; min-height: 0; }
 .tank-wheel__rim { fill: none; stroke: var(--tungsten); stroke-width: 14; }
 .tank-wheel__spoke { stroke: var(--tungsten); stroke-width: 8; }
 .tank-wheel__hub { fill: var(--tungsten); }
 .tank-wheel__knob { fill: var(--chalk); }
+.tank-role--gunner { grid-template: minmax(0, 1fr) / minmax(0, 1fr) minmax(7rem, .55fr); }
+.tank-role--gunner .tank-buttons { grid-template: repeat(2, minmax(0, 1fr)) / 1fr; }
+.tank-turret-lock { align-self: center; display: grid; justify-items: center; gap: var(--s2); text-align: center; }
+.tank-turret-lock strong { font: 600 var(--t-lg)/1 var(--display); }
+.tank-turret-lock span { color: var(--dim); font-size: var(--t-sm); }
 .tank-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); }
 .tank-btn { position: relative; overflow: hidden; min-height: 6rem; display: grid; place-content: center; gap: var(--s2); border: 0; border-radius: 1rem; background: var(--tungsten); color: var(--stage); font: 600 var(--t-lg)/1 var(--mono); touch-action: none; }
 .tank-btn:active { filter: brightness(1.2); }
 .tank-btn.is-empty { background: #77736d; color: #c8c3ba; }
 .tank-btn__reload { position: absolute; inset: 0 auto 0 0; background: #c8c3ba; opacity: .35; }
 .tank-btn__text { position: relative; }
+.tank-motion { justify-self: center; padding: var(--s3) var(--s4); border: 0; border-radius: var(--r-md); background: var(--tungsten); color: var(--stage); font: 600 var(--t-sm)/1 var(--mono); }
+.tank-orientation-hint { color: var(--tungsten); }
+.tank-phone--rotate-cw, .tank-phone--rotate-ccw { position: fixed; top: 50%; left: 50%; width: 100dvh; height: 100dvw; }
+.tank-phone--rotate-cw { transform: translate(-50%, -50%) rotate(90deg); }
+.tank-phone--rotate-ccw { transform: translate(-50%, -50%) rotate(-90deg); }
+.tank-phone--rotate-half { transform: rotate(180deg); }
+.tank-phone .bow-phone__instructions { grid-template-columns: auto 1fr; align-items: center; padding: var(--s2) var(--s4); text-align: left; }
+.tank-phone .bow-phone__instructions span { font-size: var(--t-xs); }
+.tank-phone__roles { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+.tank-role { padding: var(--s2) var(--s4) var(--s3); }
+.tank-btn { min-height: 4.5rem; }
 .tank-field__cover { fill: #6b645a; }
+.tank-field__position, .tank-field__rotation { transition: transform 40ms linear; }
 .tank-field__hull { fill: currentColor; stroke: #24211e; stroke-width: 3; }
 .tank-field__turret { fill: #24211e; }
 .tank-field__barrel { stroke: #24211e; stroke-width: 7; stroke-linecap: round; }

@@ -76,11 +76,16 @@ and simultaneous play.
 
 Press **Prepare Tank** and **Start match** on `/host`. Start pairs connected
 players into random two-person crews; an odd player out drives and guns a tank
-alone. The driver spins a wheel to turn the hull and holds Forward or Back. The
-gunner spins a wheel to turn the turret, holds Gun, and taps Cannon. The turret
-turns with the hull, so crews have to coordinate their aim. Shots carve the
-cover, destroyed tanks respawn after three seconds, and each crew's damage and
-kill points are added to both members' scores when the match ends.
+alone. Both players turn their phones sideways and tilt the phone's long edge
+left or right. The driver tilts to turn the hull and holds Forward or Back; the
+gunner points the on-screen dial where they want to fire, holds Gun, and taps Cannon. On iPhones, tap
+**Enable tilt** when prompted. Hold the phone with its speaker/top end on the
+left and charging-port end on the right; the play view compensates when screen
+rotation is locked. A solo crew's tilt turns only the hull and its turret stays
+pointed straight forward. The turret turns with the hull, so crews have to
+coordinate their aim. Shots carve the cover, destroyed tanks respawn after
+three seconds, and each crew's damage and kill points are added to both members'
+scores when the match ends.
 
 ## Question packs and spoken play
 

@@ -167,13 +167,15 @@ test('a tank match forms crews, runs inputs, sends cover once, and credits both 
 
   r.setNow(session.startsAt!)
   r.runtime.pump()
-  r.runtime.input(gunner, { t: 'minigameInput', matchId: session.matchId, seq: 1, input: { kind: 'wheel', turns: 0.25 } })
+  const turn = { kind: 'turn', rate: 1 } as const
+  r.runtime.input(gunner, { t: 'minigameInput', matchId: session.matchId, seq: 1, input: turn })
   r.runtime.input(gunner, { t: 'minigameInput', matchId: session.matchId, seq: 2, input: { kind: 'trigger', weapon: 'cannon', down: true, at: session.startsAt! } })
   r.advance(17)
   assert.deepEqual(r.acks.at(-1), { matchId: session.matchId, seq: 2, status: 'accepted' })
   const mine = r.runtime.frameFor('player', gunner)
   assert.ok(mine?.role === 'player' && mine.id === 'tank')
   if (mine?.role === 'player' && mine.id === 'tank') {
+    assert.ok(mine.tank.turret > 0)
     assert.equal(mine.tank.cannon.clip, 0)
     assert.ok(mine.tank.cannon.reloadUntil > mine.serverTime)
   }
