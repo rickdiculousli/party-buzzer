@@ -234,6 +234,9 @@ export type ReadingState = {
 
 export type ReadingUpdate = { progress: ReadingState; active: boolean }
 
+/** A solo crew uses the same player for both roles. */
+export type TankCrew = { id: string; driver: PlayerId; gunner: PlayerId }
+
 export type MinigameId = 'bow'
 export type MinigamePhase = 'ready' | 'countdown' | 'playing' | 'results'
 export type MinigameResult = { playerId: PlayerId; points: number; shots: number }
