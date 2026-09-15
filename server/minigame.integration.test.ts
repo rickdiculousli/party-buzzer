@@ -28,7 +28,7 @@ test('host, player, and board share a live bow match over the existing socket', 
     assert.equal(ada.minigameFrames.at(-1)?.frame.role, 'player')
     const frame = board.minigameFrames.at(-1)?.frame
     assert.equal(frame?.role, 'board')
-    if (frame?.role === 'board') assert.ok(frame.arrows.some((arrow) => arrow.playerId === ada.playerId))
+    if (frame?.role === 'board' && frame.id === 'bow') assert.ok(frame.arrows.some((arrow) => arrow.playerId === ada.playerId))
 
     for (const client of [host, board, ada]) client.close()
   })

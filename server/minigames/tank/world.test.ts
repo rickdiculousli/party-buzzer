@@ -174,6 +174,17 @@ test('a kill scores 50; the tank respawns after 3 s far from enemies, briefly in
   assert.equal(target.hp, 100, 'invulnerable tanks take no damage')
 })
 
+test('weapons fall silent at the match deadline while tanks can still move', () => {
+  const world = createTankWorld({ seed: 1, crews: [DG], cover: new Uint8Array(COLS * ROWS), config: { ceaseFireMs: 50 } })
+  applyTankInput(world, 'g', { kind: 'trigger', weapon: 'gun', down: true, at: 0 })
+  steps(world, 10)
+  assert.equal(world.tanks[0].shots, 1)
+  assert.deepEqual(
+    applyTankInput(world, 'g', { kind: 'trigger', weapon: 'cannon', down: true, at: 0 }),
+    { status: 'refused', reason: 'not-playing' },
+  )
+})
+
 test('results give each crew member the crew score, and a solo player once', () => {
   const world = open([DG, { id: 'crew-1', driver: 's', gunner: 's' }])
   world.tanks[0].score = 40

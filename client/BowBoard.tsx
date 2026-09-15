@@ -2,7 +2,7 @@ import type { MinigameFrame, State } from '../shared/protocol.ts'
 import { colorForPlayer } from './ui.ts'
 import { aimDegrees } from './bow-control.ts'
 
-type BoardFrame = Extract<MinigameFrame, { role: 'board' }>
+type BoardFrame = Extract<MinigameFrame, { role: 'board'; id: 'bow' }>
 
 function Arrow({ arrow, color }: { arrow: BoardFrame['arrows'][number]; color: string }) {
   const length = 48
@@ -18,7 +18,7 @@ function Arrow({ arrow, color }: { arrow: BoardFrame['arrows'][number]; color: s
 
 export function BowBoard({ state, frame, now }: { state: State; frame: MinigameFrame | null; now: () => number }) {
   const session = state.minigame!
-  const board = frame?.role === 'board' && frame.matchId === session.matchId ? frame : null
+  const board = frame?.role === 'board' && frame.id === 'bow' && frame.matchId === session.matchId ? frame : null
   const remaining = session.endsAt ? Math.max(0, Math.ceil((session.endsAt - now()) / 1000)) : session.options.durationSec
   const countdown = session.startsAt ? Math.max(0, Math.ceil((session.startsAt - now()) / 1000)) : 0
 

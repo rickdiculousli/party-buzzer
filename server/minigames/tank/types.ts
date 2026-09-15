@@ -36,6 +36,8 @@ export type TankConfig = {
   respawnMs: number
   invulnerableMs: number
   killPoints: number
+  /** World time after which no weapon fires; the landing grace still runs. */
+  ceaseFireMs: number
 }
 
 export type Tank = {

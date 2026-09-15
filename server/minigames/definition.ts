@@ -1,4 +1,4 @@
-import type { MinigameInputAck, MinigameResult } from '../../shared/protocol.ts'
+import type { MinigameInputAck, MinigameResult, TankCrew } from '../../shared/protocol.ts'
 
 export type InputOutcome =
   | { status: 'accepted' }
@@ -15,7 +15,7 @@ export type MinigameDefinition<W> = {
   stepMs: number
   /** Game-specific numeric options; the runtime sanitizes durationSec and seed. */
   options(raw: Record<string, unknown>): Record<string, number>
-  create(seed: number, participants: string[], options: Record<string, number>): { world: W }
+  create(seed: number, participants: string[], options: Record<string, number>): { world: W; crews?: TankCrew[] }
   /**
    * `discrete` inputs are checked against the match window, fire once, and are
    * acknowledged. `continuous` inputs are applied in arrival order. Null drops a

@@ -17,6 +17,7 @@ export const DEFAULT_TANK_CONFIG: Readonly<TankConfig> = {
   respawnMs: 3_000,
   invulnerableMs: 2_000,
   killPoints: 50,
+  ceaseFireMs: Infinity,
 }
 
 // Tick times are multiples of a repeating fraction; compare deadlines with a tolerance.
@@ -99,6 +100,7 @@ export function applyTankInput(world: TankWorld, playerId: string, input: TankIn
     return { status: 'accepted' }
   }
   if (!input.down) return { status: 'accepted' }
+  if (world.nowMs >= world.config.ceaseFireMs) return { status: 'refused', reason: 'not-playing' }
   if (tank.deadUntilMs !== null) return { status: 'refused', reason: 'destroyed' }
   if (tank.cannonClip === 0) return { status: 'refused', reason: 'reloading' }
   fire(world, tank, 'cannon')
@@ -244,7 +246,7 @@ export function stepTank(world: TankWorld): void {
     reload(world, tank)
     if (tank.deadUntilMs !== null) continue
     move(world, tank, dt)
-    if (tank.gunHeld && tank.gunClip > 0 && reached(world, tank.gunNextShotMs)) fire(world, tank, 'gun')
+    if (tank.gunHeld && tank.gunClip > 0 && world.nowMs < world.config.ceaseFireMs && reached(world, tank.gunNextShotMs)) fire(world, tank, 'gun')
   }
   flyProjectiles(world, dt)
 }

@@ -79,12 +79,12 @@ test('an accepted release fires once on the next legal fixed step', () => {
   assert.deepEqual(r.acks, [{ matchId: r.state.minigame!.matchId, seq: 2, status: 'accepted' }])
   const board = r.runtime.frameFor('board')
   assert.equal(board?.role, 'board')
-  if (board?.role === 'board') assert.equal(board.arrows.length, 1)
+  if (board?.role === 'board' && board.id === 'bow') assert.equal(board.arrows.length, 1)
 
   r.runtime.input('ada', { t: 'minigameInput', matchId: r.state.minigame!.matchId, seq: 2, input: { kind: 'release', at: r.state.minigame!.startsAt! } })
   r.advance(17)
   const again = r.runtime.frameFor('board')
-  if (again?.role === 'board') assert.equal(again.arrows.length, 1)
+  if (again?.role === 'board' && again.id === 'bow') assert.equal(again.arrows.length, 1)
   assert.equal(r.acks.length, 2, 'a retry receives the remembered disposition')
 })
 
@@ -100,7 +100,7 @@ test('dropped catch-up time keeps projected reload aligned with server acceptanc
   r.advance(1_000)
   const player = r.runtime.frameFor('player', 'ada')
   assert.equal(player?.role, 'player')
-  if (player?.role === 'player') assert.ok(player.player.reloadUntilMs > player.serverTime)
+  if (player?.role === 'player' && player.id === 'bow') assert.ok(player.player.reloadUntilMs > player.serverTime)
 })
 
 test('frames are role-specific and a late joiner spectates', () => {
@@ -114,7 +114,7 @@ test('frames are role-specific and a late joiner spectates', () => {
   assert.equal(board?.role, 'board')
   assert.equal(ada?.role, 'player')
   assert.equal(cy?.role, 'spectator')
-  if (ada?.role === 'player') assert.equal('arrows' in ada, false)
+  if (ada?.role === 'player' && ada.id === 'bow') assert.equal('arrows' in ada, false)
 })
 
 test('deadline completes once after landing grace', () => {
@@ -148,6 +148,40 @@ test('prepare refuses a minigame the registry does not know', () => {
     { status: 'refused', reason: 'unknown-mode' },
   )
   assert.equal(r.state.minigame, undefined)
+})
+
+test('a tank match forms crews, runs inputs, sends cover once, and credits both crew members', () => {
+  const r = rig()
+  r.runtime.host({ a: 'prepareMinigame', id: 'tank', options: { durationSec: 5, seed: 3 } })
+  r.runtime.host({ a: 'startMinigame' })
+  const session = r.state.minigame!
+  assert.equal(session.crews?.length, 1)
+  const { driver, gunner } = session.crews![0]
+  assert.deepEqual([driver, gunner].sort(), ['ada', 'bo'])
+
+  r.advance(60)
+  r.advance(60)
+  const [first, second] = r.frames
+  assert.ok(first.role === 'board' && first.id === 'tank' && first.cover?.length === 160 * 90)
+  assert.ok(second.role === 'board' && second.id === 'tank' && second.cover === undefined)
+
+  r.setNow(session.startsAt!)
+  r.runtime.pump()
+  r.runtime.input(gunner, { t: 'minigameInput', matchId: session.matchId, seq: 1, input: { kind: 'wheel', turns: 0.25 } })
+  r.runtime.input(gunner, { t: 'minigameInput', matchId: session.matchId, seq: 2, input: { kind: 'trigger', weapon: 'cannon', down: true, at: session.startsAt! } })
+  r.advance(17)
+  assert.deepEqual(r.acks.at(-1), { matchId: session.matchId, seq: 2, status: 'accepted' })
+  const mine = r.runtime.frameFor('player', gunner)
+  assert.ok(mine?.role === 'player' && mine.id === 'tank')
+  if (mine?.role === 'player' && mine.id === 'tank') {
+    assert.equal(mine.tank.cannon.clip, 0)
+    assert.ok(mine.tank.cannon.reloadUntil > mine.serverTime)
+  }
+
+  r.setNow(session.endsAt! + 3_000)
+  r.runtime.pump()
+  const { results } = r.completions[0] as { results: { playerId: string }[] }
+  assert.deepEqual(results.map((result) => result.playerId).sort(), ['ada', 'bo'])
 })
 
 // Compile-time exhaustiveness helper: these are the runtime-owned actions.

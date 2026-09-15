@@ -10,7 +10,7 @@ export function BowPlayer({ state, frame, now, send, ack }: {
   ack?: MinigameInputAck | null
 }) {
   const session = state.minigame!
-  const mine = frame?.matchId === session.matchId && frame.role === 'player' ? frame : null
+  const mine = frame?.matchId === session.matchId && frame.role === 'player' && frame.id === 'bow' ? frame : null
   const spectator = frame?.matchId === session.matchId && frame.role === 'spectator'
   const start = useRef<{ x: number; y: number } | null>(null)
   const [aim, setAim] = useState({ angle: 0, tension: 0 })

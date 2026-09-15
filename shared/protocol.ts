@@ -237,7 +237,7 @@ export type ReadingUpdate = { progress: ReadingState; active: boolean }
 /** A solo crew uses the same player for both roles. */
 export type TankCrew = { id: string; driver: PlayerId; gunner: PlayerId }
 
-export type MinigameId = 'bow'
+export type MinigameId = 'bow' | 'tank'
 export type MinigamePhase = 'ready' | 'countdown' | 'playing' | 'results'
 export type MinigameResult = { playerId: PlayerId; points: number; shots: number }
 export type MinigameState = {
@@ -250,6 +250,8 @@ export type MinigameState = {
   startsAt?: number
   endsAt?: number
   results?: MinigameResult[]
+  /** Tank crews for the current match. Reshuffled on every start. */
+  crews?: TankCrew[]
 }
 
 export type BowInput =
@@ -292,17 +294,52 @@ export type BowFrameArrow = {
   tailKick: number
 }
 
-type BowFrameBase = { id: MinigameId; matchId: string; tick: number; serverTime: number }
+type FrameBase<Id extends MinigameId> = { id: Id; matchId: string; tick: number; serverTime: number }
+
+export type TankFrameTank = {
+  id: string
+  crew: TankCrew
+  position: { x: number; y: number }
+  /** Radians, 0 = +x, clockwise. */
+  hull: number
+  /** Radians relative to the hull. */
+  turret: number
+  hp: number
+  dead: boolean
+  invulnerable: boolean
+  score: number
+}
+
+/** `reloadUntil` is server time; the weapon is reloading while now is before it. */
+export type TankFrameWeapon = { clip: number; size: number; reloadUntil: number; reloadMs: number }
+
 export type MinigameFrame =
-  | (BowFrameBase & {
+  | (FrameBase<'bow'> & {
       role: 'board'
       field: { width: number; height: number }
       targets: { id: string; center: { x: number; y: number }; radius: number }[]
       players: BowFramePlayer[]
       arrows: BowFrameArrow[]
     })
-  | (BowFrameBase & { role: 'player'; player: BowFramePlayer; trajectory: { x: number; y: number }[] })
-  | (BowFrameBase & { role: 'spectator' })
+  | (FrameBase<'bow'> & { role: 'player'; player: BowFramePlayer; trajectory: { x: number; y: number }[] })
+  | (FrameBase<'tank'> & {
+      role: 'board'
+      field: { width: number; height: number }
+      /** One '0'/'1' digit per cell, row-major; present on the first frame and once a second. */
+      cover?: string
+      /** Cells cleared since the previous frame. */
+      coverChanged: number[]
+      tanks: TankFrameTank[]
+      projectiles: { id: string; weapon: 'gun' | 'cannon'; position: { x: number; y: number } }[]
+      /** Explosions since the previous frame. */
+      blasts: { position: { x: number; y: number }; radius: number; weapon: 'gun' | 'cannon' }[]
+    })
+  | (FrameBase<'tank'> & {
+      role: 'player'
+      crew: TankCrew
+      tank: TankFrameTank & { respawnAt: number | null; gun: TankFrameWeapon; cannon: TankFrameWeapon }
+    })
+  | (FrameBase<MinigameId> & { role: 'spectator' })
 
 /**
  * Autoplay: the two beats a human host provides by instinct and the reader

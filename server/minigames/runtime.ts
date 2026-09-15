@@ -81,7 +81,10 @@ export class MinigameRuntime {
       session.startsAt = startsAt
       session.endsAt = startsAt + session.options.durationSec * 1_000
       delete session.results
-      this.world = definition.create(session.options.seed, participants, session.options).world
+      const created = definition.create(session.options.seed, participants, session.options)
+      this.world = created.world
+      if (created.crews) session.crews = created.crews
+      else delete session.crews
       this.lastPump = startsAt
       this.lastFrame = 0
       this.skippedMs = 0
@@ -94,7 +97,7 @@ export class MinigameRuntime {
       this.resetTransient()
       this.state.minigame = {
         ...session, matchId: randomUUID(), phase: 'ready', participants: [],
-        startsAt: undefined, endsAt: undefined, results: undefined,
+        startsAt: undefined, endsAt: undefined, results: undefined, crews: undefined,
       }
       return { status: 'applied' }
     }

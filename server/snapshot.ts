@@ -53,6 +53,7 @@ export function restoreGame(state: State, snapshot: GameSnapshot): void {
       startsAt: undefined,
       endsAt: undefined,
       results: undefined,
+      crews: undefined,
     }
   }
 }
@@ -77,7 +78,7 @@ export function persistedSnapshot(state: State) {
       minigame: state.minigame && (state.minigame.phase === 'ready' || state.minigame.phase === 'results')
         ? state.minigame
         : state.minigame
-          ? { ...state.minigame, matchId: randomUUID(), phase: 'ready' as const, participants: [], startsAt: undefined, endsAt: undefined, results: undefined }
+          ? { ...state.minigame, matchId: randomUUID(), phase: 'ready' as const, participants: [], startsAt: undefined, endsAt: undefined, results: undefined, crews: undefined }
           : undefined,
     },
   }
