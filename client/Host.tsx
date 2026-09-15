@@ -7,7 +7,8 @@ import { HostSetup } from './HostSetup.tsx'
 import { Spoken } from './Spoken.tsx'
 import { momentOf, type Moment } from '../shared/wall.ts'
 import { isPenalty } from '../shared/protocol.ts'
-import type { HostAction, ScoreKey } from '../shared/protocol.ts'
+import type { HostAction, MinigameId, ScoreKey } from '../shared/protocol.ts'
+import { MINIGAME_NAMES } from './minigames.tsx'
 
 function BowHost({ state, connected, act, actionMessage, now }: {
   state: import('../shared/protocol.ts').State
@@ -20,7 +21,7 @@ function BowHost({ state, connected, act, actionMessage, now }: {
   const remaining = session.endsAt ? Math.max(0, Math.ceil((session.endsAt - now()) / 1000)) : session.options.durationSec
   return <main class="host bow-host">
     <div class="host__bar">
-      <span class="host__title">{session.id === 'tank' ? 'Tank battle' : 'Bow'}</span>
+      <span class="host__title">{MINIGAME_NAMES[session.id]}</span>
       <span class="lamp"><span class={connected ? 'lamp-dot is-on' : 'lamp-dot is-off'} />{connected ? 'Connected' : 'Disconnected'}</span>
       <span class="chip">{session.phase}</span>
       <span class="host__spacer" />
@@ -312,12 +313,11 @@ export function Host() {
 
       <section>
         <div class="host__minor" style={{ marginBottom: 'var(--s4)' }}>
-          <button class="btn" onClick={() => act({ a: 'prepareMinigame', id: 'bow', options: {} })}>
-            Prepare Bow
-          </button>
-          <button class="btn" onClick={() => act({ a: 'prepareMinigame', id: 'tank', options: { durationSec: 60 } })}>
-            Prepare Tank
-          </button>
+          {Object.entries(MINIGAME_NAMES).map(([id, name]) => (
+            <button key={id} class="btn" onClick={() => act({ a: 'prepareMinigame', id: id as MinigameId, options: {} })}>
+              Prepare {name}
+            </button>
+          ))}
         </div>
         {state.setlist && (() => {
           const at = state.setlist.at

@@ -16,6 +16,8 @@ export type MinigamePlayerProps = {
 
 export type MinigameBoardProps = { state: State; frame: MinigameFrame | null; now: () => number }
 
+export const MINIGAME_NAMES: Record<MinigameId, string> = { bow: 'Bow', tank: 'Tank battle' }
+
 export const MINIGAME_PLAYERS: Record<MinigameId, ComponentType<MinigamePlayerProps>> = {
   bow: BowPlayer,
   tank: TankPlayer,
