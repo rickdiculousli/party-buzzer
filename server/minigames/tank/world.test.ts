@@ -86,13 +86,13 @@ test('holding the gun fires 10 rounds a second, then reloads 2 s after the clip 
   assert.equal(world.tanks[0].shots, 21)
 })
 
-test('the cannon fires once per tap and refuses taps for 3 s', () => {
+test('the cannon fires once per tap and refuses taps for 4 s', () => {
   const world = open([DG])
   const tap = { kind: 'trigger', weapon: 'cannon', down: true, at: 0 } as const
   assert.deepEqual(applyTankInput(world, 'g', tap), { status: 'accepted' })
   assert.deepEqual(applyTankInput(world, 'g', { ...tap, down: false }), { status: 'accepted' })
   assert.deepEqual(applyTankInput(world, 'g', tap), { status: 'refused', reason: 'reloading' })
-  steps(world, 180)
+  steps(world, 240)
   assert.deepEqual(applyTankInput(world, 'g', tap), { status: 'accepted' })
   assert.equal(world.tanks[0].shots, 2)
 })
@@ -124,7 +124,7 @@ test('cover stops a shell, and the blast carves it', () => {
   assert.equal(world.tanks[1].hp, 100)
   assert.equal(world.cover[45 * COLS + 90], 0)
   assert.ok(world.coverChanged.includes(45 * COLS + 90))
-  assert.deepEqual(world.blasts.map((blast) => blast.radius), [40])
+  assert.deepEqual(world.blasts.map((blast) => blast.radius), [60])
 })
 
 test('a direct cannon hit does 30 with no extra splash', () => {
@@ -140,8 +140,8 @@ test('cannon splash falls off with distance', () => {
   world.cover[45 * COLS + 100] = 1 // x 1000..1010, y 450..460: the shell bursts 8 px from the tank's edge
   cannon(world)
   steps(world, 30)
-  assert.equal(world.tanks[1].hp, 84)
-  assert.equal(world.tanks[0].score, 16)
+  assert.equal(world.tanks[1].hp, 83)
+  assert.equal(world.tanks[0].score, 17)
 })
 
 test('splash hurts the firing tank and scores nothing', () => {

@@ -68,7 +68,7 @@ export function TankBoard({ state, frame, now }: MinigameBoardProps) {
                 <rect x="-25" y="-17" width="50" height="34" rx="4" class="tank-field__hull" />
                 <g transform={`rotate(${degrees(tank.turret)})`}>
                   {!tank.dead && AIM_DASHES.map((i) => (
-                    <line key={i} x1={34 + i * 50} x2={64 + i * 50} class="tank-field__aim" opacity={0.7 * (1 - i / AIM_DASHES.length)} />
+                    <line key={i} x1={34 + i * 25} x2={49 + i * 25} class="tank-field__aim" opacity={0.7 * (1 - i / AIM_DASHES.length)} />
                   ))}
                   <line x2="30" class="tank-field__barrel" />
                   <circle r="10" class="tank-field__turret" />
