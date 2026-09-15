@@ -256,18 +256,23 @@ export type BowInput =
   | { kind: 'aim'; angle: number; tension: number }
   | { kind: 'release'; at: number }
 
+export type TankInput =
+  | { kind: 'wheel'; turns: number; part?: 'hull' | 'turret' }
+  | { kind: 'drive'; dir: -1 | 0 | 1 }
+  | { kind: 'trigger'; weapon: 'gun' | 'cannon'; down: boolean; at: number }
+
 export type MinigameInputMsg = {
   t: 'minigameInput'
   matchId: string
   seq: number
-  input: BowInput
+  input: BowInput | TankInput
 }
 
 export type MinigameInputAck = {
   matchId: string
   seq: number
   status: 'accepted' | 'refused'
-  reason?: 'stale-match' | 'not-playing' | 'not-participant' | 'invalid' | 'reloading' | 'capacity'
+  reason?: 'stale-match' | 'not-playing' | 'not-participant' | 'invalid' | 'reloading' | 'capacity' | 'destroyed'
 }
 
 export type BowFramePlayer = {
