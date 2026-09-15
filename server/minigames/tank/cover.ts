@@ -63,3 +63,9 @@ export function carve(cover: Uint8Array, center: Vec2, radius: number): number[]
 }
 
 export const encodeCover = (cover: Uint8Array): string => cover.join('')
+
+/** False outside the field; edges are handled by their callers. */
+export function solidAt(cover: Uint8Array, p: Vec2): boolean {
+  if (p.x < 0 || p.y < 0 || p.x >= COLS * CELL || p.y >= ROWS * CELL) return false
+  return cover[Math.floor(p.y / CELL) * COLS + Math.floor(p.x / CELL)] === 1
+}

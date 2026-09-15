@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mulberry32 } from '../bow/world.ts'
 import { COLS, ROWS } from './types.ts'
-import { applyTankInput, createTankWorld, formCrews, gunDirection, stepTank } from './world.ts'
+import { applyTankInput, createTankWorld, formCrews, gunDirection, stepTank, tankResults } from './world.ts'
 import type { TankCrew } from '../../../shared/protocol.ts'
 
 const close = (actual: number, expected: number, epsilon = 1e-9) =>
@@ -95,4 +95,90 @@ test('the cannon fires once per tap and refuses taps for 3 s', () => {
   steps(world, 180)
   assert.deepEqual(applyTankInput(world, 'g', tap), { status: 'accepted' })
   assert.equal(world.tanks[0].shots, 2)
+})
+
+const YZ: TankCrew = { id: 'crew-1', driver: 'y', gunner: 'z' }
+const pullGun = (world: ReturnType<typeof open>) => {
+  applyTankInput(world, 'g', { kind: 'trigger', weapon: 'gun', down: true, at: 0 })
+  stepTank(world)
+  applyTankInput(world, 'g', { kind: 'trigger', weapon: 'gun', down: false, at: 0 })
+}
+const cannon = (world: ReturnType<typeof open>) =>
+  applyTankInput(world, 'g', { kind: 'trigger', weapon: 'cannon', down: true, at: 0 })
+
+test('a gun round hits the first tank on its path for 5', () => {
+  const world = open([DG, YZ], [{ x: 800, y: 450 }, { x: 1000, y: 450 }])
+  pullGun(world)
+  steps(world, 20)
+  assert.equal(world.tanks[1].hp, 95)
+  assert.equal(world.tanks[0].score, 5)
+  assert.equal(world.projectiles.length, 0)
+  assert.deepEqual(world.blasts.map((blast) => blast.weapon), ['gun'])
+})
+
+test('cover stops a shell, and the blast carves it', () => {
+  const world = open([DG, YZ], [{ x: 800, y: 450 }, { x: 1000, y: 450 }])
+  for (let row = 0; row < ROWS; row++) world.cover[row * COLS + 90] = 1 // x 900..910
+  cannon(world)
+  steps(world, 30)
+  assert.equal(world.tanks[1].hp, 100)
+  assert.equal(world.cover[45 * COLS + 90], 0)
+  assert.ok(world.coverChanged.includes(45 * COLS + 90))
+  assert.deepEqual(world.blasts.map((blast) => blast.radius), [40])
+})
+
+test('a direct cannon hit does 30 with no extra splash', () => {
+  const world = open([DG, YZ], [{ x: 800, y: 450 }, { x: 1000, y: 450 }])
+  cannon(world)
+  steps(world, 30)
+  assert.equal(world.tanks[1].hp, 70)
+  assert.equal(world.tanks[0].score, 30)
+})
+
+test('cannon splash falls off with distance', () => {
+  const world = open([DG, YZ], [{ x: 800, y: 450 }, { x: 1000, y: 480 }])
+  world.cover[45 * COLS + 100] = 1 // x 1000..1010, y 450..460: the shell bursts 8 px from the tank's edge
+  cannon(world)
+  steps(world, 30)
+  assert.equal(world.tanks[1].hp, 84)
+  assert.equal(world.tanks[0].score, 16)
+})
+
+test('splash hurts the firing tank and scores nothing', () => {
+  const world = open([DG, YZ], [{ x: 800, y: 450 }, { x: 1400, y: 800 }])
+  world.cover[45 * COLS + 83] = 1 // right at the muzzle
+  cannon(world)
+  stepTank(world)
+  assert.ok(world.tanks[0].hp < 100 && world.tanks[0].hp > 80, `hp ${world.tanks[0].hp}`)
+  assert.equal(world.tanks[0].score, 0)
+})
+
+test('a kill scores 50; the tank respawns after 3 s far from enemies, briefly invulnerable', () => {
+  const world = open([DG, YZ], [{ x: 800, y: 450 }, { x: 1000, y: 450 }])
+  const target = world.tanks[1]
+  target.hp = 5
+  pullGun(world)
+  while (target.deadUntilMs === null) stepTank(world)
+  assert.equal(world.tanks[0].score, 55)
+  steps(world, 179)
+  assert.notEqual(target.deadUntilMs, null)
+  stepTank(world)
+  assert.equal(target.deadUntilMs, null)
+  assert.equal(target.hp, 100)
+  assert.deepEqual(target.position, { x: 100, y: 100 })
+  close(target.invulnerableUntilMs, world.nowMs + 2_000, 1e-6)
+
+  target.position = { x: 1000, y: 450 }
+  pullGun(world)
+  steps(world, 20)
+  assert.equal(target.hp, 100, 'invulnerable tanks take no damage')
+})
+
+test('results give each crew member the crew score, and a solo player once', () => {
+  const world = open([DG, { id: 'crew-1', driver: 's', gunner: 's' }])
+  world.tanks[0].score = 40
+  world.tanks[1].score = 70
+  assert.deepEqual(tankResults(world).map((result) => [result.playerId, result.points]), [
+    ['s', 70], ['d', 40], ['g', 40],
+  ])
 })

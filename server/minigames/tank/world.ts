@@ -1,9 +1,9 @@
-import type { TankCrew, TankInput } from '../../../shared/protocol.ts'
+import type { MinigameResult, TankCrew, TankInput } from '../../../shared/protocol.ts'
 import type { Vec2 } from '../bow/types.ts'
 import type { InputOutcome } from '../definition.ts'
-import { SPAWNS, circleHitsCover, createCover } from './cover.ts'
+import { SPAWNS, carve, circleHitsCover, createCover, solidAt } from './cover.ts'
 import { TANK_FIELD, TANK_RADIUS, TANK_STEP_MS } from './types.ts'
-import type { Tank, TankConfig, TankWorld, Weapon } from './types.ts'
+import type { Projectile, Tank, TankConfig, TankWorld, Weapon } from './types.ts'
 
 export const DEFAULT_TANK_CONFIG: Readonly<TankConfig> = {
   hp: 100,
@@ -133,6 +133,81 @@ function reload(world: TankWorld, tank: Tank): void {
   if (tank.cannonClip === 0 && reached(world, tank.cannonReloadUntilMs)) tank.cannonClip = world.config.cannon.clip
 }
 
+function damage(world: TankWorld, shooter: Tank, victim: Tank, amount: number): void {
+  if (amount <= 0 || victim.deadUntilMs !== null || world.nowMs < victim.invulnerableUntilMs) return
+  const dealt = Math.min(amount, victim.hp)
+  victim.hp -= dealt
+  if (shooter !== victim) shooter.score += dealt
+  if (victim.hp > 0) return
+  victim.deadUntilMs = world.nowMs + world.config.respawnMs
+  if (shooter !== victim) shooter.score += world.config.killPoints
+}
+
+function explode(world: TankWorld, at: Vec2, shot: Projectile, direct: Tank | undefined): void {
+  const spec = world.config[shot.weapon]
+  world.coverChanged.push(...carve(world.cover, at, spec.blastRadius))
+  world.blasts.push({ position: { ...at }, radius: spec.blastRadius, weapon: shot.weapon })
+  const shooter = world.tanks.find((tank) => tank.id === shot.tankId)!
+  if (direct) damage(world, shooter, direct, spec.damage)
+  if (shot.weapon !== 'cannon') return
+  for (const tank of world.tanks) {
+    if (tank === direct) continue
+    const reach = Math.max(0, Math.hypot(tank.position.x - at.x, tank.position.y - at.y) - TANK_RADIUS)
+    if (reach < spec.blastRadius) damage(world, shooter, tank, Math.round(world.config.splash * (1 - reach / spec.blastRadius)))
+  }
+}
+
+function flyProjectiles(world: TankWorld, dt: number): void {
+  const flying: Projectile[] = []
+  for (const shot of world.projectiles) {
+    if (reached(world, shot.bornAtMs + world.config[shot.weapon].lifetimeMs)) {
+      explode(world, shot.position, shot, undefined)
+      continue
+    }
+    // ponytail: point samples every 4 px, not a swept test; enough for 22 px tanks and 10 px cells.
+    const samples = Math.max(1, Math.ceil(Math.hypot(shot.velocity.x, shot.velocity.y) * dt / 4))
+    let burst = false
+    for (let i = 1; i <= samples && !burst; i++) {
+      const p = { x: shot.position.x + shot.velocity.x * dt * i / samples, y: shot.position.y + shot.velocity.y * dt * i / samples }
+      const outside = p.x < 0 || p.y < 0 || p.x >= TANK_FIELD.width || p.y >= TANK_FIELD.height
+      const hit = world.tanks.find((tank) => tank.id !== shot.tankId && tank.deadUntilMs === null
+        && Math.hypot(tank.position.x - p.x, tank.position.y - p.y) < TANK_RADIUS)
+      if (outside || hit || solidAt(world.cover, p)) {
+        const at = { x: Math.max(0, Math.min(TANK_FIELD.width - 1e-6, p.x)), y: Math.max(0, Math.min(TANK_FIELD.height - 1e-6, p.y)) }
+        explode(world, at, shot, hit)
+        burst = true
+      }
+    }
+    if (!burst) {
+      shot.position = { x: shot.position.x + shot.velocity.x * dt, y: shot.position.y + shot.velocity.y * dt }
+      flying.push(shot)
+    }
+  }
+  world.projectiles = flying
+}
+
+function respawn(world: TankWorld, tank: Tank): void {
+  if (tank.deadUntilMs === null || !reached(world, tank.deadUntilMs)) return
+  const enemies = world.tanks.filter((other) => other !== tank && other.deadUntilMs === null)
+  const clearance = (p: Vec2) => enemies.length === 0 ? 0
+    : Math.min(...enemies.map((enemy) => Math.hypot(enemy.position.x - p.x, enemy.position.y - p.y)))
+  const spot = world.spawns.reduce((best, spawn) => clearance(spawn) > clearance(best) ? spawn : best)
+  const { config } = world
+  Object.assign(tank, {
+    position: { ...spot }, hull: facingCenter(spot), turret: 0, hp: config.hp,
+    gunClip: config.gun.clip, gunNextShotMs: 0, gunReloadUntilMs: 0,
+    cannonClip: config.cannon.clip, cannonReloadUntilMs: 0,
+    deadUntilMs: null, invulnerableUntilMs: world.nowMs + config.invulnerableMs,
+  })
+}
+
+export function tankResults(world: TankWorld): MinigameResult[] {
+  return world.tanks
+    .flatMap((tank) => [...new Set([tank.crew.driver, tank.crew.gunner])]
+      .map((playerId) => ({ playerId, points: tank.score, shots: tank.shots })))
+    .sort((a, b) => b.points - a.points || (a.playerId < b.playerId ? -1 : 1))
+}
+
 function blocked(world: TankWorld, tank: Tank, next: Vec2): boolean {
   const r = TANK_RADIUS
   if (next.x < r || next.y < r || next.x > TANK_FIELD.width - r || next.y > TANK_FIELD.height - r) return true
@@ -165,9 +240,11 @@ export function stepTank(world: TankWorld): void {
   world.tick++
   world.nowMs = world.tick * TANK_STEP_MS
   for (const tank of world.tanks) {
+    respawn(world, tank)
     reload(world, tank)
     if (tank.deadUntilMs !== null) continue
     move(world, tank, dt)
     if (tank.gunHeld && tank.gunClip > 0 && reached(world, tank.gunNextShotMs)) fire(world, tank, 'gun')
   }
+  flyProjectiles(world, dt)
 }
