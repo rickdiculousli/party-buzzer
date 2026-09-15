@@ -8,7 +8,7 @@ import { momentOf, phoneOf } from '../shared/wall.ts'
 import type { Mood } from '../shared/wall.ts'
 import type { State } from '../shared/protocol.ts'
 import { scoreKey } from '../shared/scoring.ts'
-import { BowPlayer } from './BowPlayer.tsx'
+import { MINIGAME_PLAYERS } from './minigames.tsx'
 
 /** `phoneOf` names the mood; the stylesheet is where it becomes a colour. */
 const MOOD_CLASS: Record<Mood, string> = {
@@ -188,7 +188,10 @@ export function Player() {
     )
   }
 
-  if (state?.minigame) return <BowPlayer state={state} frame={minigameFrame} now={now} send={send} ack={minigameAck} />
+  if (state?.minigame) {
+    const Surface = MINIGAME_PLAYERS[state.minigame.id]
+    return <Surface state={state} playerId={playerId} frame={minigameFrame} now={now} send={send} ack={minigameAck} />
+  }
 
   const buzz = () => {
     if (!open || barred || pressed || frozen || spectator) return

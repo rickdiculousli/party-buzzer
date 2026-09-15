@@ -1,14 +1,8 @@
 import { useRef, useState } from 'preact/hooks'
-import type { MinigameInputAck, ClientMsg, MinigameFrame, State } from '../shared/protocol.ts'
 import { aimDegrees, aimFromDrag, canBowShoot, nextBowSequence } from './bow-control.ts'
+import type { MinigamePlayerProps } from './minigames.tsx'
 
-export function BowPlayer({ state, frame, now, send, ack }: {
-  state: State
-  frame: MinigameFrame | null
-  now: () => number
-  send: (message: ClientMsg) => void
-  ack?: MinigameInputAck | null
-}) {
+export function BowPlayer({ state, frame, now, send, ack }: MinigamePlayerProps) {
   const session = state.minigame!
   const mine = frame?.matchId === session.matchId && frame.role === 'player' && frame.id === 'bow' ? frame : null
   const spectator = frame?.matchId === session.matchId && frame.role === 'spectator'
