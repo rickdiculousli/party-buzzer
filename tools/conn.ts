@@ -7,7 +7,7 @@
  * shortcut through the HTTP layer would stop being evidence about the game.
  */
 import { setTimeout as sleep } from 'node:timers/promises'
-import type { ClientMsg, ServerMsg, State } from '../shared/protocol.ts'
+import type { ClientMsg, MinigameFrame, ServerMsg, State } from '../shared/protocol.ts'
 
 /**
  * Where the tools look for a server, unless `URL=` says otherwise.
@@ -41,6 +41,8 @@ export type Conn = {
   playerId: string
   waitFor: (pred: (s: State) => boolean, timeoutMs?: number) => Promise<State>
   close: () => void
+  /** The latest minigame frame, for board connections. */
+  frame: () => MinigameFrame | null
 }
 
 /**
@@ -50,7 +52,7 @@ export type Conn = {
  */
 export async function connect(
   url: string,
-  role: 'host' | 'player',
+  role: 'host' | 'player' | 'board',
   name?: string,
   resumeId?: string,
 ): Promise<Conn> {
@@ -61,6 +63,7 @@ export async function connect(
   })
 
   let state: State | null = null
+  let frame: MinigameFrame | null = null
   let offset = 0
   let best = Infinity
   let playerId = ''
@@ -82,7 +85,7 @@ export async function connect(
       for (let i = waiters.length - 1; i >= 0; i--) {
         if (waiters[i].pred(msg.state)) waiters.splice(i, 1)[0].resolve(msg.state)
       }
-    }
+    } else if (msg.t === 'minigameFrame') frame = msg.frame
   }
 
   const send = (msg: ClientMsg) => ws.send(JSON.stringify(msg))
@@ -113,5 +116,6 @@ export async function connect(
         }, timeoutMs)
       }),
     close: () => ws.close(),
+    frame: () => frame,
   } as Conn
 }

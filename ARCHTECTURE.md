@@ -43,7 +43,7 @@ are objects in the same process as `Hub`. The composition root is
 | Startup and transport | `server/index.ts` | Load state, construct services, HTTP(S), WebSocket, spoken uploads, shutdown flush |
 | Room coordination | `server/hub.ts` | Connections, dispatch, undo history, collection timers, role views, change notification |
 | Game transitions | `server/state.ts` | Apply host actions, distinguish outcomes, coordinate rule modules, load/save state |
-| Minigame runtime | `server/minigames/runtime.ts`, `server/minigames/bow/` | Match lifecycle, fixed-step simulation, queued releases, role frames and bow rules |
+| Minigame runtime | `server/minigames/runtime.ts`, `server/minigames/registry.ts`, `server/minigames/bow/`, `server/minigames/tank/` | Match lifecycle, fixed-step simulation, queued inputs, role frames; bow and tank rules behind registry definitions |
 | Buzz ranking | `server/resolve.ts` | Clamp and sort timestamps, deduplicate players, exclude lockouts |
 | Gameplay framework | `server/items.ts`, `duel.ts`, `setlist.ts`, `eligibility.ts` | Inventories/effects, seating, block progression, effect and mode eligibility |
 | Mode rules | `server/modes/` | Static registry, options, mode memory, scoring hooks and host status |

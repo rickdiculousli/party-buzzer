@@ -72,6 +72,16 @@ setlist blocks and final visual styling are not implemented yet; the current
 shapes are placeholders for testing aim, release, flight, collisions, scoring,
 and simultaneous play.
 
+### Tank minigame
+
+Press **Prepare Tank** and **Start match** on `/host`. Start pairs connected
+players into random two-person crews; an odd player out drives and guns a tank
+alone. The driver spins a wheel to turn the hull and holds Forward or Back. The
+gunner spins a wheel to turn the turret, holds Gun, and taps Cannon. The turret
+turns with the hull, so crews have to coordinate their aim. Shots carve the
+cover, destroyed tanks respawn after three seconds, and each crew's damage and
+kill points are added to both members' scores when the match ends.
+
 ## Question packs and spoken play
 
 Put `.txt` files in `packs/`, select one, and press **Read**. For example:
@@ -151,6 +161,7 @@ With a game server running:
 ```sh
 npm run sim -- 5 2
 npm run sim-bow -- 3 20
+npm run sim-tank -- 3 30
 npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@140 correct
 ```
 
