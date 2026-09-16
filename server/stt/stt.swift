@@ -35,18 +35,23 @@ func pump(until ready: () -> Bool, seconds: Double) {
 }
 
 var recognizer: SFSpeechRecognizer?
-var authorized = false
-var authDone = false
-SFSpeechRecognizer.requestAuthorization { status in
-    if status == .authorized,
-       let r = SFSpeechRecognizer(locale: Locale(identifier: "en-US")), r.isAvailable {
-        recognizer = r
-        authorized = true
+
+/// Authorization is lazy so session protocol requests that require no speech
+/// service can still be answered deterministically. Real transcription takes
+/// the same authorization path on its first non-empty range.
+func speechRecognizer() -> SFSpeechRecognizer? {
+    if let recognizer { return recognizer }
+    var authDone = false
+    SFSpeechRecognizer.requestAuthorization { status in
+        if status == .authorized,
+           let candidate = SFSpeechRecognizer(locale: Locale(identifier: "en-US")), candidate.isAvailable {
+            recognizer = candidate
+        }
+        authDone = true
     }
-    authDone = true
+    pump(until: { authDone }, seconds: 30)
+    return recognizer
 }
-pump(until: { authDone }, seconds: 30)
-guard authorized, let recognizer else { fail("speech recognition unavailable or not authorized", 1) }
 
 let file: AVAudioFile
 do { file = try AVAudioFile(forReading: url) } catch {
@@ -71,6 +76,7 @@ func transcribe(fromMs: Int, toMs: Int) -> String? {
     } catch {
         return nil
     }
+    guard let recognizer = speechRecognizer() else { return nil }
 
     let request = SFSpeechAudioBufferRecognitionRequest()
     if recognizer.supportsOnDeviceRecognition { request.requiresOnDeviceRecognition = true }

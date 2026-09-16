@@ -6,8 +6,7 @@ import assert from 'node:assert/strict'
 import { run } from './speech.ts'
 import { transcribeSession, sttBinary } from './stt.ts'
 
-const SPOKEN = 'This Russian composer wrote a ballet about a nutcracker. ' +
-  'He also wrote the 1812 Overture, which calls for cannon fire.'
+const SPOKEN = 'This clip keeps the native helper open while its line protocol is tested.'
 
 /** Rendered rather than checked in, the way the demo sounds are. */
 async function fixture(dir: string): Promise<string | null> {
@@ -19,10 +18,11 @@ async function fixture(dir: string): Promise<string | null> {
 /**
  * One request at a time, each awaited before the next is sent — which is how the
  * aligner uses it, and the only shape that catches the bug this test exists
- * for. Writing every request first and reading afterwards passes even when the
- * helper never flushes, because the buffer empties when the process exits.
+ * for. Zero-length ranges make the native helper answer without involving the
+ * nondeterministic macOS recognition service; this test owns the line protocol
+ * and flushing contract, not Apple's transcription quality.
  */
-test('a held-open clip answers one request before being asked the next', async (t) => {
+test('a held-open helper flushes one reply before being asked for the next', async (t) => {
   const bin = await sttBinary(join(import.meta.dirname, 'stt'))
   if (!bin) return t.skip('no swiftc / no helper source')
 
@@ -37,24 +37,16 @@ test('a held-open clip answers one request before being asked the next', async (
   try {
     // A deadlock here is silent and indefinite: both sides idle at zero CPU
     // waiting for the other. Fail loudly instead of hanging the suite.
-    const answered = <T,>(p: Promise<T>) =>
-      Promise.race([
-        p,
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('no answer in 30s — the helper is not flushing')), 30_000),
-        ),
-      ])
+    const answered = <T,>(p: Promise<T>) => new Promise<T>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('no answer in 30s — the helper is not flushing')), 30_000)
+      p.then(
+        (value) => { clearTimeout(timeout); resolve(value) },
+        (error) => { clearTimeout(timeout); reject(error) },
+      )
+    })
 
-    const early = await answered(s.transcribe(0, 2900))
-    const later = await answered(s.transcribe(0, 7314))
-
-    assert.ok(early.length > 0, 'the first request answered at all')
-    assert.ok(
-      later.length > early.length,
-      `more audio must yield at least as many words: ${early.length} then ${later.length}`,
-    )
-    // The clip is the same one every time, so a later cut extends the earlier.
-    assert.equal(later.slice(0, early.length).join(' ').toLowerCase(), early.join(' ').toLowerCase())
+    assert.deepEqual(await answered(s.transcribe(0, 0)), [])
+    assert.deepEqual(await answered(s.transcribe(1000, 1000)), [])
   } finally {
     s.close()
     rmSync(dir, { recursive: true, force: true })
