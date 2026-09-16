@@ -139,6 +139,33 @@ test('a gun round hits the first tank on its path for 5', () => {
   assert.deepEqual(world.blasts.map((blast) => blast.weapon), ['gun'])
 })
 
+test('opposing projectiles collide along swept paths and each explodes once', () => {
+  const world = open([DG, YZ], [{ x: 100, y: 100 }, { x: 1500, y: 800 }])
+  world.projectiles.push(
+    { id: 'gun', tankId: 'crew-0', weapon: 'gun', position: { x: 500, y: 450 }, velocity: { x: 600, y: 0 }, bornAtMs: 0 },
+    { id: 'cannon', tankId: 'crew-1', weapon: 'cannon', position: { x: 516, y: 450 }, velocity: { x: -600, y: 0 }, bornAtMs: 0 },
+  )
+
+  stepTank(world)
+
+  assert.equal(world.projectiles.length, 0)
+  assert.deepEqual(world.blasts.map((blast) => blast.weapon).sort(), ['cannon', 'gun'])
+  assert.ok(world.blasts.every((blast) => Math.abs(blast.position.x - 508) < 1e-6))
+})
+
+test('projectiles fired by the same tank do not collide', () => {
+  const world = open([DG], [{ x: 100, y: 100 }])
+  world.projectiles.push(
+    { id: 'gun', tankId: 'crew-0', weapon: 'gun', position: { x: 500, y: 450 }, velocity: { x: 600, y: 0 }, bornAtMs: 0 },
+    { id: 'cannon', tankId: 'crew-0', weapon: 'cannon', position: { x: 516, y: 450 }, velocity: { x: -600, y: 0 }, bornAtMs: 0 },
+  )
+
+  stepTank(world)
+
+  assert.equal(world.projectiles.length, 2)
+  assert.equal(world.blasts.length, 0)
+})
+
 test('cover stops a shell, and the blast carves it', () => {
   const world = open([DG, YZ], [{ x: 800, y: 450 }, { x: 1000, y: 450 }])
   for (let row = 0; row < ROWS; row++) world.cover[row * COLS + 90] = 1 // x 900..910

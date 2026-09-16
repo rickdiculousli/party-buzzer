@@ -183,33 +183,127 @@ function explode(world: TankWorld, at: Vec2, shot: Projectile, direct: Tank | un
   }
 }
 
+const PROJECTILE_RADIUS: Record<Weapon, number> = { gun: 3, cannon: 6 }
+const PROJECTILE_GRID_SIZE = 32
+
+type ProjectileMotion = { shot: Projectile; next: Vec2 }
+type ProjectileImpact =
+  | { kind: 'world'; time: number; motion: number; at: Vec2; hit: Tank | undefined }
+  | { kind: 'pair'; time: number; first: number; second: number; at: Vec2 }
+
+function sweptProjectileImpact(a: ProjectileMotion, b: ProjectileMotion): number | null {
+  const px = a.shot.position.x - b.shot.position.x
+  const py = a.shot.position.y - b.shot.position.y
+  const vx = (a.next.x - a.shot.position.x) - (b.next.x - b.shot.position.x)
+  const vy = (a.next.y - a.shot.position.y) - (b.next.y - b.shot.position.y)
+  const radius = PROJECTILE_RADIUS[a.shot.weapon] + PROJECTILE_RADIUS[b.shot.weapon]
+  const c = px * px + py * py - radius * radius
+  if (c <= 0) return 0
+  const aa = vx * vx + vy * vy
+  if (aa === 0) return null
+  const bb = 2 * (px * vx + py * vy)
+  const discriminant = bb * bb - 4 * aa * c
+  if (discriminant < 0) return null
+  const time = (-bb - Math.sqrt(discriminant)) / (2 * aa)
+  return time >= 0 && time <= 1 ? time : null
+}
+
+function projectilePairImpacts(motions: ProjectileMotion[]): ProjectileImpact[] {
+  const buckets = new Map<string, number[]>()
+  const candidates = new Set<string>()
+  for (let i = 0; i < motions.length; i++) {
+    const { shot, next } = motions[i]
+    const radius = PROJECTILE_RADIUS[shot.weapon]
+    const minCol = Math.floor((Math.min(shot.position.x, next.x) - radius) / PROJECTILE_GRID_SIZE)
+    const maxCol = Math.floor((Math.max(shot.position.x, next.x) + radius) / PROJECTILE_GRID_SIZE)
+    const minRow = Math.floor((Math.min(shot.position.y, next.y) - radius) / PROJECTILE_GRID_SIZE)
+    const maxRow = Math.floor((Math.max(shot.position.y, next.y) + radius) / PROJECTILE_GRID_SIZE)
+    for (let row = minRow; row <= maxRow; row++) {
+      for (let col = minCol; col <= maxCol; col++) {
+        const key = `${col}:${row}`
+        const bucket = buckets.get(key) ?? []
+        for (const other of bucket) {
+          if (motions[other].shot.tankId !== shot.tankId) candidates.add(`${other}:${i}`)
+        }
+        bucket.push(i)
+        buckets.set(key, bucket)
+      }
+    }
+  }
+
+  const impacts: ProjectileImpact[] = []
+  for (const candidate of candidates) {
+    const [first, second] = candidate.split(':').map(Number)
+    const time = sweptProjectileImpact(motions[first], motions[second])
+    if (time === null) continue
+    const a = motions[first]
+    const b = motions[second]
+    const ax = a.shot.position.x + (a.next.x - a.shot.position.x) * time
+    const ay = a.shot.position.y + (a.next.y - a.shot.position.y) * time
+    const bx = b.shot.position.x + (b.next.x - b.shot.position.x) * time
+    const by = b.shot.position.y + (b.next.y - b.shot.position.y) * time
+    impacts.push({ kind: 'pair', time, first, second, at: { x: (ax + bx) / 2, y: (ay + by) / 2 } })
+  }
+  return impacts
+}
+
 function flyProjectiles(world: TankWorld, dt: number): void {
-  const flying: Projectile[] = []
+  const consumed = new Set<number>()
+  const motions: ProjectileMotion[] = []
   for (const shot of world.projectiles) {
     if (reached(world, shot.bornAtMs + world.config[shot.weapon].lifetimeMs)) {
       explode(world, shot.position, shot, undefined)
       continue
     }
-    // ponytail: point samples every 4 px, not a swept test; enough for 22 px tanks and 10 px cells.
+    motions.push({
+      shot,
+      next: { x: shot.position.x + shot.velocity.x * dt, y: shot.position.y + shot.velocity.y * dt },
+    })
+  }
+
+  const impacts = projectilePairImpacts(motions)
+  for (let motion = 0; motion < motions.length; motion++) {
+    const { shot } = motions[motion]
+    // Environment samples stay at most 4 px apart; projectile pairs use exact swept contact above.
     const samples = Math.max(1, Math.ceil(Math.hypot(shot.velocity.x, shot.velocity.y) * dt / 4))
-    let burst = false
-    for (let i = 1; i <= samples && !burst; i++) {
-      const p = { x: shot.position.x + shot.velocity.x * dt * i / samples, y: shot.position.y + shot.velocity.y * dt * i / samples }
+    for (let sample = 1; sample <= samples; sample++) {
+      const time = sample / samples
+      const p = { x: shot.position.x + shot.velocity.x * dt * time, y: shot.position.y + shot.velocity.y * dt * time }
       const outside = p.x < 0 || p.y < 0 || p.x >= TANK_FIELD.width || p.y >= TANK_FIELD.height
       const hit = world.tanks.find((tank) => tank.id !== shot.tankId && tank.deadUntilMs === null
         && Math.hypot(tank.position.x - p.x, tank.position.y - p.y) < TANK_RADIUS)
-      if (outside || hit || solidAt(world.cover, p)) {
-        const at = { x: Math.max(0, Math.min(TANK_FIELD.width - 1e-6, p.x)), y: Math.max(0, Math.min(TANK_FIELD.height - 1e-6, p.y)) }
-        explode(world, at, shot, hit)
-        burst = true
-      }
-    }
-    if (!burst) {
-      shot.position = { x: shot.position.x + shot.velocity.x * dt, y: shot.position.y + shot.velocity.y * dt }
-      flying.push(shot)
+      if (!outside && !hit && !solidAt(world.cover, p)) continue
+      impacts.push({
+        kind: 'world', time, motion,
+        at: { x: Math.max(0, Math.min(TANK_FIELD.width - 1e-6, p.x)), y: Math.max(0, Math.min(TANK_FIELD.height - 1e-6, p.y)) },
+        hit,
+      })
+      break
     }
   }
-  world.projectiles = flying
+
+  impacts.sort((a, b) => a.time - b.time
+    || (a.kind === 'world' ? a.motion : a.first) - (b.kind === 'world' ? b.motion : b.first)
+    || (a.kind === 'pair' ? a.second : -1) - (b.kind === 'pair' ? b.second : -1))
+  for (const impact of impacts) {
+    if (impact.kind === 'world') {
+      if (consumed.has(impact.motion)) continue
+      consumed.add(impact.motion)
+      explode(world, impact.at, motions[impact.motion].shot, impact.hit)
+      continue
+    }
+    if (consumed.has(impact.first) || consumed.has(impact.second)) continue
+    consumed.add(impact.first)
+    consumed.add(impact.second)
+    explode(world, impact.at, motions[impact.first].shot, undefined)
+    explode(world, impact.at, motions[impact.second].shot, undefined)
+  }
+
+  world.projectiles = motions.flatMap((motion, index) => {
+    if (consumed.has(index)) return []
+    motion.shot.position = motion.next
+    return [motion.shot]
+  })
 }
 
 function respawn(world: TankWorld, tank: Tank): void {

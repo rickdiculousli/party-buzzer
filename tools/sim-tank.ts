@@ -1,8 +1,8 @@
 /**
  * Synthetic self-play for the tank minigame. Bots join, get paired into crews
- * by the server, and fight: drivers steer toward the nearest enemy, gunners
- * crank the turret onto it and fire when lined up. Hull turns swing the gun,
- * so gunners keep correcting, which is the coordination the game is about.
+ * by the server, and fight: drivers use drive plus refreshed hull turn rates,
+ * while gunners select an absolute world heading and fire once the slewing
+ * turret is actually lined up. Solo crews aim their fixed turret with the hull.
  *
  * Bots read the shared field through a board connection, like the TV does.
  *
@@ -73,16 +73,16 @@ async function crewLoop(crew: TankCrew, bots: Map<string, Bot>, board: Conn, mat
       send(driver, { kind: 'drive', dir: drive })
     }
 
-    // Gunner: correct for the hull, with a little hand wobble.
-    const aimError = wrap(bearing - me.hull - me.turret) + (Math.random() - 0.5) * 0.1
-    const turretRate = clamp(aimError / (Math.PI / 2), -4 / 3, 4 / 3)
-    if (!solo) send(gunner, { kind: 'turn', rate: turretRate })
+    // Gunner: point in world space with a little hand wobble. The server slews
+    // the relative turret angle so this target stays fixed while the hull turns.
+    if (!solo) send(gunner, { kind: 'turretAim', angle: wrap(bearing + (Math.random() - 0.5) * 0.1) })
+    const aimError = wrap(bearing - me.hull - me.turret)
     const aligned = Math.abs(aimError) < 0.08
     if (aligned !== gunDown) {
       gunDown = aligned
       send(gunner, { kind: 'trigger', weapon: 'gun', down: gunDown, at: board.now() })
     }
-    if (aligned && board.now() - lastCannon > 3_100) {
+    if (aligned && board.now() - lastCannon > 4_100) {
       lastCannon = board.now()
       send(gunner, { kind: 'trigger', weapon: 'cannon', down: true, at: board.now() })
       send(gunner, { kind: 'trigger', weapon: 'cannon', down: false, at: board.now() })
