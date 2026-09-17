@@ -48,11 +48,16 @@
 }
 
 .review__delivery {
+  position: relative;
   display: flex;
   gap: var(--s1);
   align-items: center;
   flex-wrap: wrap;
   margin-bottom: var(--s3);
+  padding-right: var(--s4);
+  /* A long agent summary scrolls here rather than pushing the notes off screen. */
+  max-height: 12rem;
+  overflow: auto;
 }
 
 .review__delivery p {
@@ -105,6 +110,30 @@
   display: flex;
   gap: var(--s1);
 }
+
+.review__dismiss {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 0 var(--s2);
+  line-height: 1.6;
+}
+
+.review__note-message {
+  color: var(--dim);
+  font-size: var(--t-sm);
+}
+
+.review__done {
+  margin-top: var(--s3);
+  display: grid;
+  gap: var(--s2);
+  color: var(--dim);
+  font-size: var(--t-sm);
+}
+
+.review__done summary { cursor: pointer; }
+.review__done p { margin: 0; }
 
 .review__previews {
   min-width: 0;

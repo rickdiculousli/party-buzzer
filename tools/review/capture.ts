@@ -25,7 +25,13 @@ export async function capturePreviews(
       url.searchParams.set('surface', note.surface)
       if (note.playerId) url.searchParams.set('player', note.playerId)
       await page.goto(url.toString())
-      await page.locator('html[data-review-ready="true"]').waitFor()
+      // Wait on the attribute, not visibility: an ink pad collapses <html> to zero height.
+      await page.locator('html[data-review-ready]').waitFor({ state: 'attached' })
+      const ready = await page.evaluate(() => ({
+        state: document.documentElement.dataset.reviewReady,
+        text: (document.body.textContent ?? '').trim().slice(0, 200),
+      }))
+      if (ready.state !== 'true') throw new Error(`preview ${key} failed to render: ${ready.text}`)
       await page.evaluate(({ x, y }) => scrollTo(x, y), note.scroll)
       const filename = `${note.surface}-${note.scenarioId}${note.playerId ? `-${note.playerId}` : ''}.png`
       await page.screenshot({ path: join(outDir, filename) })

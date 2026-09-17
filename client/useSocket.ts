@@ -12,6 +12,7 @@ export type SocketFixture = {
   playerId?: string
   connected?: boolean
   now: number
+  frame?: MinigameFrame
 }
 
 /**
@@ -82,7 +83,7 @@ export function useSocket(role: Role, fixture?: SocketFixture) {
   )
   const [connected, setConnected] = useState(fixture?.connected ?? false)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
-  const [minigameFrame, setMinigameFrame] = useState<MinigameFrame | null>(null)
+  const [minigameFrame, setMinigameFrame] = useState<MinigameFrame | null>(fixture?.frame ?? null)
   const [minigameAck, setMinigameAck] = useState<MinigameInputAck | null>(null)
   const [minigameTouches, setMinigameTouches] = useState<TimedTouch[]>([])
 

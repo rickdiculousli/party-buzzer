@@ -133,7 +133,28 @@ test('review scenarios cover the main board and phone moments', async () => {
     'rebound',
     'duel',
     'setlist-complete',
+    'ink-lobby',
+    'ink-choosing',
+    'ink-choose',
+    'ink-offer',
+    'ink-keep',
+    'ink-clue',
+    'ink-clue-stopped',
+    'ink-guess',
+    'ink-guess-missed',
+    'ink-peek',
+    'ink-over',
   ])
+})
+
+test('every ink scenario carries the frame its phones need', async () => {
+  const { makeReviewScenarios } = await import('./review/fixtures.ts')
+  for (const scenario of makeReviewScenarios().filter((item) => item.id.startsWith('ink-') && item.id !== 'ink-lobby')) {
+    assert.equal(scenario.boardFrame?.id, 'ink', scenario.id)
+    for (const phone of scenario.phones) {
+      assert.equal(phone.frame?.role, 'player', `${scenario.id} ${phone.playerId}`)
+    }
+  }
 })
 
 test('createBatch atomically preserves an immutable request and its captures', async (t) => {

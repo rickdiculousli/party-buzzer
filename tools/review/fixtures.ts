@@ -3,6 +3,7 @@ import { newState } from '../../server/state.ts'
 import type { Conn } from '../../server/hub.ts'
 import type { State } from '../../shared/protocol.ts'
 import type { ReviewScenario } from '../../client/review/model.ts'
+import { INK_PLAYERS, InkGame, inkSession } from './ink.ts'
 
 const NOW = 1_800_000_000_000
 
@@ -125,6 +126,32 @@ export function makeReviewScenarios(): ReviewScenario[] {
     done: 0,
   }
 
+  const inkState = (phase: 'ready' | 'playing') => {
+    const state = base()
+    state.players = structuredClone(INK_PLAYERS)
+    state.scores = Object.fromEntries(INK_PLAYERS.map((player) => [player.id, 0]))
+    state.minigame = inkSession(phase)
+    return state
+  }
+  const ink = (id: string, label: string, reach: (game: InkGame) => void): ReviewScenario => {
+    const game = new InkGame()
+    reach(game)
+    const state = inkState('playing')
+    return {
+      id, label,
+      board: project(state, 'board'),
+      boardFrame: game.board(),
+      phones: state.players.map((player) => ({
+        playerId: player.id,
+        label: player.name,
+        state: project(state, 'player', player.id),
+        pressed: false,
+        frame: game.phone(player.id),
+      })),
+      presentation: at(),
+    }
+  }
+
   return [
     build('welcome', 'Welcome', welcome, at()),
     build('waiting', 'Waiting between questions', waiting, at()),
@@ -137,5 +164,57 @@ export function makeReviewScenarios(): ReviewScenario[] {
     build('rebound', 'Rebound with lockout', rebound, at({ open: true })),
     build('duel', 'Duel selection', duel, at()),
     build('setlist-complete', 'Setlist complete', spent, at()),
+    build('ink-lobby', 'Ink teams forming', inkState('ready'), at()),
+    ink('ink-choosing', 'Ink word choice', (game) => {
+      game.play('di', { kind: 'pickWord', index: 2, at: 0 })
+    }),
+    ink('ink-choose', 'Ink ask or guess vote', (game) => {
+      game.chooseWord()
+      game.vote('ask', [game.guessers()[0]])
+    }),
+    ink('ink-offer', 'Ink prompt offer', (game) => {
+      game.chooseWord().vote('ask')
+    }),
+    ink('ink-keep', 'Ink writer keeps a prompt', (game) => {
+      game.chooseWord().offer()
+    }),
+    ink('ink-clue', 'Ink clue in progress', (game) => {
+      game.chooseWord().ask()
+      game.stroke(game.writer())
+    }),
+    ink('ink-clue-stopped', 'Ink clue stopped', (game) => {
+      game.chooseWord().ask()
+      game.stroke(game.writer())
+      game.play(game.guessers()[0], { kind: 'stop', at: 0 })
+    }),
+    ink('ink-guess', 'Ink guess in progress', (game) => {
+      game.chooseWord()
+      game.clueTurn()
+      game.clueTurn()
+      game.leavePeek()
+      game.vote('guess')
+      game.spell(2)
+    }),
+    ink('ink-guess-missed', 'Ink guess missed', (game) => {
+      game.chooseWord()
+      game.clueTurn()
+      game.clueTurn()
+      game.leavePeek()
+      game.vote('guess')
+      game.spell(2)
+      game.missLetter()
+    }),
+    ink('ink-peek', 'Ink peek pick', (game) => {
+      game.chooseWord()
+      for (let i = 0; i < 6; i++) game.clueTurn()
+    }),
+    ink('ink-over', 'Ink word found', (game) => {
+      game.chooseWord()
+      game.clueTurn()
+      game.clueTurn()
+      game.leavePeek()
+      game.vote('guess')
+      game.spell(Infinity)
+    }),
   ]
 }

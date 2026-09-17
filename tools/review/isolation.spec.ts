@@ -1,4 +1,8 @@
 import { test, expect } from '@playwright/test'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { capturePreviews } from './capture.ts'
 
 test('a frozen phone preview opens no socket, microphone, audio, or spoken request', async ({ page }) => {
   const sockets: string[] = []
@@ -49,6 +53,12 @@ test('a disabled buzzer can be annotated and the note survives reload', async ({
   const note = page.locator('textarea[aria-label="Suggestion 1"]')
   await expect(note).toBeVisible()
   await note.fill('Explain when this player can buzz again.')
+
+  // Clicking the same element again returns to its note instead of opening a second one.
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+  await expect(page.locator('.review__note')).toHaveCount(1)
+  await expect(note).toBeFocused()
+
   await page.reload()
   await expect(page.locator('textarea[aria-label="Suggestion 1"]')).toHaveValue(
     'Explain when this player can buzz again.',
@@ -136,7 +146,25 @@ test('Send posts the saved note to the exact conversation and Refresh remounts p
   const before = await frame.getAttribute('src')
   await page.getByRole('button', { name: 'Refresh previews' }).click()
   await expect(frame).not.toHaveAttribute('src', before ?? '')
-  await expect(page.getByLabel('Suggestion 1')).toHaveValue(
+  // A sent note leaves the editable list, so pressing Send again cannot resubmit
+  // it, and is kept under Done across a remount.
+  await expect(page.getByLabel('Suggestion 1')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /^Send 0 notes$/ })).toBeDisabled()
+  await expect(page.locator('.review__done')).toContainText(
     'Keep the rebound instruction visible beside the buzzer.',
   )
+})
+
+test('a rotated ink pad captures instead of stalling the readiness wait', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'review-capture-'))
+  const note = {
+    id: 'pad', scenarioId: 'ink-clue', surface: 'phone' as const, playerId: 'ada',
+    text: 'pad', status: 'open' as const, scroll: { x: 0, y: 0 },
+    bounds: { x: 0, y: 0, width: 0, height: 0 },
+  }
+  const started = Date.now()
+  const captures = await capturePreviews('http://127.0.0.1:4174', [note], dir)
+  expect(captures['phone:ink-clue:ada']).toBe('phone-ink-clue-ada.png')
+  expect(Date.now() - started).toBeLessThan(15_000)
+  await rm(dir, { recursive: true, force: true })
 })

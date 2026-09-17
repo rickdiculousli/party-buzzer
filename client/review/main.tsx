@@ -59,10 +59,29 @@ function Workbench() {
     const timer = setInterval(() => {
       void fetch(`/__review/batches/${delivery.batchId}`)
         .then((response) => response.json())
-        .then((next: Delivery) => setDelivery(next))
+        .then((next: Delivery) => {
+          // The agent has the batch: the paste line is spent.
+          if (next.status !== 'submitted') setHandoff('')
+          if (next.status !== 'ready' && next.status !== 'blocked') {
+            setDelivery(next)
+            return
+          }
+          setDelivery(null)
+          changeDraft((current) => ({
+            ...current,
+            annotations: current.annotations.map((note) => note.batchId === next.batchId
+              ? { ...note, status: 'resolved' as const, outcome: next.status, message: next.message }
+              : note),
+          }))
+        })
     }, 1_500)
     return () => clearInterval(timer)
   }, [delivery?.batchId, delivery?.status])
+
+  /** After the next render puts it on screen. */
+  const focusNote = (id: string) => requestAnimationFrame(() => {
+    document.getElementById(`note-${id}`)?.focus()
+  })
 
   const changeDraft = (change: (current: typeof draft) => typeof draft) => {
     setDraft((current) => {
@@ -77,16 +96,18 @@ function Workbench() {
       if (event.origin !== location.origin) return
       const data = event.data as { type?: string; selection?: ReviewSelection }
       if (data.type !== 'review:select' || !data.selection) return
-      const annotation: Annotation = {
-        ...data.selection,
-        id: crypto.randomUUID(),
-        text: '',
-        status: 'open',
-      }
-      changeDraft((current) => ({
-        ...current,
-        annotations: [...current.annotations, annotation],
-      }))
+      const pick = data.selection
+      const same = (note: Annotation) => note.status === 'open'
+        && note.scenarioId === pick.scenarioId
+        && note.surface === pick.surface
+        && note.playerId === pick.playerId
+        && (note.targetId ?? note.targetText) === (pick.targetId ?? pick.targetText)
+      const annotation: Annotation = { ...pick, id: crypto.randomUUID(), text: '', status: 'open' }
+      changeDraft((current) => {
+        const existing = current.annotations.find(same)
+        focusNote(existing?.id ?? annotation.id)
+        return existing ? current : { ...current, annotations: [...current.annotations, annotation] }
+      })
     }
     addEventListener('message', receive)
     return () => removeEventListener('message', receive)
@@ -124,20 +145,37 @@ function Workbench() {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ batchId, threadId: threadId.trim(), annotations }),
+        // A dev-server restart during capture leaves the request hanging; fail instead of waiting forever.
+        signal: AbortSignal.timeout(120_000),
       })
       const result = await response.json() as Delivery & { error?: string }
       if (!response.ok) throw new Error(result.error ?? `Submission failed (${response.status})`)
       setDelivery(result)
+      const sent = new Set(annotations.map((note) => note.id))
+      changeDraft((current) => ({
+        ...current,
+        annotations: current.annotations.map((note) =>
+          sent.has(note.id) ? { ...note, status: 'sent' as const, batchId } : note),
+      }))
       if (clipboard) {
         const message = `Review batch ${batchId}. Read ${session.batchRoot}/${batchId}/request.md.`
         setHandoff(message)
         void navigator.clipboard?.writeText(message).catch(() => {})
       }
     } catch (error) {
-      setDelivery({ batchId, status: 'delivery-failed', message: (error as Error).message })
+      const timedOut = (error as Error).name === 'TimeoutError'
+      setDelivery({
+        batchId,
+        status: 'delivery-failed',
+        message: timedOut
+          ? 'The review server never answered. Your notes are untouched; dismiss this and press Send again.'
+          : (error as Error).message,
+      })
     }
   }
-  const sendable = draft.annotations.filter((note) => note.status === 'open' && note.text.trim()).length
+  const open = draft.annotations.filter((note) => note.status === 'open')
+  const done = draft.annotations.filter((note) => note.status !== 'open')
+  const sendable = open.filter((note) => note.text.trim()).length
 
   return (
     <main class="review">
@@ -187,6 +225,10 @@ function Workbench() {
           <div class="review__delivery" role="status">
             <span class="chip">{delivery.status}</span>
             <span class="readout">{delivery.batchId.slice(0, 8)}</span>
+            <button class="btn review__dismiss" aria-label="Dismiss" onClick={() => {
+              setDelivery(null)
+              setHandoff('')
+            }}>×</button>
             {delivery.message && <p>{delivery.message}</p>}
             {handoff && (
               <>
@@ -197,26 +239,47 @@ function Workbench() {
           </div>
         )}
         <div class="review__notes">
-          {draft.annotations.map((note, index) => (
+          {open.map((note, index) => (
             <article key={note.id} class={note.status === 'resolved' ? 'review__note is-resolved' : 'review__note'}>
               <p class="eyebrow">{index + 1} · {note.surface} · {note.targetId ?? note.targetText ?? 'region'}</p>
               <textarea
+                id={`note-${note.id}`}
                 aria-label={`Suggestion ${index + 1}`}
                 value={note.text}
                 placeholder="Describe what should change"
                 onInput={(event) => edit(note.id, { text: event.currentTarget.value })}
               />
               <div class="review__note-actions">
-                <button class="btn" onClick={() => edit(note.id, {
-                  status: note.status === 'resolved' ? 'open' : 'resolved',
-                })}>
-                  {note.status === 'resolved' ? 'Reopen' : 'Resolve'}
-                </button>
+                <button class="btn" onClick={() => edit(note.id, { status: 'resolved' })}>Resolve</button>
                 <button class="btn" onClick={() => remove(note.id)}>Remove</button>
               </div>
             </article>
           ))}
         </div>
+        {done.length > 0 && (
+          <details class="review__done">
+            <summary>Done ({done.length})</summary>
+            {done.map((note) => (
+              <article key={note.id} class="review__note is-resolved">
+                <p class="eyebrow">
+                  {note.surface} · {note.targetId ?? note.targetText ?? 'region'}
+                  {note.batchId && <span class="readout"> {note.batchId.slice(0, 8)}</span>}
+                  {' '}<span class="chip">{note.outcome ?? note.status}</span>
+                </p>
+                <p>{note.text}</p>
+                {note.message && <p class="review__note-message">{note.message}</p>}
+                <div class="review__note-actions">
+                  <button class="btn" onClick={() => edit(note.id, { status: 'open' })}>Reopen</button>
+                  <button class="btn" onClick={() => remove(note.id)}>Remove</button>
+                </div>
+              </article>
+            ))}
+            <button class="btn" onClick={() => changeDraft((current) => ({
+              ...current,
+              annotations: current.annotations.filter((note) => note.status === 'open'),
+            }))}>Clear done</button>
+          </details>
+        )}
       </aside>
       {scenario ? (
         <section class="review__previews">

@@ -107,9 +107,10 @@ them holds Force for two seconds. Writers write freehand in the team's row and
 can undo only their latest stroke. Writing screens are sideways: hold the
 phone with its left edge down (autorotation is fine). Ink may run past the
 writing box; the board clips it to the row. Guessers tap Stop; the Writer finishes the
-letter and taps Done, or taps End clue to add the period. A guess is written
-one letter at a time and the Writer marks each Correct letter or Wrong letter,
-then Win or Not it. While their team votes, a Guesser tapping an option (Ask,
+letter and taps Done, or taps End clue to add the period. A guess is typed one
+letter at a time on the first Guesser's keyboard: each letter goes straight to
+the server, which checks it against the secret word, wins the game on the last
+letter and ends the turn on a wrong one. The Writer never judges a guess. While their team votes, a Guesser tapping an option (Ask,
 Guess, a prompt card, a row to peek) shows a named ring on teammates' phones,
 and on the board for peek rows; taps anywhere else do nothing. The game has no clock. A server restart
 or Undo during play returns it to ready and the game is lost.
@@ -200,8 +201,14 @@ with `npx playwright install chromium`, then run `npm run review`. Choose a
 scenario and phone, click an element in either preview, and write a suggestion.
 **Send** saves an immutable local bundle under ignored `.review/batches/` and
 captures the referenced previews. The status changes as the agent acknowledges
-the batch and marks it ready or blocked. **Refresh previews** remounts the same
-frozen state after source edits while retaining draft notes.
+the batch and marks it ready or blocked. Clicking an element that already
+has an open note returns to that note instead of opening a second box. Sent notes
+leave the editable list at once, so a second **Send** cannot resubmit them, and
+they fold under **Done** carrying their batch id, and the agent's outcome and
+closing summary once it reports. The delivery strip clears itself then, and can be
+dismissed at any point. **Reopen** puts
+one back in the list and **Clear done** discards them. **Refresh previews**
+remounts the same frozen state after source edits while retaining draft notes.
 
 How the bundle reaches the agent depends on `CODEX_THREAD_ID`. With it set, the
 workbench asks for the exact Codex conversation UUID and queues the bundle path
