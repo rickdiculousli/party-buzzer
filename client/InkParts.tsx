@@ -136,25 +136,6 @@ export function HoldButton({ label, onHeld }: { label: string; onHeld: () => voi
   >{label}</button>
 }
 
-/** Guess rows are typed: one letter per slot, the missed one struck through. */
-const LETTER_X = 14
-const LETTER_STEP = 34
-
-function RowLetters({ row }: { row: InkRowView }) {
-  const last = row.letters.length - 1
-  return <>
-    {row.letters.map((letter, i) => {
-      // Every letter sits in a slot of its own, so a thin I keeps the word evenly spelled.
-      const x = LETTER_X + i * LETTER_STEP
-      const missed = !!row.wrong && i === last
-      return <g key={i}>
-        <text x={x + LETTER_STEP / 2} y={H * 0.78} class={missed ? 'ink-letter is-wrong' : 'ink-letter'}>{letter}</text>
-        {missed && <line x1={x + 2} x2={x + LETTER_STEP - 2} y1={H * 0.5} y2={H * 0.5} class="ink-strike" />}
-      </g>
-    })}
-  </>
-}
-
 /** The guesser's keyboard: every letter leaves for the server as it is typed. */
 export function LetterEntry({ onLetter }: { onLetter: (value: string) => void }) {
   return <section class="ink-letters">
@@ -175,6 +156,16 @@ export function LetterEntry({ onLetter }: { onLetter: (value: string) => void })
     />
     <p class="muted">One letter at a time. A wrong letter ends the turn.</p>
   </section>
+}
+
+/** Guess rows are typed: the word in one run of text, the missed letter struck through. */
+function RowLetters({ row }: { row: InkRowView }) {
+  const wrong = row.wrong ? row.letters.at(-1) : null
+  const kept = wrong ? row.letters.slice(0, -1) : row.letters
+  return <text x={14} y={H * 0.78} class={row.won ? 'ink-letter is-won' : 'ink-letter'}>
+    {kept.join('')}
+    {wrong && <tspan class="is-wrong">{wrong}</tspan>}
+  </text>
 }
 
 function RowInk({ row, extra }: { row: InkRowView; extra?: InkPoint[][] }) {
