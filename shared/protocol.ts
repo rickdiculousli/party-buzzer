@@ -281,11 +281,31 @@ export type TankInput =
   | { kind: 'drive'; dir: -1 | 0 | 1 }
   | { kind: 'trigger'; weapon: 'gun' | 'cannon'; down: boolean; at: number }
 
+export type InkPoint = [number, number]
+
+export type InkInput =
+  | { kind: 'pickWord'; index: number; at: number }
+  /** An empty choice clears the vote. */
+  | { kind: 'vote'; choice: string; at: number }
+  | { kind: 'force'; at: number }
+  | { kind: 'keep'; prompt: number; at: number }
+  /** The stroke in progress, repeated while drawing. */
+  | { kind: 'ink'; points: InkPoint[] }
+  | { kind: 'stroke'; points: InkPoint[]; at: number }
+  | { kind: 'undo'; at: number }
+  | { kind: 'stop'; at: number }
+  | { kind: 'done'; at: number }
+  | { kind: 'endClue'; at: number }
+  | { kind: 'check'; at: number }
+  | { kind: 'judge'; correct: boolean; at: number }
+  | { kind: 'finishGuess'; at: number }
+  | { kind: 'verdict'; win: boolean; at: number }
+
 export type MinigameInputMsg = {
   t: 'minigameInput'
   matchId: string
   seq: number
-  input: BowInput | TankInput
+  input: BowInput | TankInput | InkInput
 }
 
 export type MinigameInputAck = {
