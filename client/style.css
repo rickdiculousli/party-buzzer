@@ -1602,8 +1602,9 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .ink-stroke.is-struck { opacity: 0.45; }
 .ink-strike { stroke: var(--tally); stroke-width: 4; }
 .ink-period { fill: var(--chalk); }
-/* One run of text: the font's own spacing keeps the gaps even, a fixed slot would not. */
-.ink-letter { fill: var(--chalk); font: 700 68px/1 var(--display); letter-spacing: 10px; }
+/* Monospaced: every letter takes the same width, so a typed guess is evenly spelled.
+   The condensed display face left a hole beside an I and crowded an M. */
+.ink-letter { fill: var(--chalk); font: 700 58px/1 var(--mono); letter-spacing: 6px; }
 .ink-letter.is-won { fill: var(--brass); }
 .ink-letter .is-wrong { fill: var(--tally); text-decoration: line-through; }
 
