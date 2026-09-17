@@ -115,7 +115,7 @@ Guess, a prompt card, a row to peek) shows a named ring on teammates' phones,
 and on the board for peek rows; taps anywhere else do nothing. The game has no clock. A server restart
 or Undo during play returns it to ready and the game is lost.
 
-`npm run sim-ink` plays a bot game against the running server (join a phone as Ivy, Jax, Kai, Tia (Sun) or Lux, Mo, Rex, Sol (Moon) first to watch that bot's view; Ivy and Lux write, and the Guessers tap the options they vote on, split votes and Force); `npm run sim-ink -- 2500` slows the bots to one round of actions every 2.5 s (default 700 ms).
+`npm run sim-ink` plays a bot game against the running server (join a phone as Ivy, Jax, Kai, Tia (Sun) or Lux, Mo, Rex, Sol (Moon) first to watch that bot's view; Ivy and Lux write, and the Guessers tap the options they vote on, split votes and Force). A team with a borrowed phone types its own guesses: the bots play everything else but never send a letter, so the row stays open for you; `npm run sim-ink -- 2500` slows the bots to one round of actions every 2.5 s (default 700 ms).
 
 ## Question packs and spoken play
 

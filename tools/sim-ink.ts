@@ -4,6 +4,7 @@
  * wins or the pad fills. Each team has three Guessers: they tap the options they
  * are voting on, split their votes, drift toward the leading choice, and Force a stalled vote. Writers scribble random letters,
  * and a guessing bot types a random letter, which the server checks against the secret word.
+ * A team with a borrowed phone types its own guesses; bots on it leave the keyboard alone.
  * Needs packs/phantom-ink.txt on the server.
  *
  *   npm run sim-ink
@@ -103,6 +104,14 @@ const FORCE_AFTER_TICKS = 8
 const PEEK_LOOK_TICKS = 5
 const GUESS_AFTER_CLUES = 4
 
+/** The team of a bot's phone, once it holds an ink frame. */
+const teamOf = (bot: { conn: Conn }) => {
+  const frame = bot.conn.frame()
+  return frame?.role === 'player' && frame.id === 'ink' ? frame.me.team : null
+}
+/** A team with a borrowed phone on it spells its own guesses; no bot there types a letter. */
+const humanGuess = (team: string) => [...bots.values()].some((bot) => bot.borrowed && teamOf(bot) === team)
+
 while (host.state()?.minigame?.phase === 'playing') {
   await sleep(TICK_MS)
   const forcedThisTick = new Set<string>()
@@ -177,8 +186,9 @@ while (host.state()?.minigame?.phase === 'playing') {
     else if (s.at === 'clue' && ours && !writer) {
       if ((pad?.[frame.turn][frame.row].strokes.length ?? 0) >= 2 && Math.random() < 0.5) send({ kind: 'stop' })
     } else if (s.at === 'guess' && ours && !writer && (s.holder === null || s.holder === id)) {
-      // Guessers cannot see the secret word, so a bot guess is a letter in the dark.
-      send({ kind: 'letter', value: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)] })
+      // A guess is the one thing borrowed phones keep: no bot claims the row or types over
+      // the person. Bots guessing alone cannot see the secret, so they spell in the dark.
+      if (!humanGuess(frame.turn)) send({ kind: 'letter', value: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)] })
     }
   }
 }
