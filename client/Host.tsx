@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'preact/hooks'
 import { useOpen, useSocket } from './useSocket.ts'
-import { REFUSAL_TEXT, colorForPlayer, standings } from './ui.ts'
+import { REFUSAL_TEXT, colorForPlayer, playerName, standings } from './ui.ts'
 import { refuses } from '../shared/legality.ts'
 import { DuelPanel } from './DuelPanel.tsx'
 import { HostSetup } from './HostSetup.tsx'
@@ -8,8 +8,7 @@ import { Spoken } from './Spoken.tsx'
 import { momentOf, type Moment } from '../shared/wall.ts'
 import { isPenalty } from '../shared/protocol.ts'
 import type { HostAction, MinigameId, ScoreKey } from '../shared/protocol.ts'
-import { MINIGAME_NAMES } from './minigames.tsx'
-import { MINIGAME_TIMED } from './minigame-info.ts'
+import { MINIGAMES } from './minigames.tsx'
 
 function BowHost({ state, connected, act, actionMessage, now }: {
   state: import('../shared/protocol.ts').State
@@ -22,7 +21,7 @@ function BowHost({ state, connected, act, actionMessage, now }: {
   const remaining = session.endsAt ? Math.max(0, Math.ceil((session.endsAt - now()) / 1000)) : session.options.durationSec
   return <main class="host bow-host">
     <div class="host__bar">
-      <span class="host__title">{MINIGAME_NAMES[session.id]}</span>
+      <span class="host__title">{MINIGAMES[session.id].name}</span>
       <span class="lamp"><span class={connected ? 'lamp-dot is-on' : 'lamp-dot is-off'} />{connected ? 'Connected' : 'Disconnected'}</span>
       <span class="chip">{session.phase}</span>
       <span class="host__spacer" />
@@ -31,10 +30,10 @@ function BowHost({ state, connected, act, actionMessage, now }: {
     {actionMessage && <p class="muted" role="status">{actionMessage}</p>}
     <section class="bow-host__panel">
       <p class="eyebrow">Match control</p>
-      <p>{!MINIGAME_TIMED[session.id]
+      <p>{!MINIGAMES[session.id].timed
         ? 'No time limit'
         : session.phase === 'playing' ? `${remaining} seconds left` : `${session.options.durationSec} second match`}</p>
-      {session.phase === 'ready' && !MINIGAME_TIMED[session.id] && <p class="muted">Players pick teams on their phones.</p>}
+      {session.phase === 'ready' && !MINIGAMES[session.id].timed && <p class="muted">Players pick teams on their phones.</p>}
       <p class="muted">{session.participants.length} players in this match</p>
       {session.phase === 'ready' && <div class="host__minor">
         <button class="btn btn--major btn--primary" onClick={() => act({ a: 'startMinigame' })}>Start match</button>
@@ -44,7 +43,7 @@ function BowHost({ state, connected, act, actionMessage, now }: {
       {session.phase === 'results' && <>
         <ol class="host__order">
           {session.results?.map((result) => <li key={result.playerId} class="row">
-            <span class="row__label">{state.players.find((player) => player.id === result.playerId)?.name ?? '?'}</span>
+            <span class="row__label">{playerName(state, result.playerId)}</span>
             <span class="readout">+{result.points}</span>
           </li>)}
         </ol>
@@ -317,9 +316,9 @@ export function Host() {
 
       <section>
         <div class="host__minor" style={{ marginBottom: 'var(--s4)' }}>
-          {Object.entries(MINIGAME_NAMES).map(([id, name]) => (
+          {Object.entries(MINIGAMES).map(([id, game]) => (
             <button key={id} class="btn" onClick={() => act({ a: 'prepareMinigame', id: id as MinigameId, options: {} })}>
-              Prepare {name}
+              Prepare {game.name}
             </button>
           ))}
         </div>

@@ -1,4 +1,5 @@
-import { INK_REACH, type InkInput, type InkPoint, type InkTeamName, type MinigameLobby, type MinigameResult, type PlayerId } from '../../../shared/protocol.ts'
+import { INK_REACH, quantizePoint, type InkInput, type InkPoint, type InkTeamName, type MinigameLobby, type MinigameResult, type PlayerId } from '../../../shared/protocol.ts'
+import { shuffle } from '../shuffle.ts'
 import type { InkCards } from './cards.ts'
 import {
   ASK_DRAW, HAND_SIZE, INK_ROWS, PEEK_ROWS, TEAMS,
@@ -10,15 +11,6 @@ const NO: Outcome = { status: 'refused', reason: 'not-allowed' }
 const MAX_POINTS = 500
 
 export const otherTeam = (team: InkTeamName): InkTeamName => team === 'sun' ? 'moon' : 'sun'
-
-function shuffle<T>(rand: () => number, items: T[]): T[] {
-  const out = [...items]
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1))
-    ;[out[i], out[j]] = [out[j], out[i]]
-  }
-  return out
-}
 
 const emptyRow = (): InkRow => ({ kind: null, strokes: [], letters: [], strikes: [], ended: false })
 
@@ -177,9 +169,6 @@ export function validPoints(points: unknown): points is InkPoint[] {
     Array.isArray(p) && p.length === 2 && p.every((n) => typeof n === 'number' && n >= INK_REACH.min && n <= INK_REACH.max))
 }
 
-const quantize = (points: InkPoint[]): InkPoint[] =>
-  points.map(([x, y]) => [Math.round(x * 1000) / 1000, Math.round(y * 1000) / 1000])
-
 export function inkTarget(w: InkWorld, playerId: PlayerId): { team: InkTeamName; row: number; peek: boolean } | null {
   const s = w.step
   const role = roleOf(w, playerId)
@@ -245,14 +234,14 @@ export function applyInk(w: InkWorld, playerId: PlayerId, input: InkInput): Outc
     }
     case 'ink': {
       if (!inkTarget(w, playerId) || !validPoints(input.points)) return NO
-      w.live[playerId] = quantize(input.points)
+      w.live[playerId] = input.points.map(([x, y]) => quantizePoint(x, y))
       return OK
     }
     case 'stroke': {
       const target = inkTarget(w, playerId)
       if (!target || !validPoints(input.points)) return NO
       const row = w.pad[target.team][target.row]
-      row.strokes.push({ points: quantize(input.points), author: playerId, ...(target.peek ? { peek: true as const } : {}) })
+      row.strokes.push({ points: input.points.map(([x, y]) => quantizePoint(x, y)), author: playerId, ...(target.peek ? { peek: true as const } : {}) })
       w.undoable = { team: target.team, row: target.row, player: playerId }
       delete w.live[playerId]
       bump(w)

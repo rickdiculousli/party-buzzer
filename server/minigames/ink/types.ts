@@ -1,5 +1,5 @@
 import { INK_PEEK_ROWS } from '../../../shared/protocol.ts'
-import type { InkPoint, InkTeamName, PlayerId } from '../../../shared/protocol.ts'
+import type { InkPoint, InkRoster, InkRowView, InkStrokeView, InkTeamName, PlayerId } from '../../../shared/protocol.ts'
 import type { InputOutcome } from '../definition.ts'
 import type { InkCards } from './cards.ts'
 
@@ -11,21 +11,9 @@ export const TEAMS: InkTeamName[] = ['sun', 'moon']
 
 export type Outcome = InputOutcome
 
-export type InkStroke = { points: InkPoint[]; author: PlayerId; peek?: true }
-
-export type InkRow = {
-  kind: 'clue' | 'guess' | null
-  strokes: InkStroke[]
-  /** Guess rows are typed one letter at a time. */
-  letters: string[]
-  /** Inclusive stroke index ranges drawn struck through. */
-  strikes: [number, number][]
-  /** A period follows the last stroke. */
-  ended: boolean
-  won?: true
-  /** The last letter missed the secret word. */
-  wrong?: true
-}
+/** The pad is serialized straight to the wire, so rows are the view type. */
+export type InkStroke = InkStrokeView
+export type InkRow = InkRowView
 
 export type InkStep =
   | { at: 'choosing' }
@@ -44,7 +32,7 @@ export type InkWorld = {
   rand: () => number
   tick: number
   cards: InkCards
-  roster: Record<InkTeamName, { writer: PlayerId; guessers: PlayerId[] }>
+  roster: InkRoster
   deck: number[]
   discard: number[]
   hands: Record<InkTeamName, number[]>

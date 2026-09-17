@@ -82,6 +82,10 @@ export function standings(state: State, sorted = true): Standing[] {
   return sorted ? withScores.sort((a, b) => b.score - a.score) : withScores
 }
 
+/** A player's name, or '?' for an id no longer in the room. */
+export const playerName = (state: State, playerId: string) =>
+  state.players.find((player) => player.id === playerId)?.name ?? '?'
+
 /** The identity colour of the thing a buzz scores for. */
 export function colorForPlayer(state: State, playerId: string): string {
   const team = state.grouping === 'teams'

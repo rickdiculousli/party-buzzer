@@ -1,17 +1,17 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import type { ComponentChildren } from 'preact'
 import { INK_PEEK_ROWS } from '../shared/protocol.ts'
-import type { InkInput, InkTeamName, MinigameFrame } from '../shared/protocol.ts'
+import type { InkInput, InkTeamName } from '../shared/protocol.ts'
 import type { MinigamePlayerProps } from './minigames.tsx'
+import { matchFrame } from './minigame-info.ts'
 import { TEAM_LABEL, stepLine, waitLine } from './ink.ts'
 import { sidewaysClass, useSideways } from './useSideways.ts'
-import { HoldButton, InkCanvas, InkLobby, InkPad, InkRowSvg, LetterEntry, PendingBar, Touchable, VotePips, useInkPad, useTouchClock } from './InkParts.tsx'
-
-type Frame = Extract<MinigameFrame, { id: 'ink'; role: 'player' }>
+import { playerName } from './ui.ts'
+import { HoldButton, InkCanvas, InkLobby, InkPad, InkRowCell, LetterEntry, PendingBar, Touchable, VotePips, useInkPad } from './InkParts.tsx'
 
 export function InkPlayer({ state, playerId, frame, now, send, touches }: MinigamePlayerProps) {
   const session = state.minigame!
-  const ink = frame?.role === 'player' && frame.id === 'ink' && frame.matchId === session.matchId ? frame as Frame : null
+  const ink = matchFrame(frame, 'ink', 'player', session.matchId)
   const pad = useInkPad(ink)
   const seq = useRef(1)
   const [picked, setPicked] = useState<number[]>([])
@@ -19,13 +19,12 @@ export function InkPlayer({ state, playerId, frame, now, send, touches }: Miniga
   // Cleared whenever the step leaves 'offer', so a stale pair from a finished
   // vote never carries into the next one.
   useEffect(() => { if (stepAt !== 'offer') setPicked([]) }, [stepAt])
-  useTouchClock(touches)
   const rotation = useSideways()
 
   if (session.phase === 'ready') return <main class="ink-phone"><InkLobby state={state} playerId={playerId} send={send} /></main>
   if (!ink || !pad) return <main class="ink-phone"><p class="muted">{frame?.role === 'spectator' ? 'Watching this game' : 'Starting…'}</p></main>
 
-  const nameOf = (id: string) => state.players.find((player) => player.id === id)?.name ?? '?'
+  const nameOf = (id: string) => playerName(state, id)
   const input = (value: { kind: string } & Record<string, unknown>) => send({
     t: 'minigameInput', matchId: session.matchId, seq: seq.current++,
     input: (value.kind === 'ink' ? value : { ...value, at: now() }) as InkInput,
@@ -38,13 +37,9 @@ export function InkPlayer({ state, playerId, frame, now, send, touches }: Miniga
   const vote = (choice: string) => input({ kind: 'vote', choice: myVote === choice ? '' : choice })
   const force = <HoldButton label="Force (hold 2 s)" onHeld={() => input({ kind: 'force' })} />
 
-  const row = (team: InkTeamName, index: number, votable = false) => {
-    const live = ink.live.filter((entry) => entry.team === team && entry.row === index).map((entry) => entry.points)
-    return <Touchable state={state} target={`row:${team}:${index}`} touches={touches} onTouch={votable ? touch : undefined} class="ink-row ink-phone__row">
-      <span class="ink-row__num">{TEAM_LABEL[team]} {index + 1}</span>
-      <InkRowSvg row={pad[team][index]} extra={live} />
-    </Touchable>
-  }
+  const row = (team: InkTeamName, index: number, votable = false) =>
+    <InkRowCell state={state} frame={ink} row={pad[team][index]} team={team} index={index} touches={touches}
+      onTouch={votable ? touch : undefined} class="ink-phone__row" label={`${TEAM_LABEL[team]} ${index + 1}`} />
   const turnRow = row(ink.turn, ink.row)
   const kept = ink.kept && <p class="ink-phone__kept">Prompt: <strong>{ink.kept}</strong></p>
   const canvas = (team: InkTeamName, index: number, buttons: ComponentChildren) => <section class="ink-write">

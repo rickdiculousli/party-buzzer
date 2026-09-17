@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { DRAFT_MS, draftCanUndo, draftStroke, draftUndo, liveDraft, freshTouches, lobbyColumns, quantizePoint, stepLine, strokePath, teamCap, TOUCH_MS, waitLine } from './ink.ts'
+import { quantizePoint } from '../shared/protocol.ts'
+import { DRAFT_MS, draftCanUndo, draftStroke, draftUndo, liveDraft, freshTouches, lobbyColumns, stepLine, strokePath, teamCap, TOUCH_MS, waitLine } from './ink.ts'
 import { newState } from '../server/state.ts'
 
 test('team capacity is half the room, rounded up', () => {

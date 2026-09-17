@@ -1,14 +1,15 @@
 import { INK_PEEK_ROWS } from '../shared/protocol.ts'
 import type { MinigameBoardProps } from './minigames.tsx'
+import { matchFrame } from './minigame-info.ts'
 import { TEAM_LABEL, stepLine } from './ink.ts'
-import { InkLobby, InkPad, useInkPad, useTouchClock } from './InkParts.tsx'
+import { InkLobby, InkPad, useInkPad } from './InkParts.tsx'
+import { playerName } from './ui.ts'
 
 export function InkBoard({ state, frame, touches }: MinigameBoardProps) {
   const session = state.minigame!
-  const ink = frame?.role === 'board' && frame.id === 'ink' && frame.matchId === session.matchId ? frame : null
+  const ink = matchFrame(frame, 'ink', 'board', session.matchId)
   const pad = useInkPad(ink)
-  useTouchClock(touches)
-  const nameOf = (id: string) => state.players.find((player) => player.id === id)?.name ?? '?'
+  const nameOf = (id: string) => playerName(state, id)
 
   if (session.phase === 'ready' || !ink || !pad) {
     return <main class="ink-board">

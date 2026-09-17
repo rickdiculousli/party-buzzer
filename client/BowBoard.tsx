@@ -1,6 +1,7 @@
 import type { MinigameFrame } from '../shared/protocol.ts'
 import type { MinigameBoardProps } from './minigames.tsx'
-import { colorForPlayer } from './ui.ts'
+import { matchFrame } from './minigame-info.ts'
+import { colorForPlayer, playerName } from './ui.ts'
 import { aimDegrees } from './bow-control.ts'
 
 type BoardFrame = Extract<MinigameFrame, { role: 'board'; id: 'bow' }>
@@ -19,7 +20,7 @@ function Arrow({ arrow, color }: { arrow: BoardFrame['arrows'][number]; color: s
 
 export function BowBoard({ state, frame, now }: MinigameBoardProps) {
   const session = state.minigame!
-  const board = frame?.role === 'board' && frame.id === 'bow' && frame.matchId === session.matchId ? frame : null
+  const board = matchFrame(frame, 'bow', 'board', session.matchId)
   const remaining = session.endsAt ? Math.max(0, Math.ceil((session.endsAt - now()) / 1000)) : session.options.durationSec
   const countdown = session.startsAt ? Math.max(0, Math.ceil((session.startsAt - now()) / 1000)) : 0
 
@@ -29,7 +30,7 @@ export function BowBoard({ state, frame, now }: MinigameBoardProps) {
       <ol class="bow-results__list">
         {session.results?.map((result, index) => (
           <li key={result.playerId}>
-            <span>{index + 1}. {state.players.find((player) => player.id === result.playerId)?.name ?? '?'}</span>
+            <span>{index + 1}. {playerName(state, result.playerId)}</span>
             <strong>{result.points}</strong>
           </li>
         ))}

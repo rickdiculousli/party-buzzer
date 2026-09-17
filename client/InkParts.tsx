@@ -1,9 +1,9 @@
 import type { ComponentChildren } from 'preact'
-import { useEffect, useRef, useState } from 'preact/hooks'
-import type { ClientMsg, InkPoint, InkRowView, InkTeamName, MinigameFrame, State } from '../shared/protocol.ts'
+import { useRef, useState } from 'preact/hooks'
+import { quantizePoint, type ClientMsg, type InkPoint, type InkRowView, type InkTeamName, type MinigameFrame, type State } from '../shared/protocol.ts'
 import {
   DRAFT_MS, FORCE_MS, ROW_ASPECT, TEAM_LABEL, TOUCH_MS, draftCanUndo, draftStroke, draftUndo, liveDraft, lobbyColumns,
-  quantizePoint, strokePath, type InkDraft, type TimedTouch,
+  strokePath, type InkDraft, type TimedTouch,
 } from './ink.ts'
 import { colorForPlayer } from './ui.ts'
 
@@ -21,17 +21,6 @@ export function useInkPad(frame: InkFrame | null) {
   }
   if (frame?.pad) pad.current = frame.pad
   return pad.current ?? null
-}
-
-/** Re-renders while touch rings are fading. */
-export function useTouchClock(touches: TimedTouch[]) {
-  const [, setTick] = useState(0)
-  useEffect(() => {
-    if (!touches.length) return
-    const id = setInterval(() => setTick((n) => n + 1), 50)
-    const stop = setTimeout(() => clearInterval(id), TOUCH_MS + 50)
-    return () => { clearInterval(id); clearTimeout(stop) }
-  }, [touches])
 }
 
 /** Seats kept open per team, so a lobby of any size lays out the same. */
@@ -69,7 +58,7 @@ export function InkLobby({ state, playerId, send }: { state: State; playerId?: s
   </section>
 }
 
-/** Taps away from buttons become touches; recent touches on this target draw as fading rings. */
+/** Taps away from buttons become touches; recent touches on this target draw as rings CSS fades out. */
 export function Touchable({ state, target, touches, onTouch, class: className, children }: {
   state: State
   target: string
@@ -93,7 +82,7 @@ export function Touchable({ state, target, touches, onTouch, class: className, c
       <span
         key={`${touch.playerId}-${touch.at}`}
         class="ink-ring"
-        style={{ left: `${touch.x * 100}%`, top: `${touch.y * 100}%`, '--ring': `${Math.max(0, 1 - (now - touch.at) / TOUCH_MS)}`, '--ring-color': colorForPlayer(state, touch.playerId) } as Record<string, string>}
+        style={{ left: `${touch.x * 100}%`, top: `${touch.y * 100}%`, '--touch-ms': `${TOUCH_MS}ms`, '--ring-color': colorForPlayer(state, touch.playerId) } as Record<string, string>}
       ><span class="ink-ring__name">{touch.name}</span></span>
     ))}
   </div>
@@ -195,6 +184,32 @@ export function InkRowSvg({ row, extra }: { row: InkRowView; extra?: InkPoint[][
   </svg>
 }
 
+/**
+ * One pad row wherever it is drawn: on the board's pad, or alone on a phone.
+ * Owns the live-stroke lookup, so in-progress ink appears the same in both.
+ */
+export function InkRowCell({ state, frame, row, team, index, touches, onTouch, label, current, class: className, children }: {
+  state: State
+  frame: InkFrame
+  row: InkRowView
+  team: InkTeamName
+  index: number
+  touches: TimedTouch[]
+  onTouch?: (target: string, x: number, y: number) => void
+  label: ComponentChildren
+  current?: boolean
+  class?: string
+  children?: ComponentChildren
+}) {
+  const live = frame.live.filter((entry) => entry.team === team && entry.row === index).map((entry) => entry.points)
+  return <Touchable state={state} target={`row:${team}:${index}`} touches={touches} onTouch={onTouch}
+    class={`ink-row${current ? ' is-current' : ''}${row.won ? ' is-won' : ''}${className ? ` ${className}` : ''}`}>
+    <span class="ink-row__num">{label}</span>
+    <InkRowSvg row={row} extra={live} />
+    {children}
+  </Touchable>
+}
+
 /** Both pad pages. Peek rows carry an eye; the current row is lit. */
 export function InkPad({ state, frame, pad, touches, onTouch, peekRows, pickable }: {
   state: State
@@ -208,17 +223,12 @@ export function InkPad({ state, frame, pad, touches, onTouch, peekRows, pickable
   return <div class="ink-pad">
     {(['sun', 'moon'] as const).map((team) => <div key={team} class={`ink-pad__page ink-pad__page--${team}`}>
       <p class="eyebrow">{TEAM_LABEL[team]}</p>
-      {pad[team].map((row, i) => {
-        const target = `${team}:${i}`
-        const live = frame.live.filter((entry) => entry.team === team && entry.row === i).map((entry) => entry.points)
-        const current = frame.turn === team && frame.row === i && frame.step.at !== 'over'
-        return <Touchable key={i} state={state} target={`row:${target}`} touches={touches} onTouch={onTouch}
-          class={`ink-row${current ? ' is-current' : ''}${row.won ? ' is-won' : ''}`}>
-          <span class="ink-row__num">{i + 1}{peekRows[team].includes(i + 1) && <span class="ink-row__eye" aria-label="peek row">◉</span>}</span>
-          <InkRowSvg row={row} extra={live} />
-          {pickable?.(target)}
-        </Touchable>
-      })}
+      {pad[team].map((row, i) => (
+        <InkRowCell key={i} state={state} frame={frame} row={row} team={team} index={i} touches={touches} onTouch={onTouch}
+          current={frame.turn === team && frame.row === i && frame.step.at !== 'over'}
+          label={<>{i + 1}{peekRows[team].includes(i + 1) && <span class="ink-row__eye" aria-label="peek row">◉</span>}</>}
+        >{pickable?.(`${team}:${i}`)}</InkRowCell>
+      ))}
     </div>)}
   </div>
 }

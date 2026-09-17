@@ -250,6 +250,12 @@ export const INK_PEEK_ROWS: Record<InkTeamName, number[]> = { sun: [4, 6, 7], mo
 /** Row-normalized stroke points may run past the row by this much; the board clips them. */
 export const INK_REACH = { min: -1, max: 2 }
 
+/** Both ends round strokes the same way, so a phone's own ink lands where the server puts it. */
+export function quantizePoint(x: number, y: number): InkPoint {
+  const q = (n: number) => Math.round(Math.min(INK_REACH.max, Math.max(INK_REACH.min, n)) * 1000) / 1000
+  return [q(x), q(y)]
+}
+
 export type MinigameLobby = { teams: Record<PlayerId, InkTeamName>; volunteers: PlayerId[] }
 
 export type LobbyChange =

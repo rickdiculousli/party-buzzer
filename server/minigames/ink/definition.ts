@@ -21,7 +21,6 @@ function stepView(w: InkWorld): InkStepView {
     case 'choose': return { at: 'choose', canRedraw: !w.redrawn[w.turn] }
     case 'keep': return { at: 'keep' }
     case 'clue': return { at: 'clue', stopped: s.stopped }
-    case 'guess': return { at: 'guess', holder: s.holder }
     default: return s
   }
 }

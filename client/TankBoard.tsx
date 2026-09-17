@@ -1,8 +1,9 @@
 import { useRef } from 'preact/hooks'
 import type { MinigameFrame } from '../shared/protocol.ts'
 import type { MinigameBoardProps } from './minigames.tsx'
+import { matchFrame } from './minigame-info.ts'
 import { coverPath, nearestAngleDegrees } from './tank-control.ts'
-import { colorForPlayer } from './ui.ts'
+import { colorForPlayer, playerName } from './ui.ts'
 
 type TankBoardFrame = Extract<MinigameFrame, { role: 'board'; id: 'tank' }>
 
@@ -11,7 +12,7 @@ const AIM_DASHES = [0, 1, 2, 3, 4, 5, 6, 7]
 
 export function TankBoard({ state, frame, now }: MinigameBoardProps) {
   const session = state.minigame!
-  const board = frame?.role === 'board' && frame.id === 'tank' && frame.matchId === session.matchId ? frame : null
+  const board = matchFrame(frame, 'tank', 'board', session.matchId)
   const cells = useRef<Uint8Array | null>(null)
   const path = useRef('')
   const blasts = useRef<{ x: number; y: number; radius: number; at: number }[]>([])
@@ -36,7 +37,7 @@ export function TankBoard({ state, frame, now }: MinigameBoardProps) {
   }
   blasts.current = blasts.current.filter((blast) => now() - blast.at < BLAST_MS)
 
-  const nameOf = (id: string) => state.players.find((player) => player.id === id)?.name ?? '?'
+  const nameOf = (id: string) => playerName(state, id)
   const remaining = session.endsAt ? Math.max(0, Math.ceil((session.endsAt - now()) / 1000)) : session.options.durationSec
   const countdown = session.startsAt ? Math.max(0, Math.ceil((session.startsAt - now()) / 1000)) : 0
 

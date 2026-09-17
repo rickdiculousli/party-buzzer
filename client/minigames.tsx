@@ -1,6 +1,7 @@
 import type { ComponentType } from 'preact'
 import type { ClientMsg, MinigameFrame, MinigameId, MinigameInputAck, State } from '../shared/protocol.ts'
 import type { TimedTouch } from './ink.ts'
+import { MINIGAME_INFO } from './minigame-info.ts'
 import { BowBoard } from './BowBoard.tsx'
 import { BowPlayer } from './BowPlayer.tsx'
 import { TankBoard } from './TankBoard.tsx'
@@ -20,16 +21,17 @@ export type MinigamePlayerProps = {
 
 export type MinigameBoardProps = { state: State; frame: MinigameFrame | null; now: () => number; touches: TimedTouch[] }
 
-export const MINIGAME_NAMES: Record<MinigameId, string> = { bow: 'Bow', tank: 'Tank battle', ink: 'Phantom Ink' }
-
-export const MINIGAME_PLAYERS: Record<MinigameId, ComponentType<MinigamePlayerProps>> = {
-  bow: BowPlayer,
-  tank: TankPlayer,
-  ink: InkPlayer,
+export type MinigameEntry = {
+  name: string
+  /** Timed games run the runtime clock; an untimed one ends on its own rules. */
+  timed: boolean
+  player: ComponentType<MinigamePlayerProps>
+  board: ComponentType<MinigameBoardProps>
 }
 
-export const MINIGAME_BOARDS: Record<MinigameId, ComponentType<MinigameBoardProps>> = {
-  bow: BowBoard,
-  tank: TankBoard,
-  ink: InkBoard,
+/** One row per minigame: everything the client needs to name, host, and draw it. */
+export const MINIGAMES: Record<MinigameId, MinigameEntry> = {
+  bow: { ...MINIGAME_INFO.bow, player: BowPlayer, board: BowBoard },
+  tank: { ...MINIGAME_INFO.tank, player: TankPlayer, board: TankBoard },
+  ink: { ...MINIGAME_INFO.ink, player: InkPlayer, board: InkBoard },
 }

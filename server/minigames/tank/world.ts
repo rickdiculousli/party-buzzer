@@ -1,6 +1,7 @@
 import type { MinigameResult, TankCrew, TankInput } from '../../../shared/protocol.ts'
 import type { Vec2 } from '../bow/types.ts'
 import type { InputOutcome } from '../definition.ts'
+import { shuffle } from '../shuffle.ts'
 import { SPAWNS, carve, circleHitsCover, createCover, solidAt } from './cover.ts'
 import { TANK_FIELD, TANK_RADIUS, TANK_STEP_MS } from './types.ts'
 import type { Projectile, Tank, TankConfig, TankWorld, Weapon } from './types.ts'
@@ -27,11 +28,7 @@ const TURN_INPUT_TTL_MS = 200
 const TURRET_AIM_RADIANS_PER_SEC = Math.PI * 4
 
 export function formCrews(random: () => number, participants: string[]): TankCrew[] {
-  const order = [...participants].sort()
-  for (let i = order.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1))
-    ;[order[i], order[j]] = [order[j], order[i]]
-  }
+  const order = shuffle(random, [...participants].sort())
   const crews: TankCrew[] = []
   for (let i = 0; i < order.length; i += 2) {
     crews.push({ id: `crew-${i / 2}`, driver: order[i], gunner: order[i + 1] ?? order[i] })

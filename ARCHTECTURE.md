@@ -131,9 +131,12 @@ the runtime then ignores `durationSec` and completes when the definition's
 definition names and never stored.
 
 The first client route is freehand Bow with geometric placeholders. Setlist
-blocks and a generic client renderer registry remain future work; the runtime
-wire envelope and lifecycle boundary are already named for additional
-minigames rather than question modes.
+blocks remain future work; the runtime wire envelope and lifecycle boundary are
+already named for additional minigames rather than question modes. On the
+client, `client/minigames.tsx` holds one registry row per minigame — name,
+timed flag, player surface, board surface — and `client/minigame-info.ts` holds
+the JSX-free half of it, including `matchFrame`, which every surface uses to
+reject a frame from another game, role, or match.
 
 `Hub.fragmentEnded(questionId, completed)` is a dedicated playback-to-mode
 boundary. It rejects stale questions and non-armed phases, calls the current

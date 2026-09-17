@@ -8,7 +8,7 @@ import { wallOf, type Wall } from '../shared/wall.ts'
 import { isPenalty } from '../shared/protocol.ts'
 import { useReveal } from './useReveal.ts'
 import { COLLECT_MS, type BuzzEntry, type State } from '../shared/protocol.ts'
-import { MINIGAME_BOARDS } from './minigames.tsx'
+import { MINIGAMES } from './minigames.tsx'
 
 type Mark = BuzzEntry & { lane: number }
 
@@ -326,7 +326,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
 
   if (!state) return <main class="board"><p class="board__idle">Connecting</p></main>
   if (state.minigame) {
-    const Surface = MINIGAME_BOARDS[state.minigame.id]
+    const Surface = MINIGAMES[state.minigame.id].board
     return <Surface state={state} frame={minigameFrame} now={now} touches={minigameTouches} />
   }
 

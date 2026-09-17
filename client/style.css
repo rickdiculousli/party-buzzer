@@ -1664,7 +1664,21 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .ink-canvas-area { padding: var(--s4) var(--s6); touch-action: none; }
 /* Taps and long presses point at things; they never select text or open the callout. */
 .ink-phone, .ink-board { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
-.ink-ring { position: absolute; width: 2.5rem; height: 2.5rem; margin: -1.25rem 0 0 -1.25rem; border-radius: 50%; border: 3px solid var(--ring-color, var(--chalk)); opacity: var(--ring); transform: scale(calc(1.4 - var(--ring) * 0.4)); pointer-events: none; }
+.ink-ring { position: absolute; width: 2.5rem; height: 2.5rem; margin: -1.25rem 0 0 -1.25rem; border-radius: 50%; border: 3px solid var(--ring-color, var(--chalk)); pointer-events: none; animation: ink-ring var(--touch-ms) linear forwards; }
+
+@keyframes ink-ring {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(1.4); }
+}
+/* The ring still has to go away; it just does not swell on the way out. */
+@keyframes ink-ring-still {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ink-ring { animation-name: ink-ring-still; }
+}
 .ink-ring__name { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); font: 600 var(--t-xs)/1 var(--mono); white-space: nowrap; color: var(--ring-color, var(--chalk)); }
 
 .ink-hand { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: var(--s2); }
