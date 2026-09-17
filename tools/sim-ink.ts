@@ -145,7 +145,9 @@ while (host.state()?.minigame?.phase === 'playing') {
       send({ kind: 'done' })
     } else if (s.at === 'choose' && ours && !writer) {
       const clues = pad?.[frame.turn].filter((row) => row.kind === 'clue').length ?? 0
-      castVote(['ask', 'guess'], clues >= 3 ? 'guess' : 'ask', (choice) => [`vote:${choice}`])
+      // Guessing only makes sense once the team has a few clues; early splits are Ask versus Redraw.
+      const options = clues >= 3 ? ['ask', 'guess'] : ['ask', ...(s.canRedraw ? ['redraw'] : [])]
+      castVote(options, clues >= 3 ? 'guess' : 'ask', (choice) => [`vote:${choice}`])
     } else if (s.at === 'offer' && ours && !writer) {
       const ids = frame.hand.map((card) => card.id)
       const pairs = [[ids[0], ids[1]], [ids[0], ids[2]], [ids[1], ids[2]]].map((pair) => pair.sort((a, b) => a - b).join(','))
