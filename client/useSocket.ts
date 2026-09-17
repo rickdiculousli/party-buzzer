@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import { ARM_DELAY_MS } from '../shared/protocol.ts'
 import type { MinigameInputAck, ClientMsg, MinigameFrame, Role, ServerMsg, State } from '../shared/protocol.ts'
 import { actionFeedback } from './ui.ts'
+import { freshTouches, type TimedTouch } from './ink.ts'
 
 const SAMPLES = 7
 const RESYNC_MS = 30_000
@@ -74,6 +75,7 @@ export function useSocket(role: Role) {
   const [actionMessage, setActionMessage] = useState<string | null>(null)
   const [minigameFrame, setMinigameFrame] = useState<MinigameFrame | null>(null)
   const [minigameAck, setMinigameAck] = useState<MinigameInputAck | null>(null)
+  const [minigameTouches, setMinigameTouches] = useState<TimedTouch[]>([])
 
   const socket = useRef<WebSocket | null>(null)
   // Seeded from this device's own wall clock so `now()` is in the server's
@@ -133,6 +135,10 @@ export function useSocket(role: Role) {
         else if (msg.t === 'actionResult') setActionMessage(actionFeedback(msg.action, msg.result))
         else if (msg.t === 'minigameFrame') setMinigameFrame(msg.frame)
         else if (msg.t === 'minigameAck') setMinigameAck(msg.ack)
+        else if (msg.t === 'minigameTouch') {
+          const at = performance.now()
+          setMinigameTouches((list) => [...freshTouches(list, at), { ...msg.touch, at }])
+        }
         else if (msg.t === 'welcome') {
           localStorage.setItem('playerId', msg.playerId)
           setPlayerId(msg.playerId)
@@ -175,6 +181,7 @@ export function useSocket(role: Role) {
     actionMessage,
     minigameFrame,
     minigameAck,
+    minigameTouches,
     now: () => performance.now() + offset.current,
     send,
   }

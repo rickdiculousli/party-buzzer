@@ -67,7 +67,7 @@ function StandingsDial({ state }: { state: State }) {
 }
 
 export function Player() {
-  const { state, playerId, connected, now, send, minigameFrame, minigameAck } = useSocket('player')
+  const { state, playerId, connected, now, send, minigameFrame, minigameAck, minigameTouches } = useSocket('player')
   const [name, setName] = useState(() => localStorage.getItem('playerName') ?? '')
   // Always start behind the tap, even for a phone we recognise. Audio only
   // unlocks inside a user gesture, so skipping the tap means silence all game.
@@ -190,7 +190,7 @@ export function Player() {
 
   if (state?.minigame) {
     const Surface = MINIGAME_PLAYERS[state.minigame.id]
-    return <Surface state={state} playerId={playerId} frame={minigameFrame} now={now} send={send} ack={minigameAck} />
+    return <Surface state={state} playerId={playerId} frame={minigameFrame} now={now} send={send} ack={minigameAck} touches={minigameTouches} />
   }
 
   const buzz = () => {

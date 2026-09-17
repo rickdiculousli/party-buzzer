@@ -205,7 +205,7 @@ function Question({ whole, shown, image }: { whole?: string; shown: string; imag
 }
 
 export function Board() {
-  const { state, now, connected, minigameFrame } = useSocket('board')
+  const { state, now, connected, minigameFrame, minigameTouches } = useSocket('board')
   // The big screen is what the room watches, so it must not light up before
   // the phones do. Same countdown to armedAt as every other surface.
   const { open, delay } = useOpen(state?.round, now)
@@ -310,7 +310,7 @@ export function Board() {
   if (!state) return <main class="board"><p class="board__idle">Connecting</p></main>
   if (state.minigame) {
     const Surface = MINIGAME_BOARDS[state.minigame.id]
-    return <Surface state={state} frame={minigameFrame} now={now} />
+    return <Surface state={state} frame={minigameFrame} now={now} touches={minigameTouches} />
   }
 
   const { round } = state

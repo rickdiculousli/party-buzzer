@@ -1,5 +1,6 @@
 import type { ComponentType } from 'preact'
 import type { ClientMsg, MinigameFrame, MinigameId, MinigameInputAck, State } from '../shared/protocol.ts'
+import type { TimedTouch } from './ink.ts'
 import { BowBoard } from './BowBoard.tsx'
 import { BowPlayer } from './BowPlayer.tsx'
 import { TankBoard } from './TankBoard.tsx'
@@ -12,13 +13,13 @@ export type MinigamePlayerProps = {
   now: () => number
   send: (message: ClientMsg) => void
   ack?: MinigameInputAck | null
+  touches: TimedTouch[]
 }
 
-export type MinigameBoardProps = { state: State; frame: MinigameFrame | null; now: () => number }
+export type MinigameBoardProps = { state: State; frame: MinigameFrame | null; now: () => number; touches: TimedTouch[] }
 
 export const MINIGAME_NAMES: Record<MinigameId, string> = { bow: 'Bow', tank: 'Tank battle', ink: 'Phantom Ink' }
 
-// ink placeholders replaced with InkPlayer/InkBoard in Task 8.
 export const MINIGAME_PLAYERS: Record<MinigameId, ComponentType<MinigamePlayerProps>> = {
   bow: BowPlayer,
   tank: TankPlayer,
