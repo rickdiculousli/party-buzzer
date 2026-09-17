@@ -195,21 +195,25 @@ phone and microphone testing. The [architecture guide](ARCHTECTURE.md#developmen
 includes a local HTTP backend recipe for HMR work.
 
 The review workbench is a development-only way to comment on frozen board and
-phone states and send those comments into an existing Codex terminal
-conversation. Install its browser once with `npx playwright install chromium`,
-then run `npm run review`. Choose a scenario and phone, click an element in
-either preview, write a suggestion, and enter the exact Codex conversation UUID
-if it was not detected from `CODEX_THREAD_ID`. **Send** saves an immutable local
-bundle under ignored `.review/batches/`, captures the referenced previews, and
-queues the bundle path to that conversation. The status changes as the agent
-acknowledges the batch and marks it ready or blocked. **Refresh previews**
-remounts the same frozen state after source edits while retaining draft notes.
+phone states and hand those comments to a coding agent. Install its browser once
+with `npx playwright install chromium`, then run `npm run review`. Choose a
+scenario and phone, click an element in either preview, and write a suggestion.
+**Send** saves an immutable local bundle under ignored `.review/batches/` and
+captures the referenced previews. The status changes as the agent acknowledges
+the batch and marks it ready or blocked. **Refresh previews** remounts the same
+frozen state after source edits while retaining draft notes.
 
-A queue timeout is shown as `delivery-uncertain`; check the terminal before
-trying another batch. A confirmed command error is `delivery-failed`. The
-adapter was exercised with `codex-cli 0.154.0`. These static views are for
-visual review; use the manual checklist for timing, audio, microphone, and
-multi-device behavior.
+How the bundle reaches the agent depends on `CODEX_THREAD_ID`. With it set, the
+workbench asks for the exact Codex conversation UUID and queues the bundle path
+straight to that conversation; a queue timeout is shown as `delivery-uncertain`
+and a confirmed command error as `delivery-failed`. The adapter was exercised
+with `codex-cli 0.154.0`. Without it — Claude Code and everything else, since no
+other CLI can append a message to a live session — Send copies the handoff line
+to the clipboard and shows it for manual selection. Paste it into the agent and
+press enter.
+
+These static views are for visual review; use the manual checklist for timing,
+audio, microphone, and multi-device behavior.
 
 Coding agents can explicitly invoke the repository skill as
 `$review-workbench` in Codex or `/review-workbench` in Claude Code. They may

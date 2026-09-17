@@ -13,7 +13,8 @@ and keep deterministic mechanics in the workbench commands.
 
 - **Launch:** the user wants to see, inspect, annotate, compare, or iterate on a
   board or phone state.
-- **Batch:** the message says `Review batch <uuid>. Read <path>.` or the user asks
+- **Batch:** the message says `Review batch <uuid>. Read <path>.`, a hook or your
+  own check found a `submitted` batch under `.review/batches/`, or the user asks
   to continue work submitted by the workbench.
 - **Workbench improvement:** the user is asking for a capability of the review
   loop itself. Treat that as product work on `client/review/` or `tools/review/`,
@@ -36,15 +37,29 @@ clocks, motion, speech, sound, microphones, sockets, or multiple devices.
    suggestions, and press **Send**. Leave the server running during iteration;
    stop only the process you started when the user is finished or asks you to.
 
-The current Send adapter targets an exact Codex conversation. Claude Code can
-launch the workbench and process a pasted batch, but it must not claim that the
-button can inject into a busy Claude conversation until a supported Claude
-delivery adapter has been implemented and verified.
+## Deliver a batch into this session
+
+**Send** saves and captures the batch first and delivers second, so a saved
+batch is reviewable even when delivery fails. Delivery depends on
+`CODEX_THREAD_ID`:
+
+- **Set:** the workbench runs `codex queue --thread <uuid>`, which appends the
+  message to that exact conversation. Verified with `codex-cli 0.154.0`.
+- **Unset:** the workbench copies `Review batch <uuid>. Read <path>.` to the
+  clipboard and shows it in the status area. The user pastes it into this
+  conversation. This is the Claude Code path, because no `claude` command can
+  append a message to a live session.
+
+Under the clipboard path, tell the user that **Send** copies the line and that
+they paste it here; never say the button injects into a running conversation.
+While the workbench is open, also check `.review/batches/*/status.json` for
+`submitted` batches at the start of a turn, in case a paste was missed.
 
 ## Process a batch
 
-1. Confirm the message UUID matches the directory name and the request resolves
+1. Confirm the batch id matches the directory name and the request resolves
    beneath `.review/batches/<uuid>/`. Never accept an arbitrary request path.
+   Work `submitted` batches oldest first when a check turns up more than one.
 2. Read `request.md` and `manifest.json`, inspect every capture referenced by an
    open note, and note the saved source revision and pre-existing changed files.
 3. Before editing, run:

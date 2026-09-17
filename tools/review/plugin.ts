@@ -99,6 +99,7 @@ async function submit(input: {
     },
   )
   await writeStatus(batch.dir, { batchId: batch.id, status: 'submitting' })
+  if (!input.threadId) return writeStatus(batch.dir, { batchId: batch.id, status: 'submitted' })
   try {
     await queueBatch({
       threadId: input.threadId,
@@ -129,7 +130,12 @@ export function reviewPlugin(): Plugin {
 
       server.middlewares.use('/__review/session', (req, res) => {
         if (req.method !== 'GET') return reply(res, 405, { error: 'GET only' })
-        reply(res, 200, { threadId: process.env.CODEX_THREAD_ID ?? '' })
+        const threadId = process.env.CODEX_THREAD_ID ?? ''
+        reply(res, 200, {
+          threadId,
+          delivery: threadId ? 'codex' : 'clipboard',
+          batchRoot: BATCH_ROOT,
+        })
       })
 
       server.middlewares.use('/__review/batches', async (req, res) => {
@@ -151,7 +157,7 @@ export function reviewPlugin(): Plugin {
           const id = String(data.batchId ?? '')
           const threadId = String(data.threadId ?? '')
           if (!validBatchId(id)) return reply(res, 400, { error: 'invalid batch id' })
-          if (!threadId || threadId.length > 200) return reply(res, 400, { error: 'invalid thread id' })
+          if (threadId.length > 200) return reply(res, 400, { error: 'invalid thread id' })
           if (!Array.isArray(data.annotations) || data.annotations.length === 0) {
             return reply(res, 400, { error: 'at least one annotation is required' })
           }

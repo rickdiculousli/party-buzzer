@@ -6,6 +6,11 @@ import type { Annotation, ReviewScenario, ReviewSelection } from './model.ts'
 const WORKSPACE = 'party-buzzer'
 const THREAD_KEY = 'party-buzzer:review:codex-thread'
 
+type Session = {
+  delivery: 'codex' | 'clipboard'
+  batchRoot: string
+}
+
 type Delivery = {
   batchId: string
   status: 'submitting' | 'submitted' | 'delivery-uncertain' | 'delivery-failed' | 'acknowledged' | 'ready' | 'blocked'
@@ -25,6 +30,8 @@ function Workbench() {
   const [player, setPlayer] = useState('')
   const [draft, setDraft] = useState(() => loadDraft(localStorage, WORKSPACE))
   const [threadId, setThreadId] = useState(() => localStorage.getItem(THREAD_KEY) ?? '')
+  const [session, setSession] = useState<Session>({ delivery: 'clipboard', batchRoot: '' })
+  const [handoff, setHandoff] = useState('')
   const [delivery, setDelivery] = useState<Delivery | null>(null)
   const [refresh, setRefresh] = useState(0)
 
@@ -37,15 +44,14 @@ function Workbench() {
         setSelected(scenario?.id ?? '')
         setPlayer(scenario?.phones[0]?.playerId ?? '')
       })
-    if (!threadId) {
-      void fetch('/__review/session')
-        .then((response) => response.json())
-        .then(({ threadId: detected }: { threadId: string }) => {
-          if (!detected) return
-          setThreadId(detected)
-          localStorage.setItem(THREAD_KEY, detected)
-        })
-    }
+    void fetch('/__review/session')
+      .then((response) => response.json())
+      .then(({ threadId: detected, delivery: mode, batchRoot }: Session & { threadId: string }) => {
+        setSession({ delivery: mode, batchRoot })
+        if (!detected || threadId) return
+        setThreadId(detected)
+        localStorage.setItem(THREAD_KEY, detected)
+      })
   }, [])
 
   useEffect(() => {
@@ -107,9 +113,11 @@ function Workbench() {
   }
   const send = async () => {
     const annotations = draft.annotations.filter((note) => note.status === 'open' && note.text.trim())
-    if (!threadId.trim() || annotations.length === 0) return
+    const clipboard = session.delivery === 'clipboard'
+    if ((!clipboard && !threadId.trim()) || annotations.length === 0) return
     const batchId = crypto.randomUUID()
     setDelivery({ batchId, status: 'submitting' })
+    setHandoff('')
     localStorage.setItem(THREAD_KEY, threadId.trim())
     try {
       const response = await fetch('/__review/batches', {
@@ -120,6 +128,11 @@ function Workbench() {
       const result = await response.json() as Delivery & { error?: string }
       if (!response.ok) throw new Error(result.error ?? `Submission failed (${response.status})`)
       setDelivery(result)
+      if (clipboard) {
+        const message = `Review batch ${batchId}. Read ${session.batchRoot}/${batchId}/request.md.`
+        setHandoff(message)
+        void navigator.clipboard?.writeText(message).catch(() => {})
+      }
     } catch (error) {
       setDelivery({ batchId, status: 'delivery-failed', message: (error as Error).message })
     }
@@ -146,18 +159,24 @@ function Workbench() {
           </select>
         </label>
         <p class="review__hint">Click anything in a preview to attach a suggestion.</p>
-        <label class="review__field">
-          Codex conversation
-          <input
-            value={threadId}
-            placeholder="Exact thread UUID"
-            onInput={(event) => setThreadId(event.currentTarget.value)}
-          />
-        </label>
+        {session.delivery === 'codex' && (
+          <label class="review__field">
+            Codex conversation
+            <input
+              value={threadId}
+              placeholder="Exact thread UUID"
+              onInput={(event) => setThreadId(event.currentTarget.value)}
+            />
+          </label>
+        )}
         <div class="review__actions">
           <button
             class="btn btn--primary"
-            disabled={!threadId.trim() || sendable === 0 || delivery?.status === 'submitting'}
+            disabled={
+              (session.delivery === 'codex' && !threadId.trim())
+              || sendable === 0
+              || delivery?.status === 'submitting'
+            }
             onClick={() => void send()}
           >
             Send {sendable} {sendable === 1 ? 'note' : 'notes'}
@@ -169,6 +188,12 @@ function Workbench() {
             <span class="chip">{delivery.status}</span>
             <span class="readout">{delivery.batchId.slice(0, 8)}</span>
             {delivery.message && <p>{delivery.message}</p>}
+            {handoff && (
+              <>
+                <p>Copied. Paste this into the agent conversation and press enter.</p>
+                <textarea class="review__handoff" readOnly rows={3} value={handoff} />
+              </>
+            )}
           </div>
         )}
         <div class="review__notes">

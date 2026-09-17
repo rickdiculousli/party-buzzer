@@ -61,6 +61,12 @@
   font-size: var(--t-xs);
 }
 
+.review__handoff {
+  flex-basis: 100%;
+  font-size: var(--t-xs);
+  resize: vertical;
+}
+
 .review__hint,
 .review__loading {
   color: var(--dim);
