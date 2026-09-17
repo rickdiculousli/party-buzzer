@@ -323,3 +323,14 @@ test('both teams lose when all sixteen rows fill', () => {
   assert.deepEqual(w.step, { at: 'over', winner: null })
   assert.deepEqual(inkResults(w), [])
 })
+
+test('ask is refused with fewer than two prompts in hand; guess still works', () => {
+  const w = started()
+  w.deck = []
+  w.discard = []
+  w.hands.sun = [w.hands.sun[0]]
+  assert.equal(act(w, 's1', { kind: 'vote', choice: 'ask' }).status, 'refused')
+  assert.deepEqual(w.step, { at: 'choose' })
+  voteAll(w, 'guess')
+  assert.equal(w.pad.sun[0].kind, 'guess')
+})

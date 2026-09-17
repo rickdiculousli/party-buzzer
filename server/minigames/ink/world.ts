@@ -133,7 +133,10 @@ function promptPair(w: InkWorld, choice: string): [number, number] | null {
 }
 
 function validChoice(w: InkWorld, choice: string): boolean {
-  if (w.step.at === 'choose') return choice === 'ask' || choice === 'guess' || (choice === 'redraw' && !w.redrawn[w.turn])
+  if (w.step.at === 'choose') {
+    return (choice === 'ask' && w.hands[w.turn].length >= 2) || choice === 'guess'
+      || (choice === 'redraw' && !w.redrawn[w.turn])
+  }
   if (w.step.at === 'offer') return promptPair(w, choice) !== null
   if (w.step.at === 'peekPick') return peekTargets(w).includes(choice)
   return false
