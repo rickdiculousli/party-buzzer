@@ -6,7 +6,7 @@ export default defineConfig({
   workers: 1,
   use: { baseURL: 'http://127.0.0.1:4174' },
   webServer: {
-    command: 'npx vite --config vite.review.config.ts --host 127.0.0.1 --port 4174',
+    command: 'npm run review:serve',
     url: 'http://127.0.0.1:4174/review.html',
     reuseExistingServer: false,
   },

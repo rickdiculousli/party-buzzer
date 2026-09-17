@@ -69,6 +69,12 @@ JavaScript defaults, and cue recipes consistent. Workbench save/adopt endpoints
 write source files; inspect their diff. Adopted audio belongs in
 `client/public/sounds/` with credits, never in ignored `sounds/raw/`.
 
+For frozen board or phone review, use the repository `review-workbench` skill.
+It owns launch, annotation-batch handling, and the boundary between static visual
+evidence and live behavior. When a normal review desire requires repeated ad hoc
+tool work, finish the request and propose the smallest workbench, script, or skill
+improvement that would make that path ordinary.
+
 ## Validation
 
 For behavior changes, add meaningful regression tests and validate after each

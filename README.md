@@ -180,6 +180,7 @@ npm test
 npm run build
 npm run motion         # standalone visual/audio workbench at /anim.html
 npm run review         # frozen board/phone review workbench at /review.html
+npm run review:serve   # same workbench on 127.0.0.1:4174, without opening a browser
 npm run dev            # Vite HMR; see proxy limitation below
 ```
 
@@ -209,6 +210,13 @@ trying another batch. A confirmed command error is `delivery-failed`. The
 adapter was exercised with `codex-cli 0.154.0`. These static views are for
 visual review; use the manual checklist for timing, audio, microphone, and
 multi-device behavior.
+
+Coding agents can explicitly invoke the repository skill as
+`$review-workbench` in Codex or `/review-workbench` in Claude Code. They may
+also select it from a natural-language request to inspect or annotate board and
+phone states. The skill handles launch and incoming batch reports, and asks the
+agent to propose a concrete workbench or script improvement when a normal review
+path required repeated manual or LLM-mediated steps.
 
 With a game server running:
 
