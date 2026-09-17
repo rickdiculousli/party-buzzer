@@ -105,8 +105,10 @@ Minigame id `ink`, display name "Phantom Ink".
   both Writers have picked the same word.
 - Guess canvas: the first Guesser to draw holds the canvas until Check. Any
   Guesser can tap Stop during a clue.
-- Touches: tapping a card or pad row away from its buttons sends an ephemeral
-  touch `{ target, x, y }` (target-relative 0..1). Recipients render a ring
+- Touches: while their team is voting, a Guesser tapping an option away from
+  its buttons (Ask/Guess/Redraw, a hand card while picking prompts, a peekable
+  row while picking a peek) sends an ephemeral touch `{ target, x, y }`
+  (target-relative 0..1). The server drops touches on anything else. Recipients render a ring
   labelled with the player's name at that spot, fading over ~600 ms, like
   screen-recording touch indicators. Touches are relayed, never stored, never
   undone. Hand-card touches go to teammates only; pad-row touches go to

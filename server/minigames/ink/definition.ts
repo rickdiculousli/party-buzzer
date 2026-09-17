@@ -67,6 +67,18 @@ function personal(w: InkWorld, playerId: PlayerId): InkPrivate | null {
   }
 }
 
+/** Touches point at options a Guesser is voting on right now; anything else is dropped. */
+function touchable(w: InkWorld, playerId: PlayerId, target: string): boolean {
+  const me = roleOf(w, playerId)
+  if (me?.role !== 'guesser' || me.team !== w.turn) return false
+  const [kind, ...rest] = target.split(':')
+  const value = rest.join(':')
+  if (w.step.at === 'choose') return kind === 'vote' && (value === 'ask' || value === 'guess' || (value === 'redraw' && !w.redrawn[w.turn]))
+  if (w.step.at === 'offer') return kind === 'card' && w.hands[w.turn].includes(Number(value))
+  if (w.step.at === 'peekPick') return kind === 'row' && peekTargets(w).includes(value)
+  return false
+}
+
 export function makeInk(load: () => InkCards | string, rand: () => number = Math.random): MinigameDefinition<InkWorld> {
   let cards: InkCards | null = null
   return {
@@ -115,9 +127,8 @@ export function makeInk(load: () => InkCards | string, rand: () => number = Math
     },
     results: inkResults,
     touchAudience(world, playerId, target) {
-      const me = roleOf(world, playerId)
-      if (!me) return null
-      const { writer, guessers } = world.roster[me.team]
+      if (!touchable(world, playerId, target)) return null
+      const { writer, guessers } = world.roster[world.turn]
       return { players: [writer, ...guessers], board: target.startsWith('row:') }
     },
   }

@@ -36,9 +36,9 @@ export function InkPlayer({ state, playerId, frame, now, send, touches }: Miniga
   const vote = (choice: string) => input({ kind: 'vote', choice: myVote === choice ? '' : choice })
   const force = <HoldButton label="Force (hold 2 s)" onHeld={() => input({ kind: 'force' })} />
 
-  const row = (team: InkTeamName, index: number) => {
+  const row = (team: InkTeamName, index: number, votable = false) => {
     const live = ink.live.filter((entry) => entry.team === team && entry.row === index).map((entry) => entry.points)
-    return <Touchable target={`row:${team}:${index}`} touches={touches} onTouch={touch} class="ink-row ink-phone__row">
+    return <Touchable target={`row:${team}:${index}`} touches={touches} onTouch={votable ? touch : undefined} class="ink-row ink-phone__row">
       <span class="ink-row__num">{TEAM_LABEL[team]} {index + 1}</span>
       <InkRowSvg row={pad[team][index]} extra={live} />
     </Touchable>
@@ -173,7 +173,7 @@ export function InkPlayer({ state, playerId, frame, now, send, touches }: Miniga
           {s.targets.map((target) => {
             const [team, index] = target.split(':') as [InkTeamName, string]
             return <div key={target} class="ink-peek__option">
-              {row(team, Number(index))}
+              {row(team, Number(index), true)}
               <VotePips state={state} votes={ink.votes} choice={(c) => c === target} />
               <button class={myVote === target ? 'btn btn--primary' : 'btn'} onClick={() => vote(target)}>Vote</button>
             </div>
@@ -211,7 +211,7 @@ export function InkPlayer({ state, playerId, frame, now, send, touches }: Miniga
       </details>}
       <details>
         <summary>Show pad</summary>
-        <InkPad frame={ink} pad={pad} touches={touches} onTouch={touch} peekRows={INK_PEEK_ROWS} />
+        <InkPad frame={ink} pad={pad} touches={touches} peekRows={INK_PEEK_ROWS} />
       </details>
     </footer>
   </main>

@@ -1,8 +1,8 @@
 /**
  * Synthetic self-play for Phantom Ink. Eight bots join, crowd onto Sun until it
  * is over capacity, then two move to Moon, volunteer, and play until a team
- * wins or the pad fills. Each team has three Guessers: they tap cards and rows,
- * split their votes, drift toward the leading choice, and Force a stalled vote. Writers scribble random letters,
+ * wins or the pad fills. Each team has three Guessers: they tap the options they
+ * are voting on, split their votes, drift toward the leading choice, and Force a stalled vote. Writers scribble random letters,
  * guessers stop after two letters and finish their guess once it has three.
  * Needs packs/phantom-ink.txt on the server.
  *
@@ -153,7 +153,6 @@ while (host.state()?.minigame?.phase === 'playing') {
     } else if (s.at === 'keep' && ours && writer) send({ kind: 'keep', prompt: pick(frame.offered).id })
     else if (s.at === 'clue' && ours && writer) send(s.stopped ? { kind: 'done' } : { kind: 'stroke', points: letter() })
     else if (s.at === 'clue' && ours && !writer) {
-      if (Math.random() < 0.3) tap(`row:${frame.turn}:${frame.row}`)
       if ((pad?.[frame.turn][frame.row].strokes.length ?? 0) >= 2 && Math.random() < 0.5) send({ kind: 'stop' })
     } else if (s.at === 'guess' && ours && !writer && (s.holder === null || s.holder === id)) {
       const row = pad?.[frame.turn][frame.row]
@@ -165,7 +164,6 @@ while (host.state()?.minigame?.phase === 'playing') {
       }
     } else if (s.at === 'judgeLetter' && ours && writer) send({ kind: 'judge', correct: Math.random() < 0.7 })
     else if (s.at === 'judgeWord' && ours && writer) send({ kind: 'verdict', win: Math.random() < 0.5 })
-    else if (!ours && !writer && Math.random() < 0.1) tap(`row:${frame.turn}:${frame.row}`)
   }
 }
 console.log('Game over:', JSON.stringify(host.state()?.minigame?.results))
