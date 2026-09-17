@@ -111,7 +111,7 @@ then Win or Not it. Tapping a card or pad row shows a named ring on teammates'
 phones (and the board, for pad rows). The game has no clock. A server restart
 or Undo during play returns it to ready and the game is lost.
 
-`npm run sim-ink` plays a bot game against the running server.
+`npm run sim-ink` plays a bot game against the running server; `npm run sim-ink -- 2500` slows the bots to one round of actions every 2.5 s (default 700 ms).
 
 ## Question packs and spoken play
 

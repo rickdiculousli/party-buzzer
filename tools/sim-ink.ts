@@ -5,7 +5,8 @@
  * Needs packs/phantom-ink.txt on the server.
  *
  *   npm run sim-ink
- *   npm run sim-ink -- http://box:8080
+ *   npm run sim-ink -- 2500                  one bot action every 2.5 s
+ *   npm run sim-ink -- 2500 http://box:8080
  *
  * Ctrl-C closes the minigame and removes the bots.
  */
@@ -13,7 +14,9 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { connect, reachable, type Conn } from './conn.ts'
 import type { InkInput, MinigameFrame } from '../shared/protocol.ts'
 
-const URL = process.argv[2] ?? (await reachable())
+const args = process.argv.slice(2)
+const TICK_MS = Number(args.find((arg) => /^\d+$/.test(arg)) ?? 700)
+const URL = args.find((arg) => arg.startsWith('http')) ?? (await reachable())
 const TEAMS = { Ivy: 'sun', Jax: 'sun', Kai: 'sun', Lux: 'moon', Mo: 'moon' } as const
 const VOLUNTEERS = new Set(['Ivy', 'Lux'])
 
@@ -59,7 +62,7 @@ const letter = (): [number, number][] => {
 }
 
 while (host.state()?.minigame?.phase === 'playing') {
-  await sleep(700)
+  await sleep(TICK_MS)
   for (const [id, bot] of bots) {
     const frame = bot.conn.frame()
     if (frame?.role !== 'player' || frame.id !== 'ink' || frame.matchId !== matchId) continue
