@@ -9,7 +9,10 @@
  *   npm run sim-ink -- 2500                  one bot action every 2.5 s
  *   npm run sim-ink -- 2500 http://box:8080
  *
- * Ctrl-C closes the minigame and removes the bots.
+ * Join a phone under a bot's name (Ivy, Jax, Kai, Lux, Mo, Rex) before running
+ * to watch that bot's view; the bot plays for it. Ivy and Lux are the Writers.
+ *
+ * Ctrl-C closes the minigame and removes the bots it created.
  */
 import { setTimeout as sleep } from 'node:timers/promises'
 import { connect, reachable, type Conn } from './conn.ts'
@@ -25,11 +28,14 @@ const VOLUNTEERS = new Set(['Ivy', 'Lux'])
 const LOBBY_MS = Math.max(300, TICK_MS / 2)
 
 const host = await connect(URL, 'host')
-const bots = new Map<string, { conn: Conn; seq: number; name: string }>()
+const bots = new Map<string, { conn: Conn; seq: number; name: string; borrowed: boolean }>()
 for (const name of NAMES) {
-  const conn = await connect(URL, 'player', name, `sim-ink-${name}`)
+  // A phone already in the room under a bot's name is borrowed: the bot plays
+  // for it and that phone shows the bot's view. Borrowed players are never kicked.
+  const existing = host.state()?.players.find((p) => p.name === name)?.id
+  const conn = await connect(URL, 'player', name, existing ?? `sim-ink-${name}`)
   // Sequence numbers start from the clock so a rerun never reuses remembered ones.
-  bots.set(conn.playerId, { conn, seq: Date.now(), name })
+  bots.set(conn.playerId, { conn, seq: Date.now(), name, borrowed: !!existing && !existing.startsWith('sim-ink-') })
 }
 
 const stop = () => {
@@ -37,7 +43,7 @@ const stop = () => {
   host.send({ t: 'host', action: { a: 'closeMinigame' } })
   for (const bot of bots.values()) {
     bot.conn.close()
-    host.send({ t: 'host', action: { a: 'kick', playerId: bot.conn.playerId } })
+    if (!bot.borrowed) host.send({ t: 'host', action: { a: 'kick', playerId: bot.conn.playerId } })
   }
   console.log('Game closed, bots removed.')
   setTimeout(() => process.exit(0), 200)
