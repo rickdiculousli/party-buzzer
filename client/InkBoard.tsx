@@ -22,7 +22,7 @@ export function InkBoard({ state, frame, touches }: MinigameBoardProps) {
       <span class="ink-board__step">{stepLine(ink, nameOf)}</span>
       {ink.secret && <span class="ink-board__secret">{ink.secret}</span>}
     </header>
-    <InkPad frame={ink} pad={pad} touches={touches} peekRows={INK_PEEK_ROWS} />
+    <InkPad state={state} frame={ink} pad={pad} touches={touches} peekRows={INK_PEEK_ROWS} />
     <footer class="ink-board__foot">
       {(['sun', 'moon'] as const).map((team) => <p key={team} class="muted">
         {TEAM_LABEL[team]}: {nameOf(ink.roster[team].writer)} writes · {ink.roster[team].guessers.map(nameOf).join(', ')}

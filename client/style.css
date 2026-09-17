@@ -1619,8 +1619,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .ink-stop { width: 100%; min-height: 6rem; font-size: var(--t-xl); }
 
 .ink-touchable { position: relative; }
-.ink-ring { position: absolute; width: 2.5rem; height: 2.5rem; margin: -1.25rem 0 0 -1.25rem; border-radius: 50%; border: 3px solid var(--chalk); opacity: var(--ring); transform: scale(calc(1.4 - var(--ring) * 0.4)); pointer-events: none; }
-.ink-ring__name { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); font: 600 var(--t-xs)/1 var(--mono); white-space: nowrap; }
+.ink-ring { position: absolute; width: 2.5rem; height: 2.5rem; margin: -1.25rem 0 0 -1.25rem; border-radius: 50%; border: 3px solid var(--ring-color, var(--chalk)); opacity: var(--ring); transform: scale(calc(1.4 - var(--ring) * 0.4)); pointer-events: none; }
+.ink-ring__name { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); font: 600 var(--t-xs)/1 var(--mono); white-space: nowrap; color: var(--ring-color, var(--chalk)); }
 
 .ink-hand { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: var(--s2); }
 .ink-card { background: var(--panel); border: 1px solid var(--rule); border-radius: var(--r-md); padding: var(--s3); display: grid; gap: var(--s2); }

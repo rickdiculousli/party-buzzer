@@ -59,7 +59,8 @@ export function InkLobby({ state, playerId, send }: { state: State; playerId?: s
 }
 
 /** Taps away from buttons become touches; recent touches on this target draw as fading rings. */
-export function Touchable({ target, touches, onTouch, class: className, children }: {
+export function Touchable({ state, target, touches, onTouch, class: className, children }: {
+  state: State
   target: string
   touches: TimedTouch[]
   onTouch?: (target: string, x: number, y: number) => void
@@ -80,7 +81,7 @@ export function Touchable({ target, touches, onTouch, class: className, children
       <span
         key={`${touch.playerId}-${touch.at}`}
         class="ink-ring"
-        style={{ left: `${touch.x * 100}%`, top: `${touch.y * 100}%`, '--ring': `${Math.max(0, 1 - (now - touch.at) / TOUCH_MS)}` } as Record<string, string>}
+        style={{ left: `${touch.x * 100}%`, top: `${touch.y * 100}%`, '--ring': `${Math.max(0, 1 - (now - touch.at) / TOUCH_MS)}`, '--ring-color': colorForPlayer(state, touch.playerId) } as Record<string, string>}
       ><span class="ink-ring__name">{touch.name}</span></span>
     ))}
   </div>
@@ -142,7 +143,8 @@ export function InkRowSvg({ row, extra }: { row: InkRowView; extra?: InkPoint[][
 }
 
 /** Both pad pages. Peek rows carry an eye; the current row is lit. */
-export function InkPad({ frame, pad, touches, onTouch, peekRows, pickable }: {
+export function InkPad({ state, frame, pad, touches, onTouch, peekRows, pickable }: {
+  state: State
   frame: InkFrame
   pad: NonNullable<InkFrame['pad']>
   touches: TimedTouch[]
@@ -157,7 +159,7 @@ export function InkPad({ frame, pad, touches, onTouch, peekRows, pickable }: {
         const target = `${team}:${i}`
         const live = frame.live.filter((entry) => entry.team === team && entry.row === i).map((entry) => entry.points)
         const current = frame.turn === team && frame.row === i && frame.step.at !== 'over'
-        return <Touchable key={i} target={`row:${target}`} touches={touches} onTouch={onTouch}
+        return <Touchable key={i} state={state} target={`row:${target}`} touches={touches} onTouch={onTouch}
           class={`ink-row${current ? ' is-current' : ''}${row.won ? ' is-won' : ''}`}>
           <span class="ink-row__num">{i + 1}{peekRows[team].includes(i + 1) && <span class="ink-row__eye" aria-label="peek row">◉</span>}</span>
           <InkRowSvg row={row} extra={live} />
