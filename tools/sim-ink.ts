@@ -1,6 +1,7 @@
 /**
- * Synthetic self-play for Phantom Ink. Five bots join, pick teams, volunteer
- * and play until a team wins or the pad fills. Writers scribble random letters,
+ * Synthetic self-play for Phantom Ink. Six bots join, crowd onto Sun until it
+ * is over capacity, then two move to Moon, volunteer, and play until a team
+ * wins or the pad fills. Writers scribble random letters,
  * guessers stop after two letters and finish their guess once it has three.
  * Needs packs/phantom-ink.txt on the server.
  *
@@ -12,20 +13,23 @@
  */
 import { setTimeout as sleep } from 'node:timers/promises'
 import { connect, reachable, type Conn } from './conn.ts'
-import type { InkInput, MinigameFrame } from '../shared/protocol.ts'
+import type { InkInput, LobbyChange, State } from '../shared/protocol.ts'
 
 const args = process.argv.slice(2)
 const TICK_MS = Number(args.find((arg) => /^\d+$/.test(arg)) ?? 700)
 const URL = args.find((arg) => arg.startsWith('http')) ?? (await reachable())
-const TEAMS = { Ivy: 'sun', Jax: 'sun', Kai: 'sun', Lux: 'moon', Mo: 'moon' } as const
+const NAMES = ['Ivy', 'Jax', 'Kai', 'Lux', 'Mo', 'Rex']
+/** Everyone but Rex crowds onto Sun first; these two then move to Moon. */
+const MOVERS = new Set(['Lux', 'Mo'])
 const VOLUNTEERS = new Set(['Ivy', 'Lux'])
+const LOBBY_MS = Math.max(300, TICK_MS / 2)
 
 const host = await connect(URL, 'host')
-const bots = new Map<string, { conn: Conn; seq: number }>()
-for (const name of Object.keys(TEAMS)) {
+const bots = new Map<string, { conn: Conn; seq: number; name: string }>()
+for (const name of NAMES) {
   const conn = await connect(URL, 'player', name, `sim-ink-${name}`)
   // Sequence numbers start from the clock so a rerun never reuses remembered ones.
-  bots.set(conn.playerId, { conn, seq: Date.now() })
+  bots.set(conn.playerId, { conn, seq: Date.now(), name })
 }
 
 const stop = () => {
@@ -45,12 +49,27 @@ host.send({ t: 'host', action: { a: 'cancelMinigame' } })
 host.send({ t: 'host', action: { a: 'closeMinigame' } })
 host.send({ t: 'host', action: { a: 'prepareMinigame', id: 'ink', options: {} } })
 await host.waitFor((s) => s.minigame?.id === 'ink' && s.minigame.phase === 'ready')
-for (const bot of bots.values()) {
-  const name = bot.conn.state()?.players.find((p) => p.id === bot.conn.playerId)?.name as keyof typeof TEAMS
-  bot.conn.send({ t: 'minigameLobby', change: { do: 'join', team: TEAMS[name] } })
-  await sleep(300)
-  if (VOLUNTEERS.has(name)) bot.conn.send({ t: 'minigameLobby', change: { do: 'volunteer', on: true } })
-  await sleep(300)
+const lobby = async (bot: { conn: Conn }, change: LobbyChange) => {
+  bot.conn.send({ t: 'minigameLobby', change })
+  await sleep(LOBBY_MS)
+}
+for (const bot of bots.values()) await lobby(bot, { do: 'join', team: bot.name === 'Rex' ? 'moon' : 'sun' })
+await sleep(LOBBY_MS * 3)
+for (const bot of bots.values()) if (MOVERS.has(bot.name)) await lobby(bot, { do: 'join', team: 'moon' })
+for (const bot of bots.values()) if (VOLUNTEERS.has(bot.name)) await lobby(bot, { do: 'volunteer', on: true })
+// Start needs every connected player on a team, and only bots are picked here.
+const unpicked = (s: State) =>
+  s.players.filter((p) => p.connected && !s.minigame?.lobby?.teams[p.id]).map((p) => p.name)
+const waiting = unpicked(host.state()!)
+if (waiting.length) {
+  console.log(`Waiting up to 60 s for ${waiting.join(', ')} to join a team or disconnect.`)
+  try {
+    await host.waitFor((s) => unpicked(s).length === 0, 60_000)
+  } catch {
+    console.log(`Still unpicked: ${unpicked(host.state()!).join(', ')}. Close those tabs or kick them on /host.`)
+    stop()
+    await sleep(1_000)
+  }
 }
 host.send({ t: 'host', action: { a: 'startMinigame' } })
 const state = await host.waitFor((s) => s.minigame?.phase === 'playing', 10_000)
