@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
+import type { ComponentChildren } from 'preact'
 import { INK_PEEK_ROWS } from '../shared/protocol.ts'
-import type { InkInput, MinigameFrame } from '../shared/protocol.ts'
+import type { InkInput, InkTeamName, MinigameFrame } from '../shared/protocol.ts'
 import type { MinigamePlayerProps } from './minigames.tsx'
 import { TEAM_LABEL, stepLine } from './ink.ts'
-import { HoldButton, InkCanvas, InkLobby, InkPad, Touchable, VotePips, useInkPad, useTouchClock } from './InkParts.tsx'
+import { HoldButton, InkCanvas, InkLobby, InkPad, InkRowSvg, Touchable, VotePips, useInkPad, useTouchClock } from './InkParts.tsx'
 
 type Frame = Extract<MinigameFrame, { id: 'ink'; role: 'player' }>
 
@@ -33,109 +34,185 @@ export function InkPlayer({ state, playerId, frame, now, send, touches }: Miniga
   const writer = ink.me.role === 'writer'
   const myVote = ink.votes.find((vote) => vote.player === playerId)?.choice ?? ''
   const vote = (choice: string) => input({ kind: 'vote', choice: myVote === choice ? '' : choice })
-  const voting = ours && !writer && (s.at === 'choose' || s.at === 'offer' || s.at === 'peekPick')
-  const writingRow = s.at === 'peekWrite' ? pad[s.team][s.row] : pad[ink.turn][ink.row]
-  const canWrite =
-    (s.at === 'clue' && ours && writer) ||
-    (s.at === 'peekWrite' && ink.roster[s.team].writer === playerId) ||
-    (s.at === 'guess' && ours && !writer && (s.holder === null || s.holder === playerId))
+  const force = <HoldButton label="Force (hold 2 s)" onHeld={() => input({ kind: 'force' })} />
+
+  const row = (team: InkTeamName, index: number) => {
+    const live = ink.live.filter((entry) => entry.team === team && entry.row === index).map((entry) => entry.points)
+    return <Touchable target={`row:${team}:${index}`} touches={touches} onTouch={touch} class="ink-row ink-phone__row">
+      <span class="ink-row__num">{TEAM_LABEL[team]} {index + 1}</span>
+      <InkRowSvg row={pad[team][index]} extra={live} />
+    </Touchable>
+  }
+  const turnRow = row(ink.turn, ink.row)
+  const kept = ink.kept && <p class="ink-phone__kept">Prompt: <strong>{ink.kept}</strong></p>
+  const canvas = (team: InkTeamName, index: number, buttons: ComponentChildren) => <section class="ink-write">
+    <InkCanvas row={pad[team][index]} enabled send={(value) => input(value)} />
+    <div class="ink-write__buttons">
+      <button class="btn" disabled={!ink.canUndo} onClick={() => input({ kind: 'undo' })}>Undo last stroke</button>
+      {buttons}
+    </div>
+  </section>
+  const waiting = (text: string) => <p class="ink-phone__status">{text}</p>
+
+  const writerFocus = (): ComponentChildren => {
+    if (s.at === 'choosing') {
+      return <ol class="ink-words">
+        {ink.wordCard.map((word, i) => {
+          const theirs = ink.picks[ink.me.team === 'sun' ? 'moon' : 'sun'] === i
+          const mine = ink.picks[ink.me.team] === i
+          return <li key={i}><button class={mine ? 'btn btn--major btn--primary' : 'btn btn--major'} onClick={() => input({ kind: 'pickWord', index: i })}>
+            {i + 1}. {word}{theirs && !mine && ' — Confirm'}
+          </button></li>
+        })}
+      </ol>
+    }
+    if (s.at === 'peekWrite' && ink.roster[s.team].writer === playerId) {
+      return <>
+        {waiting('Add one letter to your clue')}
+        {canvas(s.team, s.row, <button class="btn btn--primary" onClick={() => input({ kind: 'done' })}>Done</button>)}
+      </>
+    }
+    if (!ours || s.at === 'over') return null
+    if (s.at === 'keep') {
+      return <div class="ink-offer">
+        <p class="eyebrow">Keep one prompt</p>
+        {ink.offered.map((card) => <button key={card.id} class="btn btn--major ink-card" onClick={() => input({ kind: 'keep', prompt: card.id })}>{card.text}</button>)}
+      </div>
+    }
+    if (s.at === 'clue') {
+      return <>
+        {kept}
+        {s.stopped && <p class="ink-phone__alert">Stop — finish your letter</p>}
+        {canvas(ink.turn, ink.row, <>
+          <button class="btn" onClick={() => input({ kind: 'endClue' })}>End clue</button>
+          <button class={s.stopped ? 'btn btn--major btn--primary' : 'btn'} disabled={!s.stopped} onClick={() => input({ kind: 'done' })}>Done</button>
+        </>)}
+      </>
+    }
+    if (s.at === 'judgeLetter') {
+      return <>
+        {turnRow}
+        <div class="ink-judge">
+          <button class="btn btn--major btn--go" onClick={() => input({ kind: 'judge', correct: true })}>Correct letter</button>
+          <button class="btn btn--major btn--no" onClick={() => input({ kind: 'judge', correct: false })}>Wrong letter</button>
+        </div>
+      </>
+    }
+    if (s.at === 'judgeWord') {
+      return <>
+        {turnRow}
+        <div class="ink-judge">
+          <button class="btn btn--major btn--go" onClick={() => input({ kind: 'verdict', win: true })}>Win</button>
+          <button class="btn btn--major btn--no" onClick={() => input({ kind: 'verdict', win: false })}>Not it</button>
+        </div>
+      </>
+    }
+    return null
+  }
+
+  const guesserFocus = (): ComponentChildren => {
+    if (s.at === 'choosing') return null
+    if (s.at === 'peekWrite') return row(s.team, s.row)
+    if (!ours || s.at === 'over') return null
+    if (s.at === 'choose') {
+      return <div class="ink-vote">
+        {(['ask', 'guess', ...(s.canRedraw ? ['redraw'] : [])] as string[]).map((choice) => (
+          <Touchable key={choice} target={`vote:${choice}`} touches={touches} onTouch={touch} class="ink-vote__option">
+            <span>{choice === 'ask' ? 'Ask' : choice === 'guess' ? 'Guess' : 'Redraw hand'}</span>
+            <VotePips state={state} votes={ink.votes} choice={(c) => c === choice} />
+            <button class={myVote === choice ? 'btn btn--primary' : 'btn'} onClick={() => vote(choice)}>Vote</button>
+          </Touchable>
+        ))}
+        {force}
+      </div>
+    }
+    if (s.at === 'offer') {
+      return <>
+        <p class="eyebrow">Pick two prompts</p>
+        <section class="ink-hand">
+          {ink.hand.map((card) => {
+            const selected = picked.includes(card.id)
+            return <Touchable key={card.id} target={`card:${card.id}`} touches={touches} onTouch={touch} class={selected ? 'ink-card is-selected' : 'ink-card'}>
+              <span>{card.text}</span>
+              <VotePips state={state} votes={ink.votes} choice={(c) => c.split(',').includes(String(card.id))} />
+              <button class={selected ? 'btn btn--primary' : 'btn'} onClick={() => {
+                const next = selected ? picked.filter((id) => id !== card.id) : [...picked, card.id].slice(-2)
+                setPicked(next)
+                if (next.length === 2) vote([...next].sort((a, b) => a - b).join(','))
+                else if (myVote) input({ kind: 'vote', choice: '' })
+              }}>Vote</button>
+            </Touchable>
+          })}
+        </section>
+        {force}
+      </>
+    }
+    if (s.at === 'keep') {
+      return <div class="ink-offer">
+        {ink.offered.map((card) => <div key={card.id} class="ink-card">{card.text}</div>)}
+      </div>
+    }
+    if (s.at === 'clue') {
+      return <>
+        {kept}
+        {turnRow}
+        <button class="btn btn--major btn--no ink-stop" disabled={s.stopped} onClick={() => input({ kind: 'stop' })}>{s.stopped ? 'Stopped' : 'Stop'}</button>
+      </>
+    }
+    if (s.at === 'guess') {
+      if (s.holder !== null && s.holder !== playerId) return turnRow
+      return canvas(ink.turn, ink.row, <>
+        <button class="btn btn--primary" onClick={() => input({ kind: 'check' })}>Check</button>
+        <button class="btn" onClick={() => input({ kind: 'finishGuess' })}>Finish guess</button>
+      </>)
+    }
+    if (s.at === 'peekPick') {
+      return <>
+        <p class="eyebrow">Pick a clue to peek</p>
+        <div class="ink-peek">
+          {s.targets.map((target) => {
+            const [team, index] = target.split(':') as [InkTeamName, string]
+            return <div key={target} class="ink-peek__option">
+              {row(team, Number(index))}
+              <VotePips state={state} votes={ink.votes} choice={(c) => c === target} />
+              <button class={myVote === target ? 'btn btn--primary' : 'btn'} onClick={() => vote(target)}>Vote</button>
+            </div>
+          })}
+        </div>
+        {force}
+      </>
+    }
+    return turnRow
+  }
+
+  const focus = writer ? writerFocus() : guesserFocus()
+  // Another team's turn, or waiting on someone: show whose move it is and the row in play.
+  const idleRow = !focus && s.at !== 'choosing' && s.at !== 'over' ? turnRow : null
 
   return <main class={`ink-phone ink-phone--${ink.me.team}`}>
     <header class="ink-phone__bar">
       <span class={`chip ink-turn ink-turn--${ink.me.team}`}>{TEAM_LABEL[ink.me.team]} · {writer ? 'Writer' : 'Guesser'}</span>
-      <span>{stepLine(ink, nameOf)}</span>
+      {writer && ink.secret && <span class="ink-phone__secret">{ink.secret}</span>}
     </header>
+    <p class="ink-phone__status">{stepLine(ink, nameOf)}</p>
 
-    {writer && ink.secret && <p class="ink-phone__secret">Secret word: <strong>{ink.secret}</strong></p>}
-    {!writer && s.at === 'over' && ink.secret && <p class="ink-phone__secret">It was <strong>{ink.secret}</strong></p>}
-    {ink.kept && <p class="ink-phone__kept">Prompt: {ink.kept}</p>}
+    {s.at === 'over' && ink.secret && !writer && <p class="ink-phone__reveal">It was <strong>{ink.secret}</strong></p>}
+    {focus}
+    {idleRow}
 
-    {s.at === 'choosing' && writer && <ol class="ink-words">
-      {ink.wordCard.map((word, i) => {
-        const theirs = ink.picks[ink.me.team === 'sun' ? 'moon' : 'sun'] === i
-        const mine = ink.picks[ink.me.team] === i
-        return <li key={i}><button class={mine ? 'btn btn--primary' : 'btn'} onClick={() => input({ kind: 'pickWord', index: i })}>
-          {i + 1}. {word}{theirs && !mine && ' — Confirm'}
-        </button></li>
-      })}
-    </ol>}
-
-    {s.at === 'keep' && ours && writer && <div class="ink-offer">
-      {ink.offered.map((card) => <button key={card.id} class="btn ink-card" onClick={() => input({ kind: 'keep', prompt: card.id })}>{card.text}</button>)}
-    </div>}
-
-    {canWrite && <section class="ink-write">
-      <InkCanvas row={writingRow} enabled send={(value) => input(value)} />
-      <div class="ink-write__buttons">
-        <button class="btn" disabled={!ink.canUndo} onClick={() => input({ kind: 'undo' })}>Undo last stroke</button>
-        {s.at === 'clue' && <>
-          <button class="btn btn--primary" disabled={!s.stopped} onClick={() => input({ kind: 'done' })}>{s.stopped ? 'Finish your letter, then Done' : 'Done'}</button>
-          <button class="btn" onClick={() => input({ kind: 'endClue' })}>End clue</button>
-        </>}
-        {s.at === 'peekWrite' && <button class="btn btn--primary" onClick={() => input({ kind: 'done' })}>Done</button>}
-        {s.at === 'guess' && <>
-          <button class="btn btn--primary" onClick={() => input({ kind: 'check' })}>Check</button>
-          <button class="btn" onClick={() => input({ kind: 'finishGuess' })}>Finish guess</button>
-        </>}
-      </div>
-    </section>}
-
-    {s.at === 'clue' && ours && !writer && <button class="btn btn--major btn--no ink-stop" disabled={s.stopped} onClick={() => input({ kind: 'stop' })}>Stop</button>}
-    {s.at === 'judgeLetter' && ours && writer && <div class="ink-judge">
-      <button class="btn btn--major btn--go" onClick={() => input({ kind: 'judge', correct: true })}>Correct letter</button>
-      <button class="btn btn--major btn--no" onClick={() => input({ kind: 'judge', correct: false })}>Wrong letter</button>
-    </div>}
-    {s.at === 'judgeWord' && ours && writer && <div class="ink-judge">
-      <button class="btn btn--major btn--go" onClick={() => input({ kind: 'verdict', win: true })}>Win</button>
-      <button class="btn btn--major btn--no" onClick={() => input({ kind: 'verdict', win: false })}>Not it</button>
-    </div>}
-
-    {voting && s.at === 'choose' && <div class="ink-vote">
-      {(['ask', 'guess', ...(s.canRedraw ? ['redraw'] : [])] as string[]).map((choice) => (
-        <Touchable key={choice} target={`vote:${choice}`} touches={touches} onTouch={touch} class="ink-vote__option">
-          <span>{choice === 'ask' ? 'Ask' : choice === 'guess' ? 'Guess' : 'Redraw hand'}</span>
-          <VotePips state={state} votes={ink.votes} choice={(c) => c === choice} />
-          <button class={myVote === choice ? 'btn btn--primary' : 'btn'} onClick={() => vote(choice)}>Vote</button>
-        </Touchable>
-      ))}
-    </div>}
-
-    {!writer && <section class="ink-hand">
-      {s.at === 'offer' && ours && <p class="eyebrow">Pick two prompts</p>}
-      {ink.hand.map((card) => {
-        const inVote = (c: string) => c.split(',').includes(String(card.id))
-        const selected = s.at === 'offer' && picked.includes(card.id)
-        return <Touchable key={card.id} target={`card:${card.id}`} touches={touches} onTouch={touch} class={selected ? 'ink-card is-selected' : 'ink-card'}>
-          <span>{card.text}</span>
-          {voting && s.at === 'offer' && <>
-            <VotePips state={state} votes={ink.votes} choice={inVote} />
-            <button class={selected ? 'btn btn--primary' : 'btn'} onClick={() => {
-              const next = selected ? picked.filter((id) => id !== card.id) : [...picked, card.id].slice(-2)
-              setPicked(next)
-              if (next.length === 2) vote([...next].sort((a, b) => a - b).join(','))
-              else if (myVote) input({ kind: 'vote', choice: '' })
-            }}>Vote</button>
-          </>}
-        </Touchable>
-      })}
-    </section>}
-
-    {voting && <HoldButton label="Force (hold 2 s)" onHeld={() => input({ kind: 'force' })} />}
-
-    <InkPad
-      frame={ink}
-      pad={pad}
-      touches={touches}
-      onTouch={touch}
-      peekRows={INK_PEEK_ROWS}
-      pickable={voting && s.at === 'peekPick' ? (target) => s.targets.includes(target) && <>
-        <VotePips state={state} votes={ink.votes} choice={(c) => c === target} />
-        <button class={myVote === target ? 'btn btn--primary' : 'btn'} onClick={() => vote(target)}>Vote</button>
-      </> : undefined}
-    />
-
-    {ink.asked.length > 0 && <details class="ink-asked"><summary>Asked prompts</summary>
-      <ul>{ink.asked.map((text, i) => <li key={i}>{text}</li>)}</ul>
-    </details>}
+    <footer class="ink-phone__more">
+      {!writer && !(ours && s.at === 'offer') && ink.hand.length > 0 && <details>
+        <summary>Your prompts ({ink.hand.length})</summary>
+        <ul>{ink.hand.map((card) => <li key={card.id}>{card.text}</li>)}</ul>
+      </details>}
+      {ink.asked.length > 0 && <details>
+        <summary>Asked ({ink.asked.length})</summary>
+        <ul>{ink.asked.map((text, i) => <li key={i}>{text}</li>)}</ul>
+      </details>}
+      <details>
+        <summary>Show pad</summary>
+        <InkPad frame={ink} pad={pad} touches={touches} onTouch={touch} peekRows={INK_PEEK_ROWS} />
+      </details>
+    </footer>
   </main>
 }
