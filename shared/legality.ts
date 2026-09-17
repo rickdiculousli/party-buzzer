@@ -64,6 +64,9 @@ export type Refusal =
   | 'no-setlist'
   | 'no-players'
   | 'minigame-active'
+  | 'unpicked'
+  | 'team-too-small'
+  | 'ink-cards'
 
 export function refuses(s: State, a: HostAction): Refusal | null {
   const r = s.round

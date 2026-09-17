@@ -2,7 +2,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { newState } from '../state.ts'
 import { MinigameRuntime } from './runtime.ts'
+import { MINIGAMES } from './registry.ts'
 import type { MinigameInputAck, HostAction, MinigameFrame } from '../../shared/protocol.ts'
+import type { MinigameDefinition } from './definition.ts'
 
 function rig() {
   let now = 1_000
@@ -184,6 +186,110 @@ test('a tank match forms crews, runs inputs, sends cover once, and credits both 
   r.runtime.pump()
   const { results } = r.completions[0] as { results: { playerId: string }[] }
   assert.deepEqual(results.map((result) => result.playerId).sort(), ['ada', 'bo'])
+})
+
+type Toy = { tick: number; done: boolean; lobby: unknown }
+
+function withToy(run: (toy: MinigameDefinition<Toy>) => void, refusal: 'ink-cards' | null = null) {
+  const toy: MinigameDefinition<Toy> = {
+    stepMs: 50,
+    untimed: true,
+    options: () => ({}),
+    prepare: () => refusal,
+    startable: (lobby, connected) => connected.every((id) => lobby.teams[id]) ? null : 'unpicked',
+    create: (_seed, _participants, _options, lobby) => ({ world: { tick: 0, done: false, lobby } }),
+    finished: (world) => world.done,
+    classify: (input) => (input as { kind?: string })?.kind === 'finish' ? 'discrete' : null,
+    apply: (world) => { world.done = true; return { status: 'accepted' } },
+    step: (world) => { world.tick++ },
+    tick: (world) => world.tick,
+    boardFrame: () => ({}),
+    playerFrame: () => ({}),
+    results: () => [{ playerId: 'ada', points: 1, shots: 0 }],
+    touchAudience: (_world, playerId, target) => ({ players: [playerId], board: target.startsWith('row:') }),
+  }
+  const registry = MINIGAMES as Record<string, MinigameDefinition<any>>
+  registry.toy = toy
+  try { run(toy) } finally { delete registry.toy }
+}
+
+const prepareToy = (r: ReturnType<typeof rig>) =>
+  r.runtime.host({ a: 'prepareMinigame', id: 'toy' as never, options: {} })
+
+test('prepare refuses with the definition reason and creates an empty lobby otherwise', () => {
+  withToy(() => {
+    const r = rig()
+    assert.deepEqual(prepareToy(r), { status: 'refused', reason: 'ink-cards' })
+    assert.equal(r.state.minigame, undefined)
+  }, 'ink-cards')
+  withToy(() => {
+    const r = rig()
+    assert.deepEqual(prepareToy(r), { status: 'applied' })
+    assert.deepEqual(r.state.minigame?.lobby, { teams: {}, volunteers: [] })
+  })
+})
+
+test('lobby changes apply only while ready and start checks the lobby', () => {
+  withToy(() => {
+    const r = rig()
+    prepareToy(r)
+    assert.deepEqual(r.runtime.host({ a: 'startMinigame' }), { status: 'refused', reason: 'unpicked' })
+    assert.equal(r.runtime.lobby('ada', { do: 'join', team: 'sun' }), true)
+    assert.equal(r.runtime.lobby('bo', { do: 'join', team: 'moon' }), true)
+    assert.equal(r.runtime.lobby('nobody', { do: 'join', team: 'moon' }), false)
+    assert.deepEqual(r.runtime.host({ a: 'startMinigame' }), { status: 'applied' })
+    assert.equal(r.runtime.lobby('ada', { do: 'leave' }), false)
+    assert.equal(r.state.minigame?.endsAt, undefined)
+  })
+})
+
+test('an untimed match runs past any duration and completes when finished', () => {
+  withToy(() => {
+    const r = rig()
+    prepareToy(r)
+    r.runtime.lobby('ada', { do: 'join', team: 'sun' })
+    r.runtime.lobby('bo', { do: 'join', team: 'moon' })
+    r.runtime.host({ a: 'startMinigame' })
+    r.setNow(r.state.minigame!.startsAt!)
+    r.runtime.pump()
+    r.advance(600_000)
+    assert.equal(r.completions.length, 0)
+    const matchId = r.state.minigame!.matchId
+    r.runtime.input('ada', { t: 'minigameInput', matchId, seq: 1, input: { kind: 'finish', at: r.state.minigame!.startsAt! } as never })
+    r.advance(60)
+    assert.equal(r.completions.length, 1)
+  })
+})
+
+test('touches reach the audience the definition names, only while playing', () => {
+  withToy(() => {
+    const r = rig()
+    prepareToy(r)
+    const touch = (target: string) => ({ t: 'minigameTouch' as const, matchId: r.state.minigame!.matchId, target, x: 0.5, y: 0.5 })
+    assert.equal(r.runtime.touch('ada', touch('row:sun:0')), null)
+    r.runtime.lobby('ada', { do: 'join', team: 'sun' })
+    r.runtime.lobby('bo', { do: 'join', team: 'moon' })
+    r.runtime.host({ a: 'startMinigame' })
+    r.setNow(r.state.minigame!.startsAt!)
+    r.runtime.pump()
+    assert.deepEqual(r.runtime.touch('ada', touch('row:sun:0')), { players: ['ada'], board: true })
+    assert.equal(r.runtime.touch('ada', { ...touch('card:1'), x: 2 }), null)
+    assert.equal(r.runtime.touch('ada', { ...touch('card:1'), matchId: 'old' }), null)
+  })
+})
+
+test('cancel keeps the lobby and close removes it', () => {
+  withToy(() => {
+    const r = rig()
+    prepareToy(r)
+    r.runtime.lobby('ada', { do: 'join', team: 'sun' })
+    r.runtime.lobby('bo', { do: 'join', team: 'moon' })
+    r.runtime.host({ a: 'startMinigame' })
+    r.runtime.host({ a: 'cancelMinigame' })
+    assert.deepEqual(r.state.minigame?.lobby?.teams, { ada: 'sun', bo: 'moon' })
+    r.runtime.host({ a: 'closeMinigame' })
+    assert.equal(r.state.minigame, undefined)
+  })
 })
 
 // Compile-time exhaustiveness helper: these are the runtime-owned actions.

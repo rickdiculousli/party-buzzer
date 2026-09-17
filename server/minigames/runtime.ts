@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import type {
-  ActionResult, HostAction, MinigameFrame, MinigameInputAck, MinigameInputMsg, MinigameResult, Role, State,
+  ActionResult, HostAction, LobbyChange, MinigameFrame, MinigameInputAck, MinigameInputMsg, MinigameLobby,
+  MinigameResult, Role, State,
 } from '../../shared/protocol.ts'
-import { numberOption, type MinigameDefinition } from './definition.ts'
+import { numberOption, type MinigameDefinition, type TouchAudience } from './definition.ts'
+import { applyLobby } from './lobby.ts'
 import { MINIGAMES } from './registry.ts'
 
 const COUNTDOWN_MS = 3_000
@@ -54,6 +56,8 @@ export class MinigameRuntime {
         return { status: 'refused', reason: 'not-idle' }
       }
       if (!Object.hasOwn(MINIGAMES, action.id)) return { status: 'refused', reason: 'unknown-mode' }
+      const refusal = MINIGAMES[action.id].prepare?.()
+      if (refusal) return { status: 'refused', reason: refusal }
       const options = {
         ...MINIGAMES[action.id].options(action.options),
         durationSec: numberOption(action.options.durationSec, 40, 5, 180),
@@ -62,6 +66,7 @@ export class MinigameRuntime {
       this.resetTransient()
       this.state.minigame = {
         id: action.id, matchId: randomUUID(), phase: 'ready', options, participants: [],
+        lobby: { teams: {}, volunteers: [] },
       }
       return { status: 'applied' }
     }
@@ -74,14 +79,17 @@ export class MinigameRuntime {
       if (session.phase !== 'ready') return { status: 'unchanged' }
       const participants = this.state.players.filter((player) => player.connected).map((player) => player.id).sort()
       if (participants.length === 0) return { status: 'refused', reason: 'no-players' }
+      const lobby: MinigameLobby = session.lobby ?? { teams: {}, volunteers: [] }
+      const startRefusal = definition.prepare?.() ?? definition.startable?.(lobby, participants)
+      if (startRefusal) return { status: 'refused', reason: startRefusal }
       const startsAt = this.now() + COUNTDOWN_MS
       session.matchId = randomUUID()
       session.phase = 'countdown'
       session.participants = participants
       session.startsAt = startsAt
-      session.endsAt = startsAt + session.options.durationSec * 1_000
+      session.endsAt = definition.untimed ? undefined : startsAt + session.options.durationSec * 1_000
       delete session.results
-      const created = definition.create(session.options.seed, participants, session.options)
+      const created = definition.create(session.options.seed, participants, session.options, lobby)
       this.world = created.world
       if (created.crews) session.crews = created.crews
       else delete session.crews
@@ -134,7 +142,7 @@ export class MinigameRuntime {
     const arrival = this.now()
     const at = (msg.input as { at: number }).at
     if (session.phase !== 'playing') return refuse('not-playing')
-    if (arrival > (session.endsAt ?? 0) + INPUT_GRACE_MS || Math.min(arrival, Math.max(session.startsAt ?? 0, at)) > (session.endsAt ?? 0)) {
+    if (!this.definition()?.untimed && (arrival > (session.endsAt ?? 0) + INPUT_GRACE_MS || Math.min(arrival, Math.max(session.startsAt ?? 0, at)) > (session.endsAt ?? 0))) {
       return refuse('not-playing')
     }
     if (this.pending.some((item) => item.discrete && item.playerId === playerId && item.seq === msg.seq)) return
@@ -144,7 +152,8 @@ export class MinigameRuntime {
   pump(): void {
     const session = this.state.minigame
     const definition = this.definition()
-    if (!session || !definition || !this.world || !session.startsAt || !session.endsAt) return
+    if (!session || !definition || !this.world || !session.startsAt) return
+    if (!definition.untimed && !session.endsAt) return
     const now = this.now()
     if (session.phase === 'countdown') {
       if (now < session.startsAt) {
@@ -160,7 +169,7 @@ export class MinigameRuntime {
     }
     if (session.phase !== 'playing') return
 
-    const until = Math.min(now, session.endsAt + LANDING_GRACE_MS)
+    const until = definition.untimed ? now : Math.min(now, session.endsAt! + LANDING_GRACE_MS)
     this.accumulator += Math.max(0, until - this.lastPump)
     this.lastPump = until
     let steps = 0
@@ -184,7 +193,8 @@ export class MinigameRuntime {
       this.accumulator = remainder
     }
     this.broadcast(definition)
-    if (!this.completed && now >= session.endsAt + LANDING_GRACE_MS) {
+    const over = definition.untimed ? definition.finished?.(this.world) === true : now >= session.endsAt! + LANDING_GRACE_MS
+    if (!this.completed && over) {
       this.completed = true
       this.hooks.onComplete(session.matchId, definition.results(this.world))
     }
@@ -210,6 +220,26 @@ export class MinigameRuntime {
     session.results = results
     this.resetTransient(false)
     return true
+  }
+
+  /** Team picks during ready. Returns whether the lobby changed. */
+  lobby(playerId: string, change: LobbyChange): boolean {
+    const session = this.state.minigame
+    if (!session?.lobby || session.phase !== 'ready') return false
+    if (!this.state.players.some((player) => player.id === playerId)) return false
+    return applyLobby(session.lobby, playerId, change)
+  }
+
+  /** Validates a touch and names who should see it. */
+  touch(playerId: string, msg: { matchId: string; target: string; x: number; y: number }): TouchAudience | null {
+    const session = this.state.minigame
+    const definition = this.definition()
+    if (!session || !definition?.touchAudience || !this.world) return null
+    if (session.phase !== 'playing' || msg.matchId !== session.matchId) return null
+    if (typeof msg.target !== 'string' || msg.target.length > 40) return null
+    const inside = (n: unknown) => typeof n === 'number' && n >= 0 && n <= 1
+    if (!inside(msg.x) || !inside(msg.y)) return null
+    return definition.touchAudience(this.world, playerId, msg.target)
   }
 
   stop(): void { this.resetTransient() }

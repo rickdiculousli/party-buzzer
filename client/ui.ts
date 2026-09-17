@@ -30,6 +30,9 @@ export const REFUSAL_TEXT: Record<Refusal, string> = {
   'no-setlist': 'There is no setlist to move through.',
   'no-players': 'No players are connected — wait for someone to join.',
   'minigame-active': 'A minigame is active — close it before changing the quiz.',
+  'unpicked': 'Someone connected has not picked a team yet.',
+  'team-too-small': 'Each team needs at least two players.',
+  'ink-cards': 'Phantom Ink needs packs/phantom-ink.txt with at least 16 P: prompts and one W: word card.',
 }
 
 /** Accepted changes already explain themselves through the state update. */

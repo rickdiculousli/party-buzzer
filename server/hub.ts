@@ -167,6 +167,27 @@ export class Hub {
       case 'minigameInput':
         if (conn.role === 'player' && conn.playerId) this.minigame?.input(conn.playerId, msg)
         return
+
+      case 'minigameLobby':
+        if (conn.role === 'player' && conn.playerId && this.minigame?.lobby(conn.playerId, msg.change)) {
+          this.changed('minigame:lobby')
+        }
+        return
+
+      case 'minigameTouch': {
+        if (conn.role !== 'player' || !conn.playerId || !this.minigame) return
+        const audience = this.minigame.touch(conn.playerId, msg)
+        if (!audience) return
+        const name = this.state.players.find((player) => player.id === conn.playerId)?.name ?? '?'
+        const out: ServerMsg = { t: 'minigameTouch', touch: { playerId: conn.playerId, name, target: msg.target, x: msg.x, y: msg.y } }
+        for (const other of this.conns) {
+          const wanted = other.role === 'board'
+            ? audience.board
+            : other.role === 'player' && !!other.playerId && audience.players.includes(other.playerId)
+          if (wanted) other.send(out)
+        }
+        return
+      }
     }
   }
 

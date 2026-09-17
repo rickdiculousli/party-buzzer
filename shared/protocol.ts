@@ -242,6 +242,18 @@ export type TankCrew = { id: string; driver: PlayerId; gunner: PlayerId }
 export type MinigameId = 'bow' | 'tank'
 export type MinigamePhase = 'ready' | 'countdown' | 'playing' | 'results'
 export type MinigameResult = { playerId: PlayerId; points: number; shots: number }
+
+export type InkTeamName = 'sun' | 'moon'
+
+export type MinigameLobby = { teams: Record<PlayerId, InkTeamName>; volunteers: PlayerId[] }
+
+export type LobbyChange =
+  | { do: 'join'; team: InkTeamName }
+  | { do: 'leave' }
+  | { do: 'volunteer'; on: boolean }
+
+export type MinigameTouch = { playerId: PlayerId; name: string; target: string; x: number; y: number }
+
 export type MinigameState = {
   id: MinigameId
   matchId: string
@@ -254,6 +266,8 @@ export type MinigameState = {
   results?: MinigameResult[]
   /** Tank crews for the current match. Reshuffled on every start. */
   crews?: TankCrew[]
+  /** Team picks made during ready. Kept across cancel. */
+  lobby?: MinigameLobby
 }
 
 export type BowInput =
@@ -278,7 +292,7 @@ export type MinigameInputAck = {
   matchId: string
   seq: number
   status: 'accepted' | 'refused'
-  reason?: 'stale-match' | 'not-playing' | 'not-participant' | 'invalid' | 'reloading' | 'capacity' | 'destroyed'
+  reason?: 'stale-match' | 'not-playing' | 'not-participant' | 'invalid' | 'reloading' | 'capacity' | 'destroyed' | 'not-allowed'
 }
 
 export type BowFramePlayer = {
@@ -439,6 +453,8 @@ export type ClientMsg =
   /** Module and item actions. Dispatched by the hub; unknown acts are dropped. */
   | { t: 'act'; act: string; data?: unknown }
   | MinigameInputMsg
+  | { t: 'minigameLobby'; change: LobbyChange }
+  | { t: 'minigameTouch'; matchId: string; target: string; x: number; y: number }
 
 export type ServerMsg =
   | { t: 'welcome'; playerId: PlayerId; serverTime: number }
@@ -447,6 +463,7 @@ export type ServerMsg =
   | { t: 'actionResult'; action: HostAction['a'] | 'loadSetlist'; result: ActionResult }
   | { t: 'minigameFrame'; frame: MinigameFrame }
   | { t: 'minigameAck'; ack: MinigameInputAck }
+  | { t: 'minigameTouch'; touch: MinigameTouch }
 
 /** A command outcome, distinct from the state updates it may produce. */
 export type ActionResult =

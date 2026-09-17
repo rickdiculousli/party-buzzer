@@ -1,4 +1,5 @@
-import type { MinigameInputAck, MinigameResult, TankCrew } from '../../shared/protocol.ts'
+import type { MinigameInputAck, MinigameLobby, MinigameResult, PlayerId, TankCrew } from '../../shared/protocol.ts'
+import type { Refusal } from '../../shared/legality.ts'
 
 export type InputOutcome =
   | { status: 'accepted' }
@@ -6,6 +7,9 @@ export type InputOutcome =
 
 /** Maps a world time in ms to server time. */
 export type Clock = (worldMs: number) => number
+
+/** Who sees a player's touch. */
+export type TouchAudience = { players: PlayerId[]; board: boolean }
 
 /**
  * Everything the runtime needs from one minigame. The runtime owns lifecycle,
@@ -15,7 +19,15 @@ export type MinigameDefinition<W> = {
   stepMs: number
   /** Game-specific numeric options; the runtime sanitizes durationSec and seed. */
   options(raw: Record<string, unknown>): Record<string, number>
-  create(seed: number, participants: string[], options: Record<string, number>): { world: W; crews?: TankCrew[] }
+  create(seed: number, participants: string[], options: Record<string, number>, lobby: MinigameLobby): { world: W; crews?: TankCrew[] }
+  /** No clock: the match ends when `finished` returns true. */
+  untimed?: true
+  finished?(world: W): boolean
+  /** Checked on prepare and again on start; a reason refuses the host action. */
+  prepare?(): Refusal | null
+  startable?(lobby: MinigameLobby, connected: PlayerId[]): Refusal | null
+  /** Who sees a player's touch. Null drops it. */
+  touchAudience?(world: W, playerId: PlayerId, target: string): TouchAudience | null
   /**
    * `discrete` inputs are checked against the match window, fire once, and are
    * acknowledged. `continuous` inputs are applied in arrival order. Null drops a

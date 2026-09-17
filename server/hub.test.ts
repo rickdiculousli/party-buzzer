@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Hub, type Conn } from './hub.ts'
 import { newState } from './state.ts'
+import { MinigameRuntime } from './minigames/runtime.ts'
 import { ARM_DELAY_MS, COLLECT_MS, type Role, type ServerMsg, type State } from '../shared/protocol.ts'
 import { momentOf, type Local } from '../shared/wall.ts'
 
@@ -332,4 +333,35 @@ test('the wall and the phones never disagree about the moment', async () => {
   hub.handle(host, { t: 'host', action: { a: 'correct' } })
   agree('a verdict refused for want of a leader')
   assert.equal(state.round.phase, 'ARMED', 'the rebound is still open')
+})
+
+test('lobby picks broadcast state and touches reach only the named audience', () => {
+  const { state, hub, conn, lastState } = rig()
+  const runtime = new MinigameRuntime(state, {
+    onState: (cause) => hub.minigameChanged(cause), onFrame: () => {}, onAck: () => {}, onComplete: () => {},
+  })
+  hub.setMinigameRuntime(runtime)
+  const board = conn('board')
+  const ada = conn('player')
+  const bo = conn('player')
+  joinAs(hub, ada, 'Ada')
+  joinAs(hub, bo, 'Bo')
+  state.minigame = { id: 'bow', matchId: 'm', phase: 'ready', options: { durationSec: 40, seed: 1 }, participants: [], lobby: { teams: {}, volunteers: [] } }
+  hub.handle(ada, { t: 'minigameLobby', change: { do: 'join', team: 'sun' } })
+  assert.equal(lastState(1).minigame?.lobby?.teams[ada.playerId!], 'sun')
+
+  const sentTo = (c: typeof ada) => {
+    const msgs: unknown[] = []
+    c.send = (m) => { msgs.push(m) }
+    return msgs
+  }
+  const boardMsgs = sentTo(board)
+  const adaMsgs = sentTo(ada)
+  const boMsgs = sentTo(bo)
+  runtime.touch = () => ({ players: [ada.playerId!], board: true })
+  hub.handle(ada, { t: 'minigameTouch', matchId: 'm', target: 'row:sun:0', x: 0.1, y: 0.2 })
+  const expected = { t: 'minigameTouch', touch: { playerId: ada.playerId, name: 'Ada', target: 'row:sun:0', x: 0.1, y: 0.2 } }
+  assert.deepEqual(boardMsgs, [expected])
+  assert.deepEqual(adaMsgs, [expected])
+  assert.deepEqual(boMsgs, [])
 })
