@@ -96,7 +96,12 @@ const leading = (votes: { choice: string }[]) => {
 }
 /** Ticks each vote has run without resolving, keyed by turn, row and step. */
 const stalls = new Map<string, number>()
+/** Ticks each bot has spent looking at a vote before its first vote, keyed by bot and vote. */
+const looks = new Map<string, number>()
 const FORCE_AFTER_TICKS = 8
+/** Peeks get a longer look: bots tap around the rows for this many ticks before voting. */
+const PEEK_LOOK_TICKS = 5
+const GUESS_AFTER_CLUES = 4
 
 while (host.state()?.minigame?.phase === 'playing') {
   await sleep(TICK_MS)
@@ -106,19 +111,33 @@ while (host.state()?.minigame?.phase === 'playing') {
     if (frame?.role !== 'player' || frame.id !== 'ink' || frame.matchId !== matchId) continue
     const send = (input: { kind: string } & Record<string, unknown>) =>
       bot.conn.send({ t: 'minigameInput', matchId, seq: bot.seq++, input: { ...input, at: bot.conn.now() } as InkInput })
-    const tap = (target: string) =>
-      bot.conn.send({ t: 'minigameTouch', matchId, target, x: 0.15 + Math.random() * 0.7, y: 0.2 + Math.random() * 0.6 })
+    // One to three quick taps close together, like a finger pointing.
+    const tap = async (target: string) => {
+      const x = 0.15 + Math.random() * 0.7
+      const y = 0.2 + Math.random() * 0.6
+      const jitter = (n: number) => Math.min(1, Math.max(0, n + (Math.random() - 0.5) * 0.08))
+      for (let i = 1 + Math.floor(Math.random() * 3); i > 0; i--) {
+        bot.conn.send({ t: 'minigameTouch', matchId, target, x: jitter(x), y: jitter(y) })
+        await sleep(80 + Math.random() * 100)
+      }
+    }
     const s = frame.step
     const ours = frame.me.team === frame.turn
     const writer = frame.me.role === 'writer'
     const pad = frame.pad
 
     // Guessers vote like people: a first opinion, drifting to the leader, and a Force when it stalls.
-    const castVote = (options: string[], preferred: string, targetOf: (choice: string) => string[]) => {
+    const castVote = (options: string[], preferred: string, targetOf: (choice: string) => string[], lookTicks = 0) => {
       const key = `${frame.turn}:${frame.row}:${s.at}`
       const mine = frame.votes.find((vote) => vote.player === id)?.choice
       const leader = leading(frame.votes)
-      if (Math.random() < 0.6) for (const target of targetOf(mine ?? preferred)) tap(target)
+      const looked = (looks.get(`${id}:${key}`) ?? 0) + 1
+      looks.set(`${id}:${key}`, looked)
+      if (!mine && looked <= lookTicks) {
+        void tap(targetOf(pick(options))[0])
+        return
+      }
+      if (Math.random() < 0.6) for (const target of targetOf(mine ?? preferred)) void tap(target)
       if (!mine) {
         send({ kind: 'vote', choice: Math.random() < 0.6 ? preferred : pick(options) })
         return
@@ -138,16 +157,17 @@ while (host.state()?.minigame?.phase === 'playing') {
 
     if (s.at === 'choosing' && writer) send({ kind: 'pickWord', index: 0 })
     else if (s.at === 'peekPick' && ours && !writer) {
-      castVote(s.targets, s.targets[0], (choice) => [`row:${choice}`])
+      castVote(s.targets, s.targets[0], (choice) => [`row:${choice}`], PEEK_LOOK_TICKS)
     } else if (s.at === 'peekWrite' && frame.roster[s.team].writer === id) {
       send({ kind: 'stroke', points: letter() })
       await sleep(200)
       send({ kind: 'done' })
     } else if (s.at === 'choose' && ours && !writer) {
       const clues = pad?.[frame.turn].filter((row) => row.kind === 'clue').length ?? 0
-      // Guessing only makes sense once the team has a few clues; early splits are Ask versus Redraw.
-      const options = clues >= 3 ? ['ask', 'guess'] : ['ask', ...(s.canRedraw ? ['redraw'] : [])]
-      castVote(options, clues >= 3 ? 'guess' : 'ask', (choice) => [`vote:${choice}`])
+      // Guessing waits until both teams have passed a peek row; early splits are Ask versus Redraw.
+      const ready = clues >= GUESS_AFTER_CLUES
+      const options = ready ? ['ask', 'guess'] : ['ask', ...(s.canRedraw ? ['redraw'] : [])]
+      castVote(options, ready ? 'guess' : 'ask', (choice) => [`vote:${choice}`])
     } else if (s.at === 'offer' && ours && !writer) {
       const ids = frame.hand.map((card) => card.id)
       const pairs = [[ids[0], ids[1]], [ids[0], ids[2]], [ids[1], ids[2]]].map((pair) => pair.sort((a, b) => a - b).join(','))
