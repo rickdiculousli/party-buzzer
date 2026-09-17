@@ -11,6 +11,7 @@
     "sim": "node tools/sim.ts",
     "sim-bow": "node tools/sim-bow.ts",
     "sim-tank": "node tools/sim-tank.ts",
+    "sim-ink": "node tools/sim-ink.ts",
     "probe": "node tools/probe.ts",
     "trace": "node tools/trace.ts",
     "motion": "vite --open /anim.html",

@@ -87,6 +87,32 @@ coordinate their aim. Shots carve the cover, destroyed tanks respawn after
 three seconds, and each crew's damage and kill points are added to both members'
 scores when the match ends.
 
+### Phantom Ink minigame
+
+Transcribe your own Phantom Ink cards into `packs/phantom-ink.txt` (gitignored):
+
+    P: What is it made of?
+    W: Apple | Calendar | Snowman | Chili | Fox | Table
+
+`P:` lines are prompts (at least 16); `W:` lines are word cards of six words.
+Press **Prepare Phantom Ink** on `/host`. Every phone picks Sun or Moon, and
+anyone on a team may volunteer to write; the board shows both teams and turns a
+count red when a team is over half the room. **Start match** needs everyone
+picked and two per team, then draws each team's Writer from its volunteers.
+
+Writers agree on the secret word from a shared word card. Guessers vote on
+every team choice (Ask or Guess, which two prompts, which clue to peek, Redraw
+hand); a choice applies when all of a team's Guessers agree, or when one of
+them holds Force for two seconds. Writers write freehand in the team's row and
+can undo only their latest stroke. Guessers tap Stop; the Writer finishes the
+letter and taps Done, or taps End clue to add the period. A guess is written
+one letter at a time and the Writer marks each Correct letter or Wrong letter,
+then Win or Not it. Tapping a card or pad row shows a named ring on teammates'
+phones (and the board, for pad rows). The game has no clock. A server restart
+or Undo during play returns it to ready and the game is lost.
+
+`npm run sim-ink` plays a bot game against the running server.
+
 ## Question packs and spoken play
 
 Put `.txt` files in `packs/`, select one, and press **Read**. For example:

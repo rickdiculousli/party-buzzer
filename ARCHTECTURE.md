@@ -43,7 +43,7 @@ are objects in the same process as `Hub`. The composition root is
 | Startup and transport | `server/index.ts` | Load state, construct services, HTTP(S), WebSocket, spoken uploads, shutdown flush |
 | Room coordination | `server/hub.ts` | Connections, dispatch, undo history, collection timers, role views, change notification |
 | Game transitions | `server/state.ts` | Apply host actions, distinguish outcomes, coordinate rule modules, load/save state |
-| Minigame runtime | `server/minigames/runtime.ts`, `server/minigames/registry.ts`, `server/minigames/bow/`, `server/minigames/tank/` | Match lifecycle, fixed-step simulation, queued inputs, role frames; bow and tank rules behind registry definitions |
+| Minigame runtime | `server/minigames/runtime.ts`, `server/minigames/registry.ts`, `server/minigames/bow/`, `server/minigames/tank/`, `server/minigames/ink/` | Match lifecycle, fixed-step simulation, queued inputs, role frames, ready lobby and touch relay; bow, tank and ink rules behind registry definitions |
 | Buzz ranking | `server/resolve.ts` | Clamp and sort timestamps, deduplicate players, exclude lockouts |
 | Gameplay framework | `server/items.ts`, `duel.ts`, `setlist.ts`, `eligibility.ts` | Inventories/effects, seating, block progression, effect and mode eligibility |
 | Mode rules | `server/modes/` | Static registry, options, mode memory, scoring hooks and host status |
@@ -125,7 +125,10 @@ runtime queue and receive `minigameAck` when the next fixed step fires them.
 On every runtime pump (roughly 60 Hz), `minigameFrame` sends the shared field to the board and only
 the local control projection to a participating phone. The live `BowWorld` is
 never written to snapshots. A restart or undo cannot reconstruct an in-flight
-world, so it restores the match ready to replay.
+world, so it restores the match ready to replay. A definition may be untimed:
+the runtime then ignores `durationSec` and completes when the definition's
+`finished` hook reports true. Touches are relayed to the audience the
+definition names and never stored.
 
 The first client route is freehand Bow with geometric placeholders. Setlist
 blocks and a generic client renderer registry remain future work; the runtime

@@ -41,7 +41,7 @@ export type Conn = {
   playerId: string
   waitFor: (pred: (s: State) => boolean, timeoutMs?: number) => Promise<State>
   close: () => void
-  /** The latest minigame frame, for board connections. */
+  /** The latest minigame frame received, whatever role this connection is. */
   frame: () => MinigameFrame | null
 }
 
