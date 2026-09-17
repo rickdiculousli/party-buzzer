@@ -103,3 +103,93 @@ test('prompt pairs match regardless of order', () => {
   act(w, 's2', { kind: 'vote', choice: `${w.hands.sun[1]},${w.hands.sun[0]}` })
   assert.equal(w.step.at, 'keep')
 })
+
+const line: [number, number][] = [[0.1, 0.1], [0.2, 0.9]]
+
+function askUntilClue(w: InkWorld, team: 'sun' | 'moon') {
+  const guessers = w.roster[team].guessers
+  for (const g of guessers) act(w, g, { kind: 'vote', choice: 'ask' })
+  const pair = `${w.hands[team][0]},${w.hands[team][1]}`
+  for (const g of guessers) act(w, g, { kind: 'vote', choice: pair })
+  const step = w.step
+  assert.equal(step.at, 'keep')
+  if (step.at !== 'keep') throw new Error('not keep')
+  act(w, w.roster[team].writer, { kind: 'keep', prompt: step.offered[0] })
+  return step.offered
+}
+
+test('asking offers two prompts, keeps one and discards the other', () => {
+  const w = started()
+  const offered = askUntilClue(w, 'sun')
+  assert.equal(w.hands.sun.length, 5)
+  assert.deepEqual(w.discard, [offered[1]])
+  assert.deepEqual(w.step, { at: 'clue', prompt: offered[0], stopped: false })
+  assert.equal(w.pad.sun[0].kind, 'clue')
+})
+
+test('stop lets the writer finish the letter; done ends the clue and the turn', () => {
+  const w = started()
+  askUntilClue(w, 'sun')
+  assert.equal(act(w, 'sw', { kind: 'done' }).status, 'refused')
+  assert.equal(act(w, 's1', { kind: 'stroke', points: line }).status, 'refused')
+  act(w, 'sw', { kind: 'stroke', points: line })
+  act(w, 's2', { kind: 'stop' })
+  assert.equal(act(w, 'sw', { kind: 'stroke', points: line }).status, 'accepted')
+  act(w, 'sw', { kind: 'done' })
+  assert.equal(w.pad.sun[0].strokes.length, 2)
+  assert.equal(w.pad.sun[0].ended, false)
+  assert.equal(w.asked.sun.length, 1)
+  assert.equal(w.hands.sun.length, 7)
+  assert.equal(w.turn, 'moon')
+  assert.deepEqual(w.step, { at: 'choose' })
+})
+
+test('end clue adds the period without a stop', () => {
+  const w = started()
+  askUntilClue(w, 'sun')
+  act(w, 'sw', { kind: 'stroke', points: line })
+  act(w, 'sw', { kind: 'endClue' })
+  assert.equal(w.pad.sun[0].ended, true)
+  assert.equal(w.turn, 'moon')
+})
+
+test('only the latest stroke can be undone, once', () => {
+  const w = started()
+  askUntilClue(w, 'sun')
+  act(w, 'sw', { kind: 'stroke', points: line })
+  act(w, 'sw', { kind: 'stroke', points: [[0.5, 0.5]] })
+  assert.equal(act(w, 'sw', { kind: 'undo' }).status, 'accepted')
+  assert.equal(act(w, 'sw', { kind: 'undo' }).status, 'refused')
+  assert.equal(w.pad.sun[0].strokes.length, 1)
+  act(w, 'sw', { kind: 'stroke', points: line })
+  assert.equal(act(w, 'sw', { kind: 'undo' }).status, 'accepted')
+  assert.equal(w.pad.sun[0].strokes.length, 1)
+})
+
+test('strokes are validated and rounded to three decimals', () => {
+  const w = started()
+  askUntilClue(w, 'sun')
+  assert.equal(act(w, 'sw', { kind: 'stroke', points: [[1.2, 0]] }).status, 'refused')
+  assert.equal(act(w, 'sw', { kind: 'stroke', points: [] }).status, 'refused')
+  act(w, 'sw', { kind: 'stroke', points: [[0.12345, 0.98765]] })
+  assert.deepEqual(w.pad.sun[0].strokes[0].points, [[0.123, 0.988]])
+})
+
+test('the live stroke is kept for the writer and cleared on commit', () => {
+  const w = started()
+  askUntilClue(w, 'sun')
+  act(w, 'sw', { kind: 'ink', points: line })
+  assert.deepEqual(w.live.sw, line)
+  act(w, 'sw', { kind: 'stroke', points: line })
+  assert.equal(w.live.sw, undefined)
+  assert.equal(act(w, 'm1', { kind: 'ink', points: line }).status, 'refused')
+})
+
+test('the prompt deck reshuffles the discard pile when it runs out', () => {
+  const w = started()
+  w.discard.push(...w.deck)
+  w.deck = []
+  askUntilClue(w, 'sun')
+  act(w, 'sw', { kind: 'endClue' })
+  assert.equal(w.hands.sun.length, 7)
+})
