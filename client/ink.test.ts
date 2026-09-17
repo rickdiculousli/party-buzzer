@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { freshTouches, lobbyColumns, quantizePoint, strokePath, teamCap, TOUCH_MS } from './ink.ts'
+import { freshTouches, lobbyColumns, quantizePoint, stepLine, strokePath, teamCap, TOUCH_MS } from './ink.ts'
 import { newState } from '../server/state.ts'
 
 test('team capacity is half the room, rounded up', () => {
@@ -44,4 +44,23 @@ test('touches expire after the fade', () => {
   const touch = { playerId: 'a', name: 'Ada', target: 'card:1', x: 0, y: 0 }
   const kept = freshTouches([{ ...touch, at: 0 }, { ...touch, at: 500 }], TOUCH_MS + 1)
   assert.deepEqual(kept.map((t) => t.at), [500])
+})
+
+test('step lines name the team, the writer action, and a stopped clue', () => {
+  const nameOf = (id: string) => (id === 'ada' ? 'Ada' : '?')
+  assert.equal(stepLine({ turn: 'sun', step: { at: 'choosing' } }, nameOf), 'Writers are choosing the secret word')
+  assert.equal(stepLine({ turn: 'sun', step: { at: 'clue', stopped: false } }, nameOf), 'Sun writer is writing')
+  assert.equal(stepLine({ turn: 'sun', step: { at: 'clue', stopped: true } }, nameOf), 'Sun called Stop')
+})
+
+test('a guess names its holder, or the team while it is open', () => {
+  const nameOf = (id: string) => (id === 'ada' ? 'Ada' : '?')
+  assert.equal(stepLine({ turn: 'moon', step: { at: 'guess', holder: 'ada' } }, nameOf), 'Ada is guessing')
+  assert.equal(stepLine({ turn: 'moon', step: { at: 'guess', holder: null } }, nameOf), 'Moon is guessing')
+})
+
+test('the game over line names a winner or says both teams lose', () => {
+  const nameOf = () => '?'
+  assert.equal(stepLine({ turn: 'sun', step: { at: 'over', winner: 'moon' } }, nameOf), 'Moon wins')
+  assert.equal(stepLine({ turn: 'sun', step: { at: 'over', winner: null } }, nameOf), 'Both teams lose')
 })

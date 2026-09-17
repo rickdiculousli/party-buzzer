@@ -1,28 +1,7 @@
 import { INK_PEEK_ROWS } from '../shared/protocol.ts'
-import type { MinigameFrame } from '../shared/protocol.ts'
 import type { MinigameBoardProps } from './minigames.tsx'
-import { TEAM_LABEL } from './ink.ts'
+import { TEAM_LABEL, stepLine } from './ink.ts'
 import { InkLobby, InkPad, useInkPad, useTouchClock } from './InkParts.tsx'
-
-type Frame = Extract<MinigameFrame, { id: 'ink'; role: 'board' }>
-
-export function stepLine(frame: Pick<Frame, 'step' | 'turn'>, nameOf: (id: string) => string): string {
-  const team = TEAM_LABEL[frame.turn]
-  const s = frame.step
-  switch (s.at) {
-    case 'choosing': return 'Writers are choosing the secret word'
-    case 'peekPick': return `${team} is picking a clue to peek`
-    case 'peekWrite': return `${TEAM_LABEL[s.team]} writer adds one letter`
-    case 'choose': return `${team}: Ask or Guess?`
-    case 'offer': return `${team} is choosing prompts`
-    case 'keep': return `${team} writer is picking a prompt`
-    case 'clue': return s.stopped ? `${team} called Stop` : `${team} writer is writing`
-    case 'guess': return s.holder ? `${nameOf(s.holder)} is guessing` : `${team} is guessing`
-    case 'judgeLetter': return `${team} writer is checking the letter`
-    case 'judgeWord': return `${team} writer is checking the guess`
-    case 'over': return s.winner ? `${TEAM_LABEL[s.winner]} wins` : 'Both teams lose'
-  }
-}
 
 export function InkBoard({ state, frame, touches }: MinigameBoardProps) {
   const session = state.minigame!

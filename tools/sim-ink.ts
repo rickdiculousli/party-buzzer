@@ -1,7 +1,7 @@
 /**
  * Synthetic self-play for Phantom Ink. Five bots join, pick teams, volunteer
  * and play until a team wins or the pad fills. Writers scribble random letters,
- * guessers stop after two letters and guess once a clue has four strokes.
+ * guessers stop after two letters and finish their guess once it has three.
  * Needs packs/phantom-ink.txt on the server.
  *
  *   npm run sim-ink

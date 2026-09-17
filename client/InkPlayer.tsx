@@ -1,9 +1,8 @@
-import { useRef } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { INK_PEEK_ROWS } from '../shared/protocol.ts'
 import type { InkInput, MinigameFrame } from '../shared/protocol.ts'
 import type { MinigamePlayerProps } from './minigames.tsx'
-import { TEAM_LABEL } from './ink.ts'
-import { stepLine } from './InkBoard.tsx'
+import { TEAM_LABEL, stepLine } from './ink.ts'
 import { HoldButton, InkCanvas, InkLobby, InkPad, Touchable, VotePips, useInkPad, useTouchClock } from './InkParts.tsx'
 
 type Frame = Extract<MinigameFrame, { id: 'ink'; role: 'player' }>
@@ -13,7 +12,11 @@ export function InkPlayer({ state, playerId, frame, now, send, touches }: Miniga
   const ink = frame?.role === 'player' && frame.id === 'ink' && frame.matchId === session.matchId ? frame as Frame : null
   const pad = useInkPad(ink)
   const seq = useRef(1)
-  const picked = useRef<number[]>([])
+  const [picked, setPicked] = useState<number[]>([])
+  const stepAt = ink?.step.at ?? null
+  // Cleared whenever the step leaves 'offer', so a stale pair from a finished
+  // vote never carries into the next one.
+  useEffect(() => { if (stepAt !== 'offer') setPicked([]) }, [stepAt])
   useTouchClock(touches)
 
   if (session.phase === 'ready') return <main class="ink-phone"><InkLobby state={state} playerId={playerId} send={send} /></main>
@@ -36,8 +39,6 @@ export function InkPlayer({ state, playerId, frame, now, send, touches }: Miniga
     (s.at === 'clue' && ours && writer) ||
     (s.at === 'peekWrite' && ink.roster[s.team].writer === playerId) ||
     (s.at === 'guess' && ours && !writer && (s.holder === null || s.holder === playerId))
-
-  if (s.at !== 'offer') picked.current = []
 
   return <main class={`ink-phone ink-phone--${ink.me.team}`}>
     <header class="ink-phone__bar">
@@ -103,14 +104,15 @@ export function InkPlayer({ state, playerId, frame, now, send, touches }: Miniga
       {s.at === 'offer' && ours && <p class="eyebrow">Pick two prompts</p>}
       {ink.hand.map((card) => {
         const inVote = (c: string) => c.split(',').includes(String(card.id))
-        const selected = picked.current.includes(card.id)
+        const selected = s.at === 'offer' && picked.includes(card.id)
         return <Touchable key={card.id} target={`card:${card.id}`} touches={touches} onTouch={touch} class={selected ? 'ink-card is-selected' : 'ink-card'}>
           <span>{card.text}</span>
           {voting && s.at === 'offer' && <>
             <VotePips state={state} votes={ink.votes} choice={inVote} />
             <button class={selected ? 'btn btn--primary' : 'btn'} onClick={() => {
-              picked.current = selected ? picked.current.filter((id) => id !== card.id) : [...picked.current, card.id].slice(-2)
-              if (picked.current.length === 2) vote([...picked.current].sort((a, b) => a - b).join(','))
+              const next = selected ? picked.filter((id) => id !== card.id) : [...picked, card.id].slice(-2)
+              setPicked(next)
+              if (next.length === 2) vote([...next].sort((a, b) => a - b).join(','))
               else if (myVote) input({ kind: 'vote', choice: '' })
             }}>Vote</button>
           </>}
