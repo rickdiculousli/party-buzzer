@@ -12,7 +12,8 @@
  *   npm run sim-ink -- 2500 http://box:8080
  *
  * Join a phone under a bot's name (Ivy, Jax, Kai, Lux, Mo, Rex, Sol, Tia) before running
- * to watch that bot's view; the bot plays for it. Ivy and Lux are the Writers.
+ * to watch that bot's view; the bot plays for it. Ivy and Lux are the Writers. The log names
+ * every role and prints the secret word, so a borrowed phone can spell its own guess.
  *
  * Ctrl-C closes the minigame and removes the bots it created.
  */
@@ -124,13 +125,12 @@ const humanWaits = new Map<string, { ticks: number; letters: number }>()
 /** Guess rows the bots have taken back, so their own letters never restart the wait. */
 const taken = new Set<string>()
 
-/** The team of a bot's phone, once it holds an ink frame. */
-const teamOf = (bot: { conn: Conn }) => {
+/** A borrowed phone that guesses for this team spells its own guesses; no bot types over it. */
+const humanGuess = (team: string) => [...bots.values()].some((bot) => {
   const frame = bot.conn.frame()
-  return frame?.role === 'player' && frame.id === 'ink' ? frame.me.team : null
-}
-/** A team with a borrowed phone on it spells its own guesses; no bot there types a letter. */
-const humanGuess = (team: string) => [...bots.values()].some((bot) => bot.borrowed && teamOf(bot) === team)
+  if (!bot.borrowed || frame?.role !== 'player' || frame.id !== 'ink') return false
+  return frame.me.team === team && frame.me.role === 'guesser'
+})
 /**
  * True while the bots hold off for the person on a borrowed phone. Every letter they type
  * restarts the wait; a row that stops moving for GUESS_WAIT_TICKS goes back to the bots, so
@@ -145,6 +145,27 @@ function waitingOnPerson(key: string, team: string, letters: number): boolean {
   taken.add(key)
   console.log(`No letters from the borrowed ${team} phone; the bots take the guess.`)
   return false
+}
+
+/** Named once each, so a person can pick a phone to shadow and type the word themselves. */
+let toldRoles = false
+let toldSecret = ''
+const who = (playerId: string) => {
+  const bot = bots.get(playerId)
+  return `${bot?.name ?? playerId}${bot?.borrowed ? ' (your phone)' : ''}`
+}
+function announce(roster: Record<string, { writer: string; guessers: string[] }>) {
+  if (!toldRoles) {
+    toldRoles = true
+    for (const team of ['sun', 'moon']) {
+      console.log(`${team === 'sun' ? 'Sun' : 'Moon'}: ${who(roster[team].writer)} writes · ${roster[team].guessers.map(who).join(', ')} guess`)
+    }
+  }
+  const secret = secretWord()
+  if (secret && secret !== toldSecret) {
+    toldSecret = secret
+    console.log(`Secret word: ${secret}`)
+  }
 }
 
 while (host.state()?.minigame?.phase === 'playing') {
@@ -165,6 +186,7 @@ while (host.state()?.minigame?.phase === 'playing') {
         await sleep(80 + Math.random() * 100)
       }
     }
+    announce(frame.roster)
     const s = frame.step
     const ours = frame.me.team === frame.turn
     const writer = frame.me.role === 'writer'
