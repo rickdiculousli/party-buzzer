@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
-import { useOpen, useSocket } from './useSocket.ts'
+import { useOpen, useSocket, type SocketFixture } from './useSocket.ts'
 import { Talk } from './Talk.tsx'
 import { colorForPlayer, standings } from './ui.ts'
 import { PlayerDuel } from './PlayerDuel.tsx'
@@ -49,10 +49,10 @@ function StandingsDial({ state }: { state: State }) {
     i === 0 ? '1st' : i === 1 ? '2nd' : i === 2 ? '3rd' : `${i + 1}th`
 
   return (
-    <div class="dial" aria-label="Standings">
+    <div class="dial" aria-label="Standings" data-review-id="phone:standings">
       <ol class="dial__list">
         {rows.map((r, i) => (
-          <li key={r.key} class="dial__row" style={{ '--id': r.color }}>
+          <li key={r.key} data-review-id={`phone:standing:${r.key}`} class="dial__row" style={{ '--id': r.color }}>
             <span class={i < 3 ? `dial__rank rank rank--${i + 1}` : 'dial__rank rank'}>
               {ordinal(i)}
             </span>
@@ -66,12 +66,19 @@ function StandingsDial({ state }: { state: State }) {
   )
 }
 
-export function Player() {
-  const { state, playerId, connected, now, send, minigameFrame, minigameAck, minigameTouches } = useSocket('player')
+export type PlayerPreview = {
+  socket: SocketFixture
+  open: boolean
+  delay: number
+  pressed: boolean
+}
+
+export function Player({ preview }: { preview?: PlayerPreview } = {}) {
+  const { state, playerId, connected, now, send, minigameFrame, minigameAck, minigameTouches } = useSocket('player', preview?.socket)
   const [name, setName] = useState(() => localStorage.getItem('playerName') ?? '')
   // Always start behind the tap, even for a phone we recognise. Audio only
   // unlocks inside a user gesture, so skipping the tap means silence all game.
-  const [ready, setReady] = useState(false)
+  const [ready, setReady] = useState(!!preview)
   const returning = !!localStorage.getItem('playerId')
   const audio = useRef<AudioContext | null>(null)
   const wakeLock = useRef<WakeLockSentinel | null>(null)
@@ -79,6 +86,7 @@ export function Player() {
 
   // Hold the screen awake while playing; re-acquire after the tab is hidden.
   useEffect(() => {
+    if (preview) return
     if (!ready) return
     const acquire = async () => {
       try {
@@ -100,14 +108,16 @@ export function Player() {
       document.removeEventListener('visibilitychange', onVisible)
       void wakeLock.current?.release()
     }
-  }, [ready])
+  }, [ready, preview])
 
   const round = state?.round
   const mine = round?.order.find((b) => b.playerId === playerId)
   // This phone has pressed for this arm. Local, because the room learns nothing
   // for a full second and a buzzer that looks unchanged after a press feels
   // broken. Keyed on the arm so it clears itself for the next question.
-  const [pressedFor, setPressedFor] = useState('')
+  const [pressedFor, setPressedFor] = useState(
+    preview?.pressed ? (state?.round.attemptId ?? '') : '',
+  )
   const key = state && playerId ? scoreKey(state, playerId) : playerId
   const barred = !!key && !!round?.lockedOut.includes(key)
   const frozen =
@@ -130,19 +140,23 @@ export function Player() {
 
   // The go cue. Lower than the buzz blip so the two never get confused, and
   // skipped for players who are locked out and cannot act on it.
-  const { open, delay } = useOpen(round, now, () => {
+  const opening = useOpen(round, now, () => {
+    if (preview) return
     if (barred || frozen || spectator) return
     navigator.vibrate?.([40, 40, 40])
     blip(audio.current, 440)
-  })
+  }, !preview)
+  const open = preview?.open ?? opening.open
+  const delay = preview?.delay ?? opening.delay
 
   // A distinct low double-thud when you are shut out, so the phone tells you
   // why nothing happened instead of leaving you mashing a dead button.
   useEffect(() => {
+    if (preview) return
     if (!ready || !barred) return
     navigator.vibrate?.([120, 60, 120])
     blip(audio.current, 180, 260)
-  }, [barred, ready])
+  }, [barred, ready, preview])
 
   // The join tap doubles as the gesture that unlocks audio on iOS.
   const join = () => {
@@ -194,6 +208,7 @@ export function Player() {
   }
 
   const buzz = () => {
+    if (preview) return
     if (!open || barred || pressed || frozen || spectator) return
     // Stamp before anything else so render work never inflates the time.
     send({ t: 'buzz', at: now() })
@@ -232,8 +247,8 @@ export function Player() {
   const me = state?.players.find((p) => p.id === playerId)
 
   return (
-    <main class="player">
-      <div class="player__bar">
+    <main class="player" data-review-id="phone:root">
+      <div class="player__bar" data-review-id="phone:identity">
         <span
           class="player__name"
           style={{ '--id': state && playerId ? colorForPlayer(state, playerId) : undefined }}
@@ -247,9 +262,9 @@ export function Player() {
         <span class="player__score readout">{score}</span>
       </div>
 
-      {round?.image && <img class="player__image" src={round.image} alt="" />}
+      {round?.image && <img class="player__image" data-review-id="phone:image" src={round.image} alt="" />}
       {!!round?.fragments?.length && (
-        <p class="player__question">{round.fragments.join(' ')}</p>
+        <p class="player__question" data-review-id="phone:question">{round.fragments.join(' ')}</p>
       )}
 
       {/* Reserved whether or not the filament is in it. Otherwise arming
@@ -277,6 +292,7 @@ export function Player() {
         />
       ) : (
         <button
+          data-review-id="phone:buzzer"
           class={`buzzer ${MOOD_CLASS[mood]}`}
           onPointerDown={buzz}
           disabled={!open || barred || pressed || frozen || spectator}

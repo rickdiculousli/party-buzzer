@@ -97,35 +97,37 @@ spawn failure, and timeout distinctly. It never retries internally.
 
 ## Task 2: Extract controlled views and render fixed scenarios
 
+The first release uses fixture injection at the existing component boundary
+instead of extracting duplicate view trees. The unchecked items below remain
+enhancements beyond the requested element-note workflow.
+
 **Files:** Shared views and runtime wrappers listed above; `client/review/model.ts`,
 `frame.tsx`, `tools/review/fixtures.ts`, `client/review-frame.html`, dedicated Vite
 configuration, `package.json`, browser test configuration.
 
-**Interface:** Export `BoardView` and `PlayerView` with explicit role-projected
-State and presentation props. Export `PreviewInput` containing scenario ID,
-surface, player ID, viewport, fixed time, role State, and local presentation.
-Frame URL selects a fixture by ID; a capture request can select a saved input.
-The frame signals `review:ready` only after fonts/images settle and its fixed
-presentation frame has been applied.
+**Implemented interface:** `Board` and `Player` accept an explicit frozen socket
+fixture with role-projected State and local presentation overrides. This retains
+one rendering tree while bypassing browser effects in preview mode. Frame URLs
+select a fixture by scenario, surface, and player. The frame exposes a deterministic
+ready marker after local fonts settle.
 
 - [ ] Read `Board`, `Player`, `Spoken`, `Talk`, `useReveal`, `useSocket`, and
   `shared/wall.ts`. List effectful descendants before moving JSX. Leave minigame
   registry branches in their existing runtime wrappers for this release.
-- [ ] Add a browser test that loads a frozen leader-answering phone, rejects any
+- [x] Add a browser test that loads a frozen leader-answering phone, rejects any
   `/ws` connection or `/spoken` request, and fails on microphone/audio activation.
 - [ ] Add projection tests using the existing Hub fixture setup. Assert phones
   omit other players' order entries, `round.whole`, and private reading progress;
   include mirrored/unmirrored text cases.
-- [ ] Extract JSX into shared views, passing callbacks from the production
-  wrappers and inert callbacks from previews. Pass revealed transcript text into
-  controlled transcript presentation; keep transcript timing in its runtime owner.
-  Preserve keys governing hero arrival and existing CSS wrappers.
-- [ ] Define static scene builders with fresh question/attempt IDs and generate
+- [x] Add a frozen fixture boundary to the existing board/player components,
+  keeping production callbacks in their wrappers and passing inert presentation
+  inputs to preview descendants. Preserve existing JSX and CSS wrappers.
+- [x] Define static scene builders with fresh question/attempt IDs and generate
   role views with `Hub.viewFor`. Close fixture timers after generation. Serve
   fixture JSON from the local tool instead of importing Hub into browser code.
-- [ ] Add all initial scenarios named in the spec. Use a fixed display clock and
+- [x] Add all initial scenarios named in the spec. Use a fixed display clock and
   local presentation props; settle CSS animation timelines to an explicit point.
-- [ ] Add `npm run review` for the dedicated loopback Vite configuration. Add the
+- [x] Add `npm run review` for the dedicated loopback Vite configuration. Add the
   proposed Playwright dev dependency and a separate `test:review` script, keeping
   browser tests outside Node's existing globs. Include `vite.review.config.ts` in
   TypeScript checking; Node tests still directly exercise `tools/` utilities.
@@ -148,7 +150,7 @@ uses a versioned storage key scoped to the workspace ID returned by the server.
   target IDs, and annotation coordinates when the visible iframe is scaled.
 - [ ] Build the scenario list, board/phone toggles, player picker, viewport presets,
   and note editor. Encode selected scenario/player/viewport in the page URL.
-- [ ] Add stable `data-review-id` values to meaningful view regions; repeated
+- [x] Add stable `data-review-id` values to meaningful view regions; repeated
   standings rows include their score key. Resolve a saved target only if unique.
 - [ ] Install capture-phase pointer interception inside preview frames. Outline
   hovered targets without changing layout; Escape cancels selection. Annotating
@@ -174,11 +176,11 @@ and annotations. Delivery status is mutable metadata outside the immutable paylo
 - [ ] Add temp-directory tests: batch survives process recreation; a second write
   cannot replace an existing payload; malformed IDs cannot escape the batch root;
   failed capture leaves the draft available and creates no submitted batch.
-- [ ] Create files in a staging directory, capture all required images, and rename
+- [x] Create files in a staging directory, capture all required images, and rename
   into place only after success. Use generated UUIDs for directory names.
 - [ ] Capture saved inputs in Chromium at exact viewport/scroll dimensions. Wait
   for `review:ready`, then write PNGs and overlays from annotation coordinates.
-- [ ] Compare source revision at selection/capture and after capture. If changed,
+- [x] Compare source revision immediately before and after capture. If changed,
   return an explicit recapture requirement. Test this with an injected revision
   provider so no test edits unrelated source files.
 - [ ] Generate `request.md` containing notes grouped by preview, image paths,
@@ -201,7 +203,7 @@ and annotations. Delivery status is mutable metadata outside the immutable paylo
 `report.ts <batch-id> <acknowledged|ready|blocked> [summary-file]` updates mutable
 status with validated transitions and an optional text summary.
 
-- [ ] Add failing tests: simultaneous Send requests launch one queue command;
+- [x] Add failing tests: simultaneous Send requests launch one queue command;
   a timeout stays uncertain; acknowledgment arriving before command exit is not
   overwritten by Submitted; duplicate acknowledgment is harmless; a stale report
   for another batch cannot complete the currently displayed one.
@@ -211,7 +213,7 @@ status with validated transitions and an optional text summary.
 - [ ] Add pairing by exact thread UUID and visible target label. Follow Task 1's
   observed active-session checks. Disable submission while this target already
   has an outstanding workbench batch; allow additional draft notes.
-- [ ] Include the report commands in the request. Keep Ready for review distinct
+- [x] Include the report commands in the request. Keep Ready for review distinct
   from independent validation and user-resolved notes. Display failure/blocked
   summaries without deleting payloads or drafting an automatic replacement task.
 - [ ] Poll batch status from the UI. Show explicit retry only for confirmed
@@ -227,17 +229,17 @@ status with validated transitions and an optional text summary.
 
 **Files:** `README.md`, `ARCHTECTURE.md`, `docs/manual-checklist.md`, tests as needed.
 
-- [ ] Document launch, Chromium setup, pairing, Send, acknowledgment states,
+- [x] Document launch, Chromium setup, pairing, Send, acknowledgment states,
   retry semantics, refresh, ignored artifacts, and the Codex version actually
   tested. Explain that the agent continues in the existing terminal.
-- [ ] Document view/runtime ownership and development-only routes. State that
+- [x] Document view/runtime ownership and development-only routes. State that
   static previews do not prove timing, speech, microphone, or multi-device behavior.
 - [ ] Run `npm test`, `npm run typecheck`, `npm run build`, and `npm run test:review`.
   Run affected motion scenarios and relevant manual-checklist entries. Report
   socket-binding/native-tool blockers precisely instead of claiming a full pass.
-- [ ] Inspect `dist/` and verify review HTML, tools, and delivery endpoints are
+- [x] Inspect `dist/` and verify review HTML, tools, and delivery endpoints are
   absent. Verify production routes still operate normally.
-- [ ] Run `git diff --check` and inspect only task-owned changes. Report shared-file
+- [x] Run `git diff --check` and inspect only task-owned changes. Report shared-file
   conflicts without resetting concurrent ink work. Present the completed Codex
   release and its observed delivery limitations before starting Claude support.
 

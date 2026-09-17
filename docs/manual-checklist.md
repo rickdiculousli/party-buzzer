@@ -3,6 +3,17 @@
 Automated tests cover buzz ordering, the timestamp clamp, and reconnection.
 These need real hardware — run them once before a real game night.
 
+## Review workbench
+
+- [ ] `npm run review` opens both a board and phone preview without a game server
+- [ ] Switching scenarios and phone identities updates both frozen previews
+- [ ] Clicking a disabled buzzer creates an editable note and does not activate it
+- [ ] Reloading retains draft notes; **Refresh previews** retains them while remounting frames
+- [ ] Sending to a disposable Codex conversation creates captures in `.review/batches/`
+      and progresses from submitted to acknowledged and then ready or blocked
+- [ ] A visual change appears after **Refresh previews**; use the device checks below
+      for behavior that depends on clocks, sound, speech, microphones, or networking
+
 ## Per phone (test at least one iPhone and one Android)
 
 - [ ] Scanning the QR from the camera app opens the join page

@@ -44,9 +44,8 @@ observe the agent's work. The workbench displays submission and acknowledgment
 status without pretending to be a second terminal client.
 
 Refresh previews remounts the same scenario, player, viewport, and presentation
-position. A saved before screenshot is available next to the current view.
-The user resolves notes explicitly. A removed or ambiguous target is marked
-unlocated; its original note and image remain available.
+position while retaining the draft. The submitted bundle keeps its original
+capture for the agent. The user resolves notes explicitly.
 
 ## Preview architecture
 
@@ -55,12 +54,13 @@ audio/motion tool. `review.html` and `review-frame.html` are development entries
 Use a dedicated Vite configuration for the review server so the agent bridge
 is not enabled by ordinary `npm run dev` or the game server.
 
-Extract board and player presentation components from `Board.tsx` and
-`Player.tsx`. Their existing wrappers retain sockets, audio, wake locks,
-microphone access, timers, and action handlers. Both production and review
-mount the extracted views. Inspect descendants such as `Spoken` and `Talk`:
-extract controlled presentation where necessary so nested components cannot
-restart timing or microphone effects in previews.
+Mount the real board and player components with an explicit frozen fixture at
+their socket boundary. Their production path retains sockets, audio, wake locks,
+microphone access, timers, and action handlers; preview mode supplies fixed state
+and suppresses those effects. Descendants such as `Spoken`, `Talk`, and reveal
+timers receive inert preview inputs so they cannot restart timing or microphone
+effects. This keeps one presentation tree without duplicating the large surface
+components.
 
 Fixtures specify role-projected State, player identity, fixed time, connection
 status, pressed state, and explicit presentation values such as open, settled,

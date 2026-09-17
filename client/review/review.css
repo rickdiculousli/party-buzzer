@@ -1,0 +1,129 @@
+.review {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 18rem minmax(0, 1fr);
+  background: var(--stage);
+  color: var(--ink);
+}
+
+.review__panel {
+  padding: var(--s4);
+  background: var(--panel);
+  border-right: 1px solid var(--rule);
+  max-height: 100dvh;
+  overflow-y: auto;
+}
+
+.review__panel h1 {
+  margin: var(--s1) 0 var(--s4);
+  font-family: var(--display);
+  font-size: var(--t-xl);
+  text-transform: uppercase;
+}
+
+.review__field {
+  display: grid;
+  gap: var(--s1);
+  margin-bottom: var(--s3);
+  color: var(--dim);
+  font-size: var(--t-xs);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+}
+
+.review__field select,
+.review__field input {
+  width: 100%;
+  padding: var(--s2);
+  color: var(--ink);
+  background: var(--stage);
+  border: 1px solid var(--rule);
+}
+
+.review__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s1);
+  margin-bottom: var(--s2);
+}
+
+.review__delivery {
+  display: flex;
+  gap: var(--s1);
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: var(--s3);
+}
+
+.review__delivery p {
+  flex-basis: 100%;
+  color: var(--dim);
+  font-size: var(--t-xs);
+}
+
+.review__hint,
+.review__loading {
+  color: var(--dim);
+  font-size: var(--t-sm);
+  line-height: 1.5;
+}
+
+.review__notes {
+  display: grid;
+  gap: var(--s2);
+  margin-top: var(--s4);
+}
+
+.review__note {
+  display: grid;
+  gap: var(--s1);
+  padding: var(--s2);
+  border: 1px solid var(--rule);
+  background: var(--stage);
+}
+
+.review__note.is-resolved { opacity: 0.55; }
+
+.review__note textarea {
+  width: 100%;
+  min-height: 6rem;
+  resize: vertical;
+  padding: var(--s2);
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  font: inherit;
+}
+
+.review__note-actions {
+  display: flex;
+  gap: var(--s1);
+}
+
+.review__previews {
+  min-width: 0;
+  padding: var(--s3);
+  display: grid;
+  grid-template-columns: minmax(0, 16fr) minmax(20rem, 5fr);
+  gap: var(--s3);
+  align-items: start;
+}
+
+.review__preview {
+  min-width: 0;
+}
+
+.review__preview iframe {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--rule);
+  background: #0b0a08;
+}
+
+.review__preview--board iframe { aspect-ratio: 16 / 9; }
+.review__preview--phone iframe { height: min(78dvh, 52rem); }
+
+@media (max-width: 900px) {
+  .review { grid-template-columns: 1fr; }
+  .review__previews { grid-template-columns: 1fr; }
+}

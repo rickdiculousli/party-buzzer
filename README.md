@@ -179,6 +179,7 @@ npm run typecheck
 npm test
 npm run build
 npm run motion         # standalone visual/audio workbench at /anim.html
+npm run review         # frozen board/phone review workbench at /review.html
 npm run dev            # Vite HMR; see proxy limitation below
 ```
 
@@ -191,6 +192,23 @@ only `/ws` and `/qr.svg`. A normal HTTPS server is not interchangeable with
 that backend, and `/spoken` is not proxied. Use the built server URL for full
 phone and microphone testing. The [architecture guide](ARCHTECTURE.md#development-and-validation)
 includes a local HTTP backend recipe for HMR work.
+
+The review workbench is a development-only way to comment on frozen board and
+phone states and send those comments into an existing Codex terminal
+conversation. Install its browser once with `npx playwright install chromium`,
+then run `npm run review`. Choose a scenario and phone, click an element in
+either preview, write a suggestion, and enter the exact Codex conversation UUID
+if it was not detected from `CODEX_THREAD_ID`. **Send** saves an immutable local
+bundle under ignored `.review/batches/`, captures the referenced previews, and
+queues the bundle path to that conversation. The status changes as the agent
+acknowledges the batch and marks it ready or blocked. **Refresh previews**
+remounts the same frozen state after source edits while retaining draft notes.
+
+A queue timeout is shown as `delivery-uncertain`; check the terminal before
+trying another batch. A confirmed command error is `delivery-failed`. The
+adapter was exercised with `codex-cli 0.154.0`. These static views are for
+visual review; use the manual checklist for timing, audio, microphone, and
+multi-device behavior.
 
 With a game server running:
 

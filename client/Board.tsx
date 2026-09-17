@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
-import { useOpen, useSocket } from './useSocket.ts'
+import { useOpen, useSocket, type SocketFixture } from './useSocket.ts'
 import { colorForPlayer, lockedNames, standings, willSeat } from './ui.ts'
 import { markGap, play, playSpaced, prime, startBed, stopBed, unlock } from './sound.ts'
 import { Votes } from './Votes.tsx'
@@ -26,6 +26,7 @@ type Mark = BuzzEntry & { lane: number }
 function Hero({ name, tone }: NonNullable<Wall['hero']>) {
   return (
     <p
+      data-review-id="board:hero"
       // Keyed on who, not on how. A name replacing a name is an arrival; the
       // same name going red is that person being judged, and the letters should
       // stay put while the colour tells you what happened.
@@ -101,7 +102,7 @@ function Timeline({
   const lanes = Math.max(...marks.map((m) => m.lane)) + 1
 
   return (
-    <div class="timeline">
+    <div class="timeline" data-review-id="board:timeline">
       {/* Scale above the rail, marks below it. The last mark always lands at
           full scale, so a scale printed underneath collides with it and
           repeats its number. */}
@@ -188,9 +189,9 @@ function NomList({
  */
 function Question({ whole, shown, image }: { whole?: string; shown: string; image?: string }) {
   const text = !whole ? (
-    <p class="board__question">{shown}</p>
+    <p class="board__question" data-review-id="board:question">{shown}</p>
   ) : (
-    <p class="board__question">
+    <p class="board__question" data-review-id="board:question">
       {whole.slice(0, shown.length)}
       <span class="board__unsaid">{whole.slice(shown.length)}</span>
     </p>
@@ -204,11 +205,21 @@ function Question({ whole, shown, image }: { whole?: string; shown: string; imag
   )
 }
 
-export function Board() {
-  const { state, now, connected, minigameFrame, minigameTouches } = useSocket('board')
+export type BoardPreview = {
+  socket: SocketFixture
+  open: boolean
+  delay: number
+  settled: boolean
+  retired: boolean
+}
+
+export function Board({ preview }: { preview?: BoardPreview } = {}) {
+  const { state, now, connected, minigameFrame, minigameTouches } = useSocket('board', preview?.socket)
   // The big screen is what the room watches, so it must not light up before
   // the phones do. Same countdown to armedAt as every other surface.
-  const { open, delay } = useOpen(state?.round, now)
+  const opening = useOpen(state?.round, now, undefined, !preview)
+  const open = preview?.open ?? opening.open
+  const delay = preview?.delay ?? opening.delay
 
   /**
    * The board is the only surface with a speaker the whole room can hear, and
@@ -216,12 +227,13 @@ export function Board() {
    * is enough for the night; until then the chip below says so, because silence
    * with no explanation is the kind of thing you discover mid-game.
    */
-  const [audible, setAudible] = useState(false)
+  const [audible, setAudible] = useState(!!preview)
   // The anchor cues are recipes, but recipes over real files, so their bytes
   // still have to be decoded — on the click, because that is the first moment
   // there is a context to decode into. The welcome bed decodes itself when the
   // lobby asks for it.
   useEffect(() => {
+    if (preview) return
     const go = () => {
       unlock()
       prime('stamp', 'leader', 'award', 'penalty')
@@ -229,7 +241,7 @@ export function Board() {
     }
     document.addEventListener('pointerdown', go, { once: true })
     return () => document.removeEventListener('pointerdown', go)
-  }, [])
+  }, [preview])
 
   /**
    * The welcome screen: the board is up, nobody has buzzed, and no question has
@@ -246,10 +258,11 @@ export function Board() {
     state.round.order.length === 0 &&
     Object.values(state.scores).every((s) => s === 0)
   useEffect(() => {
+    if (preview) return
     if (!audible) return
     if (welcoming) startBed('welcome')
     else stopBed()
-  }, [welcoming, audible])
+  }, [welcoming, audible, preview])
 
   /**
    * When each mark is allowed to land, so no two ever crowd each other.
@@ -292,6 +305,7 @@ export function Board() {
 
   const seen = useRef(0)
   useEffect(() => {
+    if (preview) return
     const was = seen.current
     seen.current = buzzes
     if (buzzes <= was) return
@@ -300,12 +314,15 @@ export function Board() {
     // effect runs some unknown time after the render that placed the marks.
     for (let i = was; i < buzzes; i++)
       playSpaced(i === 0 ? 'leader' : 'stamp')
-  }, [buzzes])
+  }, [buzzes, preview])
 
   // Two clocks the room reads on but `State` knows nothing about: how long a
   // transcript takes to type and how long a penalty sits. `wallOf` wants the
   // answers, not the apparatus.
-  const { settled, retired, onSettled } = useReveal(state?.round)
+  const reveal = useReveal(state?.round, !preview)
+  const settled = preview?.settled ?? reveal.settled
+  const retired = preview?.retired ?? reveal.retired
+  const onSettled = preview ? undefined : reveal.onSettled
 
   if (!state) return <main class="board"><p class="board__idle">Connecting</p></main>
   if (state.minigame) {
@@ -333,9 +350,9 @@ export function Board() {
   const seating = willSeat(state)
 
   return (
-    <main class="board">
+    <main class="board" data-review-id="board:root">
       <section class="board__wall">
-        <div class="board__status">
+        <div class="board__status" data-review-id="board:status">
           {open && <span class="chip chip--open">Open</span>}
           {armed && !open && <span class="chip chip--armed">Standing by</span>}
           <span class="chip">
@@ -372,6 +389,7 @@ export function Board() {
               transcript={w.transcript.text}
               hit={w.transcript.hit}
               onSettled={onSettled}
+              instant={!!preview}
             />
           )}
           {/* The payoff — or its mirror, a penalty stamped negative. Stays up
@@ -379,12 +397,12 @@ export function Board() {
               board after the host scores it, not before. A penalty's leader
               is already gone to the rebound, so this gates on the award. */}
           {w.award && (
-            <p class={isPenalty(w.award) ? 'board__award is-neg' : 'board__award'}>
+            <p data-review-id="board:award" class={isPenalty(w.award) ? 'board__award is-neg' : 'board__award'}>
               {w.award.points > 0 ? '+' : ''}
               {w.award.points}
             </p>
           )}
-          {w.award?.answer && <p class="board__answer">{w.award.answer}</p>}
+          {w.award?.answer && <p class="board__answer" data-review-id="board:answer">{w.award.answer}</p>}
         </div>
 
         {/* The cue escalates through three sizes and the reserved line is what
@@ -437,7 +455,7 @@ export function Board() {
             </p>
           )}
           {w.call && (
-            <p class={w.call === 'buzz' ? 'board__call' : 'board__idle'}>{CALL_TEXT[w.call]}</p>
+            <p data-review-id="board:call" class={w.call === 'buzz' ? 'board__call' : 'board__idle'}>{CALL_TEXT[w.call]}</p>
           )}
         </div>
 
@@ -473,7 +491,7 @@ export function Board() {
         {/* Status, not stage content — parked at the foot of the stage so a
             rebound's lockout chips never move the timeline above them. */}
         {barred.length > 0 && (
-          <div class="board__barred">
+          <div class="board__barred" data-review-id="board:lockouts">
             {barred.map((n) => (
               <span key={n} class="chip chip--barred">{n} out</span>
             ))}
@@ -482,11 +500,11 @@ export function Board() {
       </section>
 
       <aside class="board__side">
-        <div class="board__standings">
+        <div class="board__standings" data-review-id="board:standings">
           <p class="eyebrow">Standings</p>
           <ol class="stack">
             {standings(state).map((r, i) => (
-              <li key={r.key} class="row" style={{ borderLeftColor: r.color }}>
+              <li key={r.key} data-review-id={`board:standing:${r.key}`} class="row" style={{ borderLeftColor: r.color }}>
                 {/* Medals for the podium only, but the space is kept either
                     way so every name lines up. */}
                 <span class={i < 3 ? `rank rank--${i + 1}` : 'rank'}>
@@ -500,7 +518,7 @@ export function Board() {
         </div>
 
         {/* Full size until the first player is in, then out of the way. */}
-        <div class={state.players.length === 0 ? 'board__qr' : 'board__qr is-small'}>
+        <div data-review-id="board:join" class={state.players.length === 0 ? 'board__qr' : 'board__qr is-small'}>
           <img src="/qr.svg" alt="Scan to join" />
           <p>Scan to join</p>
         </div>

@@ -7,6 +7,13 @@ import { freshTouches, type TimedTouch } from './ink.ts'
 const SAMPLES = 7
 const RESYNC_MS = 30_000
 
+export type SocketFixture = {
+  state: State
+  playerId?: string
+  connected?: boolean
+  now: number
+}
+
 /**
  * Clock sync, NTP style. `performance.now()` is monotonic, so a phone whose
  * wall clock jumps mid-game cannot corrupt the offset. We keep the median of
@@ -32,6 +39,7 @@ export function useOpen(
   round: State['round'] | undefined,
   now: () => number,
   onOpen?: () => void,
+  active = true,
 ): { open: boolean; delay: number } {
   const armed = round?.phase === 'ARMED' || round?.phase === 'COLLECTING'
   const armedAt = round?.armedAt ?? 0
@@ -51,6 +59,7 @@ export function useOpen(
   fire.current = onOpen
 
   useEffect(() => {
+    if (!active) return
     if (!armed) return
     const go = () => {
       setOpenedFor(attemptId)
@@ -61,17 +70,17 @@ export function useOpen(
     if (wait <= 0) return go()
     const id = setTimeout(go, wait)
     return () => clearTimeout(id)
-  }, [armed, attemptId, armedAt])
+  }, [armed, attemptId, armedAt, active])
 
   return { open: armed && openedFor === attemptId, delay }
 }
 
-export function useSocket(role: Role) {
-  const [state, setState] = useState<State | null>(null)
+export function useSocket(role: Role, fixture?: SocketFixture) {
+  const [state, setState] = useState<State | null>(fixture?.state ?? null)
   const [playerId, setPlayerId] = useState<string | null>(
-    () => localStorage.getItem('playerId'),
+    () => fixture?.playerId ?? localStorage.getItem('playerId'),
   )
-  const [connected, setConnected] = useState(false)
+  const [connected, setConnected] = useState(fixture?.connected ?? false)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
   const [minigameFrame, setMinigameFrame] = useState<MinigameFrame | null>(null)
   const [minigameAck, setMinigameAck] = useState<MinigameInputAck | null>(null)
@@ -85,12 +94,14 @@ export function useSocket(role: Role) {
   const samples = useRef<{ rtt: number; offset: number }[]>([])
 
   const send = (msg: ClientMsg) => {
+    if (fixture) return
     if (msg.t === 'host' || msg.t === 'act') setActionMessage(null)
     const s = socket.current
     if (s && s.readyState === WebSocket.OPEN) s.send(JSON.stringify(msg))
   }
 
   useEffect(() => {
+    if (fixture) return
     let closed = false
     let retry = 500
     let resync: ReturnType<typeof setInterval> | undefined
@@ -172,7 +183,7 @@ export function useSocket(role: Role) {
       clearInterval(resync)
       socket.current?.close()
     }
-  }, [role])
+  }, [role, fixture])
 
   return {
     state,
@@ -182,7 +193,7 @@ export function useSocket(role: Role) {
     minigameFrame,
     minigameAck,
     minigameTouches,
-    now: () => performance.now() + offset.current,
+    now: () => fixture?.now ?? performance.now() + offset.current,
     send,
   }
 }

@@ -19,6 +19,7 @@ export function Spoken({
   tail,
   prefix,
   onSettled,
+  instant = false,
 }: {
   transcript: string
   hit: boolean
@@ -28,10 +29,12 @@ export function Spoken({
   prefix: string
   /** Fired when the line has typed out and the hold has elapsed. */
   onSettled?: () => void
+  /** Development previews render the final line without timers or sound. */
+  instant?: boolean
 }) {
   const parts = chunks(transcript || 'no answer')
-  const [shown, setShown] = useState(0)
-  const [settled, setSettled] = useState(false)
+  const [shown, setShown] = useState(instant ? parts.length : 0)
+  const [settled, setSettled] = useState(instant)
   const line = useRef<HTMLParagraphElement>(null)
   // Held in a ref so a re-render with a fresh closure cannot restart the typing.
   const fire = useRef(onSettled)
@@ -40,12 +43,18 @@ export function Spoken({
   // The host surface has no other sound path, so nothing has unlocked the
   // context yet — borrow the first tap anywhere, the way the board does.
   useEffect(() => {
+    if (instant) return
     const go = () => unlock()
     document.addEventListener('pointerdown', go, { once: true })
     return () => document.removeEventListener('pointerdown', go)
-  }, [])
+  }, [instant])
 
   useEffect(() => {
+    if (instant) {
+      setShown(parts.length)
+      setSettled(true)
+      return
+    }
     setShown(0)
     setSettled(false)
     // Read the pace off the line itself, not the root: the harness sets its
@@ -72,7 +81,7 @@ export function Spoken({
       clearTimeout(after)
     }
     // parts derives from transcript alone; a fresh verdict retypes the line.
-  }, [transcript])
+  }, [transcript, instant])
 
   return (
     <p ref={line} class={`${prefix}__spoken ${settled ? (hit ? 'is-hit' : 'is-miss') : ''}`}>

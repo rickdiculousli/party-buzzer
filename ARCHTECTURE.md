@@ -54,7 +54,7 @@ are objects in the same process as `Hub`. The composition root is
 | Shared presentation | `shared/wall.ts` | Pure semantic moments and wall/phone projections |
 | Browser runtime | `client/useSocket.ts`, `useReveal.ts`, `sound.ts` | Connection/clock lifecycle, reveal timing and browser audio |
 | Browser surfaces | `client/Host.tsx`, `Player.tsx`, `Board.tsx` | Role-specific controls and rendering |
-| Local instruments | `tools/`, `client/anim/`, `vite.config.ts` | Simulations, trace analysis, visual/audio workbench |
+| Local instruments | `tools/`, `client/anim/`, `client/review/`, `vite.config.ts`, `vite.review.config.ts` | Simulations, trace analysis, visual/audio tuning, frozen-state review and Codex delivery |
 
 ## Startup and change propagation
 
@@ -334,6 +334,21 @@ The sound-library endpoints inspect local raw audio and adopt processed clips
 using a locally installed `ffmpeg`, writing assets and credits. Those development
 endpoints and `anim.html` do not ship in the production build.
 
+`npm run review` uses a separate loopback Vite configuration. It serves
+role-projected scenarios generated through `Hub.viewFor`, then mounts the real
+board and player components with an explicit frozen socket fixture. In preview
+mode those components suppress sockets, clocks, audio, wake locks, microphone
+access, haptics, and actions. The review frame adds a transparent selection
+layer, so disabled controls can be annotated without invoking them.
+
+The review Vite plugin owns the development-only `/__review/*` routes. It
+captures selected frames with Chromium, atomically writes ignored bundles under
+`.review/batches/`, and invokes `codex queue` with argument arrays to target the
+exact supplied terminal conversation. `tools/review/report.ts` is the narrow
+status path back from that agent. None of these pages, routes, or tools are part
+of `npm run build`. Static review fixtures do not validate real timing, speech,
+microphone, network, or multi-device behavior.
+
 | Validation area | Where to look |
 | --- | --- |
 | Actions, legality, history, persistence | `server/actions.test.ts`, `server/snapshot.test.ts`, `shared/legality.test.ts` |
@@ -343,6 +358,7 @@ endpoints and `anim.html` do not ship in the production build.
 | Mode boundaries and composed rules | `server/modes/*.test.ts`, `server/game-modes.integration.test.ts`, duel/setlist integration tests |
 | Presentation and scoring | `shared/wall.test.ts`, `shared/scoring.test.ts`, `client/*.test.ts` |
 | Tooling and audio asset processing | `tools/*.test.ts` |
+| Frozen preview isolation, annotations and delivery bundles | `client/review.test.ts`, `tools/review.test.ts`, `npm run test:review` |
 | Physical phones, microphones and room audio | `docs/manual-checklist.md` |
 
 `server/e2e.ts` provides real WebSocket clients and isolated server fixtures.

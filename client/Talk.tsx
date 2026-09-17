@@ -145,7 +145,7 @@ export function Talk({
   // watches the window lapse into a neg with nothing to explain why.
   if (!micOk) {
     return (
-      <div class="buzzer is-first buzzer--say">
+      <div class="buzzer is-first buzzer--say" data-review-id="phone:answer">
         Say it out loud
         <span class="buzzer__sub">{countdown ?? 'the host is judging this one'}</span>
       </div>
@@ -154,6 +154,7 @@ export function Talk({
 
   return (
     <button
+      data-review-id="phone:answer"
       class={`buzzer is-first buzzer--talk${talking ? ' is-talking' : ''}${cancelling ? ' is-cancelling' : ''}`}
       onPointerDown={talkDown}
       onPointerMove={talkMove}

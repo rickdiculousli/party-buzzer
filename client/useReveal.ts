@@ -24,7 +24,7 @@ export type Reveal = {
   onSettled: () => void
 }
 
-export function useReveal(round?: State['round']): Reveal {
+export function useReveal(round?: State['round'], active = true): Reveal {
   /**
    * The verdict waits on the sentence. While the judge's transcript is still
    * typing itself out the room has not finished reading it, so the award — its
@@ -64,6 +64,7 @@ export function useReveal(round?: State['round']): Reveal {
   const awardKey = award ? `${award.name}:${award.points}:${isPenalty(award) ? 'p' : 'a'}` : ''
   const thudded = useRef('')
   useEffect(() => {
+    if (!active) return
     if (!settled) return
     if (!awardKey) {
       thudded.current = ''
@@ -72,7 +73,7 @@ export function useReveal(round?: State['round']): Reveal {
     if (awardKey === thudded.current) return
     thudded.current = awardKey
     play(isPenalty(award) ? 'penalty' : 'award')
-  }, [awardKey, settled])
+  }, [awardKey, settled, active])
 
   /**
    * A penalty is a beat, not a state. It lands, the room reads the −100 against
@@ -86,6 +87,7 @@ export function useReveal(round?: State['round']): Reveal {
    */
   const [retiredKey, setRetiredKey] = useState('')
   useEffect(() => {
+    if (!active) return
     if (!settled) return
     // Forgotten the moment there is no penalty up, for the same reason the thud
     // is: without the arm in the key, a retired "Ada −100" would otherwise
@@ -97,7 +99,7 @@ export function useReveal(round?: State['round']): Reveal {
     const dwell = tune('--penalty-dwell')
     const t = setTimeout(() => setRetiredKey(awardKey), dwell)
     return () => clearTimeout(t)
-  }, [awardKey, settled])
+  }, [awardKey, settled, active])
 
   return {
     settled,
