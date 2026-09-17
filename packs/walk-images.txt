@@ -1,0 +1,9 @@
+V: 200
+What country flies this flag?
+I: images/flag.svg
+A: Japan
+
+V: 300
+What is this road sign?
+I: images/sign.svg
+A: a stop sign | stop sign | stop

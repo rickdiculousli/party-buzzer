@@ -30,19 +30,37 @@ const TYPES: Record<string, string> = {
   '.wav': 'audio/wav',
   '.ogg': 'audio/ogg',
   '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
   '.webmanifest': 'application/manifest+json',
 }
 
 /** Client routes are served the SPA shell; unknown files 404. */
 const ROUTES = new Set(['/', '/host', '/board'])
 
-async function serveStatic(req: IncomingMessage, res: ServerResponse): Promise<void> {
-  const path = (req.url ?? '/').split('?')[0]
-  const file = ROUTES.has(path) ? 'index.html' : normalize(path).replace(/^(\.\.[/\\])+/, '')
-  const full = join(DIST, file)
+/** Question images are served from the pack directory under this prefix. */
+const PACK_MEDIA = '/pack-media/'
 
-  // Refuse anything that escaped the dist directory.
-  if (!full.startsWith(DIST)) {
+async function serveStatic(req: IncomingMessage, res: ServerResponse, packDir: string): Promise<void> {
+  let path: string
+  try {
+    path = decodeURIComponent((req.url ?? '/').split('?')[0])
+  } catch {
+    res.writeHead(400).end('bad path')
+    return
+  }
+  let root = DIST
+  if (path.startsWith(PACK_MEDIA)) {
+    root = packDir
+    path = path.slice(PACK_MEDIA.length - 1)
+  }
+  const file = ROUTES.has(path) && root === DIST ? 'index.html' : normalize(path).replace(/^(\.\.[/\\])+/, '')
+  const full = join(root, file)
+
+  // Refuse anything that escaped its root directory.
+  if (!full.startsWith(root)) {
     res.writeHead(403).end('forbidden')
     return
   }
@@ -193,7 +211,7 @@ export async function startServer(opts: {
       })
       return
     }
-    void serveStatic(req, res)
+    void serveStatic(req, res, packDir)
   }
 
   const http = tls ? createSecureServer(tls, onRequest) : createServer(onRequest)

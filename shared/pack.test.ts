@@ -39,6 +39,21 @@ A: Yes
   assert.match(errors[0], /line 1/)
 })
 
+test('an I: line attaches an image; a path leaving the pack directory is refused', () => {
+  const { questions, errors } = parsePack(`What is this?
+I: images/tower.jpg
+A: Eiffel Tower
+
+What is this?
+I: ../secret.png
+A: Nothing
+`)
+  assert.equal(questions[0].image, 'images/tower.jpg')
+  assert.equal(questions[1].image, undefined)
+  assert.equal(errors.length, 1)
+  assert.match(errors[0], /line 6/)
+})
+
 test('a bad V: line is named and does not kill the question', () => {
   const { questions, errors } = parsePack(`V: lots
 Real question.

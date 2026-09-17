@@ -134,6 +134,7 @@ function mutateHostAction(state: State, action: HostAction): void {
       delete round.held
       delete round.fragments
       delete round.whole
+      delete round.image
       delete round.answer
       delete round.judge
       delete round.spoken
@@ -237,6 +238,7 @@ function mutateHostAction(state: State, action: HostAction): void {
       delete round.held
       delete round.fragments
       delete round.whole
+      delete round.image
       delete round.answer
       delete round.judge
       delete round.spoken
@@ -290,6 +292,7 @@ function mutateHostAction(state: State, action: HostAction): void {
       delete round.held
       delete round.fragments
       delete round.whole
+      delete round.image
       delete round.answer
       return
     }

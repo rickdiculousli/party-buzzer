@@ -123,6 +123,8 @@ export type Round = {
    * already heard, and this is the opposite of that.
    */
   whole?: string
+  /** URL of the question's picture, sent at the arm. Players see it only with the mirror on. */
+  image?: string
   /** Revealed after scoring, if a question pack supplied one. Stripped from player views. */
   answer?: string
 }

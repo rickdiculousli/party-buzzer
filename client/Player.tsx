@@ -247,6 +247,7 @@ export function Player() {
         <span class="player__score readout">{score}</span>
       </div>
 
+      {round?.image && <img class="player__image" src={round.image} alt="" />}
       {!!round?.fragments?.length && (
         <p class="player__question">{round.fragments.join(' ')}</p>
       )}

@@ -103,8 +103,10 @@ A: Pacific Ocean | the Pacific
 Blank lines separate questions. `V:` is optional; omitting it keeps the current
 round value. ` / ` separates fragments, and additional text lines continue the
 current fragment. `A:` is required; ` | ` separates accepted answer variants.
-The first variant is displayed as the answer. Invalid questions are skipped
-with diagnostics. See [the sample pack](packs/sample.txt).
+The first variant is displayed as the answer. An optional `I: images/tower.jpg`
+line attaches a picture (a path inside `packs/`). The board shows it when the
+question arms; phones show it only with the mirror on. Invalid questions are
+skipped with diagnostics. See [the sample pack](packs/sample.txt).
 
 Selecting a pack starts background speech preparation and caching. Each
 question waits for its audio before arming; the entire pack does not have to
@@ -171,7 +173,7 @@ npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@140 correct
 ```
 
 These tools change the live room. The `walk-duel`, `walk-teams`, `walk-setlist`,
-`walk-read`, and `walk-packs` scripts exercise longer flows. Start with
+`walk-read`, `walk-packs`, and `walk-images` scripts exercise longer flows. Start with
 `TRACE=1 npm start` to record `trace.jsonl`, then inspect it with `npm run trace`.
 Before a game night, follow the [manual checklist](docs/manual-checklist.md)
 on actual phones and the room's audio setup.

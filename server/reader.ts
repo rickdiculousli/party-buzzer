@@ -437,6 +437,9 @@ export class Reader {
         // it, or every line it has already put up moves when the next one lands.
         // Players never see this — the hub strips it.
         this.hub.send(this.conn, { t: 'act', act: 'whole', data: j.text })
+        if (q.image) {
+          this.hub.send(this.conn, { t: 'act', act: 'image', data: `/pack-media/${encodeURI(q.image)}` })
+        }
         const whole = this.aligned.get(j.text)
 
         if (whole) {

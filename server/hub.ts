@@ -259,6 +259,8 @@ export class Hub {
       // Layout, not content: the board holds it invisible until the voice gets
       // there. Redacted for players in viewFor, which is what keeps it safe.
       round.whole = data
+    } else if (name === 'image' && typeof data === 'string') {
+      round.image = data
     } else if (name === 'revealAnswer' && typeof data === 'string') {
       round.answer = data
     } else if (name === 'judgeWindow') {
@@ -515,6 +517,7 @@ export class Hub {
         fragments: this.state.mirrorFragments ? round.fragments : undefined,
         // Unconditional, mirror or not: this is the unspoken remainder.
         whole: undefined,
+        image: this.state.mirrorFragments ? round.image : undefined,
         answer: this.state.mirrorFragments ? round.answer : undefined,
       },
       reading: undefined,

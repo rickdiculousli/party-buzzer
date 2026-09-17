@@ -313,6 +313,12 @@ async function main() {
           await host.waitFor((s) => s.game.id === arg, 3000)
           break
 
+        // mirror:on — show question text and images on the phones too.
+        case 'mirror':
+          host.send({ t: 'host', action: { a: 'setMirror', on: arg === 'on' } })
+          await host.waitFor((s) => s.mirrorFragments === (arg === 'on'), 3000)
+          break
+
         // The one step that touches a setlist probe did not set: a direct-play
         // script cannot run against a room in setlist mode, because the block
         // is what names the pack. Destructive, and only ever asked for.

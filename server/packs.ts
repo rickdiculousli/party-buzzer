@@ -2,7 +2,7 @@
  * Packs on disk. The server holds question content in memory while reading and
  * never puts it in `State` — only spoken fragments go there.
  */
-import { readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { parsePack, type Question } from '../shared/pack.ts'
 
@@ -46,5 +46,11 @@ export function loadPack(dir: string, name: string): { questions: Question[]; er
   if (name !== basename(name)) {
     throw new Error(`pack "${name}" resolves outside the pack directory`)
   }
-  return parsePack(readFileSync(join(dir, name), 'utf8'))
+  const pack = parsePack(readFileSync(join(dir, name), 'utf8'))
+  for (const q of pack.questions) {
+    if (q.image && !existsSync(join(dir, q.image))) {
+      pack.errors.push(`image "${q.image}" not found in the pack directory`)
+    }
+  }
+  return pack
 }

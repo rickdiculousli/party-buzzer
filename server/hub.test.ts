@@ -115,6 +115,18 @@ test('the unspoken remainder never reaches a phone, mirror or no mirror', () => 
   )
 })
 
+test('a question image reaches a phone only with the mirror on', () => {
+  const { state, hub, conn } = rig()
+  const phone = conn('player')
+  hub.handle(phone, { t: 'hello', role: 'player', name: 'Ada' })
+  state.round.image = '/pack-media/tower.jpg'
+
+  assert.equal(hub.viewFor(phone).round.image, undefined, 'off')
+  assert.equal(hub.viewFor(conn('board')).round.image, state.round.image, 'the board always')
+  state.mirrorFragments = true
+  assert.equal(hub.viewFor(phone).round.image, state.round.image, 'on')
+})
+
 test('the mirror never widens the buzz-order redaction', () => {
   const { state, hub, conn } = rig()
   const a = conn('player')

@@ -155,7 +155,7 @@ export function momentOf(state: State, local: Local): Moment {
 export type Wall = {
   moment: Moment
   hero: { name: string; tone: 'answering' | 'penalised' } | null
-  clue: { whole?: string; shown: string } | null
+  clue: { whole?: string; shown: string; image?: string } | null
   nominations: 'solo' | 'teams' | null
   faceoff: [string, string] | null
   call: 'buzz' | 'standby' | 'ready' | 'dead' | null
@@ -220,7 +220,7 @@ function middleOf(state: State, m: Moment): Middle {
   // reaches each clause.
   const clue: Middle | null =
     state.readingActive || r.fragments?.length
-      ? { clue: { whole: r.whole, shown: r.fragments?.join(' ') ?? '' } }
+      ? { clue: { whole: r.whole, shown: r.fragments?.join(' ') ?? '', ...(r.image && { image: r.image }) } }
       : null
 
   // The duel's pair, not who may buzz right now — a rebound narrows `buzzable`

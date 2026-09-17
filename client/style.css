@@ -563,6 +563,21 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .board__spoken.is-hit { color: var(--brass); }
 .board__spoken.is-miss { color: var(--tally); }
+/* A picture question's image, above its text. */
+.board__image {
+  display: block;
+  max-width: min(64rem, 90vw);
+  max-height: 50vh;
+  margin: 0 auto var(--s4);
+  object-fit: contain;
+}
+.player__image {
+  display: block;
+  max-width: 100%;
+  max-height: 30vh;
+  margin: 0 auto;
+  object-fit: contain;
+}
 /* The question assembling on the wall, spoken fragment by spoken fragment. */
 .board__question {
   font-family: var(--display);

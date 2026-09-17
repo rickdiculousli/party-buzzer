@@ -186,13 +186,21 @@ function NomList({
  * Without `whole` (a host reading by hand, an older snapshot) it degrades to
  * printing what has been said.
  */
-function Question({ whole, shown }: { whole?: string; shown: string }) {
-  if (!whole) return <p class="board__question">{shown}</p>
-  return (
+function Question({ whole, shown, image }: { whole?: string; shown: string; image?: string }) {
+  const text = !whole ? (
+    <p class="board__question">{shown}</p>
+  ) : (
     <p class="board__question">
       {whole.slice(0, shown.length)}
       <span class="board__unsaid">{whole.slice(shown.length)}</span>
     </p>
+  )
+  if (!image) return text
+  return (
+    <>
+      <img class="board__image" src={image} alt="" />
+      {text}
+    </>
   )
 }
 
