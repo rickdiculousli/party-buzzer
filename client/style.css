@@ -1607,6 +1607,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .ink-phone__status { margin: 0; color: var(--dim); }
 .ink-phone__kept { margin: 0; font-size: var(--t-lg); }
 .ink-phone__alert { margin: 0; padding: var(--s2) var(--s3); border-radius: var(--r-md); background: var(--tally); color: var(--stage); font-weight: 700; text-align: center; }
+.ink-phone__alert.is-hidden { visibility: hidden; }
 .ink-phone__reveal { margin: 0; font-size: var(--t-xl); text-align: center; }
 .ink-phone__reveal strong { color: var(--brass); }
 .ink-phone__row { grid-template-columns: 4.5rem 1fr; }

@@ -84,7 +84,8 @@ export function InkPlayer({ state, playerId, frame, now, send, touches }: Miniga
     if (s.at === 'clue') {
       return <>
         {kept}
-        {s.stopped && <p class="ink-phone__alert">Stop — finish your letter</p>}
+        {/* Always laid out, so Stop never moves the canvas under a writing finger. */}
+        <p class={s.stopped ? 'ink-phone__alert' : 'ink-phone__alert is-hidden'} aria-hidden={!s.stopped}>Stop — finish your letter</p>
         {canvas(ink.turn, ink.row, <>
           <button class="btn" onClick={() => input({ kind: 'endClue' })}>End clue</button>
           <button class={s.stopped ? 'btn btn--major btn--primary' : 'btn'} disabled={!s.stopped} onClick={() => input({ kind: 'done' })}>Done</button>
