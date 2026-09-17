@@ -1566,3 +1566,64 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   gap: var(--s1);
   padding-block: var(--s2);
 }
+
+/* Phantom Ink */
+.ink-board, .ink-phone { min-height: 100dvh; background: var(--stage); color: var(--chalk); padding: var(--s4); display: grid; gap: var(--s4); align-content: start; }
+.ink-board__title { font: 700 var(--t-mega)/1 var(--display); margin: 0; }
+.ink-board__bar, .ink-phone__bar { display: flex; gap: var(--s3); align-items: center; font: 600 var(--t-lg)/1.2 var(--mono); }
+.ink-phone__bar { font-size: var(--t-md); flex-wrap: wrap; }
+.ink-board__secret { margin-left: auto; font: 700 var(--t-xl)/1 var(--display); color: var(--brass); }
+.ink-turn--sun { color: var(--tungsten); }
+.ink-turn--moon { color: var(--id-3); }
+
+.ink-lobby { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); }
+.ink-lobby__team { background: var(--panel); border: 1px solid var(--rule); border-radius: var(--r-lg); padding: var(--s4); display: grid; gap: var(--s3); align-content: start; }
+.ink-lobby__team header { display: flex; justify-content: space-between; align-items: baseline; }
+.ink-lobby__team ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s1); font-size: var(--t-lg); }
+.ink-lobby__count.is-over { color: var(--tally); }
+.ink-lobby__team:has(.is-over) { box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--tally) 12%, transparent); border-color: var(--tally); }
+.ink-lobby__volunteer { grid-column: 1 / -1; }
+
+.ink-pad { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); }
+.ink-pad__page { display: grid; gap: var(--s2); align-content: start; }
+.ink-row { display: grid; grid-template-columns: 2.5rem 1fr auto; align-items: center; gap: var(--s2); background: var(--panel); border: 1px solid var(--rule); border-radius: var(--r-md); padding: var(--s1) var(--s2); }
+.ink-row.is-current { border-color: var(--tungsten); }
+.ink-row.is-won { border-color: var(--brass); }
+.ink-row__num { font: 600 var(--t-sm)/1 var(--mono); color: var(--dim); }
+.ink-row__eye { color: var(--cyan); margin-left: var(--s1); }
+.ink-row__svg { width: 100%; aspect-ratio: 5; display: block; }
+.ink-row__rule { stroke: var(--rule); stroke-width: 1; }
+.ink-stroke { fill: none; stroke: var(--chalk); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.ink-stroke.is-peek { stroke: var(--cyan); }
+.ink-stroke.is-live { stroke: var(--tungsten); }
+.ink-stroke.is-struck { opacity: 0.45; }
+.ink-strike { stroke: var(--tally); stroke-width: 4; }
+.ink-period { fill: var(--chalk); }
+
+.ink-canvas { width: 100%; aspect-ratio: 5; background: var(--raise); border: 1px solid var(--tungsten); border-radius: var(--r-md); touch-action: none; display: block; }
+.ink-canvas.is-locked { border-color: var(--rule); }
+.ink-write__buttons, .ink-judge, .ink-offer { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.ink-phone__secret { font-size: var(--t-lg); margin: 0; }
+.ink-phone__kept { margin: 0; color: var(--dim); }
+.ink-stop { width: 100%; }
+
+.ink-touchable { position: relative; }
+.ink-ring { position: absolute; width: 2.5rem; height: 2.5rem; margin: -1.25rem 0 0 -1.25rem; border-radius: 50%; border: 3px solid var(--chalk); opacity: var(--ring); transform: scale(calc(1.4 - var(--ring) * 0.4)); pointer-events: none; }
+.ink-ring__name { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); font: 600 var(--t-xs)/1 var(--mono); white-space: nowrap; }
+
+.ink-hand { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: var(--s2); }
+.ink-card { background: var(--panel); border: 1px solid var(--rule); border-radius: var(--r-md); padding: var(--s3); display: grid; gap: var(--s2); }
+.ink-card.is-selected { border-color: var(--tungsten); }
+.ink-vote { display: grid; gap: var(--s2); }
+.ink-vote__option { display: flex; align-items: center; gap: var(--s2); background: var(--panel); border-radius: var(--r-md); padding: var(--s2) var(--s3); }
+.ink-vote__option > span:first-child { flex: 1; }
+.ink-pips { display: inline-flex; gap: 3px; }
+.ink-pip { width: 0.6rem; height: 0.6rem; border-radius: 50%; }
+.ink-force { background-image: linear-gradient(var(--tungsten), var(--tungsten)); background-repeat: no-repeat; background-size: 0 100%; }
+.ink-force.is-holding { background-size: 100% 100%; transition: background-size var(--force-ms) linear; color: var(--stage); }
+.ink-words { list-style: none; padding: 0; display: grid; gap: var(--s2); }
+.ink-discard { margin: 0; padding-left: var(--s4); color: var(--dim); }
+
+@media (max-width: 700px) {
+  .ink-pad { grid-template-columns: 1fr; }
+}

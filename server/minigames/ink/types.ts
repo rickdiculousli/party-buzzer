@@ -1,3 +1,4 @@
+import { INK_PEEK_ROWS } from '../../../shared/protocol.ts'
 import type { InkPoint, InkTeamName, PlayerId } from '../../../shared/protocol.ts'
 import type { InputOutcome } from '../definition.ts'
 import type { InkCards } from './cards.ts'
@@ -5,8 +6,7 @@ import type { InkCards } from './cards.ts'
 export const INK_ROWS = 8
 export const HAND_SIZE = 7
 export const ASK_DRAW = 2
-/** 1-based rows with the peek mark. */
-export const PEEK_ROWS: Record<InkTeamName, number[]> = { sun: [4, 6, 7], moon: [3, 5, 6] }
+export const PEEK_ROWS = INK_PEEK_ROWS
 export const TEAMS: InkTeamName[] = ['sun', 'moon']
 
 export type Outcome = InputOutcome

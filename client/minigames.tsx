@@ -5,6 +5,8 @@ import { BowBoard } from './BowBoard.tsx'
 import { BowPlayer } from './BowPlayer.tsx'
 import { TankBoard } from './TankBoard.tsx'
 import { TankPlayer } from './TankPlayer.tsx'
+import { InkBoard } from './InkBoard.tsx'
+import { InkPlayer } from './InkPlayer.tsx'
 
 export type MinigamePlayerProps = {
   state: State
@@ -23,11 +25,11 @@ export const MINIGAME_NAMES: Record<MinigameId, string> = { bow: 'Bow', tank: 'T
 export const MINIGAME_PLAYERS: Record<MinigameId, ComponentType<MinigamePlayerProps>> = {
   bow: BowPlayer,
   tank: TankPlayer,
-  ink: BowPlayer,
+  ink: InkPlayer,
 }
 
 export const MINIGAME_BOARDS: Record<MinigameId, ComponentType<MinigameBoardProps>> = {
   bow: BowBoard,
   tank: TankBoard,
-  ink: BowBoard,
+  ink: InkBoard,
 }

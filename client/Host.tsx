@@ -9,6 +9,7 @@ import { momentOf, type Moment } from '../shared/wall.ts'
 import { isPenalty } from '../shared/protocol.ts'
 import type { HostAction, MinigameId, ScoreKey } from '../shared/protocol.ts'
 import { MINIGAME_NAMES } from './minigames.tsx'
+import { MINIGAME_TIMED } from './minigame-info.ts'
 
 function BowHost({ state, connected, act, actionMessage, now }: {
   state: import('../shared/protocol.ts').State
@@ -30,7 +31,10 @@ function BowHost({ state, connected, act, actionMessage, now }: {
     {actionMessage && <p class="muted" role="status">{actionMessage}</p>}
     <section class="bow-host__panel">
       <p class="eyebrow">Match control</p>
-      <p>{session.phase === 'playing' ? `${remaining} seconds left` : `${session.options.durationSec} second match`}</p>
+      <p>{!MINIGAME_TIMED[session.id]
+        ? 'No time limit'
+        : session.phase === 'playing' ? `${remaining} seconds left` : `${session.options.durationSec} second match`}</p>
+      {session.phase === 'ready' && !MINIGAME_TIMED[session.id] && <p class="muted">Players pick teams on their phones.</p>}
       <p class="muted">{session.participants.length} players in this match</p>
       {session.phase === 'ready' && <div class="host__minor">
         <button class="btn btn--major btn--primary" onClick={() => act({ a: 'startMinigame' })}>Start match</button>

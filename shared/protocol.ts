@@ -245,6 +245,9 @@ export type MinigameResult = { playerId: PlayerId; points: number; shots: number
 
 export type InkTeamName = 'sun' | 'moon'
 
+/** 1-based rows with the peek mark. */
+export const INK_PEEK_ROWS: Record<InkTeamName, number[]> = { sun: [4, 6, 7], moon: [3, 5, 6] }
+
 export type MinigameLobby = { teams: Record<PlayerId, InkTeamName>; volunteers: PlayerId[] }
 
 export type LobbyChange =
