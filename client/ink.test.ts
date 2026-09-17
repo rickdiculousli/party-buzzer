@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { DRAFT_MS, draftCanUndo, draftStroke, draftUndo, liveDraft, freshTouches, lobbyColumns, quantizePoint, stepLine, strokePath, teamCap, TOUCH_MS } from './ink.ts'
+import { DRAFT_MS, draftCanUndo, draftStroke, draftUndo, liveDraft, freshTouches, lobbyColumns, quantizePoint, stepLine, strokePath, teamCap, TOUCH_MS, waitLine } from './ink.ts'
 import { newState } from '../server/state.ts'
 
 test('team capacity is half the room, rounded up', () => {
@@ -54,9 +54,16 @@ test('step lines name the team, the writer action, and a stopped clue', () => {
   assert.equal(stepLine({ turn: 'sun', step: { at: 'clue', stopped: true } }, nameOf), 'Sun called Stop')
 })
 
+test('an idle phone names the kind of wait, not the room detail', () => {
+  assert.equal(waitLine({ at: 'choose', canRedraw: true }, 'sun', 'sun'), 'Your team · deciding')
+  assert.equal(waitLine({ at: 'choose', canRedraw: true }, 'sun', 'moon'), 'Other team · deciding')
+  assert.equal(waitLine({ at: 'clue', stopped: false }, 'sun', 'moon'), 'Other team · writer writing')
+  assert.equal(waitLine({ at: 'keep' }, 'moon', 'moon'), 'Your team · writer picking')
+})
+
 test('a guess names its holder, or the team while it is open', () => {
   const nameOf = (id: string) => (id === 'ada' ? 'Ada' : '?')
-  assert.equal(stepLine({ turn: 'moon', step: { at: 'guess', holder: 'ada' } }, nameOf), 'Ada is guessing')
+  assert.equal(stepLine({ turn: 'moon', step: { at: 'guess', holder: 'ada' } }, nameOf), 'Ada is spelling the guess')
   assert.equal(stepLine({ turn: 'moon', step: { at: 'guess', holder: null } }, nameOf), 'Moon is guessing')
 })
 

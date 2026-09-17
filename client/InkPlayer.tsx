@@ -3,9 +3,9 @@ import type { ComponentChildren } from 'preact'
 import { INK_PEEK_ROWS } from '../shared/protocol.ts'
 import type { InkInput, InkTeamName, MinigameFrame } from '../shared/protocol.ts'
 import type { MinigamePlayerProps } from './minigames.tsx'
-import { TEAM_LABEL, stepLine } from './ink.ts'
+import { TEAM_LABEL, stepLine, waitLine } from './ink.ts'
 import { sidewaysClass, useSideways } from './useSideways.ts'
-import { HoldButton, InkCanvas, InkLobby, InkPad, InkRowSvg, Touchable, VotePips, useInkPad, useTouchClock } from './InkParts.tsx'
+import { HoldButton, InkCanvas, InkLobby, InkPad, InkRowSvg, LetterEntry, PendingBar, Touchable, VotePips, useInkPad, useTouchClock } from './InkParts.tsx'
 
 type Frame = Extract<MinigameFrame, { id: 'ink'; role: 'player' }>
 
@@ -54,14 +54,23 @@ export function InkPlayer({ state, playerId, frame, now, send, touches }: Miniga
 
   const writerFocus = (): ComponentChildren => {
     if (s.at === 'choosing') {
+      // Each writer's pick is a pip, the same way a team's votes read elsewhere.
+      const picks = Object.entries(ink.picks).map(([team, index]) => ({
+        player: ink.roster[team as InkTeamName].writer,
+        choice: String(index),
+      }))
       return <ol class="ink-words">
-        {ink.wordCard.map((word, i) => {
-          const theirs = ink.picks[ink.me.team === 'sun' ? 'moon' : 'sun'] === i
-          const mine = ink.picks[ink.me.team] === i
-          return <li key={i}><button class={mine ? 'btn btn--major btn--primary' : 'btn btn--major'} onClick={() => input({ kind: 'pickWord', index: i })}>
-            {i + 1}. {word}{theirs && !mine && ' — Confirm'}
-          </button></li>
-        })}
+        {ink.wordCard.map((word, i) => (
+          <li key={i}>
+            <Touchable state={state} target={`word:${i}`} touches={touches} onTouch={touch} class="ink-word">
+              <button
+                class={ink.picks[ink.me.team] === i ? 'btn btn--major btn--primary' : 'btn btn--major'}
+                onClick={() => input({ kind: 'pickWord', index: i })}
+              >{i + 1}. {word}</button>
+              <VotePips state={state} votes={picks} choice={(choice) => choice === String(i)} />
+            </Touchable>
+          </li>
+        ))}
       </ol>
     }
     if (s.at === 'peekWrite' && ink.roster[s.team].writer === playerId) {
@@ -86,24 +95,6 @@ export function InkPlayer({ state, playerId, frame, now, send, touches }: Miniga
           <button class="btn" onClick={() => input({ kind: 'endClue' })}>End clue</button>
           <button class={s.stopped ? 'btn btn--major btn--primary' : 'btn'} disabled={!s.stopped} onClick={() => input({ kind: 'done' })}>Done</button>
         </>)}
-      </>
-    }
-    if (s.at === 'judgeLetter') {
-      return <>
-        {turnRow}
-        <div class="ink-judge">
-          <button class="btn btn--major btn--go" onClick={() => input({ kind: 'judge', correct: true })}>Correct letter</button>
-          <button class="btn btn--major btn--no" onClick={() => input({ kind: 'judge', correct: false })}>Wrong letter</button>
-        </div>
-      </>
-    }
-    if (s.at === 'judgeWord') {
-      return <>
-        {turnRow}
-        <div class="ink-judge">
-          <button class="btn btn--major btn--go" onClick={() => input({ kind: 'verdict', win: true })}>Win</button>
-          <button class="btn btn--major btn--no" onClick={() => input({ kind: 'verdict', win: false })}>Not it</button>
-        </div>
       </>
     }
     return null
@@ -160,10 +151,10 @@ export function InkPlayer({ state, playerId, frame, now, send, touches }: Miniga
     }
     if (s.at === 'guess') {
       if (s.holder !== null && s.holder !== playerId) return turnRow
-      return canvas(ink.turn, ink.row, <>
-        <button class="btn btn--primary" onClick={() => input({ kind: 'check' })}>Check</button>
-        <button class="btn" onClick={() => input({ kind: 'finishGuess' })}>Finish guess</button>
-      </>)
+      return <>
+        {turnRow}
+        <LetterEntry onLetter={(value) => input({ kind: 'letter', value })} />
+      </>
     }
     if (s.at === 'peekPick') {
       return <>
@@ -185,17 +176,20 @@ export function InkPlayer({ state, playerId, frame, now, send, touches }: Miniga
   }
 
   const focus = writer ? writerFocus() : guesserFocus()
+  // Nothing to press: say who this phone is waiting on before what the room is doing.
+  const idle = !focus && s.at !== 'choosing' && s.at !== 'over'
   const header = <>
     <header class="ink-phone__bar">
       <span class={`chip ink-turn ink-turn--${ink.me.team}`}>{TEAM_LABEL[ink.me.team]} · {writer ? 'Writer' : 'Guesser'}</span>
       {writer && ink.secret && <span class="ink-phone__secret">{ink.secret}</span>}
     </header>
-    <p class="ink-phone__status">{stepLine(ink, nameOf)}</p>
+    {idle
+      ? <PendingBar label={waitLine(s, ink.turn, ink.me.team)} />
+      : <p class="ink-phone__status">{stepLine(ink, nameOf)}</p>}
   </>
   const writing =
     (writer && ours && s.at === 'clue') ||
-    (s.at === 'peekWrite' && ink.roster[s.team].writer === playerId) ||
-    (!writer && ours && s.at === 'guess' && (s.holder === null || s.holder === playerId))
+    (s.at === 'peekWrite' && ink.roster[s.team].writer === playerId)
   // Writing is always sideways with the phone's left edge down, following autorotation.
   if (writing) {
     return <main class={`ink-phone ink-phone--${ink.me.team} ink-phone--write ${sidewaysClass(rotation)}`}>
@@ -203,8 +197,9 @@ export function InkPlayer({ state, playerId, frame, now, send, touches }: Miniga
       {focus}
     </main>
   }
-  // Another team's turn, or waiting on someone: show whose move it is and the row in play.
-  const idleRow = !focus && s.at !== 'choosing' && s.at !== 'over' ? turnRow : null
+  // Onlookers get the row only while ink is actually going onto it; the pad is a
+  // tap away in the footer for anyone who wants to look at a quiet phase.
+  const idleRow = idle && (s.at === 'clue' || s.at === 'guess') ? turnRow : null
 
   return <main class={`ink-phone ink-phone--${ink.me.team}`}>
     {header}

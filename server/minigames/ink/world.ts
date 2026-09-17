@@ -20,7 +20,7 @@ function shuffle<T>(rand: () => number, items: T[]): T[] {
   return out
 }
 
-const emptyRow = (): InkRow => ({ kind: null, strokes: [], strikes: [], ended: false })
+const emptyRow = (): InkRow => ({ kind: null, strokes: [], letters: [], strikes: [], ended: false })
 
 export function createInkWorld(input: {
   rand: () => number
@@ -51,7 +51,7 @@ export function createInkWorld(input: {
     padVersion: 0, sentVersion: -1, nextPadTick: 0,
     turn: 'sun', row: 0,
     step: { at: 'choosing' },
-    votes: [], voteSeq: 0, live: {}, undoable: null, checked: 0, inkOps: {},
+    votes: [], voteSeq: 0, live: {}, undoable: null, inkOps: {},
   }
   for (const team of TEAMS) draw(w, team, HAND_SIZE)
   return w
@@ -153,7 +153,6 @@ function resolve(w: InkWorld, choice: string): void {
     if (choice === 'ask') w.step = { at: 'offer' }
     else if (choice === 'guess') {
       turnRow(w).kind = 'guess'
-      w.checked = 0
       w.step = { at: 'guess', holder: null }
       bump(w)
     } else {
@@ -187,9 +186,6 @@ export function inkTarget(w: InkWorld, playerId: PlayerId): { team: InkTeamName;
   if (!role) return null
   if (s.at === 'clue' && role.role === 'writer' && role.team === w.turn) return { team: w.turn, row: w.row, peek: false }
   if (s.at === 'peekWrite' && w.roster[s.team].writer === playerId) return { team: s.team, row: s.row, peek: true }
-  if (s.at === 'guess' && role.role === 'guesser' && role.team === w.turn && (s.holder === null || s.holder === playerId)) {
-    return { team: w.turn, row: w.row, peek: false }
-  }
   return null
 }
 
@@ -257,7 +253,6 @@ export function applyInk(w: InkWorld, playerId: PlayerId, input: InkInput): Outc
       if (!target || !validPoints(input.points)) return NO
       const row = w.pad[target.team][target.row]
       row.strokes.push({ points: quantize(input.points), author: playerId, ...(target.peek ? { peek: true as const } : {}) })
-      if (s.at === 'guess') s.holder = playerId
       w.undoable = { team: target.team, row: target.row, player: playerId }
       delete w.live[playerId]
       bump(w)
@@ -270,7 +265,6 @@ export function applyInk(w: InkWorld, playerId: PlayerId, input: InkInput): Outc
       const row = w.pad[u.team][u.row]
       row.strokes.pop()
       w.undoable = null
-      if (s.at === 'guess' && row.strokes.length === w.checked) s.holder = null
       bump(w)
       return OK
     }
@@ -298,42 +292,26 @@ export function applyInk(w: InkWorld, playerId: PlayerId, input: InkInput): Outc
       finishClue(w, true)
       return OK
     }
-    case 'check': {
-      if (s.at !== 'guess' || !turnGuesser || turnRow(w).strokes.length <= w.checked) return NO
-      w.step = { at: 'judgeLetter' }
-      w.undoable = null
-      w.live = {}
-      return OK
-    }
-    case 'judge': {
-      if (s.at !== 'judgeLetter' || !turnWriter) return NO
+    case 'letter': {
+      if (s.at !== 'guess' || !turnGuesser) return NO
+      if (s.holder !== null && s.holder !== playerId) return NO
+      const value = typeof input.value === 'string' ? input.value.trim().toUpperCase() : ''
+      if (value.length !== 1 || !/\p{L}/u.test(value)) return NO
       const row = turnRow(w)
-      if (input.correct) {
-        w.checked = row.strokes.length
-        w.step = { at: 'guess', holder: null }
-      } else {
-        row.strikes.push([w.checked, row.strokes.length - 1])
-        bump(w)
-        endTurn(w)
-      }
-      return OK
-    }
-    case 'finishGuess': {
-      const row = turnRow(w)
-      if (s.at !== 'guess' || !turnGuesser || w.checked === 0 || row.strokes.length !== w.checked) return NO
-      row.ended = true
-      w.step = { at: 'judgeWord' }
-      w.undoable = null
+      const secret = (w.secret ?? '').toUpperCase()
+      s.holder = playerId
+      row.letters.push(value)
       bump(w)
-      return OK
-    }
-    case 'verdict': {
-      if (s.at !== 'judgeWord' || !turnWriter) return NO
-      if (input.win) {
-        turnRow(w).won = true
+      // The server judges each letter as it lands; the writer never sees it first.
+      if (value !== secret[row.letters.length - 1]) {
+        row.wrong = true
+        row.ended = true
+        endTurn(w)
+      } else if (row.letters.length === secret.length) {
+        row.won = true
+        row.ended = true
         w.step = { at: 'over', winner: w.turn }
-        bump(w)
-      } else endTurn(w)
+      }
       return OK
     }
   }

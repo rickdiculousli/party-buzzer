@@ -3,7 +3,7 @@
  * is over capacity, then two move to Moon, volunteer, and play until a team
  * wins or the pad fills. Each team has three Guessers: they tap the options they
  * are voting on, split their votes, drift toward the leading choice, and Force a stalled vote. Writers scribble random letters,
- * guessers stop after two letters and finish their guess once it has three.
+ * and a guessing bot types a random letter, which the server checks against the secret word.
  * Needs packs/phantom-ink.txt on the server.
  *
  *   npm run sim-ink
@@ -177,15 +177,9 @@ while (host.state()?.minigame?.phase === 'playing') {
     else if (s.at === 'clue' && ours && !writer) {
       if ((pad?.[frame.turn][frame.row].strokes.length ?? 0) >= 2 && Math.random() < 0.5) send({ kind: 'stop' })
     } else if (s.at === 'guess' && ours && !writer && (s.holder === null || s.holder === id)) {
-      const row = pad?.[frame.turn][frame.row]
-      if ((row?.strokes.length ?? 0) >= 3) send({ kind: 'finishGuess' })
-      else {
-        send({ kind: 'stroke', points: letter() })
-        await sleep(200)
-        send({ kind: 'check' })
-      }
-    } else if (s.at === 'judgeLetter' && ours && writer) send({ kind: 'judge', correct: Math.random() < 0.7 })
-    else if (s.at === 'judgeWord' && ours && writer) send({ kind: 'verdict', win: Math.random() < 0.5 })
+      // Guessers cannot see the secret word, so a bot guess is a letter in the dark.
+      send({ kind: 'letter', value: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)] })
+    }
   }
 }
 console.log('Game over:', JSON.stringify(host.state()?.minigame?.results))

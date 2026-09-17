@@ -9,7 +9,7 @@ import {
 
 const STEP_MS = 50
 const PAD_EVERY_TICKS = 20
-const DISCRETE = new Set(['pickWord', 'vote', 'force', 'keep', 'stroke', 'undo', 'stop', 'done', 'endClue', 'check', 'judge', 'finishGuess', 'verdict'])
+const DISCRETE = new Set(['pickWord', 'vote', 'force', 'keep', 'stroke', 'undo', 'stop', 'done', 'endClue', 'letter'])
 
 const sendsPad = (w: InkWorld) => w.padVersion !== w.sentVersion || w.tick >= w.nextPadTick
 
@@ -68,12 +68,17 @@ function personal(w: InkWorld, playerId: PlayerId): InkPrivate | null {
   }
 }
 
-/** Touches point at options a Guesser is voting on right now; anything else is dropped. */
+/** Touches point at what the toucher is choosing between right now; anything else is dropped. */
 function touchable(w: InkWorld, playerId: PlayerId, target: string): boolean {
   const me = roleOf(w, playerId)
-  if (me?.role !== 'guesser' || me.team !== w.turn) return false
+  if (!me) return false
   const [kind, ...rest] = target.split(':')
   const value = rest.join(':')
+  // The two writers choose the secret word between themselves.
+  if (w.step.at === 'choosing') {
+    return me.role === 'writer' && kind === 'word' && w.wordCard[Number(value)] !== undefined
+  }
+  if (me.role !== 'guesser' || me.team !== w.turn) return false
   if (w.step.at === 'choose') return kind === 'vote' && (value === 'ask' || value === 'guess' || (value === 'redraw' && !w.redrawn[w.turn]))
   if (w.step.at === 'offer') return kind === 'card' && w.hands[w.turn].includes(Number(value))
   if (w.step.at === 'peekPick') return kind === 'row' && peekTargets(w).includes(value)
@@ -99,15 +104,14 @@ export function makeInk(load: () => InkCards | string, rand: () => number = Math
     },
     finished: inkFinished,
     classify(input) {
-      const i = input as { kind?: unknown; at?: unknown; points?: unknown; index?: unknown; choice?: unknown; prompt?: unknown; correct?: unknown; win?: unknown } | null
+      const i = input as { kind?: unknown; at?: unknown; points?: unknown; index?: unknown; choice?: unknown; prompt?: unknown; value?: unknown } | null
       if (i?.kind === 'ink') return validPoints(i.points) ? 'continuous' : null
       if (typeof i?.kind !== 'string' || !DISCRETE.has(i.kind) || typeof i.at !== 'number' || !Number.isFinite(i.at)) return null
       if (i.kind === 'stroke' && !validPoints(i.points)) return null
       if (i.kind === 'pickWord' && !Number.isInteger(i.index)) return null
       if (i.kind === 'vote' && typeof i.choice !== 'string') return null
       if (i.kind === 'keep' && !Number.isInteger(i.prompt)) return null
-      if (i.kind === 'judge' && typeof i.correct !== 'boolean') return null
-      if (i.kind === 'verdict' && typeof i.win !== 'boolean') return null
+      if (i.kind === 'letter' && typeof i.value !== 'string') return null
       return 'discrete'
     },
     apply: (world, playerId, input) => applyInk(world, playerId, input),
@@ -129,6 +133,9 @@ export function makeInk(load: () => InkCards | string, rand: () => number = Math
     results: inkResults,
     touchAudience(world, playerId, target) {
       if (!touchable(world, playerId, target)) return null
+      if (world.step.at === 'choosing') {
+        return { players: Object.values(world.roster).map((team) => team.writer), board: false }
+      }
       const { writer, guessers } = world.roster[world.turn]
       return { players: [writer, ...guessers], board: target.startsWith('row:') }
     },

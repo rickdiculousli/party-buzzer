@@ -28,8 +28,9 @@ test('classify accepts well-formed inputs only', () => {
   const { ink } = setup()
   assert.equal(ink.classify({ kind: 'ink', points: [[0, 0]] }), 'continuous')
   assert.equal(ink.classify({ kind: 'stroke', points: [[0, 0]], at: 1 }), 'discrete')
-  assert.equal(ink.classify({ kind: 'judge', correct: true, at: 1 }), 'discrete')
-  assert.equal(ink.classify({ kind: 'judge', correct: 'yes', at: 1 }), null)
+  assert.equal(ink.classify({ kind: 'letter', value: 'S', at: 1 }), 'discrete')
+  assert.equal(ink.classify({ kind: 'letter', value: 3, at: 1 }), null)
+  assert.equal(ink.classify({ kind: 'judge', correct: true, at: 1 }), null)
   assert.equal(ink.classify({ kind: 'vote', choice: 3, at: 1 }), null)
   assert.equal(ink.classify({ kind: 'stop' }), null)
   assert.equal(ink.classify({ kind: 'nope', at: 1 }), null)
@@ -80,6 +81,9 @@ test('touches count only on what the turn team is voting on', () => {
   const { ink, world } = setup()
   const audience = (player: string, target: string) => ink.touchAudience!(world, player, target)
   assert.equal(audience('s1', 'vote:ask'), null, 'nothing to vote on while writers choose')
+  assert.deepEqual(audience('sw', 'word:0'), { players: ['sw', 'mw'], board: false }, 'writers tap the word card to each other')
+  assert.equal(audience('sw', `word:${world.wordCard.length}`), null, 'no such word')
+  assert.equal(audience('s1', 'word:0'), null, 'guessers never see the word card')
   ink.apply(world, 'sw', { kind: 'pickWord', index: 0, at: 1 })
   ink.apply(world, 'mw', { kind: 'pickWord', index: 0, at: 2 })
 
@@ -88,6 +92,7 @@ test('touches count only on what the turn team is voting on', () => {
   assert.equal(audience('s1', `card:${world.hands.sun[0]}`), null, 'cards are not options yet')
   assert.equal(audience('m1', 'vote:ask'), null, 'not their turn')
   assert.equal(audience('sw', 'vote:ask'), null, 'writers do not vote')
+  assert.equal(audience('sw', 'word:0'), null, 'the word card is gone once it is chosen')
   assert.equal(audience('stranger', 'vote:ask'), null)
 
   ink.apply(world, 's1', { kind: 'vote', choice: 'ask', at: 3 })
@@ -98,7 +103,7 @@ test('touches count only on what the turn team is voting on', () => {
   world.step = { at: 'clue', prompt: 0, stopped: false }
   assert.equal(audience('s1', 'row:sun:0'), null, 'no touches while a clue is written')
 
-  world.pad.moon[0] = { kind: 'clue', strokes: [{ points: [[0, 0]], author: 'mw' }], strikes: [], ended: false }
+  world.pad.moon[0] = { kind: 'clue', strokes: [{ points: [[0, 0]], author: 'mw' }], letters: [], strikes: [], ended: false }
   world.step = { at: 'peekPick' }
   assert.deepEqual(audience('s1', 'row:moon:0'), { players: ['sw', 's1'], board: true })
   assert.equal(audience('s1', 'row:moon:1'), null)

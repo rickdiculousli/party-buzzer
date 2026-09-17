@@ -49,10 +49,24 @@ export function stepLine(frame: { step: InkStepView; turn: InkTeamName }, nameOf
     case 'offer': return `${team} is choosing prompts`
     case 'keep': return `${team} writer is picking a prompt`
     case 'clue': return s.stopped ? `${team} called Stop` : `${team} writer is writing`
-    case 'guess': return s.holder ? `${nameOf(s.holder)} is guessing` : `${team} is guessing`
-    case 'judgeLetter': return `${team} writer is checking the letter`
-    case 'judgeWord': return `${team} writer is checking the guess`
+    case 'guess': return s.holder ? `${nameOf(s.holder)} is spelling the guess` : `${team} is guessing`
     case 'over': return s.winner ? `${TEAM_LABEL[s.winner]} wins` : 'Both teams lose'
+  }
+}
+
+/** What a phone with nothing to press is waiting out, in general terms. */
+export function waitLine(step: InkStepView, turn: InkTeamName, mine: InkTeamName): string {
+  const side = turn === mine ? 'Your team' : 'Other team'
+  switch (step.at) {
+    case 'choosing': return 'Writers choosing the word'
+    case 'peekPick': return `${side} · picking a peek`
+    case 'peekWrite': return `${side} · writer peeking`
+    case 'choose': return `${side} · deciding`
+    case 'offer': return `${side} · choosing prompts`
+    case 'keep': return `${side} · writer picking`
+    case 'clue': return `${side} · writer writing`
+    case 'guess': return `${side} · guessing`
+    case 'over': return 'Game over'
   }
 }
 

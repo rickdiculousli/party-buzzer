@@ -16,11 +16,15 @@ export type InkStroke = { points: InkPoint[]; author: PlayerId; peek?: true }
 export type InkRow = {
   kind: 'clue' | 'guess' | null
   strokes: InkStroke[]
+  /** Guess rows are typed one letter at a time. */
+  letters: string[]
   /** Inclusive stroke index ranges drawn struck through. */
   strikes: [number, number][]
   /** A period follows the last stroke. */
   ended: boolean
   won?: true
+  /** The last letter missed the secret word. */
+  wrong?: true
 }
 
 export type InkStep =
@@ -32,8 +36,6 @@ export type InkStep =
   | { at: 'keep'; offered: [number, number] }
   | { at: 'clue'; prompt: number; stopped: boolean }
   | { at: 'guess'; holder: PlayerId | null }
-  | { at: 'judgeLetter' }
-  | { at: 'judgeWord' }
   | { at: 'over'; winner: InkTeamName | null }
 
 export type InkVote = { player: PlayerId; choice: string; seq: number }
@@ -63,8 +65,6 @@ export type InkWorld = {
   voteSeq: number
   live: Record<PlayerId, InkPoint[]>
   undoable: { team: InkTeamName; row: number; player: PlayerId } | null
-  /** Strokes in the guess row already judged. */
-  checked: number
   /** Stroke and undo inputs processed per player, accepted or not. Phones compare it with what they sent. */
   inkOps: Record<PlayerId, number>
 }

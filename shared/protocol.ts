@@ -301,10 +301,8 @@ export type InkInput =
   | { kind: 'stop'; at: number }
   | { kind: 'done'; at: number }
   | { kind: 'endClue'; at: number }
-  | { kind: 'check'; at: number }
-  | { kind: 'judge'; correct: boolean; at: number }
-  | { kind: 'finishGuess'; at: number }
-  | { kind: 'verdict'; win: boolean; at: number }
+  /** One letter of the guess, checked against the secret word the moment it arrives. */
+  | { kind: 'letter'; value: string; at: number }
 
 export type MinigameInputMsg = {
   t: 'minigameInput'
@@ -387,7 +385,17 @@ export type MinigameFrame =
   | (FrameBase<MinigameId> & { role: 'spectator' })
 
 export type InkStrokeView = { points: InkPoint[]; author: PlayerId; peek?: true }
-export type InkRowView = { kind: 'clue' | 'guess' | null; strokes: InkStrokeView[]; strikes: [number, number][]; ended: boolean; won?: true }
+export type InkRowView = {
+  kind: 'clue' | 'guess' | null
+  strokes: InkStrokeView[]
+  strikes: [number, number][]
+  ended: boolean
+  won?: true
+  /** Guess rows are typed, not drawn. */
+  letters: string[]
+  /** The last letter missed the secret word. */
+  wrong?: true
+}
 export type InkRoster = Record<InkTeamName, { writer: PlayerId; guessers: PlayerId[] }>
 
 export type InkStepView =
@@ -399,8 +407,6 @@ export type InkStepView =
   | { at: 'keep' }
   | { at: 'clue'; stopped: boolean }
   | { at: 'guess'; holder: PlayerId | null }
-  | { at: 'judgeLetter' }
-  | { at: 'judgeWord' }
   | { at: 'over'; winner: InkTeamName | null }
 
 export type InkShared = {

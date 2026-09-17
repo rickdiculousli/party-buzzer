@@ -212,50 +212,41 @@ function voteAll(w: InkWorld, choice: string) {
   for (const g of w.roster[w.turn].guessers) act(w, g, { kind: 'vote', choice })
 }
 
-test('a guess is written letter by letter and judged by the writer', () => {
+/** Votes to guess and spends the turn on one letter the secret does not start with. */
+function missGuess(w: InkWorld, guesser: string) {
+  voteAll(w, 'guess')
+  act(w, guesser, { kind: 'letter', value: 'Z' })
+}
+
+/** The secret is Snowman; one guesser types the whole guess. */
+test('a guess is typed letter by letter and the server checks each one', () => {
   const w = started()
   voteAll(w, 'guess')
   assert.equal(w.pad.sun[0].kind, 'guess')
-  assert.equal(act(w, 's1', { kind: 'check' }).status, 'refused')
-  act(w, 's1', { kind: 'stroke', points: line })
-  assert.equal(act(w, 's2', { kind: 'stroke', points: line }).status, 'refused')
-  act(w, 's1', { kind: 'check' })
-  assert.equal(act(w, 'mw', { kind: 'judge', correct: true }).status, 'refused')
-  act(w, 'sw', { kind: 'judge', correct: true })
-  assert.deepEqual(w.step, { at: 'guess', holder: null })
-  act(w, 's2', { kind: 'stroke', points: line })
-  act(w, 's2', { kind: 'stroke', points: line })
-  assert.equal(act(w, 's2', { kind: 'finishGuess' }).status, 'refused')
-  act(w, 's2', { kind: 'check' })
-  act(w, 'sw', { kind: 'judge', correct: false })
-  assert.deepEqual(w.pad.sun[0].strikes, [[1, 2]])
+  assert.equal(act(w, 'sw', { kind: 'letter', value: 'S' }).status, 'refused', 'writers do not guess')
+  assert.equal(act(w, 's1', { kind: 'letter', value: 'no' }).status, 'refused')
+  act(w, 's1', { kind: 'letter', value: 's' })
+  assert.deepEqual(w.pad.sun[0].letters, ['S'])
+  assert.deepEqual(w.step, { at: 'guess', holder: 's1' })
+  assert.equal(act(w, 's2', { kind: 'letter', value: 'N' }).status, 'refused', 'the row has a holder')
+  act(w, 's1', { kind: 'letter', value: 'N' })
+  act(w, 's1', { kind: 'letter', value: 'X' })
+  assert.deepEqual(w.pad.sun[0].letters, ['S', 'N', 'X'])
+  assert.equal(w.pad.sun[0].wrong, true)
+  assert.equal(w.pad.sun[0].ended, true)
   assert.equal(w.turn, 'moon')
 })
 
-test('finishing a guess asks the writer for a verdict; win ends the game', () => {
+test('spelling the whole word wins the game without the writer judging', () => {
   const w = started()
   voteAll(w, 'guess')
-  act(w, 's1', { kind: 'stroke', points: line })
-  act(w, 's1', { kind: 'check' })
-  act(w, 'sw', { kind: 'judge', correct: true })
-  act(w, 's1', { kind: 'finishGuess' })
-  assert.equal(w.pad.sun[0].ended, true)
-  assert.deepEqual(w.step, { at: 'judgeWord' })
-  act(w, 'sw', { kind: 'verdict', win: true })
+  for (const letter of 'Snowma') act(w, 's1', { kind: 'letter', value: letter })
+  assert.equal(inkFinished(w), false)
+  act(w, 's1', { kind: 'letter', value: 'n' })
+  assert.equal(w.pad.sun[0].won, true)
+  assert.deepEqual(w.step, { at: 'over', winner: 'sun' })
   assert.equal(inkFinished(w), true)
   assert.deepEqual(inkResults(w).map((r) => r.playerId).sort(), ['s1', 's2', 'sw'])
-})
-
-test('not it ends the turn without ending the game', () => {
-  const w = started()
-  voteAll(w, 'guess')
-  act(w, 's1', { kind: 'stroke', points: line })
-  act(w, 's1', { kind: 'check' })
-  act(w, 'sw', { kind: 'judge', correct: true })
-  act(w, 's1', { kind: 'finishGuess' })
-  act(w, 'sw', { kind: 'verdict', win: false })
-  assert.equal(inkFinished(w), false)
-  assert.equal(w.turn, 'moon')
 })
 
 test('redraw replaces the hand once per team and keeps the turn', () => {
@@ -274,10 +265,7 @@ function sunClueMoonMiss(w: InkWorld) {
   act(w, 'sw', { kind: 'stroke', points: line })
   act(w, 's1', { kind: 'stop' })
   act(w, 'sw', { kind: 'done' })
-  voteAll(w, 'guess')
-  act(w, 'm1', { kind: 'stroke', points: line })
-  act(w, 'm1', { kind: 'check' })
-  act(w, 'mw', { kind: 'judge', correct: false })
+  missGuess(w, 'm1')
 }
 
 test('a turn starting on a peek row picks an unfinished clue and its writer adds one letter', () => {
@@ -307,33 +295,17 @@ test('a turn starting on a peek row picks an unfinished clue and its writer adds
 test('a peek row with nothing to peek goes straight to choosing', () => {
   const w = started()
   for (let i = 0; i < 2; i++) {
-    voteAll(w, 'guess')
-    act(w, 's1', { kind: 'stroke', points: line })
-    act(w, 's1', { kind: 'check' })
-    act(w, 'sw', { kind: 'judge', correct: false })
-    voteAll(w, 'guess')
-    act(w, 'm1', { kind: 'stroke', points: line })
-    act(w, 'm1', { kind: 'check' })
-    act(w, 'mw', { kind: 'judge', correct: false })
+    missGuess(w, 's1')
+    missGuess(w, 'm1')
   }
-  voteAll(w, 'guess')
-  act(w, 's1', { kind: 'stroke', points: line })
-  act(w, 's1', { kind: 'check' })
-  act(w, 'sw', { kind: 'judge', correct: false })
+  missGuess(w, 's1')
   assert.equal(w.row, 2)
   assert.deepEqual(w.step, { at: 'choose' })
 })
 
 test('both teams lose when all sixteen rows fill', () => {
   const w = started()
-  for (let i = 0; i < 16; i++) {
-    const team = w.turn
-    const g = w.roster[team].guessers[0]
-    voteAll(w, 'guess')
-    act(w, g, { kind: 'stroke', points: line })
-    act(w, g, { kind: 'check' })
-    act(w, w.roster[team].writer, { kind: 'judge', correct: false })
-  }
+  for (let i = 0; i < 16; i++) missGuess(w, w.roster[w.turn].guessers[0])
   assert.deepEqual(w.step, { at: 'over', winner: null })
   assert.deepEqual(inkResults(w), [])
 })

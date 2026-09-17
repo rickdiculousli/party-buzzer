@@ -34,6 +34,9 @@ export function useTouchClock(touches: TimedTouch[]) {
   }, [touches])
 }
 
+/** Seats kept open per team, so a lobby of any size lays out the same. */
+const LOBBY_SEATS = 8
+
 export function InkLobby({ state, playerId, send }: { state: State; playerId?: string | null; send?: (msg: ClientMsg) => void }) {
   const columns = lobbyColumns(state)
   const mine = playerId ? state.minigame?.lobby?.teams[playerId] : undefined
@@ -48,11 +51,16 @@ export function InkLobby({ state, playerId, send }: { state: State; playerId?: s
         {column.members.map((member) => <li key={member.id} style={{ color: colorForPlayer(state, member.id) }}>
           {member.name}{member.volunteer && <span class="ink-lobby__star" aria-label="volunteer to write"> ✎</span>}
         </li>)}
+        {/* Empty seats hold the buttons still as players join and leave. */}
+        {Array.from({ length: Math.max(0, LOBBY_SEATS - column.members.length) }, (_, i) =>
+          <li key={`seat${i}`} class="ink-lobby__seat" aria-hidden="true">{'\u00a0'}</li>)}
       </ul>
+      {/* One word each: a wrapped "Join Moon" would stand taller than "Leave". */}
       {send && <button
         class={mine === column.team ? 'btn btn--primary' : 'btn'}
+        aria-label={mine === column.team ? `Leave ${TEAM_LABEL[column.team]}` : `Join ${TEAM_LABEL[column.team]}`}
         onClick={() => send({ t: 'minigameLobby', change: mine === column.team ? { do: 'leave' } : { do: 'join', team: column.team } })}
-      >{mine === column.team ? 'Leave' : `Join ${TEAM_LABEL[column.team]}`}</button>}
+      >{mine === column.team ? 'Leave' : 'Join'}</button>}
     </div>)}
     {send && mine && <button
       class={volunteering ? 'btn btn--primary ink-lobby__volunteer' : 'btn ink-lobby__volunteer'}
@@ -99,6 +107,14 @@ export function VotePips({ state, votes, choice }: { state: State; votes: { play
   </span>
 }
 
+/** A phase this phone only waits out: a sweeping bar under a few words for what. */
+export function PendingBar({ label }: { label: string }) {
+  return <div class="pending" role="status">
+    <span class="pending__label">{label}</span>
+    <span class="pending__track"><span class="pending__sweep" /></span>
+  </div>
+}
+
 export function HoldButton({ label, onHeld }: { label: string; onHeld: () => void }) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [holding, setHolding] = useState(false)
@@ -120,8 +136,50 @@ export function HoldButton({ label, onHeld }: { label: string; onHeld: () => voi
   >{label}</button>
 }
 
+/** Guess rows are typed: one letter per slot, the missed one struck through. */
+const LETTER_X = 14
+const LETTER_STEP = 34
+
+function RowLetters({ row }: { row: InkRowView }) {
+  const last = row.letters.length - 1
+  return <>
+    {row.letters.map((letter, i) => {
+      // Every letter sits in a slot of its own, so a thin I keeps the word evenly spelled.
+      const x = LETTER_X + i * LETTER_STEP
+      const missed = !!row.wrong && i === last
+      return <g key={i}>
+        <text x={x + LETTER_STEP / 2} y={H * 0.78} class={missed ? 'ink-letter is-wrong' : 'ink-letter'}>{letter}</text>
+        {missed && <line x1={x + 2} x2={x + LETTER_STEP - 2} y1={H * 0.5} y2={H * 0.5} class="ink-strike" />}
+      </g>
+    })}
+  </>
+}
+
+/** The guesser's keyboard: every letter leaves for the server as it is typed. */
+export function LetterEntry({ onLetter }: { onLetter: (value: string) => void }) {
+  return <section class="ink-letters">
+    <input
+      class="ink-letters__input"
+      type="text"
+      autoFocus
+      autocomplete="off"
+      autocapitalize="characters"
+      maxLength={1}
+      aria-label="Next letter of the guess"
+      placeholder="?"
+      onInput={(event) => {
+        const typed = event.currentTarget.value.trim()
+        event.currentTarget.value = ''
+        if (typed) onLetter(typed.slice(-1))
+      }}
+    />
+    <p class="muted">One letter at a time. A wrong letter ends the turn.</p>
+  </section>
+}
+
 function RowInk({ row, extra }: { row: InkRowView; extra?: InkPoint[][] }) {
   const struck = (i: number) => row.strikes.some(([from, to]) => i >= from && i <= to)
+  if (row.kind === 'guess') return <RowLetters row={row} />
   return <>
     {row.strokes.map((stroke, i) => (
       <path key={i} d={strokePath(stroke.points, W, H)} class={`ink-stroke${stroke.peek ? ' is-peek' : ''}${struck(i) ? ' is-struck' : ''}`} />
