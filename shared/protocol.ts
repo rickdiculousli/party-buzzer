@@ -239,7 +239,7 @@ export type ReadingUpdate = { progress: ReadingState; active: boolean }
 /** A solo crew uses the same player for both roles. */
 export type TankCrew = { id: string; driver: PlayerId; gunner: PlayerId }
 
-export type MinigameId = 'bow' | 'tank'
+export type MinigameId = 'bow' | 'tank' | 'ink'
 export type MinigamePhase = 'ready' | 'countdown' | 'playing' | 'results'
 export type MinigameResult = { playerId: PlayerId; points: number; shots: number }
 
@@ -377,7 +377,58 @@ export type MinigameFrame =
       crew: TankCrew
       tank: TankFrameTank & { respawnAt: number | null; gun: TankFrameWeapon; cannon: TankFrameWeapon }
     })
+  | (FrameBase<'ink'> & { role: 'board' } & InkShared)
+  | (FrameBase<'ink'> & { role: 'player' } & InkShared & InkPrivate)
   | (FrameBase<MinigameId> & { role: 'spectator' })
+
+export type InkStrokeView = { points: InkPoint[]; author: PlayerId; peek?: true }
+export type InkRowView = { kind: 'clue' | 'guess' | null; strokes: InkStrokeView[]; strikes: [number, number][]; ended: boolean; won?: true }
+export type InkRoster = Record<InkTeamName, { writer: PlayerId; guessers: PlayerId[] }>
+
+export type InkStepView =
+  | { at: 'choosing' }
+  | { at: 'peekPick'; targets: string[] }
+  | { at: 'peekWrite'; team: InkTeamName; row: number }
+  | { at: 'choose'; canRedraw: boolean }
+  | { at: 'offer' }
+  | { at: 'keep' }
+  | { at: 'clue'; stopped: boolean }
+  | { at: 'guess'; holder: PlayerId | null }
+  | { at: 'judgeLetter' }
+  | { at: 'judgeWord' }
+  | { at: 'over'; winner: InkTeamName | null }
+
+export type InkShared = {
+  roster: InkRoster
+  turn: InkTeamName
+  row: number
+  step: InkStepView
+  /** Present when the pad changed, and once a second. */
+  pad?: Record<InkTeamName, InkRowView[]>
+  live: { player: PlayerId; team: InkTeamName; row: number; points: InkPoint[] }[]
+  discard: string[]
+  deck: number
+  /** Revealed to everyone once the game is over. */
+  secret: string | null
+}
+
+export type InkCardView = { id: number; text: string }
+
+export type InkPrivate = {
+  me: { team: InkTeamName; role: 'writer' | 'guesser' }
+  /** Guessers only. */
+  hand: InkCardView[]
+  /** The own team's votes. */
+  votes: { player: PlayerId; choice: string }[]
+  asked: string[]
+  /** The two prompts in play: during keep for the team, then the kept one. */
+  offered: InkCardView[]
+  kept: string | null
+  /** Writers see the secret word and, while choosing, the word card and picks. */
+  wordCard: string[]
+  picks: Partial<Record<InkTeamName, number>>
+  canUndo: boolean
+}
 
 /**
  * Autoplay: the two beats a human host provides by instinct and the reader

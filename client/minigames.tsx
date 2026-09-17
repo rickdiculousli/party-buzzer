@@ -16,14 +16,17 @@ export type MinigamePlayerProps = {
 
 export type MinigameBoardProps = { state: State; frame: MinigameFrame | null; now: () => number }
 
-export const MINIGAME_NAMES: Record<MinigameId, string> = { bow: 'Bow', tank: 'Tank battle' }
+export const MINIGAME_NAMES: Record<MinigameId, string> = { bow: 'Bow', tank: 'Tank battle', ink: 'Phantom Ink' }
 
+// ink placeholders replaced with InkPlayer/InkBoard in Task 8.
 export const MINIGAME_PLAYERS: Record<MinigameId, ComponentType<MinigamePlayerProps>> = {
   bow: BowPlayer,
   tank: TankPlayer,
+  ink: BowPlayer,
 }
 
 export const MINIGAME_BOARDS: Record<MinigameId, ComponentType<MinigameBoardProps>> = {
   bow: BowBoard,
   tank: TankBoard,
+  ink: BowBoard,
 }
