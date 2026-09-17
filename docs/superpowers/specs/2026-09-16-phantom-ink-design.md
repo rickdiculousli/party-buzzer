@@ -116,7 +116,7 @@ Minigame id `ink`, display name "Phantom Ink".
 
 | Viewer | Sees |
 | --- | --- |
-| Board | Lobby, pad ink, turn and step, prompt discard pile, peek rows, pad touches. Never the secret word or hands. |
+| Board | Lobby, pad ink, turn and step, prompt discard pile, peek rows, pad touches. Hands never; the secret word only once the game is over. |
 | Writer | Secret word, the 2 offered prompts, own team's asked prompts, pad, own canvas, judge buttons when needed. Not the other team's hand. |
 | Guesser | Own team's hand, votes, touches; own team's asked prompts; pad; guess canvas; Stop. Never the secret word. |
 | Other team | Pad and discard pile only; not your hand, votes, asked prompts or touches. |
