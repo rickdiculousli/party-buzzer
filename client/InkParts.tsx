@@ -117,7 +117,8 @@ export function HoldButton({ label, onHeld }: { label: string; onHeld: () => voi
   >{label}</button>
 }
 
-function RowInk({ row, extra }: { row: InkRowView; extra?: InkPoint[][] }) {
+/** `settled` strokes are sent and not yet on the pad; `extra` are still being drawn. */
+function RowInk({ row, settled, extra }: { row: InkRowView; settled?: InkPoint[][]; extra?: InkPoint[][] }) {
   const struck = (i: number) => row.strikes.some(([from, to]) => i >= from && i <= to)
   return <>
     {row.strokes.map((stroke, i) => (
@@ -132,6 +133,7 @@ function RowInk({ row, extra }: { row: InkRowView; extra?: InkPoint[][] }) {
       const last = Math.max(...row.strokes.flatMap((stroke) => stroke.points.map(([x]) => x)))
       return <circle cx={last * W + 10} cy={H * 0.85} r={3.5} class="ink-period" />
     })()}
+    {settled?.map((points, i) => <path key={`sent${i}`} d={strokePath(points, W, H)} class="ink-stroke" />)}
     {extra?.map((points, i) => <path key={`live${i}`} d={strokePath(points, W, H)} class="ink-stroke is-live" />)}
   </>
 }
@@ -171,6 +173,8 @@ export function InkPad({ state, frame, pad, touches, onTouch, peekRows, pickable
   </div>
 }
 
+const PENDING_MS = 3_000
+
 /**
  * Freehand capture over one row. Strokes may start and run in the margin
  * around the row. Sends the live stroke every 50 ms and commits on lift.
@@ -182,8 +186,14 @@ export function InkCanvas({ row, enabled, send }: {
 }) {
   const svg = useRef<SVGSVGElement>(null)
   const points = useRef<InkPoint[] | null>(null)
+  // Lifted strokes stay drawn until the pad shows them: each waits for the row
+  // to reach the length it will have once the server adds it, or gives up
+  // after a refusal-length wait.
+  const pending = useRef<{ points: InkPoint[]; expect: number; at: number }[]>([])
   const lastSent = useRef(0)
   const [, redraw] = useState(0)
+  const now = performance.now()
+  pending.current = pending.current.filter((stroke) => row.strokes.length < stroke.expect && now - stroke.at < PENDING_MS)
   // The screen matrix includes any CSS rotation of the writing view, so points
   // stay in row coordinates however the phone is held.
   const at = (event: PointerEvent): InkPoint => {
@@ -195,7 +205,12 @@ export function InkCanvas({ row, enabled, send }: {
   const finish = () => {
     const stroke = points.current
     points.current = null
-    if (stroke?.length) send({ kind: 'stroke', points: stroke.slice(0, 500) })
+    if (stroke?.length) {
+      const committed = stroke.slice(0, 500)
+      pending.current.push({ points: committed, expect: row.strokes.length + pending.current.length + 1, at: performance.now() })
+      send({ kind: 'stroke', points: committed })
+      setTimeout(() => redraw((n) => n + 1), PENDING_MS)
+    }
     redraw((n) => n + 1)
   }
   return <div
@@ -221,7 +236,7 @@ export function InkCanvas({ row, enabled, send }: {
   >
     <svg ref={svg} class={enabled ? 'ink-canvas' : 'ink-canvas is-locked'} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
       <line x1="0" x2={W} y1={H * 0.8} y2={H * 0.8} class="ink-row__rule" />
-      <RowInk row={row} extra={points.current ? [points.current] : []} />
+      <RowInk row={row} settled={pending.current.map((stroke) => stroke.points)} extra={points.current ? [points.current] : []} />
     </svg>
   </div>
 }
