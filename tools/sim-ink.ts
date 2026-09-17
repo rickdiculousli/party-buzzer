@@ -3,8 +3,8 @@
  * is over capacity, then two move to Moon, volunteer, and play until a team
  * wins or the pad fills. Each team has three Guessers: they tap the options they
  * are voting on, split their votes, drift toward the leading choice, and Force a stalled vote. Writers scribble random letters,
- * and a guessing bot types a random letter, which the server checks against the secret word.
- * A team with a borrowed phone types its own guesses; bots on it leave the keyboard alone.
+ * and a guessing bot spells half the word, misses its team's first guess and wins on the
+ * second. A team with a borrowed phone types its own guesses; bots on it leave the keyboard alone.
  * Needs packs/phantom-ink.txt on the server.
  *
  *   npm run sim-ink
@@ -103,6 +103,26 @@ const FORCE_AFTER_TICKS = 8
 /** Peeks get a longer look: bots tap around the rows for this many ticks before voting. */
 const PEEK_LOOK_TICKS = 5
 const GUESS_AFTER_CLUES = 4
+/** How long the bots leave a guess row to a borrowed phone before spelling it themselves. */
+const GUESS_WAIT_TICKS = 20
+
+/** Guess rows the bots have spelled on, as `team:row`, to count a team's attempts. */
+const guessRows = new Set<string>()
+/** Letters sent per guess row: a frame carries the pad only when it changed. */
+const typedOn = new Map<string, number>()
+/** The secret word, read off a writer bot's frame: the sim cheats so guesses are watchable. */
+const secretWord = () => {
+  for (const bot of bots.values()) {
+    const frame = bot.conn.frame()
+    if (frame?.role === 'player' && frame.id === 'ink' && frame.secret) return frame.secret.toUpperCase()
+  }
+  return null
+}
+
+/** Ticks a guess row has sat still while the bots left it to a borrowed phone. */
+const humanWaits = new Map<string, { ticks: number; letters: number }>()
+/** Guess rows the bots have taken back, so their own letters never restart the wait. */
+const taken = new Set<string>()
 
 /** The team of a bot's phone, once it holds an ink frame. */
 const teamOf = (bot: { conn: Conn }) => {
@@ -111,6 +131,21 @@ const teamOf = (bot: { conn: Conn }) => {
 }
 /** A team with a borrowed phone on it spells its own guesses; no bot there types a letter. */
 const humanGuess = (team: string) => [...bots.values()].some((bot) => bot.borrowed && teamOf(bot) === team)
+/**
+ * True while the bots hold off for the person on a borrowed phone. Every letter they type
+ * restarts the wait; a row that stops moving for GUESS_WAIT_TICKS goes back to the bots, so
+ * a shadow that disconnected never stalls the game.
+ */
+function waitingOnPerson(key: string, team: string, letters: number): boolean {
+  if (!humanGuess(team) || taken.has(key)) return false
+  const seen = humanWaits.get(key) ?? { ticks: 0, letters: -1 }
+  const next = letters === seen.letters ? { ticks: seen.ticks + 1, letters } : { ticks: 0, letters }
+  humanWaits.set(key, next)
+  if (next.ticks < GUESS_WAIT_TICKS) return true
+  taken.add(key)
+  console.log(`No letters from the borrowed ${team} phone; the bots take the guess.`)
+  return false
+}
 
 while (host.state()?.minigame?.phase === 'playing') {
   await sleep(TICK_MS)
@@ -185,10 +220,22 @@ while (host.state()?.minigame?.phase === 'playing') {
     else if (s.at === 'clue' && ours && writer) send(s.stopped ? { kind: 'done' } : { kind: 'stroke', points: letter() })
     else if (s.at === 'clue' && ours && !writer) {
       if ((pad?.[frame.turn][frame.row].strokes.length ?? 0) >= 2 && Math.random() < 0.5) send({ kind: 'stop' })
-    } else if (s.at === 'guess' && ours && !writer && (s.holder === null || s.holder === id)) {
+    } else if (s.at === 'guess' && ours && !writer && frame.roster[frame.turn].guessers[0] === id) {
+      const key = `${frame.turn}:${frame.row}`
+      const secret = secretWord()
+      const letters = pad?.[frame.turn][frame.row].letters.length ?? 0
       // A guess is the one thing borrowed phones keep: no bot claims the row or types over
-      // the person. Bots guessing alone cannot see the secret, so they spell in the dark.
-      if (!humanGuess(frame.turn)) send({ kind: 'letter', value: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)] })
+      // the person. A shadow that stops typing, or closed its tab, hands the row back.
+      if (secret && !waitingOnPerson(key, frame.turn, letters)) {
+        guessRows.add(key)
+        const attempt = [...guessRows].filter((row) => row.startsWith(`${frame.turn}:`)).length
+        const typed = Math.max(letters, typedOn.get(key) ?? 0)
+        const want = secret[typed]
+        // Half the word right, then a miss on the team's first guess and the word on its second.
+        const bluff = typed >= Math.ceil(secret.length / 2) && attempt < 2
+        typedOn.set(key, typed + 1)
+        send({ kind: 'letter', value: bluff ? (want === 'Z' ? 'Q' : 'Z') : want })
+      }
     }
   }
 }
