@@ -70,6 +70,7 @@ export function Touchable({ state, target, touches, onTouch, class: className, c
   const now = performance.now()
   return <div
     class={`ink-touchable ${className ?? ''}`}
+    onContextMenu={(event) => event.preventDefault()}
     onPointerDown={(event) => {
       if (!onTouch || (event.target as Element).closest('button, .ink-canvas')) return
       const box = (event.currentTarget as HTMLElement).getBoundingClientRect()
