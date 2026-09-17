@@ -1,7 +1,8 @@
 /**
- * Synthetic self-play for Phantom Ink. Six bots join, crowd onto Sun until it
+ * Synthetic self-play for Phantom Ink. Eight bots join, crowd onto Sun until it
  * is over capacity, then two move to Moon, volunteer, and play until a team
- * wins or the pad fills. Writers scribble random letters,
+ * wins or the pad fills. Each team has three Guessers: they tap cards and rows,
+ * split their votes, drift toward the leading choice, and Force a stalled vote. Writers scribble random letters,
  * guessers stop after two letters and finish their guess once it has three.
  * Needs packs/phantom-ink.txt on the server.
  *
@@ -9,7 +10,7 @@
  *   npm run sim-ink -- 2500                  one bot action every 2.5 s
  *   npm run sim-ink -- 2500 http://box:8080
  *
- * Join a phone under a bot's name (Ivy, Jax, Kai, Lux, Mo, Rex) before running
+ * Join a phone under a bot's name (Ivy, Jax, Kai, Lux, Mo, Rex, Sol, Tia) before running
  * to watch that bot's view; the bot plays for it. Ivy and Lux are the Writers.
  *
  * Ctrl-C closes the minigame and removes the bots it created.
@@ -21,8 +22,9 @@ import type { InkInput, LobbyChange, State } from '../shared/protocol.ts'
 const args = process.argv.slice(2)
 const TICK_MS = Number(args.find((arg) => /^\d+$/.test(arg)) ?? 700)
 const URL = args.find((arg) => arg.startsWith('http')) ?? (await reachable())
-const NAMES = ['Ivy', 'Jax', 'Kai', 'Lux', 'Mo', 'Rex']
-/** Everyone but Rex crowds onto Sun first; these two then move to Moon. */
+const NAMES = ['Ivy', 'Jax', 'Kai', 'Lux', 'Mo', 'Rex', 'Sol', 'Tia']
+const START_MOON = new Set(['Rex', 'Sol'])
+/** Everyone else crowds onto Sun first; these two then move to Moon. */
 const MOVERS = new Set(['Lux', 'Mo'])
 const VOLUNTEERS = new Set(['Ivy', 'Lux'])
 const LOBBY_MS = Math.max(300, TICK_MS / 2)
@@ -59,7 +61,7 @@ const lobby = async (bot: { conn: Conn }, change: LobbyChange) => {
   bot.conn.send({ t: 'minigameLobby', change })
   await sleep(LOBBY_MS)
 }
-for (const bot of bots.values()) await lobby(bot, { do: 'join', team: bot.name === 'Rex' ? 'moon' : 'sun' })
+for (const bot of bots.values()) await lobby(bot, { do: 'join', team: START_MOON.has(bot.name) ? 'moon' : 'sun' })
 await sleep(LOBBY_MS * 3)
 for (const bot of bots.values()) if (MOVERS.has(bot.name)) await lobby(bot, { do: 'join', team: 'moon' })
 for (const bot of bots.values()) if (VOLUNTEERS.has(bot.name)) await lobby(bot, { do: 'volunteer', on: true })
@@ -86,31 +88,74 @@ const letter = (): [number, number][] => {
   return Array.from({ length: 8 }, (_, i) => [Math.min(1, x + i * 0.005), 0.2 + i * 0.08])
 }
 
+const pick = <T>(items: T[]): T => items[Math.floor(Math.random() * items.length)]
+const leading = (votes: { choice: string }[]) => {
+  const counts = new Map<string, number>()
+  for (const vote of votes) counts.set(vote.choice, (counts.get(vote.choice) ?? 0) + 1)
+  return [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
+}
+/** Ticks each vote has run without resolving, keyed by turn, row and step. */
+const stalls = new Map<string, number>()
+const FORCE_AFTER_TICKS = 8
+
 while (host.state()?.minigame?.phase === 'playing') {
   await sleep(TICK_MS)
+  const forcedThisTick = new Set<string>()
   for (const [id, bot] of bots) {
     const frame = bot.conn.frame()
     if (frame?.role !== 'player' || frame.id !== 'ink' || frame.matchId !== matchId) continue
     const send = (input: { kind: string } & Record<string, unknown>) =>
       bot.conn.send({ t: 'minigameInput', matchId, seq: bot.seq++, input: { ...input, at: bot.conn.now() } as InkInput })
+    const tap = (target: string) =>
+      bot.conn.send({ t: 'minigameTouch', matchId, target, x: 0.15 + Math.random() * 0.7, y: 0.2 + Math.random() * 0.6 })
     const s = frame.step
     const ours = frame.me.team === frame.turn
     const writer = frame.me.role === 'writer'
     const pad = frame.pad
+
+    // Guessers vote like people: a first opinion, drifting to the leader, and a Force when it stalls.
+    const castVote = (options: string[], preferred: string, targetOf: (choice: string) => string[]) => {
+      const key = `${frame.turn}:${frame.row}:${s.at}`
+      const mine = frame.votes.find((vote) => vote.player === id)?.choice
+      const leader = leading(frame.votes)
+      if (Math.random() < 0.6) for (const target of targetOf(mine ?? preferred)) tap(target)
+      if (!mine) {
+        send({ kind: 'vote', choice: Math.random() < 0.6 ? preferred : pick(options) })
+        return
+      }
+      if (leader && mine !== leader && Math.random() < 0.5) {
+        send({ kind: 'vote', choice: leader })
+        return
+      }
+      const ticks = (stalls.get(key) ?? 0) + 1
+      stalls.set(key, ticks)
+      if (ticks > FORCE_AFTER_TICKS * frame.roster[frame.turn].guessers.length && !forcedThisTick.has(key)) {
+        forcedThisTick.add(key)
+        console.log(`${bot.name} forces ${s.at} (${leader})`)
+        send({ kind: 'force' })
+      }
+    }
+
     if (s.at === 'choosing' && writer) send({ kind: 'pickWord', index: 0 })
-    else if (s.at === 'peekPick' && ours && !writer) send({ kind: 'vote', choice: s.targets[0] })
-    else if (s.at === 'peekWrite' && frame.roster[s.team].writer === id) {
+    else if (s.at === 'peekPick' && ours && !writer) {
+      castVote(s.targets, s.targets[0], (choice) => [`row:${choice}`])
+    } else if (s.at === 'peekWrite' && frame.roster[s.team].writer === id) {
       send({ kind: 'stroke', points: letter() })
       await sleep(200)
       send({ kind: 'done' })
     } else if (s.at === 'choose' && ours && !writer) {
       const clues = pad?.[frame.turn].filter((row) => row.kind === 'clue').length ?? 0
-      send({ kind: 'vote', choice: clues >= 3 ? 'guess' : 'ask' })
-    } else if (s.at === 'offer' && ours && !writer) send({ kind: 'vote', choice: `${frame.hand[0].id},${frame.hand[1].id}` })
-    else if (s.at === 'keep' && ours && writer) send({ kind: 'keep', prompt: frame.offered[0].id })
+      castVote(['ask', 'guess'], clues >= 3 ? 'guess' : 'ask', (choice) => [`vote:${choice}`])
+    } else if (s.at === 'offer' && ours && !writer) {
+      const ids = frame.hand.map((card) => card.id)
+      const pairs = [[ids[0], ids[1]], [ids[0], ids[2]], [ids[1], ids[2]]].map((pair) => pair.sort((a, b) => a - b).join(','))
+      castVote(pairs, pairs[0], (choice) => choice.split(',').map((card) => `card:${card}`))
+    } else if (s.at === 'keep' && ours && writer) send({ kind: 'keep', prompt: pick(frame.offered).id })
     else if (s.at === 'clue' && ours && writer) send(s.stopped ? { kind: 'done' } : { kind: 'stroke', points: letter() })
-    else if (s.at === 'clue' && ours && !writer && (pad?.[frame.turn][frame.row].strokes.length ?? 0) >= 2) send({ kind: 'stop' })
-    else if (s.at === 'guess' && ours && !writer && (s.holder === null || s.holder === id)) {
+    else if (s.at === 'clue' && ours && !writer) {
+      if (Math.random() < 0.3) tap(`row:${frame.turn}:${frame.row}`)
+      if ((pad?.[frame.turn][frame.row].strokes.length ?? 0) >= 2 && Math.random() < 0.5) send({ kind: 'stop' })
+    } else if (s.at === 'guess' && ours && !writer && (s.holder === null || s.holder === id)) {
       const row = pad?.[frame.turn][frame.row]
       if ((row?.strokes.length ?? 0) >= 3) send({ kind: 'finishGuess' })
       else {
@@ -120,6 +165,7 @@ while (host.state()?.minigame?.phase === 'playing') {
       }
     } else if (s.at === 'judgeLetter' && ours && writer) send({ kind: 'judge', correct: Math.random() < 0.7 })
     else if (s.at === 'judgeWord' && ours && writer) send({ kind: 'verdict', win: Math.random() < 0.5 })
+    else if (!ours && !writer && Math.random() < 0.1) tap(`row:${frame.turn}:${frame.row}`)
   }
 }
 console.log('Game over:', JSON.stringify(host.state()?.minigame?.results))
