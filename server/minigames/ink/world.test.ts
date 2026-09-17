@@ -193,3 +193,133 @@ test('the prompt deck reshuffles the discard pile when it runs out', () => {
   act(w, 'sw', { kind: 'endClue' })
   assert.equal(w.hands.sun.length, 7)
 })
+
+function voteAll(w: InkWorld, choice: string) {
+  for (const g of w.roster[w.turn].guessers) act(w, g, { kind: 'vote', choice })
+}
+
+test('a guess is written letter by letter and judged by the writer', () => {
+  const w = started()
+  voteAll(w, 'guess')
+  assert.equal(w.pad.sun[0].kind, 'guess')
+  assert.equal(act(w, 's1', { kind: 'check' }).status, 'refused')
+  act(w, 's1', { kind: 'stroke', points: line })
+  assert.equal(act(w, 's2', { kind: 'stroke', points: line }).status, 'refused')
+  act(w, 's1', { kind: 'check' })
+  assert.equal(act(w, 'mw', { kind: 'judge', correct: true }).status, 'refused')
+  act(w, 'sw', { kind: 'judge', correct: true })
+  assert.deepEqual(w.step, { at: 'guess', holder: null })
+  act(w, 's2', { kind: 'stroke', points: line })
+  act(w, 's2', { kind: 'stroke', points: line })
+  assert.equal(act(w, 's2', { kind: 'finishGuess' }).status, 'refused')
+  act(w, 's2', { kind: 'check' })
+  act(w, 'sw', { kind: 'judge', correct: false })
+  assert.deepEqual(w.pad.sun[0].strikes, [[1, 2]])
+  assert.equal(w.turn, 'moon')
+})
+
+test('finishing a guess asks the writer for a verdict; win ends the game', () => {
+  const w = started()
+  voteAll(w, 'guess')
+  act(w, 's1', { kind: 'stroke', points: line })
+  act(w, 's1', { kind: 'check' })
+  act(w, 'sw', { kind: 'judge', correct: true })
+  act(w, 's1', { kind: 'finishGuess' })
+  assert.equal(w.pad.sun[0].ended, true)
+  assert.deepEqual(w.step, { at: 'judgeWord' })
+  act(w, 'sw', { kind: 'verdict', win: true })
+  assert.equal(inkFinished(w), true)
+  assert.deepEqual(inkResults(w).map((r) => r.playerId).sort(), ['s1', 's2', 'sw'])
+})
+
+test('not it ends the turn without ending the game', () => {
+  const w = started()
+  voteAll(w, 'guess')
+  act(w, 's1', { kind: 'stroke', points: line })
+  act(w, 's1', { kind: 'check' })
+  act(w, 'sw', { kind: 'judge', correct: true })
+  act(w, 's1', { kind: 'finishGuess' })
+  act(w, 'sw', { kind: 'verdict', win: false })
+  assert.equal(inkFinished(w), false)
+  assert.equal(w.turn, 'moon')
+})
+
+test('redraw replaces the hand once per team and keeps the turn', () => {
+  const w = started()
+  const before = [...w.hands.sun]
+  voteAll(w, 'redraw')
+  assert.deepEqual(w.step, { at: 'choose' })
+  assert.equal(w.hands.sun.length, 7)
+  assert.notDeepEqual(w.hands.sun, before)
+  assert.equal(act(w, 's1', { kind: 'vote', choice: 'redraw' }).status, 'refused')
+})
+
+/** Plays a sun clue with one stroke and no period, then passes moon's turn with a wrong guess letter. */
+function sunClueMoonMiss(w: InkWorld) {
+  askUntilClue(w, 'sun')
+  act(w, 'sw', { kind: 'stroke', points: line })
+  act(w, 's1', { kind: 'stop' })
+  act(w, 'sw', { kind: 'done' })
+  voteAll(w, 'guess')
+  act(w, 'm1', { kind: 'stroke', points: line })
+  act(w, 'm1', { kind: 'check' })
+  act(w, 'mw', { kind: 'judge', correct: false })
+}
+
+test('a turn starting on a peek row picks an unfinished clue and its writer adds one letter', () => {
+  const w = started()
+  sunClueMoonMiss(w) // sun row 1, moon row 1
+  sunClueMoonMiss(w) // sun row 2, moon row 2
+  assert.equal(w.turn, 'sun')
+  askUntilClue(w, 'sun')
+  act(w, 'sw', { kind: 'stroke', points: line })
+  act(w, 's1', { kind: 'stop' })
+  act(w, 'sw', { kind: 'done' }) // sun row 3; moon now starts on row 3, a peek row
+  assert.equal(w.turn, 'moon')
+  assert.equal(w.row, 2)
+  assert.deepEqual(w.step, { at: 'peekPick' })
+  assert.deepEqual(peekTargets(w), ['sun:0', 'sun:1', 'sun:2'])
+  assert.equal(act(w, 'm1', { kind: 'vote', choice: 'moon:0' }).status, 'refused')
+  act(w, 'm1', { kind: 'vote', choice: 'sun:1' })
+  assert.equal(w.step.at, 'peekWrite')
+  assert.equal(act(w, 'sw', { kind: 'done' }).status, 'refused')
+  act(w, 'sw', { kind: 'stroke', points: line })
+  assert.equal(w.pad.sun[1].strokes.at(-1)?.peek, true)
+  act(w, 'sw', { kind: 'done' })
+  assert.deepEqual(w.step, { at: 'choose' })
+  assert.equal(w.turn, 'moon')
+})
+
+test('a peek row with nothing to peek goes straight to choosing', () => {
+  const w = started()
+  for (let i = 0; i < 2; i++) {
+    voteAll(w, 'guess')
+    act(w, 's1', { kind: 'stroke', points: line })
+    act(w, 's1', { kind: 'check' })
+    act(w, 'sw', { kind: 'judge', correct: false })
+    voteAll(w, 'guess')
+    act(w, 'm1', { kind: 'stroke', points: line })
+    act(w, 'm1', { kind: 'check' })
+    act(w, 'mw', { kind: 'judge', correct: false })
+  }
+  voteAll(w, 'guess')
+  act(w, 's1', { kind: 'stroke', points: line })
+  act(w, 's1', { kind: 'check' })
+  act(w, 'sw', { kind: 'judge', correct: false })
+  assert.equal(w.row, 2)
+  assert.deepEqual(w.step, { at: 'choose' })
+})
+
+test('both teams lose when all sixteen rows fill', () => {
+  const w = started()
+  for (let i = 0; i < 16; i++) {
+    const team = w.turn
+    const g = w.roster[team].guessers[0]
+    voteAll(w, 'guess')
+    act(w, g, { kind: 'stroke', points: line })
+    act(w, g, { kind: 'check' })
+    act(w, w.roster[team].writer, { kind: 'judge', correct: false })
+  }
+  assert.deepEqual(w.step, { at: 'over', winner: null })
+  assert.deepEqual(inkResults(w), [])
+})
