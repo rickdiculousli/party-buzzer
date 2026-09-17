@@ -1601,7 +1601,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .ink-period { fill: var(--chalk); }
 
 .ink-canvas { overflow: visible; width: 100%; aspect-ratio: 5; background: var(--raise); border: 1px solid var(--tungsten); border-radius: var(--r-md); touch-action: none; display: block; }
-.ink-canvas.is-locked { border-color: var(--rule); }
 .ink-write__buttons, .ink-judge, .ink-offer { display: flex; flex-wrap: wrap; gap: var(--s2); }
 .ink-phone__secret { margin-left: auto; font: 700 var(--t-lg)/1 var(--display); color: var(--brass); }
 .ink-phone__status { margin: 0; color: var(--dim); }

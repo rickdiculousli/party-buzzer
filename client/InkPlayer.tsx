@@ -48,11 +48,7 @@ export function InkPlayer({ state, playerId, frame, now, send, touches }: Miniga
   const turnRow = row(ink.turn, ink.row)
   const kept = ink.kept && <p class="ink-phone__kept">Prompt: <strong>{ink.kept}</strong></p>
   const canvas = (team: InkTeamName, index: number, buttons: ComponentChildren) => <section class="ink-write">
-    <InkCanvas row={pad[team][index]} enabled send={(value) => input(value)} />
-    <div class="ink-write__buttons">
-      <button class="btn" disabled={!ink.canUndo} onClick={() => input({ kind: 'undo' })}>Undo last stroke</button>
-      {buttons}
-    </div>
+    <InkCanvas row={pad[team][index]} canUndo={ink.canUndo} send={(value) => input(value)}>{buttons}</InkCanvas>
   </section>
   const waiting = (text: string) => <p class="ink-phone__status">{text}</p>
 
