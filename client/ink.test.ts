@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { freshTouches, lobbyColumns, quantizePoint, stepLine, strokePath, teamCap, TOUCH_MS } from './ink.ts'
+import { DRAFT_MS, draftCanUndo, draftStroke, draftUndo, liveDraft, freshTouches, lobbyColumns, quantizePoint, stepLine, strokePath, teamCap, TOUCH_MS } from './ink.ts'
 import { newState } from '../server/state.ts'
 
 test('team capacity is half the room, rounded up', () => {
@@ -64,4 +64,29 @@ test('the game over line names a winner or says both teams lose', () => {
   const nameOf = () => '?'
   assert.equal(stepLine({ turn: 'sun', step: { at: 'over', winner: 'moon' } }, nameOf), 'Moon wins')
   assert.equal(stepLine({ turn: 'sun', step: { at: 'over', winner: null } }, nameOf), 'Both teams lose')
+})
+
+test('a draft keeps stroke then undo hidden until the server has processed both', () => {
+  const on = (x: number) => ({ points: [[x, 0]] as [number, number][], author: 'me' })
+  const server = { processed: 3, strokes: [on(0)] }
+  const drawn = draftStroke(null, server, on(1), 0)
+  assert.deepEqual(drawn.strokes, [on(0), on(1)])
+  assert.equal(draftCanUndo(drawn, false), true, 'undo is allowed before the server confirms')
+  const undone = draftUndo(drawn, server, 10)
+  assert.deepEqual(undone.strokes, [on(0)])
+  assert.equal(draftCanUndo(undone, true), false, 'one undo per stroke')
+
+  // The server has processed the stroke but not the undo: its row shows the stroke, the draft still hides it.
+  assert.equal(liveDraft(undone, 4, 20), undone)
+  // Both processed: the server row is the truth again.
+  assert.equal(liveDraft(undone, 5, 30), null)
+  assert.equal(draftCanUndo(liveDraft(undone, 5, 30), false), false)
+})
+
+test('an undo of a confirmed stroke hides it until processed, and stale drafts expire', () => {
+  const on = (x: number) => ({ points: [[x, 0]] as [number, number][], author: 'me' })
+  const undone = draftUndo(null, { processed: 7, strokes: [on(0), on(1)] }, 0)
+  assert.deepEqual(undone.strokes, [on(0)])
+  assert.equal(liveDraft(undone, 7, 100), undone)
+  assert.equal(liveDraft(undone, 7, DRAFT_MS), null, 'a server that never catches up stops being waited on')
 })

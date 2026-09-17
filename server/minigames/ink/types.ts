@@ -65,4 +65,6 @@ export type InkWorld = {
   undoable: { team: InkTeamName; row: number; player: PlayerId } | null
   /** Strokes in the guess row already judged. */
   checked: number
+  /** Stroke and undo inputs processed per player, accepted or not. Phones compare it with what they sent. */
+  inkOps: Record<PlayerId, number>
 }

@@ -166,6 +166,18 @@ test('only the latest stroke can be undone, once', () => {
   assert.equal(w.pad.sun[0].strokes.length, 1)
 })
 
+test('every stroke and undo counts as processed, refused or not', () => {
+  const w = started()
+  askUntilClue(w, 'sun')
+  act(w, 'sw', { kind: 'stroke', points: line })
+  act(w, 'sw', { kind: 'undo' })
+  act(w, 'sw', { kind: 'undo' })
+  act(w, 'sw', { kind: 'stroke', points: [[9, 9]] })
+  act(w, 'sw', { kind: 'endClue' })
+  assert.equal(w.inkOps.sw, 4)
+  assert.equal(w.inkOps.s1, undefined)
+})
+
 test('strokes are validated and rounded to three decimals', () => {
   const w = started()
   askUntilClue(w, 'sun')

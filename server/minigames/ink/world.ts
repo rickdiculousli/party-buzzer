@@ -51,7 +51,7 @@ export function createInkWorld(input: {
     padVersion: 0, sentVersion: -1, nextPadTick: 0,
     turn: 'sun', row: 0,
     step: { at: 'choosing' },
-    votes: [], voteSeq: 0, live: {}, undoable: null, checked: 0,
+    votes: [], voteSeq: 0, live: {}, undoable: null, checked: 0, inkOps: {},
   }
   for (const team of TEAMS) draw(w, team, HAND_SIZE)
   return w
@@ -205,6 +205,7 @@ function finishClue(w: InkWorld, ended: boolean): void {
 export function applyInk(w: InkWorld, playerId: PlayerId, input: InkInput): Outcome {
   const role = roleOf(w, playerId)
   if (!role) return NO
+  if (input.kind === 'stroke' || input.kind === 'undo') w.inkOps[playerId] = (w.inkOps[playerId] ?? 0) + 1
   const s = w.step
   const turnGuesser = role.role === 'guesser' && role.team === w.turn
   const turnWriter = role.role === 'writer' && role.team === w.turn

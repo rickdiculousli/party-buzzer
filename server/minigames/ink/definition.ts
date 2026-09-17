@@ -64,6 +64,7 @@ function personal(w: InkWorld, playerId: PlayerId): InkPrivate | null {
     wordCard: writer && s.at === 'choosing' ? w.wordCard : [],
     picks: writer && s.at === 'choosing' ? w.picks : {},
     canUndo: !!undo && !!target && undo.player === playerId && undo.team === target.team && undo.row === target.row,
+    inkOps: w.inkOps[playerId] ?? 0,
   }
 }
 

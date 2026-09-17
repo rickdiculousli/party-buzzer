@@ -1,4 +1,4 @@
-import { INK_REACH, type InkPoint, type InkStepView, type InkTeamName, type MinigameTouch, type State } from '../shared/protocol.ts'
+import { INK_REACH, type InkPoint, type InkStepView, type InkStrokeView, type InkTeamName, type MinigameTouch, type State } from '../shared/protocol.ts'
 
 export const TOUCH_MS = 600
 export const FORCE_MS = 2_000
@@ -55,3 +55,31 @@ export function stepLine(frame: { step: InkStepView; turn: InkTeamName }, nameOf
     case 'over': return s.winner ? `${TEAM_LABEL[s.winner]} wins` : 'Both teams lose'
   }
 }
+
+/** How long a phone trusts its own ink over a server that has stopped catching up. */
+export const DRAFT_MS = 5_000
+
+/**
+ * The row as this phone expects it once the server has processed every stroke
+ * and undo it sent. `sent` counts those inputs; the server reports how many it
+ * has processed, and the draft stands until that count catches up.
+ */
+export type InkDraft = { sent: number; strokes: InkStrokeView[]; lastOp: 'stroke' | 'undo'; at: number }
+
+export function liveDraft(draft: InkDraft | null, processed: number, now: number): InkDraft | null {
+  return draft && processed < draft.sent && now - draft.at < DRAFT_MS ? draft : null
+}
+
+export function draftStroke(draft: InkDraft | null, server: { processed: number; strokes: InkStrokeView[] }, stroke: InkStrokeView, now: number): InkDraft {
+  const base = draft ?? { sent: server.processed, strokes: server.strokes }
+  return { sent: base.sent + 1, strokes: [...base.strokes, stroke], lastOp: 'stroke', at: now }
+}
+
+export function draftUndo(draft: InkDraft | null, server: { processed: number; strokes: InkStrokeView[] }, now: number): InkDraft {
+  const base = draft ?? { sent: server.processed, strokes: server.strokes }
+  return { sent: base.sent + 1, strokes: base.strokes.slice(0, -1), lastOp: 'undo', at: now }
+}
+
+/** A draft allows undo only right after its own stroke; otherwise the server decides. */
+export const draftCanUndo = (draft: InkDraft | null, serverCanUndo: boolean) =>
+  draft ? draft.lastOp === 'stroke' : serverCanUndo

@@ -1,7 +1,10 @@
 import type { ComponentChildren } from 'preact'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import type { ClientMsg, InkPoint, InkRowView, InkTeamName, MinigameFrame, State } from '../shared/protocol.ts'
-import { FORCE_MS, ROW_ASPECT, TEAM_LABEL, TOUCH_MS, lobbyColumns, quantizePoint, strokePath, type TimedTouch } from './ink.ts'
+import {
+  DRAFT_MS, FORCE_MS, ROW_ASPECT, TEAM_LABEL, TOUCH_MS, draftCanUndo, draftStroke, draftUndo, liveDraft, lobbyColumns,
+  quantizePoint, strokePath, type InkDraft, type TimedTouch,
+} from './ink.ts'
 import { colorForPlayer } from './ui.ts'
 
 type InkFrame = Extract<MinigameFrame, { id: 'ink'; role: 'board' | 'player' }>
@@ -117,8 +120,7 @@ export function HoldButton({ label, onHeld }: { label: string; onHeld: () => voi
   >{label}</button>
 }
 
-/** `settled` strokes are sent and not yet on the pad; `extra` are still being drawn. */
-function RowInk({ row, settled, extra }: { row: InkRowView; settled?: InkPoint[][]; extra?: InkPoint[][] }) {
+function RowInk({ row, extra }: { row: InkRowView; extra?: InkPoint[][] }) {
   const struck = (i: number) => row.strikes.some(([from, to]) => i >= from && i <= to)
   return <>
     {row.strokes.map((stroke, i) => (
@@ -133,7 +135,6 @@ function RowInk({ row, settled, extra }: { row: InkRowView; settled?: InkPoint[]
       const last = Math.max(...row.strokes.flatMap((stroke) => stroke.points.map(([x]) => x)))
       return <circle cx={last * W + 10} cy={H * 0.85} r={3.5} class="ink-period" />
     })()}
-    {settled?.map((points, i) => <path key={`sent${i}`} d={strokePath(points, W, H)} class="ink-stroke" />)}
     {extra?.map((points, i) => <path key={`live${i}`} d={strokePath(points, W, H)} class="ink-stroke is-live" />)}
   </>
 }
@@ -173,15 +174,17 @@ export function InkPad({ state, frame, pad, touches, onTouch, peekRows, pickable
   </div>
 }
 
-const PENDING_MS = 3_000
-
 /**
  * Freehand capture over one row, with Undo last stroke ahead of `children`.
  * Strokes may start and run in the margin around the row. Sends the live
- * stroke every 50 ms and commits on lift.
+ * stroke every 50 ms and commits on lift. The phone shows its own draft of the
+ * row until the server has processed every stroke and undo it sent.
  */
-export function InkCanvas({ row, canUndo, send, children }: {
+export function InkCanvas({ row, author, processed, canUndo, send, children }: {
   row: InkRowView
+  author: string
+  /** Stroke and undo inputs the server has processed from this phone. */
+  processed: number
   /** The server's view: the player's latest stroke on this row can be undone. */
   canUndo: boolean
   send: (input: { kind: 'ink'; points: InkPoint[] } | { kind: 'stroke'; points: InkPoint[] } | { kind: 'undo' }) => void
@@ -189,23 +192,13 @@ export function InkCanvas({ row, canUndo, send, children }: {
 }) {
   const svg = useRef<SVGSVGElement>(null)
   const points = useRef<InkPoint[] | null>(null)
-  // Lifted strokes stay drawn until the pad shows them: each waits for the row
-  // to reach the length it will have once the server adds it, or gives up
-  // after a refusal-length wait.
-  const pending = useRef<{ points: InkPoint[]; expect: number; at: number }[]>([])
-  // An undo of a stroke already on the pad hides it until the pad drops it.
-  const retracted = useRef<{ length: number; at: number } | null>(null)
-  // One undo per stroke: locked after an undo until the next stroke lifts.
-  const undoLocked = useRef(false)
+  const draft = useRef<InkDraft | null>(null)
   const lastSent = useRef(0)
   const [, redraw] = useState(0)
-  const now = performance.now()
-  pending.current = pending.current.filter((stroke) => row.strokes.length < stroke.expect && now - stroke.at < PENDING_MS)
-  if (retracted.current && (row.strokes.length !== retracted.current.length || now - retracted.current.at >= PENDING_MS)) {
-    retracted.current = null
-  }
-  const shown = retracted.current ? { ...row, strokes: row.strokes.slice(0, -1) } : row
-  const undoable = !undoLocked.current && (pending.current.length > 0 || (canUndo && !retracted.current))
+  draft.current = liveDraft(draft.current, processed, performance.now())
+  const shown = draft.current ? { ...row, strokes: draft.current.strokes } : row
+  const undoable = draftCanUndo(draft.current, canUndo)
+  const server = { processed, strokes: row.strokes }
 
   // The screen matrix includes any CSS rotation of the writing view, so points
   // stay in row coordinates however the phone is held.
@@ -215,27 +208,23 @@ export function InkCanvas({ row, canUndo, send, children }: {
     const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse())
     return quantizePoint(point.x / W, point.y / H)
   }
-  const later = () => setTimeout(() => redraw((n) => n + 1), PENDING_MS)
+  const expire = () => setTimeout(() => redraw((n) => n + 1), DRAFT_MS)
   const finish = () => {
     const stroke = points.current
     points.current = null
     if (stroke?.length) {
       const committed = stroke.slice(0, 500)
-      pending.current.push({ points: committed, expect: row.strokes.length + pending.current.length + 1, at: performance.now() })
-      undoLocked.current = false
+      draft.current = draftStroke(draft.current, server, { points: committed, author }, performance.now())
       send({ kind: 'stroke', points: committed })
-      later()
+      expire()
     }
     redraw((n) => n + 1)
   }
   const undo = () => {
     if (!undoable) return
-    // The server applies the stroke and then this undo, in order.
-    if (pending.current.length > 0) pending.current.pop()
-    else retracted.current = { length: row.strokes.length, at: performance.now() }
-    undoLocked.current = true
+    draft.current = draftUndo(draft.current, server, performance.now())
     send({ kind: 'undo' })
-    later()
+    expire()
     redraw((n) => n + 1)
   }
   return <>
@@ -261,7 +250,7 @@ export function InkCanvas({ row, canUndo, send, children }: {
     >
       <svg ref={svg} class="ink-canvas" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
         <line x1="0" x2={W} y1={H * 0.8} y2={H * 0.8} class="ink-row__rule" />
-        <RowInk row={shown} settled={pending.current.map((stroke) => stroke.points)} extra={points.current ? [points.current] : []} />
+        <RowInk row={shown} extra={points.current ? [points.current] : []} />
       </svg>
     </div>
     <div class="ink-write__buttons">

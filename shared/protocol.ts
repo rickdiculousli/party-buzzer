@@ -433,6 +433,8 @@ export type InkPrivate = {
   wordCard: string[]
   picks: Partial<Record<InkTeamName, number>>
   canUndo: boolean
+  /** Stroke and undo inputs the server has processed from this player. */
+  inkOps: number
 }
 
 /**
