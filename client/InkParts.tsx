@@ -171,19 +171,23 @@ export function InkPad({ state, frame, pad, touches, onTouch, peekRows, pickable
   </div>
 }
 
-/** Freehand capture over one row. Sends the live stroke every 50 ms and commits on lift. */
+/**
+ * Freehand capture over one row. Strokes may start and run in the margin
+ * around the row. Sends the live stroke every 50 ms and commits on lift.
+ */
 export function InkCanvas({ row, enabled, send }: {
   row: InkRowView
   enabled: boolean
   send: (input: { kind: 'ink'; points: InkPoint[] } | { kind: 'stroke'; points: InkPoint[] }) => void
 }) {
+  const svg = useRef<SVGSVGElement>(null)
   const points = useRef<InkPoint[] | null>(null)
   const lastSent = useRef(0)
   const [, redraw] = useState(0)
   // The screen matrix includes any CSS rotation of the writing view, so points
   // stay in row coordinates however the phone is held.
   const at = (event: PointerEvent): InkPoint => {
-    const matrix = (event.currentTarget as SVGSVGElement).getScreenCTM()
+    const matrix = svg.current?.getScreenCTM()
     if (!matrix) return quantizePoint(0, 0)
     const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse())
     return quantizePoint(point.x / W, point.y / H)
@@ -194,10 +198,8 @@ export function InkCanvas({ row, enabled, send }: {
     if (stroke?.length) send({ kind: 'stroke', points: stroke.slice(0, 500) })
     redraw((n) => n + 1)
   }
-  return <svg
-    class={enabled ? 'ink-canvas' : 'ink-canvas is-locked'}
-    viewBox={`0 0 ${W} ${H}`}
-    preserveAspectRatio="none"
+  return <div
+    class="ink-canvas-area"
     onPointerDown={(event) => {
       if (!enabled) return
       ;(event.currentTarget as Element).setPointerCapture(event.pointerId)
@@ -217,7 +219,9 @@ export function InkCanvas({ row, enabled, send }: {
     onPointerUp={finish}
     onPointerCancel={finish}
   >
-    <line x1="0" x2={W} y1={H * 0.8} y2={H * 0.8} class="ink-row__rule" />
-    <RowInk row={row} extra={points.current ? [points.current] : []} />
-  </svg>
+    <svg ref={svg} class={enabled ? 'ink-canvas' : 'ink-canvas is-locked'} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
+      <line x1="0" x2={W} y1={H * 0.8} y2={H * 0.8} class="ink-row__rule" />
+      <RowInk row={row} extra={points.current ? [points.current] : []} />
+    </svg>
+  </div>
 }

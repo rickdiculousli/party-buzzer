@@ -1627,7 +1627,9 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 /* The writing view has to fit the phone's short side without scrolling. */
 .ink-phone--write { gap: var(--s2); padding: var(--s3) var(--s4); }
 .ink-phone--write .ink-phone__kept { font-size: var(--t-md); }
-.ink-phone--write .ink-write { display: grid; padding: var(--s3) var(--s5); gap: var(--s2); }
+.ink-phone--write .ink-write { display: grid; gap: var(--s2); }
+/* The margin around the row where a stroke may start or wander. */
+.ink-canvas-area { padding: var(--s4) var(--s6); touch-action: none; }
 /* Taps and long presses point at things; they never select text or open the callout. */
 .ink-phone, .ink-board { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
 .ink-ring { position: absolute; width: 2.5rem; height: 2.5rem; margin: -1.25rem 0 0 -1.25rem; border-radius: 50%; border: 3px solid var(--ring-color, var(--chalk)); opacity: var(--ring); transform: scale(calc(1.4 - var(--ring) * 0.4)); pointer-events: none; }
