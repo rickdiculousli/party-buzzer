@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { capturePreviews } from './capture.ts'
@@ -166,5 +166,25 @@ test('a rotated ink pad captures instead of stalling the readiness wait', async 
   const captures = await capturePreviews('http://127.0.0.1:4174', [note], dir)
   expect(captures['phone:ink-clue:ada']).toBe('phone-ink-clue-ada.png')
   expect(Date.now() - started).toBeLessThan(15_000)
+  await rm(dir, { recursive: true, force: true })
+})
+
+test('a located suggestion is outlined on the shot, an unlocatable one is not', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'review-capture-'))
+  const note = (id: string, targetId?: string) => ({
+    id, scenarioId: 'rebound', surface: 'phone' as const, playerId: 'ada',
+    text: id, status: 'open' as const, scroll: { x: 0, y: 0 },
+    bounds: { x: 0, y: 0, width: 0, height: 0 }, targetId,
+  })
+  const shot = async (targetId?: string) => {
+    const into = await mkdtemp(join(dir, 'shot-'))
+    const captures = await capturePreviews('http://127.0.0.1:4174', [note('one', targetId)], into)
+    expect(captures['phone:rebound:ada']).toBe('phone-rebound-ada.png')
+    return readFile(join(into, 'phone-rebound-ada.png'))
+  }
+  // An unknown id marks nothing, so its shot matches the plain one byte for byte.
+  const plain = await shot()
+  expect(await shot('phone:nothing-here')).toEqual(plain)
+  expect(await shot('phone:buzzer')).not.toEqual(plain)
   await rm(dir, { recursive: true, force: true })
 })

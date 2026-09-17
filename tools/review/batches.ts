@@ -30,7 +30,7 @@ function requestMarkdown(id: string, dir: string, input: BatchInput, captures: R
       '',
       `- Preview: ${note.surface} / ${note.scenarioId}${note.playerId ? ` / ${note.playerId}` : ''}`,
       `- Target: ${note.targetId ?? note.targetText ?? 'selected region'}`,
-      image ? `- Screenshot: ${resolve(join(dir, image))}` : '',
+      image ? `- Screenshot: ${resolve(join(dir, image))}${note.targetId ? ` (outlined and numbered ${index + 1})` : ''}` : '',
       '',
       note.text || '(No text supplied; inspect the selected target and screenshot.)',
     ].filter(Boolean).join('\n')
