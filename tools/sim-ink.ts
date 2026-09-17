@@ -21,16 +21,25 @@ const host = await connect(URL, 'host')
 const bots = new Map<string, { conn: Conn; seq: number }>()
 for (const name of Object.keys(TEAMS)) {
   const conn = await connect(URL, 'player', name, `sim-ink-${name}`)
-  bots.set(conn.playerId, { conn, seq: 1 })
+  // Sequence numbers start from the clock so a rerun never reuses remembered ones.
+  bots.set(conn.playerId, { conn, seq: Date.now() })
 }
 
 const stop = () => {
+  host.send({ t: 'host', action: { a: 'cancelMinigame' } })
   host.send({ t: 'host', action: { a: 'closeMinigame' } })
-  for (const bot of bots.values()) bot.conn.close()
-  host.close()
+  for (const bot of bots.values()) {
+    bot.conn.close()
+    host.send({ t: 'host', action: { a: 'kick', playerId: bot.conn.playerId } })
+  }
+  console.log('Game closed, bots removed.')
+  setTimeout(() => process.exit(0), 200)
 }
-process.on('SIGINT', () => { stop(); process.exit(0) })
+process.on('SIGINT', stop)
 
+// A game left over from an earlier run would refuse the prepare.
+host.send({ t: 'host', action: { a: 'cancelMinigame' } })
+host.send({ t: 'host', action: { a: 'closeMinigame' } })
 host.send({ t: 'host', action: { a: 'prepareMinigame', id: 'ink', options: {} } })
 await host.waitFor((s) => s.minigame?.id === 'ink' && s.minigame.phase === 'ready')
 for (const bot of bots.values()) {
@@ -54,7 +63,7 @@ while (host.state()?.minigame?.phase === 'playing') {
   for (const [id, bot] of bots) {
     const frame = bot.conn.frame()
     if (frame?.role !== 'player' || frame.id !== 'ink' || frame.matchId !== matchId) continue
-    const send = (input: Omit<InkInput, 'at'> & { kind: string }) =>
+    const send = (input: { kind: string } & Record<string, unknown>) =>
       bot.conn.send({ t: 'minigameInput', matchId, seq: bot.seq++, input: { ...input, at: bot.conn.now() } as InkInput })
     const s = frame.step
     const ours = frame.me.team === frame.turn

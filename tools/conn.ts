@@ -85,7 +85,15 @@ export async function connect(
       for (let i = waiters.length - 1; i >= 0; i--) {
         if (waiters[i].pred(msg.state)) waiters.splice(i, 1)[0].resolve(msg.state)
       }
-    } else if (msg.t === 'minigameFrame') frame = msg.frame
+    } else if (msg.t === 'minigameFrame') {
+      const prev = frame
+      frame = msg.frame
+      // Ink frames carry the full pad only when it changed; later frames keep the last one.
+      if (
+        frame.id === 'ink' && frame.role !== 'spectator' && !frame.pad &&
+        prev?.id === 'ink' && prev.role !== 'spectator' && prev.matchId === frame.matchId
+      ) frame = { ...frame, pad: prev.pad }
+    }
   }
 
   const send = (msg: ClientMsg) => ws.send(JSON.stringify(msg))
