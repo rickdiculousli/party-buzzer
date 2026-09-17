@@ -53,13 +53,13 @@ UUID, cwd, batch ID, and absolute request path. `run` is an injected process
 runner accepting executable, argument array, and cwd. It rejects nonzero exit,
 spawn failure, and timeout distinctly. It never retries internally.
 
-- [ ] Inspect `codex --version` and `codex queue --help` again. Match the installed
+- [x] Inspect `codex --version` and `codex queue --help` again. Match the installed
   command contract; the planning observation was version 0.154.0.
-- [ ] Add a runner-fake test that passes suggestion text containing backticks,
+- [x] Add a runner-fake test that passes suggestion text containing backticks,
   quotes, `$()`, and newlines. Assert the text is a single argument to `codex`,
   the thread UUID is exact, and the cwd is the requested repository.
-- [ ] Run `node --test tools/review.test.ts` and confirm the new test fails.
-- [ ] Implement the adapter with `execFile` or `spawn` without a shell:
+- [x] Run `node --test tools/review.test.ts` and confirm the new test fails.
+- [x] Implement the adapter with `execFile` or `spawn` without a shell:
 
   ```ts
   await run('codex', [
@@ -68,17 +68,32 @@ spawn failure, and timeout distinctly. It never retries internally.
   ], { cwd: input.cwd })
   ```
 
-- [ ] Add failure tests for missing binary, invalid thread, nonzero exit, and
+- [x] Add failure tests for missing binary, invalid thread, nonzero exit, and
   timeout; expose bounded diagnostic output without discarding the saved batch.
-- [ ] Ask the user to designate a disposable terminal conversation for the probe.
-  Send a harmless batch requiring only acknowledgment, once while idle and once
-  while busy. Check transcript placement, interruption/queue behavior, and receipt.
-- [ ] Test an unavailable designated session. Determine whether the CLI starts
+- [x] Send a harmless batch to the user-designated conversation while busy. Check
+  transcript placement, interruption/queue behavior, and receipt.
+- [ ] Send the same harmless acknowledgment probe while that conversation is idle.
+- [x] Test an unavailable designated session. Determine whether the CLI starts
   work for inactive threads; if it does, require an active-session preflight using
   supported session APIs before accepting Send. If that cannot be established,
   stop this milestone and report the limitation rather than substituting resume.
-- [ ] Record the observed contract here and rerun focused tests. Do not proceed
+- [x] Record the observed contract here and rerun focused tests. Do not proceed
   to UI integration until the active-conversation requirement is demonstrated.
+
+### Delivery observations, 2026-09-16
+
+- Local `codex-cli 0.154.0` accepts an exact thread UUID through `codex queue`.
+- A syntactically valid UUID with no rollout is rejected with a nonzero exit;
+  it does not create or resume a conversation.
+- A probe sent while the designated conversation was processing a turn returned
+  success and a queued-message UUID, then appeared as the next inbound message
+  after that turn. It did not interrupt the active response.
+- An unknown conversation is rejected instead of being created or resumed. The
+  intended target is the exact open conversation supplied by the user. A known
+  but closed conversation and delivery while an open conversation is idle were
+  not exercised; expose delivery as queued until the agent acknowledges it.
+- The CLI needs access to its local state database under `~/.codex`; a sandbox
+  that makes that database read-only fails before it reaches session lookup.
 
 ## Task 2: Extract controlled views and render fixed scenarios
 
