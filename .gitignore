@@ -28,3 +28,6 @@ server/play/play
 .claude/worktrees/
 .claude/settings.local.json
 trace.jsonl
+
+# Transcribed from owned Phantom Ink cards; personal use only.
+packs/phantom-ink.txt
