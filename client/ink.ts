@@ -1,4 +1,4 @@
-import type { InkPoint, InkStepView, InkTeamName, MinigameTouch, State } from '../shared/protocol.ts'
+import { INK_REACH, type InkPoint, type InkStepView, type InkTeamName, type MinigameTouch, type State } from '../shared/protocol.ts'
 
 export const TOUCH_MS = 600
 export const FORCE_MS = 2_000
@@ -31,7 +31,7 @@ export function strokePath(points: InkPoint[], width: number, height: number): s
 }
 
 export function quantizePoint(x: number, y: number): InkPoint {
-  const q = (n: number) => Math.round(Math.min(1, Math.max(0, n)) * 1000) / 1000
+  const q = (n: number) => Math.round(Math.min(INK_REACH.max, Math.max(INK_REACH.min, n)) * 1000) / 1000
   return [q(x), q(y)]
 }
 

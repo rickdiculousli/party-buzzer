@@ -66,7 +66,12 @@ Minigame id `ink`, display name "Phantom Ink".
 ## Ink
 
 - Freehand on a canvas with the row's aspect ratio; strokes are point lists in
-  row-normalized coordinates (0..1 each axis), quantized to 3 decimals.
+  row-normalized coordinates, quantized to 3 decimals. The row is 0..1 on each
+  axis; ink may run past it to -1..2, which the phone shows and the board
+  clips.
+- Every writing screen (clue, peek letter, guess) is sideways: the phone's left
+  edge is down, and the view follows autorotation to keep it there. All of that
+  screen's text turns with it.
 - Undo last stroke removes only the most recent stroke, once. After an undo,
   earlier strokes are locked; a new stroke becomes undoable. Writer and guess
   canvases share this rule.

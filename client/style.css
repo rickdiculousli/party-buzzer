@@ -1591,7 +1591,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .ink-row.is-won { border-color: var(--brass); }
 .ink-row__num { font: 600 var(--t-sm)/1 var(--mono); color: var(--dim); }
 .ink-row__eye { color: var(--cyan); margin-left: var(--s1); }
-.ink-row__svg { width: 100%; aspect-ratio: 5; display: block; }
+.ink-row__svg { overflow: hidden; width: 100%; aspect-ratio: 5; display: block; }
 .ink-row__rule { stroke: var(--rule); stroke-width: 1; }
 .ink-stroke { fill: none; stroke: var(--chalk); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
 .ink-stroke.is-peek { stroke: var(--cyan); }
@@ -1600,7 +1600,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .ink-strike { stroke: var(--tally); stroke-width: 4; }
 .ink-period { fill: var(--chalk); }
 
-.ink-canvas { width: 100%; aspect-ratio: 5; background: var(--raise); border: 1px solid var(--tungsten); border-radius: var(--r-md); touch-action: none; display: block; }
+.ink-canvas { overflow: visible; width: 100%; aspect-ratio: 5; background: var(--raise); border: 1px solid var(--tungsten); border-radius: var(--r-md); touch-action: none; display: block; }
 .ink-canvas.is-locked { border-color: var(--rule); }
 .ink-write__buttons, .ink-judge, .ink-offer { display: flex; flex-wrap: wrap; gap: var(--s2); }
 .ink-phone__secret { margin-left: auto; font: 700 var(--t-lg)/1 var(--display); color: var(--brass); }
@@ -1619,6 +1619,12 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .ink-stop { width: 100%; min-height: 6rem; font-size: var(--t-xl); }
 
 .ink-touchable { position: relative; }
+/* A view held in speaker-left landscape, whatever the screen's own orientation. */
+.sideways--cw, .sideways--ccw { position: fixed; top: 50%; left: 50%; width: 100dvh; height: 100dvw; min-height: 0; overflow: auto; }
+.sideways--cw { transform: translate(-50%, -50%) rotate(90deg); }
+.sideways--ccw { transform: translate(-50%, -50%) rotate(-90deg); }
+.sideways--half { transform: rotate(180deg); }
+.ink-phone--write .ink-write { padding: var(--s6) var(--s5); }
 /* Taps and long presses point at things; they never select text or open the callout. */
 .ink-phone, .ink-board { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
 .ink-ring { position: absolute; width: 2.5rem; height: 2.5rem; margin: -1.25rem 0 0 -1.25rem; border-radius: 50%; border: 3px solid var(--ring-color, var(--chalk)); opacity: var(--ring); transform: scale(calc(1.4 - var(--ring) * 0.4)); pointer-events: none; }

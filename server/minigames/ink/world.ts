@@ -1,4 +1,4 @@
-import type { InkInput, InkPoint, InkTeamName, MinigameLobby, MinigameResult, PlayerId } from '../../../shared/protocol.ts'
+import { INK_REACH, type InkInput, type InkPoint, type InkTeamName, type MinigameLobby, type MinigameResult, type PlayerId } from '../../../shared/protocol.ts'
 import type { InkCards } from './cards.ts'
 import {
   ASK_DRAW, HAND_SIZE, INK_ROWS, PEEK_ROWS, TEAMS,
@@ -175,7 +175,7 @@ function resolve(w: InkWorld, choice: string): void {
 
 export function validPoints(points: unknown): points is InkPoint[] {
   return Array.isArray(points) && points.length > 0 && points.length <= MAX_POINTS && points.every((p) =>
-    Array.isArray(p) && p.length === 2 && p.every((n) => typeof n === 'number' && n >= 0 && n <= 1))
+    Array.isArray(p) && p.length === 2 && p.every((n) => typeof n === 'number' && n >= INK_REACH.min && n <= INK_REACH.max))
 }
 
 const quantize = (points: InkPoint[]): InkPoint[] =>

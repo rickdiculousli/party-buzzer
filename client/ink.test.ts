@@ -35,9 +35,10 @@ test('stroke paths scale normalized points; a dot becomes a short segment', () =
   assert.equal(strokePath([[0.1, 0.5]], 100, 20), 'M10 10l0.01 0')
 })
 
-test('points clamp to the unit square and round to three decimals', () => {
-  assert.deepEqual(quantizePoint(-0.2, 0.12345), [0, 0.123])
-  assert.deepEqual(quantizePoint(1.5, 0.9996), [1, 1])
+test('points may run past the row, clamp to the reach and round to three decimals', () => {
+  assert.deepEqual(quantizePoint(-0.2, 0.12345), [-0.2, 0.123])
+  assert.deepEqual(quantizePoint(1.5, 0.9996), [1.5, 1])
+  assert.deepEqual(quantizePoint(-3, 9), [-1, 2])
 })
 
 test('touches expire after the fade', () => {

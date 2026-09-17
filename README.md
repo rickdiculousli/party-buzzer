@@ -104,7 +104,9 @@ Writers agree on the secret word from a shared word card. Guessers vote on
 every team choice (Ask or Guess, which two prompts, which clue to peek, Redraw
 hand); a choice applies when all of a team's Guessers agree, or when one of
 them holds Force for two seconds. Writers write freehand in the team's row and
-can undo only their latest stroke. Guessers tap Stop; the Writer finishes the
+can undo only their latest stroke. Writing screens are sideways: hold the
+phone with its left edge down (autorotation is fine). Ink may run past the
+writing box; the board clips it to the row. Guessers tap Stop; the Writer finishes the
 letter and taps Done, or taps End clue to add the period. A guess is written
 one letter at a time and the Writer marks each Correct letter or Wrong letter,
 then Win or Not it. While their team votes, a Guesser tapping an option (Ask,

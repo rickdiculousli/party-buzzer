@@ -4,6 +4,7 @@ import { INK_PEEK_ROWS } from '../shared/protocol.ts'
 import type { InkInput, InkTeamName, MinigameFrame } from '../shared/protocol.ts'
 import type { MinigamePlayerProps } from './minigames.tsx'
 import { TEAM_LABEL, stepLine } from './ink.ts'
+import { sidewaysClass, useSideways } from './useSideways.ts'
 import { HoldButton, InkCanvas, InkLobby, InkPad, InkRowSvg, Touchable, VotePips, useInkPad, useTouchClock } from './InkParts.tsx'
 
 type Frame = Extract<MinigameFrame, { id: 'ink'; role: 'player' }>
@@ -19,6 +20,7 @@ export function InkPlayer({ state, playerId, frame, now, send, touches }: Miniga
   // vote never carries into the next one.
   useEffect(() => { if (stepAt !== 'offer') setPicked([]) }, [stepAt])
   useTouchClock(touches)
+  const rotation = useSideways()
 
   if (session.phase === 'ready') return <main class="ink-phone"><InkLobby state={state} playerId={playerId} send={send} /></main>
   if (!ink || !pad) return <main class="ink-phone"><p class="muted">{frame?.role === 'spectator' ? 'Watching this game' : 'Starting…'}</p></main>
@@ -186,15 +188,29 @@ export function InkPlayer({ state, playerId, frame, now, send, touches }: Miniga
   }
 
   const focus = writer ? writerFocus() : guesserFocus()
-  // Another team's turn, or waiting on someone: show whose move it is and the row in play.
-  const idleRow = !focus && s.at !== 'choosing' && s.at !== 'over' ? turnRow : null
-
-  return <main class={`ink-phone ink-phone--${ink.me.team}`}>
+  const header = <>
     <header class="ink-phone__bar">
       <span class={`chip ink-turn ink-turn--${ink.me.team}`}>{TEAM_LABEL[ink.me.team]} · {writer ? 'Writer' : 'Guesser'}</span>
       {writer && ink.secret && <span class="ink-phone__secret">{ink.secret}</span>}
     </header>
     <p class="ink-phone__status">{stepLine(ink, nameOf)}</p>
+  </>
+  const writing =
+    (writer && ours && s.at === 'clue') ||
+    (s.at === 'peekWrite' && ink.roster[s.team].writer === playerId) ||
+    (!writer && ours && s.at === 'guess' && (s.holder === null || s.holder === playerId))
+  // Writing is always sideways with the phone's left edge down, following autorotation.
+  if (writing) {
+    return <main class={`ink-phone ink-phone--${ink.me.team} ink-phone--write ${sidewaysClass(rotation)}`}>
+      {header}
+      {focus}
+    </main>
+  }
+  // Another team's turn, or waiting on someone: show whose move it is and the row in play.
+  const idleRow = !focus && s.at !== 'choosing' && s.at !== 'over' ? turnRow : null
+
+  return <main class={`ink-phone ink-phone--${ink.me.team}`}>
+    {header}
 
     {s.at === 'over' && ink.secret && !writer && <p class="ink-phone__reveal">It was <strong>{ink.secret}</strong></p>}
     {focus}

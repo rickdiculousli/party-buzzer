@@ -247,6 +247,8 @@ export type InkTeamName = 'sun' | 'moon'
 
 /** 1-based rows with the peek mark. */
 export const INK_PEEK_ROWS: Record<InkTeamName, number[]> = { sun: [4, 6, 7], moon: [3, 5, 6] }
+/** Row-normalized stroke points may run past the row by this much; the board clips them. */
+export const INK_REACH = { min: -1, max: 2 }
 
 export type MinigameLobby = { teams: Record<PlayerId, InkTeamName>; volunteers: PlayerId[] }
 

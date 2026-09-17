@@ -169,7 +169,9 @@ test('only the latest stroke can be undone, once', () => {
 test('strokes are validated and rounded to three decimals', () => {
   const w = started()
   askUntilClue(w, 'sun')
-  assert.equal(act(w, 'sw', { kind: 'stroke', points: [[1.2, 0]] }).status, 'refused')
+  assert.equal(act(w, 'sw', { kind: 'stroke', points: [[2.5, 0]] }).status, 'refused')
+  assert.equal(act(w, 'sw', { kind: 'stroke', points: [[1.2, -0.4]] }).status, 'accepted', 'ink may run past the row')
+  act(w, 'sw', { kind: 'undo' })
   assert.equal(act(w, 'sw', { kind: 'stroke', points: [] }).status, 'refused')
   act(w, 'sw', { kind: 'stroke', points: [[0.12345, 0.98765]] })
   assert.deepEqual(w.pad.sun[0].strokes[0].points, [[0.123, 0.988]])

@@ -180,9 +180,13 @@ export function InkCanvas({ row, enabled, send }: {
   const points = useRef<InkPoint[] | null>(null)
   const lastSent = useRef(0)
   const [, redraw] = useState(0)
+  // The screen matrix includes any CSS rotation of the writing view, so points
+  // stay in row coordinates however the phone is held.
   const at = (event: PointerEvent): InkPoint => {
-    const box = (event.currentTarget as Element).getBoundingClientRect()
-    return quantizePoint((event.clientX - box.left) / box.width, (event.clientY - box.top) / box.height)
+    const matrix = (event.currentTarget as SVGSVGElement).getScreenCTM()
+    if (!matrix) return quantizePoint(0, 0)
+    const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse())
+    return quantizePoint(point.x / W, point.y / H)
   }
   const finish = () => {
     const stroke = points.current

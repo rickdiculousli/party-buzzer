@@ -3,22 +3,14 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import type { TankFrameWeapon, TankInput } from '../shared/protocol.ts'
 import { nextBowSequence } from './bow-control.ts'
 import type { MinigamePlayerProps } from './minigames.tsx'
+import { useSideways } from './useSideways.ts'
 import {
-  lengthwiseTilt, reloadProgress, tankViewRotation, tiltIndicatorFeedback, tiltTurnRate,
+  lengthwiseTilt, reloadProgress, tiltIndicatorFeedback, tiltTurnRate,
   wheelTurns, type TankViewRotation,
 } from './tank-control.ts'
 
 type MotionState = 'checking' | 'needs-permission' | 'ready' | 'denied' | 'unavailable'
 const CRANK_SPOKES = [0, 60, 120, 180, 240, 300]
-
-function screenAngle(): number {
-  if (typeof screen.orientation?.angle === 'number') return screen.orientation.angle
-  return (window as Window & { orientation?: number }).orientation ?? 0
-}
-
-function currentViewRotation(): TankViewRotation {
-  return tankViewRotation(screenAngle(), window.innerWidth >= window.innerHeight)
-}
 
 function TiltMeter({ tilt }: { tilt: number | null }) {
   const feedback = tiltIndicatorFeedback(tilt)
@@ -145,20 +137,9 @@ export function TankPlayer({ state, playerId, frame, now, send }: MinigamePlayer
 
   const [motion, setMotion] = useState<MotionState>('checking')
   const [shownTilt, setShownTilt] = useState<number | null>(null)
-  const [viewRotation, setViewRotation] = useState(currentViewRotation)
+  const viewRotation = useSideways()
   const tilt = useRef<number | null>(null)
   const shownDegrees = useRef<number | null>(null)
-  useEffect(() => {
-    const update = () => setViewRotation(currentViewRotation())
-    window.addEventListener('resize', update)
-    window.addEventListener('orientationchange', update)
-    screen.orientation?.addEventListener('change', update)
-    return () => {
-      window.removeEventListener('resize', update)
-      window.removeEventListener('orientationchange', update)
-      screen.orientation?.removeEventListener('change', update)
-    }
-  }, [])
   useEffect(() => {
     if (!driver) return
     if (typeof DeviceOrientationEvent === 'undefined') {
