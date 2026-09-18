@@ -5,7 +5,7 @@
  */
 import { Fragment } from 'preact'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
-import { BURST_COUNT, countAt, glitchCut, particles, words, type BurstKind } from './fx.ts'
+import { BURST_COUNT, countAt, flashTimes, glitchCut, particles, words, type BurstKind } from './fx.ts'
 import { parseTune } from './sound.ts'
 
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -94,14 +94,17 @@ export function Burst({ kind, glyph, count }: { kind: BurstKind; glyph?: string;
 /**
  * Text that glitches in hits: a burst of cyan, magenta and yellow copies
  * flickering through quadrant windows while a band of the letters tears, then
- * a breather, then the next. Every pass of a burst gets a new cut and each breather a
- * length within ±50% of `--fx-glitch-rest`, so no two hits look or land alike.
+ * a breather, then the next. Every pass of a burst gets a new cut and each
+ * breather a length within ±20% of `--fx-glitch-rest`, so no two hits look or
+ * land alike. Single flashes land in each breather, bunched toward its ends,
+ * so the glitch wanes and waxes rather than switching off and on.
  * To stop it, render the plain text instead. Under reduced motion it stays
  * still.
  */
 export function Glitch({ text, class: cls = '' }: { text: string; class?: string }) {
   const root = useRef<HTMLSpanElement>(null)
-  const rest = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([])
+  const later = (fn: () => void, ms: number) => void timers.current.push(setTimeout(fn, ms))
 
   // A new cut: windows, shoves, band, and which repeats show. A new hit also
   // draws its length; a new pass inside a hit keeps the one it has.
@@ -111,12 +114,24 @@ export function Glitch({ text, class: cls = '' }: { text: string; class?: string
   const hit = () => {
     const el = root.current
     if (!el || reduced()) return
+    timers.current = []
+    el.classList.remove('is-flash')
     recut(el, false)
     el.classList.add('is-live')
   }
+  // One beat of glitch inside a breather. The class comes off and back on
+  // across a reflow so a flash restarts even straight after the last one.
+  const flash = () => {
+    const el = root.current
+    if (!el) return
+    recut(el, false)
+    el.classList.remove('is-flash')
+    void el.offsetWidth
+    el.classList.add('is-flash')
+  }
   useLayoutEffect(() => {
     hit()
-    return () => clearTimeout(rest.current)
+    return () => timers.current.forEach(clearTimeout)
   }, [])
 
   return (
@@ -133,8 +148,9 @@ export function Glitch({ text, class: cls = '' }: { text: string; class?: string
         const el = root.current
         if (!el || !(e.target as Element).classList.contains('fx-glitch__base')) return
         el.classList.remove('is-live')
-        const ms = parseTune(getComputedStyle(el).getPropertyValue('--fx-glitch-rest'), 1200)
-        rest.current = setTimeout(hit, ms * (0.5 + Math.random()))
+        const ms = parseTune(getComputedStyle(el).getPropertyValue('--fx-glitch-rest'), 2500) * (0.8 + Math.random() * 0.4)
+        for (const at of flashTimes(ms)) later(flash, at)
+        later(hit, ms)
       }}
     >
       <span class="fx-glitch__base">{text}</span>

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { BURST_COUNT, countAt, glitchCut, graphemes, particles, words, type BurstKind } from './fx.ts'
+import { BURST_COUNT, countAt, flashTimes, glitchCut, graphemes, particles, words, type BurstKind } from './fx.ts'
 
 /** A deterministic stand-in for Math.random. */
 function seeded(seed = 1) {
@@ -97,4 +97,21 @@ test('glitchCut runs each hit one to three bursts long', () => {
     const reps = Number(glitchCut(seeded(s))['--g-reps'])
     assert.ok(reps >= 1 && reps <= 3, `reps ${reps}`)
   }
+})
+
+test('flashTimes lands one to four flashes inside the breather, in order', () => {
+  for (let s = 1; s < 40; s++) {
+    const t = flashTimes(2500, seeded(s))
+    assert.ok(t.length >= 1 && t.length <= 4, `${t.length} flashes`)
+    assert.deepEqual(t, [...t].sort((a, b) => a - b))
+    for (const ms of t) assert.ok(ms > 0 && ms < 2500, `flash at ${ms}`)
+  }
+})
+
+test('flashTimes bunches toward both ends of the breather', () => {
+  let ends = 0
+  let middle = 0
+  for (let s = 1; s < 200; s++)
+    for (const ms of flashTimes(3000, seeded(s))) ms > 1000 && ms < 2000 ? middle++ : ends++
+  assert.ok(ends > middle * 2, `${ends} at the ends, ${middle} in the middle`)
 })

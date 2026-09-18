@@ -121,3 +121,16 @@ export function glitchCut(rand: () => number = Math.random): Record<string, stri
   out['--g-reps'] = r(1, 3).toFixed(2)
   return out
 }
+
+/**
+ * When a breather's single glitch flashes land, in ms from its start: one to
+ * four, bunched toward both ends, so the glitch wanes out of one hit and waxes
+ * into the next rather than switching off and on.
+ */
+export function flashTimes(rest: number, rand: () => number = Math.random): number[] {
+  const n = 1 + Math.floor(rand() * 4)
+  return Array.from({ length: n }, () => {
+    const edge = rand() ** 2 * 0.45
+    return Math.round(rest * (rand() < 0.5 ? 0.05 + edge : 0.95 - edge))
+  }).sort((a, b) => a - b)
+}
