@@ -356,7 +356,7 @@ const FX: Scenario[] = [
   fx('Text', 'jitter', 'Jitter', 'fx-jitter on <Letters> — nervous letters. Amount is the twitch.', [ms('--fx-jitter-dur', 4000), amount('--fx-jitter-amp', 0, 0.05, 0.001, 'em')], 'class', letters('Ada wins')),
   fx('Text', 'type', 'Type', 'fx-type on <Letters> — types itself out.', [ms('--fx-type-dur', 300, 'Per letter')], 'enter', letters('Ada wins the round')),
   fx('Text', 'shine', 'Shine', 'fx-shine — a highlight sweeps across.', [ms('--fx-shine-dur', 6000)], 'class', word('Winner')),
-  fx('Text', 'glitch', 'Glitch', '<Glitch text> — CMY channels through quadrant windows, and a torn band. A new cut every burst. Amount is the shove.', [ms('--fx-glitch-dur', 6000), amount('--fx-glitch-amp', 0, 0.3, 0.01, 'em')], 'class', glitchWord),
+  fx('Text', 'glitch', 'Glitch', '<Glitch text> — CMY channels through quadrant windows, and a torn band. Bursts of stutter, then a breather; a new cut every burst. Amount is the shove.', [ms('--fx-glitch-dur', 1000, 'Burst'), ms('--fx-glitch-rest', 5000, 'Breather'), amount('--fx-glitch-amp', 0, 0.3, 0.01, 'em')], 'class', glitchWord),
   fx('Text', 'neon', 'Neon', 'fx-neon — flickers on and holds a glow.', [ms('--fx-neon-dur', 3000)], 'enter', word()),
   {
     id: 'fx-count',

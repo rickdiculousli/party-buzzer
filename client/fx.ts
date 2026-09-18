@@ -81,8 +81,8 @@ export function countAt(from: number, to: number, k: number): number {
 
 /**
  * Where a glitch cuts on one burst: for each colour channel (c, m, y) two
- * quadrant-ish windows with a sideways offset each, whether its second repeat
- * shows at all, and one horizontal band that tears. `<Glitch>` draws a fresh
+ * quadrant-ish windows with a sideways offset each, whether its optional
+ * repeats show at all, and one horizontal band that tears. `<Glitch>` draws a fresh
  * set every burst, so no two look alike. Offsets are fractions of the amount.
  */
 const QUADRANTS = [
@@ -110,6 +110,7 @@ export function glitchCut(rand: () => number = Math.random): Record<string, stri
     out[`--g${layer}-x1`] = shove()
     out[`--g${layer}-x2`] = shove()
     out[`--g${layer}-o2`] = rand() < 0.65 ? '1' : '0'
+    out[`--g${layer}-o3`] = rand() < 0.5 ? '1' : '0'
   }
   const top = Math.round(r(15, 70))
   out['--gt-top'] = `${top}%`

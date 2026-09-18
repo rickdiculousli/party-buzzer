@@ -75,6 +75,7 @@ test('glitchCut offsets stay within one amount and repeats are on or off', () =>
   for (const layer of ['c', 'm', 'y']) {
     for (const x of ['x1', 'x2']) assert.ok(Math.abs(Number(cut[`--g${layer}-${x}`])) <= 1)
     assert.match(cut[`--g${layer}-o2`], /^[01]$/)
+    assert.match(cut[`--g${layer}-o3`], /^[01]$/)
   }
 })
 

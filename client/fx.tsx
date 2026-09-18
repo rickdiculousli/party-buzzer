@@ -6,6 +6,7 @@
 import { Fragment } from 'preact'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { BURST_COUNT, countAt, glitchCut, particles, words, type BurstKind } from './fx.ts'
+import { parseTune } from './sound.ts'
 
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -91,25 +92,39 @@ export function Burst({ kind, glyph, count }: { kind: BurstKind; glyph?: string;
 }
 
 /**
- * Text that glitches: cyan, magenta and yellow copies flicker through
- * quadrant windows and a band of the letters tears sideways, in a short burst
- * each cycle. A new cut is drawn before the first burst and after every one,
- * so the bursts never repeat. To stop it, render the plain text instead.
+ * Text that glitches in hits: a burst of cyan, magenta and yellow copies
+ * flickering through quadrant windows while a band of the letters tears, then
+ * a breather, then the next. Each burst gets a new cut and each breather a
+ * length within ±30% of `--fx-glitch-rest`, so no two hits look or land alike.
+ * To stop it, render the plain text instead. Under reduced motion it stays
+ * still.
  */
 export function Glitch({ text, class: cls = '' }: { text: string; class?: string }) {
   const root = useRef<HTMLSpanElement>(null)
-  const recut = () => {
-    for (const [k, v] of Object.entries(glitchCut())) root.current?.style.setProperty(k, v)
+  const rest = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  const hit = () => {
+    const el = root.current
+    if (!el || reduced()) return
+    for (const [k, v] of Object.entries(glitchCut())) el.style.setProperty(k, v)
+    el.classList.add('is-live')
   }
-  useLayoutEffect(recut, [])
+  useLayoutEffect(() => {
+    hit()
+    return () => clearTimeout(rest.current)
+  }, [])
+
   return (
     <span
       ref={root}
       class={`fx-glitch ${cls}`}
-      // One cycle, one recut: every layer reports its own iteration, so only
-      // the base's counts.
-      onAnimationIteration={(e) => {
-        if ((e.target as Element).classList.contains('fx-glitch__base')) recut()
+      // Every layer reports its own end; the base's is the burst's.
+      onAnimationEnd={(e) => {
+        const el = root.current
+        if (!el || !(e.target as Element).classList.contains('fx-glitch__base')) return
+        el.classList.remove('is-live')
+        const ms = parseTune(getComputedStyle(el).getPropertyValue('--fx-glitch-rest'), 1200)
+        rest.current = setTimeout(hit, ms * (0.7 + Math.random() * 0.6))
       }}
     >
       <span class="fx-glitch__base">{text}</span>
