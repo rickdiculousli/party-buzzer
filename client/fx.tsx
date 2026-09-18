@@ -94,7 +94,7 @@ export function Burst({ kind, glyph, count }: { kind: BurstKind; glyph?: string;
 /**
  * Text that glitches in hits: a burst of cyan, magenta and yellow copies
  * flickering through quadrant windows while a band of the letters tears, then
- * a breather, then the next. Each burst gets a new cut and each breather a
+ * a breather, then the next. Every pass of a burst gets a new cut and each breather a
  * length within ±50% of `--fx-glitch-rest`, so no two hits look or land alike.
  * To stop it, render the plain text instead. Under reduced motion it stays
  * still.
@@ -103,10 +103,15 @@ export function Glitch({ text, class: cls = '' }: { text: string; class?: string
   const root = useRef<HTMLSpanElement>(null)
   const rest = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
+  // A new cut: windows, shoves, band, and which repeats show. A new hit also
+  // draws its length; a new pass inside a hit keeps the one it has.
+  const recut = (el: HTMLElement, pass: boolean) => {
+    for (const [k, v] of Object.entries(glitchCut())) if (!(pass && k === '--g-reps')) el.style.setProperty(k, v)
+  }
   const hit = () => {
     const el = root.current
     if (!el || reduced()) return
-    for (const [k, v] of Object.entries(glitchCut())) el.style.setProperty(k, v)
+    recut(el, false)
     el.classList.add('is-live')
   }
   useLayoutEffect(() => {
@@ -118,7 +123,12 @@ export function Glitch({ text, class: cls = '' }: { text: string; class?: string
     <span
       ref={root}
       class={`fx-glitch ${cls}`}
-      // Every layer reports its own end; the base's is the burst's.
+      // Every layer reports its own passes and end; the base's are the hit's.
+      // Each pass inside a hit gets a fresh cut, so a long hit never repeats.
+      onAnimationIteration={(e) => {
+        const el = root.current
+        if (el && (e.target as Element).classList.contains('fx-glitch__base')) recut(el, true)
+      }}
       onAnimationEnd={(e) => {
         const el = root.current
         if (!el || !(e.target as Element).classList.contains('fx-glitch__base')) return

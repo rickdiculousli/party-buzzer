@@ -1812,8 +1812,10 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .fx-glitch__base { display: inline-block; }
 /* A hit runs the burst 1–3 times over (`--g-reps`, drawn per hit), so hits
-   come long and short while the stutter keeps its pace. */
-.fx-glitch.is-live > .fx-glitch__base { animation: fx-glitch-hole var(--_d) steps(1) var(--g-reps, 1); }
+   come long and short while the stutter keeps its pace. Alternate passes run
+   the stutters backwards, and <Glitch> recuts on every pass, so no pass
+   repeats the one before in timing or place. */
+.fx-glitch.is-live > .fx-glitch__base { animation: fx-glitch-hole var(--_d) steps(1) var(--g-reps, 1) alternate; }
 .fx-glitch__layer {
   position: absolute;
   inset: 0;
@@ -1825,24 +1827,24 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   --k1: var(--gc-k1); --k2: var(--gc-k2); --x1: var(--gc-x1); --x2: var(--gc-x2); --o2: var(--gc-o2); --o3: var(--gc-o3);
   color: var(--_cyan);
 }
-.fx-glitch.is-live > .fx-glitch__c { animation: fx-glitch-a var(--_d) steps(1) var(--g-reps, 1); }
+.fx-glitch.is-live > .fx-glitch__c { animation: fx-glitch-a var(--_d) steps(1) var(--g-reps, 1) alternate; }
 .fx-glitch__m {
   --k1: var(--gm-k1); --k2: var(--gm-k2); --x1: var(--gm-x1); --x2: var(--gm-x2); --o2: var(--gm-o2); --o3: var(--gm-o3);
   color: var(--_magenta);
 }
-.fx-glitch.is-live > .fx-glitch__m { animation: fx-glitch-b var(--_d) steps(1) var(--g-reps, 1); }
+.fx-glitch.is-live > .fx-glitch__m { animation: fx-glitch-b var(--_d) steps(1) var(--g-reps, 1) alternate; }
 .fx-glitch__y {
   --k1: var(--gy-k1); --k2: var(--gy-k2); --x1: var(--gy-x1); --x2: var(--gy-x2); --o2: var(--gy-o2); --o3: var(--gy-o3);
   color: var(--_yellow);
 }
-.fx-glitch.is-live > .fx-glitch__y { animation: fx-glitch-c var(--_d) steps(1) var(--g-reps, 1); }
+.fx-glitch.is-live > .fx-glitch__y { animation: fx-glitch-c var(--_d) steps(1) var(--g-reps, 1) alternate; }
 /* The torn band: the text's own colour, no blend, shoved further than the
    channels so it reads as the letters themselves breaking. */
 .fx-glitch__t {
   mix-blend-mode: normal;
   clip-path: inset(var(--gt-top) -20% calc(100% - var(--gt-bot)) -20%);
 }
-.fx-glitch.is-live > .fx-glitch__t { animation: fx-glitch-tear var(--_d) steps(1) var(--g-reps, 1); }
+.fx-glitch.is-live > .fx-glitch__t { animation: fx-glitch-tear var(--_d) steps(1) var(--g-reps, 1) alternate; }
 
 /* Three different stutters across the whole burst, so something is always
    happening until it ends. `--o2` and `--o3` switch repeats on or off per
