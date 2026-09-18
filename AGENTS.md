@@ -63,7 +63,9 @@ fetches. Certificate retrieval and DNS are infrastructure exceptions, not a
 pattern for fetching UI resources.
 
 Use the design tokens and existing components. For motion or sound changes,
-use `npm run motion` and its real-component scenarios. Audio tunables read the
+use `npm run motion` and its real-component scenarios. For interest and feedback
+motion, use the interest kit (`fx-*` classes and `client/fx.tsx`; design guide
+§4) before writing a new keyframe. Audio tunables read the
 scene's scope rather than always reading the document root. Keep CSS tunables,
 JavaScript defaults, and cue recipes consistent. Workbench save/adopt endpoints
 write source files; inspect their diff. Adopted audio belongs in

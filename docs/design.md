@@ -150,14 +150,129 @@ data rather than taste — it runs for whatever time is left before the buzzers
 open. `prefers-reduced-motion` is honoured globally in `tokens.css` — you don't
 have to handle it per component.
 
-Beyond that there are exactly five **anchors**: a mark landing on the timeline,
-the award, the leader's name, the buzzers opening, and your own press
-registering. They share `--slam`, an ease that spends nearly all its distance in
-the first few frames, because each one is a thing arriving rather than a thing
-moving. They live together under `MOTION` in `style.css`, all one-shot, all
-fired by an element mounting or a class arriving — no timers, no JS. Add a sixth
-only for a moment the room would otherwise miss; anything animated because it
-could be is what turns a studio floor into a screensaver.
+Six moments have their own hand-tuned motion, the **anchors**: a mark landing on
+the timeline, the award, the leader's name, the buzzers opening, your own press
+registering, and a vote landing. They share `--slam`, an ease that spends nearly
+all its distance in the first few frames, because each one is a thing arriving
+rather than a thing moving. They live under `MOTION` in `style.css`. Leave them
+as they are; everything else draws from the interest kit.
+
+### Interest kit
+
+Reusable effects for adding interest anywhere: entrances, exits, idle loops,
+hits, text effects, and particles. The classes live under `FX` in `style.css`;
+`<Letters>`, `<Burst>` and `<CountUp>` live in `client/fx.tsx`. Every effect has
+a scenario in the motion harness (`npm run motion`) to preview and tune it.
+
+**Rules**
+
+- One effect class per element. Each owns `animation` and `transform`, so nest
+  a wrapper to combine two. `fx-ripple` is the exception: it draws on `::after`.
+- Effects animate only `transform`, `opacity` and `filter` (`fx-shine` also
+  moves its background), so they never shift layout.
+- Particles never take taps.
+- One-shots finish in about 600ms or less; celebrations (`fx-tada`, confetti)
+  may run longer. Loops take at least 1.2s per cycle.
+- Measurements stay still: cyan readouts and timing numbers never get effects.
+- Colour: multicolour effects use the effect palette below; glows and sparks
+  stay tungsten, brass and hot. Use a player's `--id-*` colour only when the
+  effect is about that player (`--fx-color: var(--id-3)` on their name). Never
+  cyan.
+- Tune one element with `--fx-dur`, `--fx-amp` and `--fx-color`. Defaults live
+  in `anim:tunables`. An override also reaches effects nested inside it.
+- A one-shot replays when its class is removed and re-added, or when the element
+  remounts with a new `key`. An exit leaves the element invisible but in place;
+  unmount it on `animationend`.
+- Reduced motion is handled globally in `tokens.css`; `<Burst>` renders nothing
+  and `<CountUp>` shows its value at once.
+- Adding an effect: its rule under `FX`, its defaults in `anim:tunables`, its
+  scenario in `client/anim/scenarios.tsx`, and its row below.
+
+**Effect palette** — `--fx-1` … `--fx-8` in `tokens.css`: coral, orange,
+amber, olive, sage, periwinkle, lavender, rose. One shared lightness and a low
+chroma keep them matte, and each is mixed toward `--tungsten` so it sits under
+the same lamp as the set. Hues 180–230 are left out so cyan still only means a
+measurement. `--fx-light`, `--fx-chroma` and `--fx-tint` in `anim:tunables`
+move all eight; tune them in the harness's Palette scenario.
+
+**Entrances and exits** — once, on mount (exits on a class arriving).
+
+| Class | `--fx-amp` | Use for |
+|---|---|---|
+| `fx-fade` / `fx-fade--out` | — | Anything that should arrive quietly |
+| `fx-pop` | overshoot scale | Chips, badges, a new item |
+| `fx-drop` | fall distance | Something landing: a card dealt, a token placed |
+| `fx-rise` | distance | Text coming up into view |
+| `fx-slide` | distance; side from `--fx-from` (-1/1) | Rows joining a list |
+| `fx-flip` | — | A reveal: a card turning over |
+| `fx-zoom` | start scale | A title slamming in from the camera |
+| `fx-shrink` | — | Leaving quietly |
+| `fx-poof` | — | Leaving with a puff; pair with `<Burst kind="dust">` |
+
+**Idle loops** — while a state lasts.
+
+| Class | `--fx-amp` | Use for |
+|---|---|---|
+| `fx-bob` | height | Something waiting to be pressed |
+| `fx-float` | reach | Decorative idle drift |
+| `fx-breathe` | peak scale | A live control at rest |
+| `fx-heartbeat` | peak scale | Time running out |
+| `fx-sway` | angle | Something undecided |
+| `fx-wiggle` | angle | Asking for attention every few seconds |
+| `fx-glow-pulse` | glow radius; colour from `--fx-color` | Whose turn it is |
+| `fx-spin` | — | Waiting, loading |
+
+**Hits** — once, on an event.
+
+| Class | `--fx-amp` | Use for |
+|---|---|---|
+| `fx-shake` | distance | Wrong, refused, locked out |
+| `fx-squash` | squash | A press landing |
+| `fx-flash` | — | A value changing |
+| `fx-ripple` | end scale; colour from `--fx-color` | A tap, a ping |
+| `fx-nudge` | distance | A small acknowledgement |
+| `fx-wobble` | skew | A comic miss |
+| `fx-tada` | scale | A win |
+
+**Text** — per-letter classes go on `<Letters text="…" class="…">`.
+
+| Class | Per-letter | `--fx-amp` | Use for |
+|---|---|---|---|
+| `fx-wave` | yes | height | Celebrating a name |
+| `fx-rainbow` | yes | — | A winner's name, cycling the effect palette |
+| `fx-cascade` | yes | — | A title arriving |
+| `fx-jitter` | yes | twitch | Nerves, a close call |
+| `fx-type` | yes | — (`--fx-dur` is time per letter) | A line being typed out |
+| `fx-shine` | no | — | Brass and awards; not for emoji |
+| `fx-glitch` | no (needs `data-text`) | split | A steal, a bust |
+| `fx-neon` | no | — | A sign switching on |
+| `<CountUp to from ms>` | — | — | A score rolling up; never a measurement |
+
+`--fx-stagger` sets the delay between letters for `fx-wave` and `fx-cascade`.
+`fx-rainbow` always puts each letter one palette step behind the last.
+
+**Particles** — `<Burst kind glyph count>` inside an element with `fx-anchor`.
+
+| Kind | Looks like | Use for |
+|---|---|---|
+| `sparkle` | warm glints around the element | Something good appearing |
+| `dust` | grey puffs to either side | Landing, leaving |
+| `confetti` | effect-palette pieces, thrown and falling | A win |
+| `embers` | sparks drifting up | Heat, a streak |
+| `stars` | brass stars flung out | Points, a bonus |
+| `emoji` | any `glyph` flung up | Reactions |
+
+Put the burst inside the element it celebrates. It sizes itself from that
+element's font, so a burst on a hero name is hero-sized and one on a chip is
+chip-sized. For an exit, put it beside the leaving element rather than inside,
+or it shrinks away with it.
+
+```tsx
+<p class="board__hero fx-anchor">
+  {name}
+  <Burst key={round.id} kind="confetti" />
+</p>
+```
 
 ---
 
