@@ -4,8 +4,8 @@
  * full catalogue: docs/design.md §4 "Interest kit".
  */
 import { Fragment } from 'preact'
-import { useEffect, useRef, useState } from 'preact/hooks'
-import { BURST_COUNT, countAt, particles, words, type BurstKind } from './fx.ts'
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
+import { BURST_COUNT, countAt, glitchCut, particles, words, type BurstKind } from './fx.ts'
 
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -86,6 +86,37 @@ export function Burst({ kind, glyph, count }: { kind: BurstKind; glyph?: string;
           {p.glyph}
         </i>
       ))}
+    </span>
+  )
+}
+
+/**
+ * Text that glitches: cyan, magenta and yellow copies flicker through
+ * quadrant windows and a band of the letters tears sideways, in a short burst
+ * each cycle. A new cut is drawn before the first burst and after every one,
+ * so the bursts never repeat. To stop it, render the plain text instead.
+ */
+export function Glitch({ text, class: cls = '' }: { text: string; class?: string }) {
+  const root = useRef<HTMLSpanElement>(null)
+  const recut = () => {
+    for (const [k, v] of Object.entries(glitchCut())) root.current?.style.setProperty(k, v)
+  }
+  useLayoutEffect(recut, [])
+  return (
+    <span
+      ref={root}
+      class={`fx-glitch ${cls}`}
+      // One cycle, one recut: every layer reports its own iteration, so only
+      // the base's counts.
+      onAnimationIteration={(e) => {
+        if ((e.target as Element).classList.contains('fx-glitch__base')) recut()
+      }}
+    >
+      <span class="fx-glitch__base">{text}</span>
+      <span class="fx-glitch__layer fx-glitch__c" aria-hidden="true">{text}</span>
+      <span class="fx-glitch__layer fx-glitch__m" aria-hidden="true">{text}</span>
+      <span class="fx-glitch__layer fx-glitch__y" aria-hidden="true">{text}</span>
+      <span class="fx-glitch__layer fx-glitch__t" aria-hidden="true">{text}</span>
     </span>
   )
 }

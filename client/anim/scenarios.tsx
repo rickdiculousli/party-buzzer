@@ -26,7 +26,7 @@ import type { Cue } from '../sound.ts'
 import { NUMERIC, type NumericField } from '../cues.ts'
 import { Votes } from '../Votes.tsx'
 import { Spoken } from '../Spoken.tsx'
-import { Burst, CountUp, Letters } from '../fx.tsx'
+import { Burst, CountUp, Glitch, Letters } from '../fx.tsx'
 import type { Recipe } from '../synth.ts'
 
 /**
@@ -222,7 +222,7 @@ const BURST_DIALS = [ms('--fx-burst-dur', 3000), amount('--fx-burst-amp', 0, 12,
 
 type El = (cls: string) => preact.JSX.Element
 const word = (text = 'Ada'): El => (cls) => <p class={`fx-demo ${cls}`}>{text}</p>
-const glitchWord: El = (cls) => <p class={`fx-demo ${cls}`} data-text="Ada">Ada</p>
+const glitchWord: El = (cls) => <p class="fx-demo">{cls ? <Glitch text="Ada" /> : 'Ada'}</p>
 const letters = (text: string): El => (cls) => (
   <p class="fx-demo">
     <Letters text={text} class={cls} />
@@ -353,10 +353,10 @@ const FX: Scenario[] = [
   fx('Text', 'wave', 'Wave', 'fx-wave on <Letters>. Amount is the height.', [ms('--fx-wave-dur', 4000), amount('--fx-wave-amp', 0, 1, 0.01, 'em'), STAGGER], 'class', letters('Ada wins')),
   fx('Text', 'rainbow', 'Rainbow', 'fx-rainbow on <Letters> — cycles the effect palette.', [ms('--fx-rainbow-dur', 8000)], 'class', letters('Ada wins')),
   fx('Text', 'cascade', 'Cascade', 'fx-cascade on <Letters> — letters pop in one by one.', [ms('--fx-cascade-dur', 1000), STAGGER], 'enter', letters('Ada wins')),
-  fx('Text', 'jitter', 'Jitter', 'fx-jitter on <Letters> — nervous letters. Amount is the twitch.', [ms('--fx-jitter-dur', 4000), amount('--fx-jitter-amp', 0, 0.3, 0.01, 'em')], 'class', letters('Ada wins')),
+  fx('Text', 'jitter', 'Jitter', 'fx-jitter on <Letters> — nervous letters. Amount is the twitch.', [ms('--fx-jitter-dur', 4000), amount('--fx-jitter-amp', 0, 0.05, 0.001, 'em')], 'class', letters('Ada wins')),
   fx('Text', 'type', 'Type', 'fx-type on <Letters> — types itself out.', [ms('--fx-type-dur', 300, 'Per letter')], 'enter', letters('Ada wins the round')),
   fx('Text', 'shine', 'Shine', 'fx-shine — a highlight sweeps across.', [ms('--fx-shine-dur', 6000)], 'class', word('Winner')),
-  fx('Text', 'glitch', 'Glitch', 'fx-glitch — needs data-text. Amount is the split.', [ms('--fx-glitch-dur', 6000), amount('--fx-glitch-amp', 0, 0.3, 0.01, 'em')], 'class', glitchWord),
+  fx('Text', 'glitch', 'Glitch', '<Glitch text> — CMY channels through quadrant windows, and a torn band. A new cut every burst. Amount is the shove.', [ms('--fx-glitch-dur', 6000), amount('--fx-glitch-amp', 0, 0.3, 0.01, 'em')], 'class', glitchWord),
   fx('Text', 'neon', 'Neon', 'fx-neon — flickers on and holds a glow.', [ms('--fx-neon-dur', 3000)], 'enter', word()),
   {
     id: 'fx-count',

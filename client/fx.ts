@@ -78,3 +78,42 @@ export function countAt(from: number, to: number, k: number): number {
   const t = Math.min(1, Math.max(0, k))
   return Math.round(from + (to - from) * (1 - (1 - t) ** 3))
 }
+
+/**
+ * Where a glitch cuts on one burst: for each colour channel (c, m, y) two
+ * quadrant-ish windows with a sideways offset each, whether its second repeat
+ * shows at all, and one horizontal band that tears. `<Glitch>` draws a fresh
+ * set every burst, so no two look alike. Offsets are fractions of the amount.
+ */
+const QUADRANTS = [
+  [0, 50, 50, 0],
+  [0, 0, 50, 50],
+  [50, 50, 0, 0],
+  [50, 0, 0, 50],
+  [0, 0, 60, 0],
+  [55, 0, 0, 0],
+]
+
+export function glitchCut(rand: () => number = Math.random): Record<string, string> {
+  const r = (lo: number, hi: number) => lo + (hi - lo) * rand()
+  const nudge = () => Math.round(r(0, 15))
+  const window = () => {
+    const [t, rt, b, l] = QUADRANTS[Math.floor(rand() * QUADRANTS.length)]
+    return `inset(${t + nudge()}% ${rt + nudge()}% ${b + nudge()}% ${l + nudge()}%)`
+  }
+  // A real shove either way, never a near-zero one that reads as nothing.
+  const shove = () => ((rand() < 0.5 ? -1 : 1) * r(0.4, 1)).toFixed(2)
+  const out: Record<string, string> = {}
+  for (const layer of ['c', 'm', 'y']) {
+    out[`--g${layer}-k1`] = window()
+    out[`--g${layer}-k2`] = window()
+    out[`--g${layer}-x1`] = shove()
+    out[`--g${layer}-x2`] = shove()
+    out[`--g${layer}-o2`] = rand() < 0.65 ? '1' : '0'
+  }
+  const top = Math.round(r(15, 70))
+  out['--gt-top'] = `${top}%`
+  out['--gt-bot'] = `${top + Math.round(r(6, 14))}%`
+  out['--gt-x'] = shove()
+  return out
+}

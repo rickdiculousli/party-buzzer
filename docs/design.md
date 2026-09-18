@@ -161,7 +161,7 @@ as they are; everything else draws from the interest kit.
 
 Reusable effects for adding interest anywhere: entrances, exits, idle loops,
 hits, text effects, and particles. The classes live under `FX` in `style.css`;
-`<Letters>`, `<Burst>` and `<CountUp>` live in `client/fx.tsx`. Every effect has
+`<Letters>`, `<Burst>`, `<CountUp>` and `<Glitch>` live in `client/fx.tsx`. Every effect has
 a scenario in the motion harness (`npm run motion`) to preview and tune it.
 
 **Rules**
@@ -178,8 +178,9 @@ a scenario in the motion harness (`npm run motion`) to preview and tune it.
 - Colour: multicolour effects use the effect palette below; glows and sparks
   stay tungsten, brass and hot. Use a player's `--id-*` colour only when the
   effect is about that player (`--fx-color: var(--id-3)` on their name). Never
-  cyan, with one exception: `fx-glitch` uses pure cyan, magenta and yellow,
-  because a channel split only reads as one in the printer's primaries.
+  cyan, with one exception: `<Glitch>` uses pure cyan, magenta and yellow
+  (Display-P3 where the screen has it), because a channel split only reads as
+  one in the printer's primaries.
 - Tune one element with `--fx-dur`, `--fx-amp` and `--fx-color`. Defaults live
   in `anim:tunables`. An override also reaches effects nested inside it.
 - A one-shot replays when its class is removed and re-added, or when the element
@@ -246,7 +247,7 @@ move all eight; tune them in the harness's Palette scenario.
 | `fx-jitter` | yes | twitch | Nerves, a close call |
 | `fx-type` | yes | — (`--fx-dur` is time per letter) | A line being typed out |
 | `fx-shine` | no | — | Brass and awards; not for emoji |
-| `fx-glitch` | no (needs `data-text`) | split | A steal, a bust; pure cyan/magenta/yellow channel split |
+| `<Glitch text>` | no | shove | A steal, a bust: cyan/magenta/yellow channels flicker through quadrant windows and a band of the letters tears, with a new cut every burst |
 | `fx-neon` | no | — | A sign switching on |
 | `<CountUp to from ms>` | — | — | A score rolling up; never a measurement |
 

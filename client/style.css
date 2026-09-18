@@ -1264,7 +1264,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   --fx-rainbow-dur: 3000ms;
   --fx-cascade-dur: 260ms;
   --fx-jitter-dur: 320ms;
-  --fx-jitter-amp: 0.02em;
+  --fx-jitter-amp: 0.006em;
   --fx-type-dur: 45ms;
   --fx-shine-dur: 1800ms;
   --fx-glitch-dur: 1400ms;
@@ -1755,40 +1755,117 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 @keyframes fx-shine { 60%, 100% { background-position: 0 0; } }
 
-/* Needs `data-text` holding the same text: the split copies are drawn from it.
+/* <Glitch text> from fx.tsx: the text torn into its colour channels.
    Pure cyan, magenta and yellow on purpose, overriding the effect palette and
    the no-cyan rule: a glitch reads as a signal splitting into its channels,
-   and only the printer's primaries say that. Cyan and magenta are the two
-   copies, pulled apart in opposite directions; yellow is a shadow on the text
-   itself. All three fire on the same frames. */
+   and only the printer's primaries say that. Display-P3 where the screen has
+   it, which is past what sRGB can reach.
+
+   Each channel is a copy of the text that flickers on through a quadrant-ish
+   window, shoved sideways, a few times inside one short burst. The channels
+   keep their own irregular timing, so they never move as one. A band of the
+   text itself tears: the base loses the band and a copy of it slides across.
+   Every burst, <Glitch> redraws the windows, shoves, band, and which second
+   repeats show at all (glitchCut in fx.ts); the values below are the first
+   burst's, and what a page without that script would get. */
 .fx-glitch {
   --_d: var(--fx-dur, var(--fx-glitch-dur));
   --_a: var(--fx-amp, var(--fx-glitch-amp));
+  --_cyan: #0ff;
+  --_magenta: #f0f;
+  --_yellow: #ff0;
+  --gc-k1: inset(0% 50% 50% 0%);
+  --gc-k2: inset(55% 0% 0% 0%);
+  --gc-x1: -0.8;
+  --gc-x2: 0.6;
+  --gc-o2: 1;
+  --gm-k1: inset(50% 0% 0% 50%);
+  --gm-k2: inset(0% 0% 60% 0%);
+  --gm-x1: 0.9;
+  --gm-x2: -0.5;
+  --gm-o2: 1;
+  --gy-k1: inset(0% 0% 50% 50%);
+  --gy-k2: inset(50% 50% 0% 0%);
+  --gy-x1: 0.5;
+  --gy-x2: -0.7;
+  --gy-o2: 0;
+  --gt-top: 40%;
+  --gt-bot: 52%;
+  --gt-x: 0.8;
   position: relative;
-  animation: fx-glitch-yellow var(--_d) steps(1) infinite;
+  display: inline-block;
 }
-.fx-glitch::before,
-.fx-glitch::after {
-  content: attr(data-text);
+@supports (color: color(display-p3 0 1 1)) {
+  .fx-glitch {
+    --_cyan: color(display-p3 0 1 1);
+    --_magenta: color(display-p3 1 0 1);
+    --_yellow: color(display-p3 1 1 0);
+  }
+}
+.fx-glitch__base { display: inline-block; animation: fx-glitch-hole var(--_d) steps(1) infinite; }
+.fx-glitch__layer {
   position: absolute;
   inset: 0;
   opacity: 0;
-  text-shadow: none;
   mix-blend-mode: screen;
   pointer-events: none;
-  animation: fx-glitch var(--_d) steps(1) infinite;
 }
-.fx-glitch::before { --_s: -1; color: #0ff; }
-.fx-glitch::after { --_s: 1; color: #f0f; }
-@keyframes fx-glitch {
-  88% { opacity: 0.9; transform: translateX(calc(var(--_a) * var(--_s))); clip-path: inset(10% 0 55% 0); }
-  92% { opacity: 0.9; transform: translateX(calc(var(--_a) * var(--_s) * -1)); clip-path: inset(50% 0 15% 0); }
-  96% { opacity: 0; }
+.fx-glitch__c {
+  --k1: var(--gc-k1); --k2: var(--gc-k2); --x1: var(--gc-x1); --x2: var(--gc-x2); --o2: var(--gc-o2);
+  color: var(--_cyan);
+  animation: fx-glitch-a var(--_d) steps(1) infinite;
 }
-@keyframes fx-glitch-yellow {
-  88% { text-shadow: 0 calc(var(--_a) * 0.6) #ff0; }
-  92% { text-shadow: 0 calc(var(--_a) * -0.6) #ff0; }
-  96% { text-shadow: none; }
+.fx-glitch__m {
+  --k1: var(--gm-k1); --k2: var(--gm-k2); --x1: var(--gm-x1); --x2: var(--gm-x2); --o2: var(--gm-o2);
+  color: var(--_magenta);
+  animation: fx-glitch-b var(--_d) steps(1) infinite;
+}
+.fx-glitch__y {
+  --k1: var(--gy-k1); --k2: var(--gy-k2); --x1: var(--gy-x1); --x2: var(--gy-x2); --o2: var(--gy-o2);
+  color: var(--_yellow);
+  animation: fx-glitch-c var(--_d) steps(1) infinite;
+}
+/* The torn band: the text's own colour, no blend, shoved further than the
+   channels so it reads as the letters themselves breaking. */
+.fx-glitch__t {
+  mix-blend-mode: normal;
+  clip-path: inset(var(--gt-top) -20% calc(100% - var(--gt-bot)) -20%);
+  animation: fx-glitch-tear var(--_d) steps(1) infinite;
+}
+
+/* Three different stutters inside the same ~180ms burst near the end of the
+   cycle. `--o2` switches the second repeat on or off per burst. */
+@keyframes fx-glitch-a {
+  84% { opacity: 1; clip-path: var(--k1); transform: translateX(calc(var(--_a) * var(--x1))); }
+  86% { opacity: 0; }
+  89% { opacity: var(--o2); clip-path: var(--k2); transform: translateX(calc(var(--_a) * var(--x2))); }
+  93% { opacity: 0; }
+}
+@keyframes fx-glitch-b {
+  85% { opacity: 1; clip-path: var(--k1); transform: translateX(calc(var(--_a) * var(--x1))); }
+  87.5% { opacity: 0; }
+  91% { opacity: var(--o2); clip-path: var(--k2); transform: translateX(calc(var(--_a) * var(--x2))); }
+  92% { opacity: 0; }
+  95% { opacity: 1; clip-path: var(--k1); transform: translateX(calc(var(--_a) * var(--x1) * -1)); }
+  96.5% { opacity: 0; }
+}
+@keyframes fx-glitch-c {
+  84.5% { opacity: 1; clip-path: var(--k1); transform: translateX(calc(var(--_a) * var(--x1))); }
+  85.5% { opacity: 0; }
+  90% { opacity: var(--o2); clip-path: var(--k2); transform: translateX(calc(var(--_a) * var(--x2))); }
+  94% { opacity: 0; }
+}
+@keyframes fx-glitch-tear {
+  87% { opacity: 1; transform: translateX(calc(var(--_a) * var(--gt-x) * 1.5)); }
+  90% { opacity: 0; }
+}
+/* The base loses the torn band while its copy is shoved aside: a polygon of
+   the box with the band cut out, joined down the left edge. */
+@keyframes fx-glitch-hole {
+  87% {
+    clip-path: polygon(-20% -20%, 120% -20%, 120% var(--gt-top), -20% var(--gt-top), -20% var(--gt-bot), 120% var(--gt-bot), 120% 120%, -20% 120%);
+  }
+  90% { clip-path: none; }
 }
 
 /* Flickers on once, then holds the glow. */

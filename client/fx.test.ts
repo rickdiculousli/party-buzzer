@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { BURST_COUNT, countAt, graphemes, particles, words, type BurstKind } from './fx.ts'
+import { BURST_COUNT, countAt, glitchCut, graphemes, particles, words, type BurstKind } from './fx.ts'
 
 /** A deterministic stand-in for Math.random. */
 function seeded(seed = 1) {
@@ -57,4 +57,36 @@ test('countAt runs from `from` to `to` and never goes backwards', () => {
     assert.ok(n >= last)
     last = n
   }
+})
+
+test('glitchCut gives every layer two cuts that stay inside the box', () => {
+  const cut = glitchCut(seeded(7))
+  for (const layer of ['c', 'm', 'y'])
+    for (const k of ['k1', 'k2']) {
+      const m = cut[`--g${layer}-${k}`].match(/^inset\((\d+)% (\d+)% (\d+)% (\d+)%\)$/)
+      assert.ok(m, `--g${layer}-${k} is ${cut[`--g${layer}-${k}`]}`)
+      const [t, r, b, l] = m.slice(1).map(Number)
+      assert.ok(t + b < 100 && l + r < 100, `--g${layer}-${k} leaves nothing to show`)
+    }
+})
+
+test('glitchCut offsets stay within one amount and repeats are on or off', () => {
+  const cut = glitchCut(seeded(8))
+  for (const layer of ['c', 'm', 'y']) {
+    for (const x of ['x1', 'x2']) assert.ok(Math.abs(Number(cut[`--g${layer}-${x}`])) <= 1)
+    assert.match(cut[`--g${layer}-o2`], /^[01]$/)
+  }
+})
+
+test('glitchCut tears a band that sits inside the text', () => {
+  for (let s = 1; s < 30; s++) {
+    const cut = glitchCut(seeded(s))
+    const top = parseFloat(cut['--gt-top'])
+    const bot = parseFloat(cut['--gt-bot'])
+    assert.ok(top > 0 && bot > top && bot < 100, `band ${top}..${bot}`)
+  }
+})
+
+test('glitchCut is deterministic under a seed', () => {
+  assert.deepEqual(glitchCut(seeded(4)), glitchCut(seeded(4)))
 })
