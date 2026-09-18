@@ -1258,6 +1258,20 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   --fx-wobble-amp: 12deg;
   --fx-tada-dur: 800ms;
   --fx-tada-amp: 1.12;
+  --fx-stagger: 60ms;
+  --fx-wave-dur: 1400ms;
+  --fx-wave-amp: 0.2em;
+  --fx-rainbow-dur: 3000ms;
+  --fx-cascade-dur: 260ms;
+  --fx-jitter-dur: 1200ms;
+  --fx-jitter-amp: 0.06em;
+  --fx-type-dur: 45ms;
+  --fx-shine-dur: 1800ms;
+  --fx-glitch-dur: 1400ms;
+  --fx-glitch-amp: 0.06em;
+  --fx-neon-dur: 900ms;
+  --fx-burst-dur: 800ms;
+  --fx-burst-amp: 4em;
 
   /* No cue's sound lives here any more. A cue's gain, offset and envelope are
      fields on its layers in client/cues.ts, and the one cue still on the sample
@@ -1657,6 +1671,196 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   10%, 20% { transform: scale(0.92) rotate(-3deg); }
   30%, 50%, 70%, 90% { transform: scale(var(--_a)) rotate(3deg); }
   40%, 60%, 80% { transform: scale(var(--_a)) rotate(-3deg); }
+}
+
+/* --- Text -------------------------------------------------------------
+   Per-letter effects go on <Letters class="…"> from fx.tsx, which gives each
+   letter `--i`. The rest go on any element holding text. */
+.fx-letters .fx-word { display: inline-block; white-space: nowrap; }
+.fx-letters .fx-word > span { display: inline-block; }
+.fx-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.fx-wave { --_d: var(--fx-dur, var(--fx-wave-dur)); --_a: var(--fx-amp, var(--fx-wave-amp)); }
+.fx-wave .fx-word > span {
+  animation: fx-wave var(--_d) ease-in-out calc(var(--i) * var(--fx-stagger)) infinite;
+}
+@keyframes fx-wave {
+  20% { transform: translateY(calc(var(--_a) * -1)); }
+  40% { transform: none; }
+}
+
+/* Negative delays, so every letter is already coloured on the first frame. */
+.fx-rainbow { --_d: var(--fx-dur, var(--fx-rainbow-dur)); }
+.fx-rainbow .fx-word > span {
+  animation: fx-rainbow var(--_d) linear calc(var(--i) * var(--fx-stagger) * -2) infinite;
+}
+@keyframes fx-rainbow {
+  0%, 100% { color: var(--fx-1); }
+  12.5% { color: var(--fx-2); }
+  25% { color: var(--fx-3); }
+  37.5% { color: var(--fx-4); }
+  50% { color: var(--fx-5); }
+  62.5% { color: var(--fx-6); }
+  75% { color: var(--fx-7); }
+  87.5% { color: var(--fx-8); }
+}
+
+.fx-cascade { --_d: var(--fx-dur, var(--fx-cascade-dur)); }
+.fx-cascade .fx-word > span {
+  animation: fx-cascade var(--_d) var(--slam) calc(var(--i) * var(--fx-stagger)) backwards;
+}
+@keyframes fx-cascade { from { opacity: 0; transform: translateY(0.4em) scale(0.6); } }
+
+/* A prime-ish offset per letter, so neighbours never twitch together. */
+.fx-jitter { --_d: var(--fx-dur, var(--fx-jitter-dur)); --_a: var(--fx-amp, var(--fx-jitter-amp)); }
+.fx-jitter .fx-word > span {
+  animation: fx-jitter var(--_d) steps(1) calc(var(--i) * -137ms) infinite;
+}
+@keyframes fx-jitter {
+  0% { transform: translate(var(--_a), calc(var(--_a) * -1)); }
+  25% { transform: translate(calc(var(--_a) * -1), var(--_a)); }
+  50% { transform: translate(var(--_a), var(--_a)); }
+  75% { transform: translate(calc(var(--_a) * -1), calc(var(--_a) * -1)); }
+}
+
+/* `--fx-dur` here is the time per letter. */
+.fx-type { --_d: var(--fx-dur, var(--fx-type-dur)); }
+.fx-type .fx-word > span {
+  animation: fx-type 1ms steps(1) calc(var(--i) * var(--_d)) backwards;
+}
+@keyframes fx-type { from { opacity: 0; } to { opacity: 0; } }
+
+/* The fill goes transparent but `color` stays, so the band sweeps across the
+   element's own colour. Not for emoji: a bitmap glyph has no fill to clip. */
+.fx-shine {
+  --_d: var(--fx-dur, var(--fx-shine-dur));
+  --_c: var(--fx-color, var(--hot));
+  background: linear-gradient(100deg, currentColor 40%, var(--_c) 50%, currentColor 60%) 100% 0 / 250% 100% no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: fx-shine var(--_d) ease-in-out infinite;
+}
+@keyframes fx-shine { 60%, 100% { background-position: 0 0; } }
+
+/* Needs `data-text` holding the same text: the split copies are drawn from it. */
+.fx-glitch {
+  --_d: var(--fx-dur, var(--fx-glitch-dur));
+  --_a: var(--fx-amp, var(--fx-glitch-amp));
+  position: relative;
+}
+.fx-glitch::before,
+.fx-glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  animation: fx-glitch var(--_d) steps(1) infinite;
+}
+.fx-glitch::before { --_s: -1; color: var(--fx-1); }
+.fx-glitch::after { --_s: 1; color: var(--fx-6); animation-delay: 60ms; }
+@keyframes fx-glitch {
+  88% { opacity: 0.85; transform: translateX(calc(var(--_a) * var(--_s))); clip-path: inset(10% 0 55% 0); }
+  92% { opacity: 0.85; transform: translateX(calc(var(--_a) * var(--_s) * -1)); clip-path: inset(50% 0 15% 0); }
+  96% { opacity: 0; }
+}
+
+/* Flickers on once, then holds the glow. */
+.fx-neon {
+  --_d: var(--fx-dur, var(--fx-neon-dur));
+  --_c: var(--fx-color, var(--tungsten));
+  animation: fx-neon var(--_d) linear both;
+}
+@keyframes fx-neon {
+  0% { opacity: 0.15; }
+  10%, 20%, 40% { opacity: 1; }
+  12%, 22% { opacity: 0.25; }
+  42% { opacity: 0.6; }
+  60%, 100% { opacity: 1; text-shadow: 0 0 0.08em var(--_c), 0 0 0.35em var(--_c); }
+}
+
+.fx-count { font-variant-numeric: tabular-nums; }
+
+/* --- Particles: <Burst> from fx.tsx ----------------------------------
+   The layer fills its nearest positioned ancestor (`fx-anchor` makes one)
+   and bursts from its centre. Each particle carries --x/--y (end offset, as a
+   fraction of the amount), --rot, --delay and --size from `particles()` in
+   fx.ts. Confetti and embers run longer than the base duration: confetti is a
+   celebration, and embers read as embers only while drifting. */
+.fx-anchor { position: relative; }
+.fx-burst {
+  --_d: var(--fx-dur, var(--fx-burst-dur));
+  --_a: var(--fx-amp, var(--fx-burst-amp));
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.fx-burst > i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  font-style: normal;
+  line-height: 1;
+  animation: fx-fling var(--_d) var(--ease) var(--delay) both;
+}
+.fx-burst--sparkle > i { animation-name: fx-twinkle; }
+.fx-burst--dust > i {
+  width: 0.6em;
+  height: 0.6em;
+  border-radius: 50%;
+  background: currentColor;
+  filter: blur(0.12em);
+  animation-name: fx-dust;
+}
+.fx-burst--confetti > i {
+  width: 0.35em;
+  height: 0.6em;
+  background: currentColor;
+  animation: fx-confetti calc(var(--_d) * 2) linear var(--delay) both;
+}
+.fx-burst--embers > i {
+  width: 0.25em;
+  height: 0.25em;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0.3em currentColor;
+  animation: fx-ember calc(var(--_d) * 1.5) ease-out var(--delay) both;
+}
+
+/* Stars and emoji: out from the centre, spinning, fading. */
+@keyframes fx-fling {
+  from { opacity: 1; transform: scale(0); }
+  25% { opacity: 1; transform: translate(calc(var(--x) * var(--_a) * 0.4), calc(var(--y) * var(--_a) * 0.4)) scale(var(--size)); }
+  to { opacity: 0; transform: translate(calc(var(--x) * var(--_a)), calc(var(--y) * var(--_a))) rotate(var(--rot)) scale(calc(var(--size) * 0.6)); }
+}
+/* In place: each sparkle appears where it is, turns, and goes out. */
+@keyframes fx-twinkle {
+  from { opacity: 0; transform: translate(calc(var(--x) * var(--_a)), calc(var(--y) * var(--_a))) scale(0); }
+  50% { opacity: 1; transform: translate(calc(var(--x) * var(--_a)), calc(var(--y) * var(--_a))) scale(var(--size)) rotate(45deg); }
+  to { opacity: 0; transform: translate(calc(var(--x) * var(--_a)), calc(var(--y) * var(--_a))) scale(0) rotate(90deg); }
+}
+@keyframes fx-dust {
+  from { opacity: 0.7; transform: scale(calc(var(--size) * 0.4)); }
+  to { opacity: 0; transform: translate(calc(var(--x) * var(--_a)), calc(var(--y) * var(--_a))) scale(calc(var(--size) * 1.8)); }
+}
+/* Thrown up and out, then falling past where it started. */
+@keyframes fx-confetti {
+  from { opacity: 1; transform: scale(var(--size)); animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1); }
+  40% { opacity: 1; transform: translate(calc(var(--x) * var(--_a)), calc(var(--y) * var(--_a))) rotate(calc(var(--rot) * 0.4)) scale(var(--size)); animation-timing-function: cubic-bezier(0.5, 0, 1, 1); }
+  to { opacity: 0; transform: translate(calc(var(--x) * var(--_a) * 1.3), calc(var(--y) * var(--_a) + var(--_a))) rotate(var(--rot)) scale(var(--size)); }
+}
+@keyframes fx-ember {
+  from { opacity: 1; transform: scale(var(--size)); }
+  to { opacity: 0; transform: translate(calc(var(--x) * var(--_a)), calc(var(--y) * var(--_a))) scale(calc(var(--size) * 0.2)); }
 }
 
 @media (max-width: 40rem) {
