@@ -35,3 +35,14 @@ test('every tunable the JS reads is declared in the block, at the same value', (
     assert.equal(parseTune(m[1], NaN), fallback, `${name} disagrees with its fallback in sound.ts`)
   }
 })
+
+test('every --fx-* default the kit or its gallery reads is declared in the block', () => {
+  const gallery = readFileSync(new URL('./anim/scenarios.tsx', import.meta.url), 'utf8')
+  // The per-element overrides are set by callers, never declared as defaults.
+  const OVERRIDES = new Set(['--fx-dur', '--fx-amp', '--fx-color', '--fx-from'])
+  const used = new Set([...(css + gallery).matchAll(/--fx-[a-z-]+/g)].map((m) => m[0]))
+  for (const name of used) {
+    if (OVERRIDES.has(name)) continue
+    assert.match(block, new RegExp(`^\\s*${name}:`, 'm'), `${name} is not declared in anim:tunables`)
+  }
+})

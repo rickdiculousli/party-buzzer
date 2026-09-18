@@ -67,6 +67,19 @@
   --id-5: #e86a92;
   --id-6: #8ed081;
 
+  /* Effect palette — for multicolour effects (rainbow, confetti, glitch), so
+     they never read as belonging to a player. Eight hues around the wheel,
+     skipping 180–230 so cyan stays the measurement colour. Lightness, chroma
+     and the warm tint are shared knobs in anim:tunables (style.css). */
+  --fx-1: color-mix(in oklab, oklch(var(--fx-light) var(--fx-chroma) 25), var(--tungsten) var(--fx-tint));
+  --fx-2: color-mix(in oklab, oklch(var(--fx-light) var(--fx-chroma) 55), var(--tungsten) var(--fx-tint));
+  --fx-3: color-mix(in oklab, oklch(var(--fx-light) var(--fx-chroma) 85), var(--tungsten) var(--fx-tint));
+  --fx-4: color-mix(in oklab, oklch(var(--fx-light) var(--fx-chroma) 120), var(--tungsten) var(--fx-tint));
+  --fx-5: color-mix(in oklab, oklch(var(--fx-light) var(--fx-chroma) 150), var(--tungsten) var(--fx-tint));
+  --fx-6: color-mix(in oklab, oklch(var(--fx-light) var(--fx-chroma) 265), var(--tungsten) var(--fx-tint));
+  --fx-7: color-mix(in oklab, oklch(var(--fx-light) var(--fx-chroma) 305), var(--tungsten) var(--fx-tint));
+  --fx-8: color-mix(in oklab, oklch(var(--fx-light) var(--fx-chroma) 345), var(--tungsten) var(--fx-tint));
+
   /* --- Type ------------------------------------------------------------ */
   --display: 'Big Shoulders', 'Haettenschweiler', 'Arial Narrow', sans-serif;
   --mono: 'Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;

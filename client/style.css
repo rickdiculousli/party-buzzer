@@ -1208,6 +1208,57 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
      because nothing is running behind it. */
   --penalty-dwell: 2200ms;
 
+  /* Interest kit — each effect's defaults (FX section below; design.md §4).
+     Tune one element with --fx-dur / --fx-amp / --fx-color instead. */
+  /* The effect palette's shared knobs (the hues are in tokens.css): one
+     lightness and one low chroma keep it matte, and the tint pulls every hue
+     toward tungsten so it sits under the same lamp as the set. */
+  --fx-light: 0.76;
+  --fx-chroma: 0.09;
+  --fx-tint: 18%;
+  --fx-fade-dur: 240ms;
+  --fx-pop-dur: 320ms;
+  --fx-pop-amp: 1.15;
+  --fx-drop-dur: 420ms;
+  --fx-drop-amp: 1.2em;
+  --fx-rise-dur: 360ms;
+  --fx-rise-amp: 0.6em;
+  --fx-slide-dur: 300ms;
+  --fx-slide-amp: 2em;
+  --fx-flip-dur: 420ms;
+  --fx-zoom-dur: 320ms;
+  --fx-zoom-amp: 1.6;
+  --fx-shrink-dur: 220ms;
+  --fx-poof-dur: 200ms;
+  --fx-bob-dur: 1600ms;
+  --fx-bob-amp: 0.15em;
+  --fx-float-dur: 4000ms;
+  --fx-float-amp: 0.2em;
+  --fx-breathe-dur: 2400ms;
+  --fx-breathe-amp: 1.04;
+  --fx-heartbeat-dur: 1400ms;
+  --fx-heartbeat-amp: 1.1;
+  --fx-sway-dur: 2400ms;
+  --fx-sway-amp: 4deg;
+  --fx-wiggle-dur: 1600ms;
+  --fx-wiggle-amp: 6deg;
+  --fx-glow-pulse-dur: 2000ms;
+  --fx-glow-pulse-amp: 12px;
+  --fx-spin-dur: 8000ms;
+  --fx-shake-dur: 420ms;
+  --fx-shake-amp: 0.3em;
+  --fx-squash-dur: 360ms;
+  --fx-squash-amp: 0.25;
+  --fx-flash-dur: 300ms;
+  --fx-ripple-dur: 600ms;
+  --fx-ripple-amp: 1.8;
+  --fx-nudge-dur: 200ms;
+  --fx-nudge-amp: 0.2em;
+  --fx-wobble-dur: 600ms;
+  --fx-wobble-amp: 12deg;
+  --fx-tada-dur: 800ms;
+  --fx-tada-amp: 1.12;
+
   /* No cue's sound lives here any more. A cue's gain, offset and envelope are
      fields on its layers in client/cues.ts, and the one cue still on the sample
      path keeps its four numbers in client/sound.ts beside the code that loops
@@ -1375,6 +1426,237 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 @keyframes cast-flare {
   from { filter: drop-shadow(0 0 var(--cast-glow) var(--hot)); }
   to { filter: drop-shadow(0 0 0 transparent); }
+}
+
+/* ===================================================================
+ * FX — the interest kit
+ *
+ * Effects any element can wear: entrances, exits, idle loops, hits, text
+ * effects and particles. The rules for using them, and a table of every class
+ * and what its amount means, are in docs/design.md §4 "Interest kit". Each one
+ * has a scenario in the motion harness (`npm run motion`).
+ *
+ * Every rule resolves `--_d` (duration), `--_a` (amount) and `--_c` (colour)
+ * from the caller's `--fx-dur` / `--fx-amp` / `--fx-color`, falling back to the
+ * effect's default in anim:tunables. One effect per element: each owns
+ * `animation` and `transform`, so nest a wrapper to combine two.
+ *
+ * ponytail: the `--fx-*` overrides inherit, so one set on an element also
+ * reaches any effect nested inside it. Registering them with
+ * `@property … { syntax: '*'; inherits: false }` is the fix if that bites.
+ * =================================================================== */
+
+/* --- Entrances and exits (once) --------------------------------------
+   An exit leaves the element invisible but in place; unmount it on
+   `animationend`. */
+.fx-fade { --_d: var(--fx-dur, var(--fx-fade-dur)); animation: fx-fade var(--_d) var(--ease) both; }
+.fx-fade--out { animation-direction: reverse; }
+@keyframes fx-fade { from { opacity: 0; } }
+
+.fx-pop {
+  --_d: var(--fx-dur, var(--fx-pop-dur));
+  --_a: var(--fx-amp, var(--fx-pop-amp));
+  animation: fx-pop var(--_d) var(--ease) both;
+}
+@keyframes fx-pop {
+  from { opacity: 0; transform: scale(0.4); }
+  60% { opacity: 1; transform: scale(var(--_a)); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Squashes on the floor it lands on, so the origin is the bottom edge. */
+.fx-drop {
+  --_d: var(--fx-dur, var(--fx-drop-dur));
+  --_a: var(--fx-amp, var(--fx-drop-amp));
+  transform-origin: 50% 100%;
+  animation: fx-drop var(--_d) linear both;
+}
+@keyframes fx-drop {
+  from { opacity: 0; transform: translateY(calc(var(--_a) * -1)); animation-timing-function: cubic-bezier(0.5, 0, 1, 1); }
+  55% { opacity: 1; transform: scale(1.1, 0.88); animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1); }
+  80% { transform: scale(0.97, 1.04); }
+  to { opacity: 1; transform: none; }
+}
+
+.fx-rise {
+  --_d: var(--fx-dur, var(--fx-rise-dur));
+  --_a: var(--fx-amp, var(--fx-rise-amp));
+  animation: fx-rise var(--_d) var(--ease) both;
+}
+@keyframes fx-rise { from { opacity: 0; transform: translateY(var(--_a)); } }
+
+/* `--fx-from`: -1 slides in from the left, 1 from the right. */
+.fx-slide {
+  --_d: var(--fx-dur, var(--fx-slide-dur));
+  --_a: var(--fx-amp, var(--fx-slide-amp));
+  animation: fx-slide var(--_d) var(--ease) both;
+}
+@keyframes fx-slide { from { opacity: 0; transform: translateX(calc(var(--fx-from, -1) * var(--_a))); } }
+
+.fx-flip { --_d: var(--fx-dur, var(--fx-flip-dur)); animation: fx-flip var(--_d) var(--ease) both; }
+@keyframes fx-flip {
+  from { opacity: 0; transform: perspective(40em) rotateY(-90deg); }
+  to { opacity: 1; transform: perspective(40em) rotateY(0); }
+}
+
+.fx-zoom {
+  --_d: var(--fx-dur, var(--fx-zoom-dur));
+  --_a: var(--fx-amp, var(--fx-zoom-amp));
+  animation: fx-zoom var(--_d) var(--ease) both;
+}
+@keyframes fx-zoom { from { opacity: 0; transform: scale(var(--_a)); filter: blur(0.3em); } }
+
+.fx-shrink { --_d: var(--fx-dur, var(--fx-shrink-dur)); animation: fx-shrink var(--_d) var(--ease) forwards; }
+@keyframes fx-shrink { to { opacity: 0; transform: scale(0.3); } }
+
+/* Pair with <Burst kind="dust"> in a positioned parent. */
+.fx-poof { --_d: var(--fx-dur, var(--fx-poof-dur)); animation: fx-poof var(--_d) cubic-bezier(0.5, 0, 1, 1) forwards; }
+@keyframes fx-poof { to { opacity: 0; transform: scale(0.2); filter: blur(0.2em); } }
+
+/* --- Idle loops ------------------------------------------------------
+   Keyframes name only the moves; the rest pose is the element's own. */
+.fx-bob {
+  --_d: var(--fx-dur, var(--fx-bob-dur));
+  --_a: var(--fx-amp, var(--fx-bob-amp));
+  animation: fx-bob var(--_d) ease-in-out infinite;
+}
+@keyframes fx-bob { 50% { transform: translateY(calc(var(--_a) * -1)); } }
+
+.fx-float {
+  --_d: var(--fx-dur, var(--fx-float-dur));
+  --_a: var(--fx-amp, var(--fx-float-amp));
+  animation: fx-float var(--_d) ease-in-out infinite;
+}
+@keyframes fx-float {
+  33% { transform: translate(var(--_a), calc(var(--_a) * -1)); }
+  66% { transform: translate(calc(var(--_a) * -1), calc(var(--_a) * -0.5)); }
+}
+
+.fx-breathe {
+  --_d: var(--fx-dur, var(--fx-breathe-dur));
+  --_a: var(--fx-amp, var(--fx-breathe-amp));
+  animation: fx-breathe var(--_d) ease-in-out infinite;
+}
+@keyframes fx-breathe { 50% { transform: scale(var(--_a)); } }
+
+.fx-heartbeat {
+  --_d: var(--fx-dur, var(--fx-heartbeat-dur));
+  --_a: var(--fx-amp, var(--fx-heartbeat-amp));
+  animation: fx-heartbeat var(--_d) ease-in-out infinite;
+}
+@keyframes fx-heartbeat {
+  14%, 42% { transform: scale(var(--_a)); }
+  28%, 70% { transform: none; }
+}
+
+.fx-sway {
+  --_d: var(--fx-dur, var(--fx-sway-dur));
+  --_a: var(--fx-amp, var(--fx-sway-amp));
+  animation: fx-sway var(--_d) ease-in-out infinite;
+}
+@keyframes fx-sway {
+  25% { transform: rotate(var(--_a)); }
+  75% { transform: rotate(calc(var(--_a) * -1)); }
+}
+
+.fx-wiggle {
+  --_d: var(--fx-dur, var(--fx-wiggle-dur));
+  --_a: var(--fx-amp, var(--fx-wiggle-amp));
+  animation: fx-wiggle var(--_d) linear infinite;
+}
+@keyframes fx-wiggle {
+  60%, 85% { transform: none; }
+  65%, 75% { transform: rotate(var(--_a)); }
+  70%, 80% { transform: rotate(calc(var(--_a) * -1)); }
+}
+
+.fx-glow-pulse {
+  --_d: var(--fx-dur, var(--fx-glow-pulse-dur));
+  --_a: var(--fx-amp, var(--fx-glow-pulse-amp));
+  --_c: var(--fx-color, var(--tungsten));
+  animation: fx-glow-pulse var(--_d) ease-in-out infinite;
+}
+@keyframes fx-glow-pulse { 50% { filter: drop-shadow(0 0 var(--_a) var(--_c)); } }
+
+.fx-spin { --_d: var(--fx-dur, var(--fx-spin-dur)); animation: fx-spin var(--_d) linear infinite; }
+@keyframes fx-spin { to { transform: rotate(1turn); } }
+
+/* --- Hits (once, on an event) ----------------------------------------
+   A hit replays when its class is removed and re-added, or when the element
+   remounts with a new key. */
+.fx-shake {
+  --_d: var(--fx-dur, var(--fx-shake-dur));
+  --_a: var(--fx-amp, var(--fx-shake-amp));
+  animation: fx-shake var(--_d) ease-in-out;
+}
+@keyframes fx-shake {
+  15%, 45% { transform: translateX(calc(var(--_a) * -1)); }
+  30%, 60% { transform: translateX(var(--_a)); }
+  75% { transform: translateX(calc(var(--_a) * -0.4)); }
+}
+
+.fx-squash {
+  --_d: var(--fx-dur, var(--fx-squash-dur));
+  --_a: var(--fx-amp, var(--fx-squash-amp));
+  transform-origin: 50% 100%;
+  animation: fx-squash var(--_d) var(--ease);
+}
+@keyframes fx-squash {
+  30% { transform: scale(calc(1 + var(--_a)), calc(1 - var(--_a))); }
+  60% { transform: scale(calc(1 - var(--_a) / 2), calc(1 + var(--_a) / 2)); }
+}
+
+.fx-flash { --_d: var(--fx-dur, var(--fx-flash-dur)); animation: fx-flash var(--_d) var(--ease); }
+@keyframes fx-flash { from { filter: brightness(2.5); } }
+
+/* Draws on ::after, so it leaves the element's own transform alone and can
+   sit beside another effect. It positions the element to anchor the ring. */
+.fx-ripple {
+  --_d: var(--fx-dur, var(--fx-ripple-dur));
+  --_a: var(--fx-amp, var(--fx-ripple-amp));
+  --_c: var(--fx-color, var(--tungsten));
+  position: relative;
+}
+.fx-ripple::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 2px var(--_c);
+  pointer-events: none;
+  animation: fx-ripple var(--_d) var(--ease) forwards;
+}
+@keyframes fx-ripple { to { opacity: 0; transform: scale(var(--_a)); } }
+
+.fx-nudge {
+  --_d: var(--fx-dur, var(--fx-nudge-dur));
+  --_a: var(--fx-amp, var(--fx-nudge-amp));
+  animation: fx-nudge var(--_d) var(--ease);
+}
+@keyframes fx-nudge { 40% { transform: translateY(var(--_a)) scale(0.97); } }
+
+.fx-wobble {
+  --_d: var(--fx-dur, var(--fx-wobble-dur));
+  --_a: var(--fx-amp, var(--fx-wobble-amp));
+  animation: fx-wobble var(--_d) ease-in-out;
+}
+@keyframes fx-wobble {
+  15% { transform: skewX(calc(var(--_a) * -1)); }
+  30% { transform: skewX(calc(var(--_a) * 0.7)); }
+  45% { transform: skewX(calc(var(--_a) * -0.4)); }
+  60% { transform: skewX(calc(var(--_a) * 0.2)); }
+  75% { transform: none; }
+}
+
+.fx-tada {
+  --_d: var(--fx-dur, var(--fx-tada-dur));
+  --_a: var(--fx-amp, var(--fx-tada-amp));
+  animation: fx-tada var(--_d) ease-in-out;
+}
+@keyframes fx-tada {
+  10%, 20% { transform: scale(0.92) rotate(-3deg); }
+  30%, 50%, 70%, 90% { transform: scale(var(--_a)) rotate(3deg); }
+  40%, 60%, 80% { transform: scale(var(--_a)) rotate(-3deg); }
 }
 
 @media (max-width: 40rem) {
