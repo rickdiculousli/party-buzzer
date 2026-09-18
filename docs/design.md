@@ -172,12 +172,14 @@ a scenario in the motion harness (`npm run motion`) to preview and tune it.
   moves its background), so they never shift layout.
 - Particles never take taps.
 - One-shots finish in about 600ms or less; celebrations (`fx-tada`, confetti)
-  may run longer. Loops take at least 1.2s per cycle.
+  may run longer. Loops take at least 1.2s per cycle, except `fx-jitter`,
+  whose whole point is a fast twitch.
 - Measurements stay still: cyan readouts and timing numbers never get effects.
 - Colour: multicolour effects use the effect palette below; glows and sparks
   stay tungsten, brass and hot. Use a player's `--id-*` colour only when the
   effect is about that player (`--fx-color: var(--id-3)` on their name). Never
-  cyan.
+  cyan, with one exception: `fx-glitch` uses pure cyan, magenta and yellow,
+  because a channel split only reads as one in the printer's primaries.
 - Tune one element with `--fx-dur`, `--fx-amp` and `--fx-color`. Defaults live
   in `anim:tunables`. An override also reaches effects nested inside it.
 - A one-shot replays when its class is removed and re-added, or when the element
@@ -244,7 +246,7 @@ move all eight; tune them in the harness's Palette scenario.
 | `fx-jitter` | yes | twitch | Nerves, a close call |
 | `fx-type` | yes | — (`--fx-dur` is time per letter) | A line being typed out |
 | `fx-shine` | no | — | Brass and awards; not for emoji |
-| `fx-glitch` | no (needs `data-text`) | split | A steal, a bust |
+| `fx-glitch` | no (needs `data-text`) | split | A steal, a bust; pure cyan/magenta/yellow channel split |
 | `fx-neon` | no | — | A sign switching on |
 | `<CountUp to from ms>` | — | — | A score rolling up; never a measurement |
 

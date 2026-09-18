@@ -1213,9 +1213,9 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   /* The effect palette's shared knobs (the hues are in tokens.css): one
      lightness and one low chroma keep it matte, and the tint pulls every hue
      toward tungsten so it sits under the same lamp as the set. */
-  --fx-light: 0.76;
-  --fx-chroma: 0.09;
-  --fx-tint: 18%;
+  --fx-light: 0.68;
+  --fx-chroma: 0.13;
+  --fx-tint: 10%;
   --fx-fade-dur: 240ms;
   --fx-pop-dur: 320ms;
   --fx-pop-amp: 1.15;
@@ -1263,8 +1263,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   --fx-wave-amp: 0.2em;
   --fx-rainbow-dur: 3000ms;
   --fx-cascade-dur: 260ms;
-  --fx-jitter-dur: 1200ms;
-  --fx-jitter-amp: 0.06em;
+  --fx-jitter-dur: 320ms;
+  --fx-jitter-amp: 0.02em;
   --fx-type-dur: 45ms;
   --fx-shine-dur: 1800ms;
   --fx-glitch-dur: 1400ms;
@@ -1755,11 +1755,17 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 @keyframes fx-shine { 60%, 100% { background-position: 0 0; } }
 
-/* Needs `data-text` holding the same text: the split copies are drawn from it. */
+/* Needs `data-text` holding the same text: the split copies are drawn from it.
+   Pure cyan, magenta and yellow on purpose, overriding the effect palette and
+   the no-cyan rule: a glitch reads as a signal splitting into its channels,
+   and only the printer's primaries say that. Cyan and magenta are the two
+   copies, pulled apart in opposite directions; yellow is a shadow on the text
+   itself. All three fire on the same frames. */
 .fx-glitch {
   --_d: var(--fx-dur, var(--fx-glitch-dur));
   --_a: var(--fx-amp, var(--fx-glitch-amp));
   position: relative;
+  animation: fx-glitch-yellow var(--_d) steps(1) infinite;
 }
 .fx-glitch::before,
 .fx-glitch::after {
@@ -1767,15 +1773,22 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   position: absolute;
   inset: 0;
   opacity: 0;
+  text-shadow: none;
+  mix-blend-mode: screen;
   pointer-events: none;
   animation: fx-glitch var(--_d) steps(1) infinite;
 }
-.fx-glitch::before { --_s: -1; color: var(--fx-1); }
-.fx-glitch::after { --_s: 1; color: var(--fx-6); animation-delay: 60ms; }
+.fx-glitch::before { --_s: -1; color: #0ff; }
+.fx-glitch::after { --_s: 1; color: #f0f; }
 @keyframes fx-glitch {
-  88% { opacity: 0.85; transform: translateX(calc(var(--_a) * var(--_s))); clip-path: inset(10% 0 55% 0); }
-  92% { opacity: 0.85; transform: translateX(calc(var(--_a) * var(--_s) * -1)); clip-path: inset(50% 0 15% 0); }
+  88% { opacity: 0.9; transform: translateX(calc(var(--_a) * var(--_s))); clip-path: inset(10% 0 55% 0); }
+  92% { opacity: 0.9; transform: translateX(calc(var(--_a) * var(--_s) * -1)); clip-path: inset(50% 0 15% 0); }
   96% { opacity: 0; }
+}
+@keyframes fx-glitch-yellow {
+  88% { text-shadow: 0 calc(var(--_a) * 0.6) #ff0; }
+  92% { text-shadow: 0 calc(var(--_a) * -0.6) #ff0; }
+  96% { text-shadow: none; }
 }
 
 /* Flickers on once, then holds the glow. */
