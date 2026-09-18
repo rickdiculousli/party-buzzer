@@ -247,7 +247,7 @@ move all eight; tune them in the harness's Palette scenario.
 | `fx-jitter` | yes | twitch | Nerves, a close call |
 | `fx-type` | yes | — (`--fx-dur` is time per letter) | A line being typed out |
 | `fx-shine` | no | — | Brass and awards; not for emoji |
-| `<Glitch text>` | no | shove | A steal, a bust: hits of stutter (`--fx-glitch-dur`, 300ms) then a breather (`--fx-glitch-rest`, ±50%: 600ms–1.8s by default). Cyan/magenta/yellow channels flicker through quadrant windows and a band of the letters tears, with a new cut every hit |
+| `<Glitch text>` | no | shove | A steal, a bust: hits of stutter (1–3× `--fx-glitch-dur`, 300ms, random per hit) then a breather (`--fx-glitch-rest`, ±50%: 600ms–1.8s by default). Cyan/magenta/yellow channels flicker through quadrant windows and a band of the letters tears, with a new cut every hit |
 | `fx-neon` | no | — | A sign switching on |
 | `<CountUp to from ms>` | — | — | A score rolling up; never a measurement |
 

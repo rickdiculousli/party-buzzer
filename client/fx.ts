@@ -116,5 +116,8 @@ export function glitchCut(rand: () => number = Math.random): Record<string, stri
   out['--gt-top'] = `${top}%`
   out['--gt-bot'] = `${top + Math.round(r(6, 14))}%`
   out['--gt-x'] = shove()
+  // How many times through the burst this hit runs: fractional, so a hit can
+  // stop anywhere inside its last pass.
+  out['--g-reps'] = r(1, 3).toFixed(2)
   return out
 }

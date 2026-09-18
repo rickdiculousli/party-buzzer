@@ -91,3 +91,10 @@ test('glitchCut tears a band that sits inside the text', () => {
 test('glitchCut is deterministic under a seed', () => {
   assert.deepEqual(glitchCut(seeded(4)), glitchCut(seeded(4)))
 })
+
+test('glitchCut runs each hit one to three bursts long', () => {
+  for (let s = 1; s < 30; s++) {
+    const reps = Number(glitchCut(seeded(s))['--g-reps'])
+    assert.ok(reps >= 1 && reps <= 3, `reps ${reps}`)
+  }
+})
