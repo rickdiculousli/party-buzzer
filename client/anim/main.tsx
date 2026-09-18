@@ -20,7 +20,7 @@
  * the build inputs, so `npm run build` never emits it and the game ships
  * without it.
  */
-import { render } from 'preact'
+import { Fragment, render } from 'preact'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { SCENARIOS, dialKey, recipeDials, type Dial } from './scenarios.tsx'
 import { play, prime, primeFile, setDialled, unlock } from '../sound.ts'
@@ -462,14 +462,13 @@ function Harness() {
         <h1 class="harness__title">Motion</h1>
 
         <div class="harness__scenarios">
-          {SCENARIOS.map((s) => (
-            <button
-              key={s.id}
-              class={s.id === id ? 'btn btn--primary' : 'btn'}
-              onClick={() => setId(s.id)}
-            >
-              {s.label}
-            </button>
+          {SCENARIOS.map((s, i) => (
+            <Fragment key={s.id}>
+              {s.family && s.family !== SCENARIOS[i - 1]?.family && <p class="eyebrow">{s.family}</p>}
+              <button class={s.id === id ? 'btn btn--primary' : 'btn'} onClick={() => setId(s.id)}>
+                {s.label}
+              </button>
+            </Fragment>
           ))}
         </div>
 

@@ -58,7 +58,7 @@ export function particles(
   return Array.from({ length: count }, (): Particle => {
     switch (kind) {
       case 'sparkle':
-        return { ...at(r(0, 360), r(0.2, 0.6)), rot: 0, delay: r(0, 300), size: r(0.6, 1.2), color: pick(WARM), glyph: '✦' }
+        return { ...at(r(0, 360), r(0.5, 1)), rot: 0, delay: r(0, 300), size: r(0.6, 1.2), color: pick(WARM), glyph: '✦' }
       case 'dust':
         return { ...at((rand() < 0.5 ? 180 : 0) + r(-25, 25), r(0.4, 0.8)), rot: 0, delay: r(0, 60), size: r(0.8, 1.6), color: 'var(--dim)', glyph: '' }
       case 'confetti':

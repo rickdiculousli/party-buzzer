@@ -211,3 +211,36 @@
 @media (max-width: 52rem) {
   .harness { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; }
 }
+
+/* --- interest kit gallery --------------------------------------------- */
+.fx-stage {
+  display: grid;
+  place-items: center;
+  min-height: 60vh;
+}
+.fx-demo {
+  margin: 0;
+  font: 800 var(--t-mega) / 1 var(--display);
+  text-transform: uppercase;
+  color: var(--chalk);
+}
+.fx-swatches {
+  display: grid;
+  grid-template-columns: repeat(4, 6rem);
+  gap: var(--s2);
+}
+.fx-swatch {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: end start;
+  padding: var(--s2);
+  border-radius: var(--r-md);
+  font: var(--t-sm) var(--mono);
+  color: var(--stage);
+}
+.fx-tile {
+  width: 6rem;
+  height: 6rem;
+  border-radius: var(--r-lg);
+  background: var(--tungsten);
+}

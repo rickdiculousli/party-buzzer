@@ -1696,10 +1696,12 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   40% { transform: none; }
 }
 
-/* Negative delays, so every letter is already coloured on the first frame. */
+/* Each letter one palette step (an eighth of the cycle) behind the last, so
+   neighbours never share a colour. Negative, so every letter is coloured on
+   the first frame. */
 .fx-rainbow { --_d: var(--fx-dur, var(--fx-rainbow-dur)); }
 .fx-rainbow .fx-word > span {
-  animation: fx-rainbow var(--_d) linear calc(var(--i) * var(--fx-stagger) * -2) infinite;
+  animation: fx-rainbow var(--_d) linear calc(var(--i) * var(--_d) / -8) infinite;
 }
 @keyframes fx-rainbow {
   0%, 100% { color: var(--fx-1); }
@@ -1738,11 +1740,14 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 @keyframes fx-type { from { opacity: 0; } to { opacity: 0; } }
 
 /* The fill goes transparent but `color` stays, so the band sweeps across the
-   element's own colour. Not for emoji: a bitmap glyph has no fill to clip. */
+   element's own colour. The rest of the text is held a little below full so a
+   white-hot band still reads on chalk. Not for emoji: a bitmap glyph has no
+   fill to clip. */
 .fx-shine {
   --_d: var(--fx-dur, var(--fx-shine-dur));
   --_c: var(--fx-color, var(--hot));
-  background: linear-gradient(100deg, currentColor 40%, var(--_c) 50%, currentColor 60%) 100% 0 / 250% 100% no-repeat;
+  --_base: color-mix(in oklab, currentColor 80%, var(--stage));
+  background: linear-gradient(100deg, var(--_base) 44%, var(--_c) 50%, var(--_base) 56%) 100% 0 / 250% 100% no-repeat;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -1791,7 +1796,9 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 
 /* --- Particles: <Burst> from fx.tsx ----------------------------------
    The layer fills its nearest positioned ancestor (`fx-anchor` makes one)
-   and bursts from its centre. Each particle carries --x/--y (end offset, as a
+   and bursts from its centre. Put it inside the element it celebrates: the
+   layer's em is 0.3 of that element's font size, so a burst on a hero name
+   is hero-sized and one on a chip is chip-sized. Each particle carries --x/--y (end offset, as a
    fraction of the amount), --rot, --delay and --size from `particles()` in
    fx.ts. Confetti and embers run longer than the base duration: confetti is a
    celebration, and embers read as embers only while drifting. */
@@ -1801,6 +1808,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   --_a: var(--fx-amp, var(--fx-burst-amp));
   position: absolute;
   inset: 0;
+  font-size: 0.3em;
   pointer-events: none;
 }
 .fx-burst > i {
