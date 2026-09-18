@@ -1267,7 +1267,12 @@ Append to `client/anim/harness.css`:
 
 Run: `node --test client/tunables.test.ts` — expected: PASS (it now also checks every gallery dial).
 Run: `npm run typecheck && npm test && npm run build` — expected: all pass.
-Run: `npm run motion`, step through every `Entrances`/`Loops`/`Hits`/`Text`/`Particles` scenario, press Retrigger on each, and move one dial on each to confirm it takes effect. Confirm Save writes a moved `--fx-*` value back into the tunables block (`git diff client/style.css`), then `git checkout client/style.css` if you did not mean to keep it.
+Visual check in Chrome (done by the controlling session, which has the `claude-in-chrome` tools; a subagent without them stops here and reports back):
+1. Start the harness in the background: `npx vite --port 5199 --strictPort` (the `motion` script adds `--open`, which is not wanted here), then open `http://localhost:5199/anim.html` in a new Chrome tab.
+2. Screenshot the Palette scenario: eight distinct, matte, warm-tinted swatches, none reading as cyan.
+3. For each `Entrances`/`Loops`/`Hits`/`Text`/`Particles` scenario: select it, press Retrigger, and screenshot mid-take and after it settles. Check that the effect plays, the element ends where it should (entrances visible, exits gone, loops still running), text stays unbroken, and particles come from the element's centre. Record a GIF (`gif_creator`) of one scenario per family.
+4. Move one dial on one scenario per family and confirm the next take changes. Do not press Save.
+5. Report anything that looks wrong per scenario, with its screenshot, before committing. Stop the dev server afterwards.
 
 - [ ] **Step 6: Commit**
 
