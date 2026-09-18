@@ -14,7 +14,8 @@
 
 - No new dependencies.
 - Effects animate only `transform`, `opacity`, `filter` (plus `background-position` for `fx-shine`); never layout properties.
-- Effects never use cyan, the measurement colour. Colours come from `--hot`, `--tungsten`, `--brass`, `--tally`, `--dim`, and `--id-1`…`--id-6`.
+- Effects never use cyan, the measurement colour. Multicolour effects (rainbow, confetti, glitch) use the effect palette `--fx-1`…`--fx-8`; glows and sparks use `--hot`, `--tungsten`, `--brass`, `--tally`, `--dim`. Player colours `--id-*` appear only when an effect is about a specific player, set by the caller through `--fx-color`.
+- The effect palette: eight hues (25, 55, 85, 120, 150, 265, 305, 345 — nothing between 180 and 230, so cyan stays the measurement colour) at one shared lightness and low chroma, each mixed toward `--tungsten`. Defined in `client/tokens.css`; its three knobs `--fx-light`, `--fx-chroma`, `--fx-tint` live in `anim:tunables`.
 - One-shots ≤ ~600ms except celebrations (`fx-tada`, confetti); loops ≥ 1200ms per cycle.
 - Every effect default lives inside the `/* anim:tunables */ … /* /anim:tunables */` block in `client/style.css`, one `--name: value;` per line, with the unit the gallery dial uses (`ms`, `em`, `deg`, `px`, or none). The harness Save only rewrites lines already present in that block.
 - Uniform per-element overrides: `--fx-dur`, `--fx-amp`, `--fx-color`, plus `--fx-from` for `fx-slide`. Each rule resolves these into private `--_d`, `--_a`, `--_c`.
@@ -74,9 +75,9 @@ test('every particle ends within one amount of the centre', () => {
       assert.ok(Math.hypot(p.x, p.y) <= 1.0001, `${kind} flew to ${p.x},${p.y}`)
 })
 
-test('confetti is in player colours and flies upward', () => {
+test('confetti is in the effect palette and flies upward', () => {
   for (const p of particles('confetti', 50, seeded(2))) {
-    assert.match(p.color, /^var\(--id-[1-6]\)$/)
+    assert.match(p.color, /^var\(--fx-[1-8]\)$/)
     assert.ok(p.y < 0)
   }
 })
@@ -157,7 +158,7 @@ export const BURST_COUNT: Record<BurstKind, number> = {
   emoji: 8,
 }
 
-const IDS = [1, 2, 3, 4, 5, 6].map((n) => `var(--id-${n})`)
+const PALETTE = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => `var(--fx-${n})`)
 const WARM = ['var(--hot)', 'var(--tungsten)', 'var(--brass)']
 
 export function particles(
@@ -181,7 +182,7 @@ export function particles(
       case 'dust':
         return { ...at((rand() < 0.5 ? 180 : 0) + r(-25, 25), r(0.4, 0.8)), rot: 0, delay: r(0, 60), size: r(0.8, 1.6), color: 'var(--dim)', glyph: '' }
       case 'confetti':
-        return { ...at(r(210, 330), r(0.6, 1)), rot: r(-720, 720), delay: r(0, 80), size: r(0.7, 1.1), color: pick(IDS), glyph: '' }
+        return { ...at(r(210, 330), r(0.6, 1)), rot: r(-720, 720), delay: r(0, 80), size: r(0.7, 1.1), color: pick(PALETTE), glyph: '' }
       case 'embers':
         return { x: r(-0.3, 0.3), y: r(-0.95, -0.6), rot: 0, delay: r(0, 400), size: r(0.4, 0.9), color: pick(['var(--tungsten)', 'var(--tally)']), glyph: '' }
       case 'stars':
@@ -219,10 +220,11 @@ git commit -m "feat: add the interest kit's pure helpers"
 
 **Files:**
 - Modify: `client/tunables.test.ts` (append one test)
+- Modify: `client/tokens.css` — the effect palette
 - Modify: `client/style.css` — the `anim:tunables` block (after `--penalty-dwell: 2200ms;`), and a new `FX` section inserted after the closing brace of `@keyframes cast-flare` and before `@media (max-width: 40rem)`
 
 **Interfaces:**
-- Produces: classes `fx-fade` (`fx-fade--out`), `fx-pop`, `fx-drop`, `fx-rise`, `fx-slide`, `fx-flip`, `fx-zoom`, `fx-shrink`, `fx-poof`, `fx-bob`, `fx-float`, `fx-breathe`, `fx-heartbeat`, `fx-sway`, `fx-wiggle`, `fx-glow-pulse`, `fx-spin`, `fx-shake`, `fx-squash`, `fx-flash`, `fx-ripple`, `fx-nudge`, `fx-wobble`, `fx-tada`; defaults `--fx-<name>-dur` / `--fx-<name>-amp`.
+- Produces: palette tokens `--fx-1`…`--fx-8` and knobs `--fx-light`, `--fx-chroma`, `--fx-tint`; classes `fx-fade` (`fx-fade--out`), `fx-pop`, `fx-drop`, `fx-rise`, `fx-slide`, `fx-flip`, `fx-zoom`, `fx-shrink`, `fx-poof`, `fx-bob`, `fx-float`, `fx-breathe`, `fx-heartbeat`, `fx-sway`, `fx-wiggle`, `fx-glow-pulse`, `fx-spin`, `fx-shake`, `fx-squash`, `fx-flash`, `fx-ripple`, `fx-nudge`, `fx-wobble`, `fx-tada`; defaults `--fx-<name>-dur` / `--fx-<name>-amp`.
 
 - [ ] **Step 1: Write the guard test**
 
@@ -254,6 +256,12 @@ In `client/style.css`, directly after the `--penalty-dwell: 2200ms;` line inside
 
   /* Interest kit — each effect's defaults (FX section below; design.md §4).
      Tune one element with --fx-dur / --fx-amp / --fx-color instead. */
+  /* The effect palette's shared knobs (the hues are in tokens.css): one
+     lightness and one low chroma keep it matte, and the tint pulls every hue
+     toward tungsten so it sits under the same lamp as the set. */
+  --fx-light: 0.76;
+  --fx-chroma: 0.09;
+  --fx-tint: 18%;
   --fx-fade-dur: 240ms;
   --fx-pop-dur: 320ms;
   --fx-pop-amp: 1.15;
@@ -296,6 +304,26 @@ In `client/style.css`, directly after the `--penalty-dwell: 2200ms;` line inside
   --fx-wobble-amp: 12deg;
   --fx-tada-dur: 800ms;
   --fx-tada-amp: 1.12;
+```
+
+- [ ] **Step 3b: Add the effect palette to `client/tokens.css`**
+
+Directly after `--id-6: #8ed081;` (before the `/* --- Type` comment), add:
+
+```css
+
+  /* Effect palette — for multicolour effects (rainbow, confetti, glitch), so
+     they never read as belonging to a player. Eight hues around the wheel,
+     skipping 180–230 so cyan stays the measurement colour. Lightness, chroma
+     and the warm tint are shared knobs in anim:tunables (style.css). */
+  --fx-1: color-mix(in oklab, oklch(var(--fx-light) var(--fx-chroma) 25), var(--tungsten) var(--fx-tint));
+  --fx-2: color-mix(in oklab, oklch(var(--fx-light) var(--fx-chroma) 55), var(--tungsten) var(--fx-tint));
+  --fx-3: color-mix(in oklab, oklch(var(--fx-light) var(--fx-chroma) 85), var(--tungsten) var(--fx-tint));
+  --fx-4: color-mix(in oklab, oklch(var(--fx-light) var(--fx-chroma) 120), var(--tungsten) var(--fx-tint));
+  --fx-5: color-mix(in oklab, oklch(var(--fx-light) var(--fx-chroma) 150), var(--tungsten) var(--fx-tint));
+  --fx-6: color-mix(in oklab, oklch(var(--fx-light) var(--fx-chroma) 265), var(--tungsten) var(--fx-tint));
+  --fx-7: color-mix(in oklab, oklch(var(--fx-light) var(--fx-chroma) 305), var(--tungsten) var(--fx-tint));
+  --fx-8: color-mix(in oklab, oklch(var(--fx-light) var(--fx-chroma) 345), var(--tungsten) var(--fx-tint));
 ```
 
 - [ ] **Step 4: Add the FX section**
@@ -560,6 +588,7 @@ git commit -m "feat: add the interest kit's entrance, loop, and hit effects"
 
 **Interfaces:**
 - Consumes: `words`, `countAt` from `client/fx.ts` (Task 1).
+- Consumes: `--fx-1`…`--fx-8` (Task 2).
 - Produces:
   - `Letters(props: { text: string; class?: string }): JSX.Element` — renders `.fx-letters` › visually hidden `.fx-sr` copy + `aria-hidden` span of `.fx-word` spans, each holding letter spans with `style="--i:n"` (n counts letters across the whole text).
   - `CountUp(props: { to: number; from?: number; ms?: number }): JSX.Element` — `<span class="fx-count">`.
@@ -620,12 +649,14 @@ Append after `@keyframes fx-tada { … }`:
   animation: fx-rainbow var(--_d) linear calc(var(--i) * var(--fx-stagger) * -2) infinite;
 }
 @keyframes fx-rainbow {
-  0%, 100% { color: var(--id-1); }
-  17% { color: var(--id-2); }
-  33% { color: var(--id-5); }
-  50% { color: var(--id-3); }
-  67% { color: var(--id-6); }
-  83% { color: var(--id-4); }
+  0%, 100% { color: var(--fx-1); }
+  12.5% { color: var(--fx-2); }
+  25% { color: var(--fx-3); }
+  37.5% { color: var(--fx-4); }
+  50% { color: var(--fx-5); }
+  62.5% { color: var(--fx-6); }
+  75% { color: var(--fx-7); }
+  87.5% { color: var(--fx-8); }
 }
 
 .fx-cascade { --_d: var(--fx-dur, var(--fx-cascade-dur)); }
@@ -681,8 +712,8 @@ Append after `@keyframes fx-tada { … }`:
   pointer-events: none;
   animation: fx-glitch var(--_d) steps(1) infinite;
 }
-.fx-glitch::before { --_s: -1; color: var(--tally); }
-.fx-glitch::after { --_s: 1; color: var(--id-3); animation-delay: 60ms; }
+.fx-glitch::before { --_s: -1; color: var(--fx-1); }
+.fx-glitch::after { --_s: 1; color: var(--fx-6); animation-delay: 60ms; }
 @keyframes fx-glitch {
   88% { opacity: 0.85; transform: translateX(calc(var(--_a) * var(--_s))); clip-path: inset(10% 0 55% 0); }
   92% { opacity: 0.85; transform: translateX(calc(var(--_a) * var(--_s) * -1)); clip-path: inset(50% 0 15% 0); }
@@ -955,7 +986,7 @@ git commit -m "feat: add the interest kit's particle bursts"
 
 **Interfaces:**
 - Consumes: `Letters`, `Burst`, `CountUp` from `client/fx.tsx`; `Dial`, `Scenario` from `scenarios.tsx`.
-- Produces: one scenario per effect with id `fx-<name>` and `family` one of `Entrances`, `Loops`, `Hits`, `Text`, `Particles`.
+- Produces: a `fx-palette` scenario (family `Palette`) and one scenario per effect with id `fx-<name>` and `family` one of `Entrances`, `Loops`, `Hits`, `Text`, `Particles`.
 
 - [ ] **Step 1: Add `family` to `Scenario`**
 
@@ -985,9 +1016,9 @@ Directly above `export const SCENARIOS: Scenario[] = [`, add:
  * name built from a template would slip past it.
  */
 const ms = (v: string, max: number, label = 'Duration'): Dial => ({ var: v, label, min: 0, max, step: 5, unit: 'ms' })
-const amount = (v: string, min: number, max: number, step: number, unit: string): Dial => ({
+const amount = (v: string, min: number, max: number, step: number, unit: string, label = 'Amount'): Dial => ({
   var: v,
-  label: 'Amount',
+  label,
   min,
   max,
   step,
@@ -1056,6 +1087,29 @@ function burst(kind: 'sparkle' | 'dust' | 'confetti' | 'embers' | 'stars' | 'emo
 }
 
 const FX: Scenario[] = [
+  {
+    id: 'fx-palette',
+    label: 'Palette',
+    family: 'Palette',
+    note: 'The effect palette, --fx-1 to --fx-8. Matte, warm-tinted, no cyan. Three knobs move all eight.',
+    subject: '.fx-swatches',
+    dials: [
+      amount('--fx-light', 0.4, 0.95, 0.01, '', 'Lightness'),
+      amount('--fx-chroma', 0, 0.25, 0.005, '', 'Chroma'),
+      amount('--fx-tint', 0, 60, 1, '%', 'Tungsten tint'),
+    ],
+    render: () => (
+      <div class="fx-stage">
+        <div class="fx-swatches">
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+            <div class="fx-swatch" style={`background:var(--fx-${n})`}>
+              {n}
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+  },
   fx('Entrances', 'fade', 'Fade', 'fx-fade — the quietest arrival.', [ms('--fx-fade-dur', 1000)], 'enter', word()),
   fx('Entrances', 'pop', 'Pop', 'fx-pop — scales past full size and settles. Amount is the overshoot.', [ms('--fx-pop-dur', 1000), amount('--fx-pop-amp', 1, 1.6, 0.01, '')], 'enter', word()),
   fx('Entrances', 'drop', 'Drop', 'fx-drop — falls in and squashes on landing. Amount is the fall.', [ms('--fx-drop-dur', 1200), amount('--fx-drop-amp', 0, 4, 0.1, 'em')], 'enter', word()),
@@ -1099,7 +1153,7 @@ const FX: Scenario[] = [
   fx('Hits', 'tada', 'Tada', 'fx-tada — grow, tilt, settle. Amount is the scale.', [ms('--fx-tada-dur', 2000), amount('--fx-tada-amp', 1, 1.5, 0.01, '')], 'class', word()),
 
   fx('Text', 'wave', 'Wave', 'fx-wave on <Letters>. Amount is the height.', [ms('--fx-wave-dur', 4000), amount('--fx-wave-amp', 0, 1, 0.01, 'em'), STAGGER], 'class', letters('Ada wins')),
-  fx('Text', 'rainbow', 'Rainbow', 'fx-rainbow on <Letters> — the player colours, never cyan.', [ms('--fx-rainbow-dur', 8000), STAGGER], 'class', letters('Ada wins')),
+  fx('Text', 'rainbow', 'Rainbow', 'fx-rainbow on <Letters> — cycles the effect palette.', [ms('--fx-rainbow-dur', 8000), STAGGER], 'class', letters('Ada wins')),
   fx('Text', 'cascade', 'Cascade', 'fx-cascade on <Letters> — letters pop in one by one.', [ms('--fx-cascade-dur', 1000), STAGGER], 'enter', letters('Ada wins')),
   fx('Text', 'jitter', 'Jitter', 'fx-jitter on <Letters> — nervous letters. Amount is the twitch.', [ms('--fx-jitter-dur', 4000), amount('--fx-jitter-amp', 0, 0.3, 0.01, 'em')], 'class', letters('Ada wins')),
   fx('Text', 'type', 'Type', 'fx-type on <Letters> — types itself out.', [ms('--fx-type-dur', 300, 'Per letter')], 'enter', letters('Ada wins the round')),
@@ -1122,7 +1176,7 @@ const FX: Scenario[] = [
 
   burst('sparkle', 'Sparkle', '<Burst kind="sparkle"> — warm glints around the element.'),
   burst('dust', 'Dust', '<Burst kind="dust"> — a puff to either side.'),
-  burst('confetti', 'Confetti', '<Burst kind="confetti"> — player colours, thrown up and falling. Runs twice the duration.'),
+  burst('confetti', 'Confetti', '<Burst kind="confetti"> — the effect palette, thrown up and falling. Runs twice the duration.'),
   burst('embers', 'Embers', '<Burst kind="embers"> — sparks drifting up. Runs 1.5× the duration.'),
   burst('stars', 'Stars', '<Burst kind="stars"> — brass stars flung out.'),
   burst('emoji', 'Emoji', '<Burst kind="emoji" glyph="🦆"> — any glyph, flung up.'),
@@ -1187,6 +1241,20 @@ Append to `client/anim/harness.css`:
   text-transform: uppercase;
   color: var(--chalk);
 }
+.fx-swatches {
+  display: grid;
+  grid-template-columns: repeat(4, 6rem);
+  gap: var(--s2);
+}
+.fx-swatch {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: end start;
+  padding: var(--s2);
+  border-radius: var(--r-md);
+  font: var(--t-sm) var(--mono);
+  color: var(--stage);
+}
 .fx-tile {
   width: 6rem;
   height: 6rem;
@@ -1245,7 +1313,10 @@ a scenario in the motion harness (`npm run motion`) to preview and tune it.
 - One-shots finish in about 600ms or less; celebrations (`fx-tada`, confetti)
   may run longer. Loops take at least 1.2s per cycle.
 - Measurements stay still: cyan readouts and timing numbers never get effects.
-- Effects use the warm palette and the `--id-*` player colours, never cyan.
+- Colour: multicolour effects use the effect palette below; glows and sparks
+  stay tungsten, brass and hot. Use a player's `--id-*` colour only when the
+  effect is about that player (`--fx-color: var(--id-3)` on their name). Never
+  cyan.
 - Tune one element with `--fx-dur`, `--fx-amp` and `--fx-color`. Defaults live
   in `anim:tunables`. An override also reaches effects nested inside it.
 - A one-shot replays when its class is removed and re-added, or when the element
@@ -1255,6 +1326,13 @@ a scenario in the motion harness (`npm run motion`) to preview and tune it.
   and `<CountUp>` shows its value at once.
 - Adding an effect: its rule under `FX`, its defaults in `anim:tunables`, its
   scenario in `client/anim/scenarios.tsx`, and its row below.
+
+**Effect palette** — `--fx-1` … `--fx-8` in `tokens.css`: coral, orange,
+amber, olive, sage, periwinkle, lavender, rose. One shared lightness and a low
+chroma keep them matte, and each is mixed toward `--tungsten` so it sits under
+the same lamp as the set. Hues 180–230 are left out so cyan still only means a
+measurement. `--fx-light`, `--fx-chroma` and `--fx-tint` in `anim:tunables`
+move all eight; tune them in the harness's Palette scenario.
 
 **Entrances and exits** — once, on mount (exits on a class arriving).
 
@@ -1300,7 +1378,7 @@ a scenario in the motion harness (`npm run motion`) to preview and tune it.
 | Class | Per-letter | `--fx-amp` | Use for |
 |---|---|---|---|
 | `fx-wave` | yes | height | Celebrating a name |
-| `fx-rainbow` | yes | — | A winner's name, in the player colours |
+| `fx-rainbow` | yes | — | A winner's name, cycling the effect palette |
 | `fx-cascade` | yes | — | A title arriving |
 | `fx-jitter` | yes | twitch | Nerves, a close call |
 | `fx-type` | yes | — (`--fx-dur` is time per letter) | A line being typed out |
@@ -1318,7 +1396,7 @@ effects.
 |---|---|---|
 | `sparkle` | warm glints around the element | Something good appearing |
 | `dust` | grey puffs to either side | Landing, leaving |
-| `confetti` | player-colour pieces, thrown and falling | A win |
+| `confetti` | effect-palette pieces, thrown and falling | A win |
 | `embers` | sparks drifting up | Heat, a streak |
 | `stars` | brass stars flung out | Points, a bonus |
 | `emoji` | any `glyph` flung up | Reactions |

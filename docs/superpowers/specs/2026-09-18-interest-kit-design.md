@@ -62,7 +62,7 @@ Per-letter effects need `<Letters>`; the rest apply to a whole element.
 | Class | Per-letter | What it does |
 |---|---|---|
 | `fx-wave` | yes | Letters move up and down in sequence |
-| `fx-rainbow` | yes | Letters cycle through the `--id-*` player colours |
+| `fx-rainbow` | yes | Letters cycle through the effect palette |
 | `fx-cascade` | yes | Letters pop in one after another |
 | `fx-jitter` | yes | Letters twitch at random offsets |
 | `fx-shine` | no | A highlight band sweeps across the text (`background-clip: text`) |
@@ -76,6 +76,21 @@ Per-letter effects need `<Letters>`; the rest apply to a whole element.
 `<Burst kind>` with kinds `sparkle`, `dust`, `confetti`, `embers`, `stars`,
 `emoji` (takes `glyph`).
 
+### Effect palette
+
+Eight matte, warm-tinted hues, `--fx-1`…`--fx-8` in `client/tokens.css`, so
+multicolour effects never read as belonging to a player:
+
+```css
+--fx-1: color-mix(in oklab, oklch(var(--fx-light) var(--fx-chroma) 25), var(--tungsten) var(--fx-tint));
+```
+
+Hues 25 coral, 55 orange, 85 amber, 120 olive, 150 sage, 265 periwinkle, 305
+lavender, 345 rose. Nothing between 180 and 230, so cyan stays the measurement
+colour. The shared knobs `--fx-light` (0.76), `--fx-chroma` (0.09) and
+`--fx-tint` (18%) live in `anim:tunables`, and a Palette scenario in the gallery
+tunes all eight at once.
+
 ## Rules
 
 These go into `docs/design.md` §4.
@@ -88,7 +103,10 @@ These go into `docs/design.md` §4.
 - One-shots finish in about 600ms or less. Only celebrations run longer.
 - Loops take at least 1.2s per cycle.
 - Measurements stay still: cyan readouts and timing numbers never get effects.
-- Effects use the warm palette and the `--id-*` player colours, never cyan.
+- Multicolour effects (rainbow, confetti, glitch) use the effect palette
+  `--fx-1`…`--fx-8`; glows and sparks stay tungsten, brass and hot. A player's
+  `--id-*` colour is used only when the effect is about that player, through
+  `--fx-color`. Never cyan.
 - Reduced motion is handled by the global rule in `tokens.css`; `<Burst>` and
   `<CountUp>` also check `prefers-reduced-motion` and skip straight to the end.
 - Adding an effect means updating three places: its CSS in the `FX` section, its
