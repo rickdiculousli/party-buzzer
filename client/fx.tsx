@@ -95,7 +95,7 @@ export function Burst({ kind, glyph, count }: { kind: BurstKind; glyph?: string;
  * Text that glitches in hits: a burst of cyan, magenta and yellow copies
  * flickering through quadrant windows while a band of the letters tears, then
  * a breather, then the next. Each burst gets a new cut and each breather a
- * length within ±30% of `--fx-glitch-rest`, so no two hits look or land alike.
+ * length within ±50% of `--fx-glitch-rest`, so no two hits look or land alike.
  * To stop it, render the plain text instead. Under reduced motion it stays
  * still.
  */
@@ -124,7 +124,7 @@ export function Glitch({ text, class: cls = '' }: { text: string; class?: string
         if (!el || !(e.target as Element).classList.contains('fx-glitch__base')) return
         el.classList.remove('is-live')
         const ms = parseTune(getComputedStyle(el).getPropertyValue('--fx-glitch-rest'), 1200)
-        rest.current = setTimeout(hit, ms * (0.7 + Math.random() * 0.6))
+        rest.current = setTimeout(hit, ms * (0.5 + Math.random()))
       }}
     >
       <span class="fx-glitch__base">{text}</span>

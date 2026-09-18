@@ -1763,7 +1763,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
    it, which is past what sRGB can reach.
 
    It comes in hits: a burst (`--fx-glitch-dur`) that keeps stuttering the
-   whole way through, then a breather (`--fx-glitch-rest`, varied ±30% by
+   whole way through, then a breather (`--fx-glitch-rest`, varied ±50% by
    <Glitch> so the rhythm never settles), then the next. The burst runs while
    `is-live` is on; <Glitch> turns it off at the end and back on after the rest.
 
