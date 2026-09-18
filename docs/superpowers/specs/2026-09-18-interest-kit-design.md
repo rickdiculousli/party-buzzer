@@ -68,7 +68,7 @@ Per-letter effects need `<Letters>`; the rest apply to a whole element.
 | `fx-shine` | no | A highlight band sweeps across the text (`background-clip: text`) |
 | `fx-glitch` | no | Offset copies split the text briefly (pseudo-elements from `data-text`) |
 | `fx-neon` | no | Flickers on like a sign, then holds a glow |
-| `fx-type` | no | Types itself out (`steps()` on width, monospace-safe) |
+| `fx-type` | yes | Types itself out, one letter every `--fx-type-dur` |
 | count-up | — | `<CountUp>` rolls a number up to its value |
 
 ### Particles
@@ -80,6 +80,8 @@ Per-letter effects need `<Letters>`; the rest apply to a whole element.
 
 These go into `docs/design.md` §4.
 
+- One effect class per element: each owns `animation` and `transform`, so nest a
+  wrapper to combine two. `fx-ripple` is the exception; it draws on `::after`.
 - Effects animate only `transform`, `opacity`, and `filter` (plus
   `background-position` for `fx-shine`), so they never shift layout.
 - Particles are `pointer-events: none` and never take taps.
@@ -105,10 +107,10 @@ These go into `docs/design.md` §4.
 
 ### Helpers — `client/fx.tsx`
 
-- `Letters({ text, class })`: splits `text` with `Intl.Segmenter`
-  (grapheme granularity) into `<span style="--i:n">`; spaces become
-  non-collapsing spans. The wrapper keeps an `aria-label` of the full text and
-  the letter spans are `aria-hidden`, so screen readers read the word once.
+- `Letters({ text, class })`: splits `text` into words, and each word with
+  `Intl.Segmenter` (grapheme granularity) into `<span style="--i:n">`. Each word
+  is a `nowrap` span so a line never breaks mid-word. A visually hidden copy of
+  the text is read by screen readers; the letter spans are `aria-hidden`.
 - `Burst({ kind, glyph?, count? })`: an absolutely positioned,
   `pointer-events: none` layer filling its positioned parent. Each particle gets
   random angle, distance, spin, and delay as custom properties; CSS does the
@@ -138,10 +140,11 @@ These go into `docs/design.md` §4.
 
 - Client tests run under plain Node with no DOM and cannot import `.tsx`, so the
   logic the helpers need lives in pure functions in `client/fx.ts`:
-  `graphemes(text)` and `particles(kind, count, rand)`. `client/fx.tsx` only
+  `graphemes(text)`, `words(text)`, `particles(kind, count, rand, glyph)` and
+  `countAt(from, to, k)`. `client/fx.tsx` only
   renders them.
-- `client/fx.test.ts`: `graphemes` keeps emoji, combining marks, and spaces as
-  single segments; `particles` returns the requested count, each with the
+- `client/fx.test.ts`: `graphemes` keeps emoji and combining marks whole;
+  `words` splits on whitespace runs; `particles` returns the requested count, each with the
   custom properties its kind's keyframe reads, deterministic under a seeded
   `rand`.
 - Extend `client/tunables.test.ts`: every `--fx-*` default referenced in the
