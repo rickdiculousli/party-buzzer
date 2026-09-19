@@ -807,5 +807,11 @@ fills.
    system is missing something real — add it to `tokens.css` and to this
    document in the same commit.
 4. Nothing may reference a CDN, a webfont service, or a remote image.
+5. Every surface is one screen with nothing colliding: no scrolling, every
+   box inside the viewport, and no two boxes overlapping unless one holds the
+   other. `npm run test:review` checks this on every review scenario at two
+   board and three phone sizes (`tools/review/fits.spec.ts`). An overlap that
+   is the point, like the faded countdown behind the wall, carries
+   `data-overlap` in the markup; decoration that is `aria-hidden` is exempt.
 
 Before shipping, remove one thing.

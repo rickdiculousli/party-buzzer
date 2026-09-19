@@ -305,7 +305,7 @@ function NomList({
 function Countdown({ until, now }: { until: number; now: () => number }) {
   const left = useSecondsLeft(until, now)
   return (
-    <p class="board__countdown" data-review-id="board:countdown" aria-label={`${left} seconds`}>
+    <p class="board__countdown" data-review-id="board:countdown" data-overlap aria-label={`${left} seconds`}>
       {left}
     </p>
   )
@@ -341,7 +341,7 @@ function Choices({ c, colorOf }: { c: ChoiceWall; colorOf: (id: string) => strin
             >
               {/* At the reveal each pick lands on the edge of its answer. */}
               {revealed && !!c.by?.[i]?.length && (
-                <span class="board__who">
+                <span class="board__who" data-overlap>
                   {c.by[i].map((id) => (
                     <span key={id} class="board__dot fx-pop" style={{ '--id': colorOf(id) }} />
                   ))}
