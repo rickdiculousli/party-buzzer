@@ -327,7 +327,7 @@ function Choices({ c, now, colorOf }: { c: ChoiceWall; now: () => number; colorO
           seeing what anyone chose. The row keeps its space at the reveal, so
           the grid does not move. */}
       <div class={revealed ? 'board__status-row is-gone' : 'board__status-row'}>
-        <ol class={closed ? 'board__slots is-closed' : 'board__slots'} data-review-id="board:pickers">
+        <ol class={closed ? 'board__slots is-closed fx-ripple' : 'board__slots'} data-review-id="board:pickers">
           {c.pickers.map((p, i) => (
             <li key={i} class="board__slot">
               {p.picked && <span key={p.id} class="board__dot fx-pop" style={{ '--id': colorOf(p.id) }} />}

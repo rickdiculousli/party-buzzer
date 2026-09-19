@@ -671,7 +671,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .board__slot { width: var(--_dot); height: var(--_dot); border-radius: 50%; box-shadow: inset 0 0 0 1px var(--dim); }
 /* Everyone is in: the bar warms for a beat before the answer lands. */
 .board__slots { transition: background 200ms, border-color 200ms; }
-.board__slots.is-closed { background: color-mix(in srgb, var(--brass) 30%, var(--panel)); border-color: var(--brass); }
+.board__slots.is-closed { background: color-mix(in srgb, var(--brass) 30%, var(--panel)); border-color: var(--brass); --fx-color: var(--brass); }
 /* The countdown, behind everything on the wall: centred, huge, and faded. */
 .board__countdown {
   position: absolute;

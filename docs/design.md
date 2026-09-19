@@ -600,14 +600,14 @@ room sees who is still out but never what anyone chose, and the countdown is
 the seconds left, huge and faded behind the whole wall (`.board__countdown`).
 The row keeps its space at the reveal so the grid never moves. When the last
 pick lands, or the countdown runs out, the bar warms to brass for a beat (`.is-
-closed`) so the room sees that everyone is in before it is told who was right.
-On the reveal each pick's dot lands on the top edge of the answer it chose,
-three quarters showing (`.board__who`); the right cell turns brass with `fx-
-tada`, the rest dim (`.is-dim`) with their dots, and the brass stamp above
-reads "+400 · 2 right" or "Nobody". Its moments are `choice:listening`,
-`choice:picking` and `choice:reveal`; there is no hero. The option box
-(`.choice__cell`, `.choice__letter`) is shared with the phone, which shows the
-same panels as its pick buttons and the seconds left above them
+closed`, with a brass `fx-ripple`) so the room sees that everyone is in before
+it is told who was right. On the reveal each pick's dot lands on the top edge
+of the answer it chose, three quarters showing (`.board__who`); the right cell
+turns brass with `fx- tada`, the rest dim (`.is-dim`) with their dots, and the
+brass stamp above reads "+400 · 2 right" or "Nobody". Its moments are
+`choice:listening`, `choice:picking` and `choice:reveal`; there is no hero. The
+option box (`.choice__cell`, `.choice__letter`) is shared with the phone, which
+shows the same panels as its pick buttons and the seconds left above them
 (`.player__countdown`).
 
 **The leader shows early, the field fills in.** A beat after the first buzz
