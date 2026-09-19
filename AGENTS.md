@@ -118,6 +118,7 @@ also changes.
 - `ARCHTECTURE.md`: current component ownership, wiring, invariants, extension paths.
 - `AGENTS.md`: common working instructions; `CLAUDE.md` points here.
 - `docs/design.md`: visual language and terminology.
+- `docs/question-styles/`: writing rules per question style, plus shared accepted-answer rules.
 
 Update the relevant guide when changing its contract. Describe the current
 implementation, distinguish limitations from intended behavior, and avoid

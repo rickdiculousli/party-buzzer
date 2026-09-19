@@ -136,7 +136,8 @@ current fragment. `A:` is required; ` | ` separates accepted answer variants.
 The first variant is displayed as the answer. An optional `I: images/tower.jpg`
 line attaches a picture (a path inside `packs/`). The board shows it when the
 question arms; phones show it only with the mirror on. Invalid questions are
-skipped with diagnostics. See [the sample pack](packs/sample.txt).
+skipped with diagnostics. See [the sample pack](packs/sample.txt), and
+[the question styles](docs/question-styles/README.md) for how to write them.
 
 Selecting a pack starts background speech preparation and caching. Each
 question waits for its audio before arming; the entire pack does not have to

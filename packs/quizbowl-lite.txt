@@ -1,0 +1,39 @@
+V: 100
+This thing has a version supposedly named for Queen Margherita on a visit to Naples. / Chicago and New York still argue over how thick it should be. / Name this dish of baked dough, tomato sauce and cheese, often sold by the slice.
+A: Pizza | slice
+
+V: 100
+This thing always shows Earth the same face, because its rotation is synchronous. / Twelve astronauts walked on it between 1969 and 1972. / Name this body that pulls on the ocean tides and goes through phases from new to full.
+A: The Moon | Luna
+
+V: 200
+This thing has Mercutio curse "a plague o' both your houses." / Its opening Chorus announces "a pair of star-cross'd lovers" from Verona. / Name this Shakespeare tragedy with a balcony scene, about two teenagers from feuding families.
+A: Romeo and Juliet | Romeo & Juliet
+
+V: 200
+This thing has a second stage, the Calvin cycle, which fixes carbon. / It happens in chloroplasts and depends on the green pigment chlorophyll. / Name this process by which plants turn sunlight, water and carbon dioxide into sugar and oxygen.
+A: Photosynthesis | photosynthesizing
+
+V: 300
+This man is the only U.S. president to hold a patent, for a device that lifted boats over sandbars. / He lost an 1858 Senate race to Stephen Douglas after a famous series of debates. / Name this president who gave the Gettysburg Address and was shot at Ford's Theatre.
+A: Abraham Lincoln | Lincoln | Honest Abe
+
+V: 300
+This thing is described by general relativity as the curving of spacetime by mass. / Near Earth's surface, it speeds up falling objects by about 9.8 meters per second every second. / Name this force that a falling apple supposedly made Isaac Newton think about.
+A: Gravity | gravitation | gravitational
+
+V: 400
+This thing was stolen in 1911 by a Louvre handyman, Vincenzo Peruggia, who hid it in his apartment for two years. / Its sitter is usually identified as Lisa Gherardini, the wife of a Florentine silk merchant. / Name this Leonardo da Vinci portrait, famous for its smile.
+A: Mona Lisa | La Gioconda | La Joconde
+
+V: 400
+This thing had no binoculars for its lookouts, and its older twin was the Olympic. / It carried only twenty lifeboats for more than two thousand people. / Name this White Star Line ship, called unsinkable, that hit an iceberg in April 1912.
+A: Titanic
+
+V: 500
+This group had a Hamburg-era bassist, Stuart Sutcliffe, sometimes called its fifth member. / Its last public performance was an unannounced 1969 concert on a London rooftop. / Name this Liverpool band of John, Paul, George and Ringo.
+A: The Beatles | Fab Four
+
+V: 500
+These things include one built for the pharaoh Khufu that was the tallest thing humans had built for nearly four thousand years. / They sit on a plateau at the edge of Cairo, near the Sphinx. / Name these tombs, the only Wonder of the Ancient World still standing.
+A: The Pyramids of Giza | pyramids
