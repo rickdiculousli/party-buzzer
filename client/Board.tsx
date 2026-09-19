@@ -445,9 +445,6 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
               {state.setlist.blocks[state.setlist.at].count}
             </span>
           )}
-          {/* What is at stake. The idle stage shows this large; once someone is
-              answering the stage belongs to them, so it shrinks to a chip. */}
-          {leader && <span class="chip chip--armed">{round.value}</span>}
           {!audible && <span class="chip">Click for sound</span>}
         </div>
 
@@ -507,6 +504,12 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
         <div class="board__mid">
           {w.hero && <Hero {...w.hero} />}
           {w.finale && <Finale names={w.finale} />}
+          {w.next !== null && (
+            <div class="board__next fx-rise" data-review-id="board:next">
+              <p class="board__next-label">Next question</p>
+              <p class="board__next-value">{w.next} points</p>
+            </div>
+          )}
           {w.nominations && (
             <div class="board__noms">
               <p class="board__idle">Who plays?</p>
@@ -556,8 +559,8 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
           {w.timeline && <Timeline state={state} round={round} enter={enter.current} />}
           {!leader && (
             <>
-              {/* The slot is always here so the filament arriving does not
-                  shove the value down a line. */}
+              {/* The slot is always here, so the band keeps its shape whether or
+                  not the filament is in it. */}
               <div class="board__countdown">
                 {w.filament && (
                   // Keyed on the arm instant so the warm-up restarts once per
@@ -569,11 +572,15 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
                   />
                 )}
               </div>
-              {/* What the next question is worth: `wallOf` decides when. */}
-              {w.value !== null && <p class="board__value">{w.value}</p>}
             </>
           )}
         </div>
+
+        {/* The stakes, dim in the corner for the whole question: the card
+            between questions said it large, and the stage is the question's now. */}
+        {w.value !== null && (
+          <span class="chip board__stakes" data-review-id="board:stakes">{w.value} pts</span>
+        )}
 
         {/* Status, not stage content — parked at the foot of the stage so a
             rebound's lockout chips never move the timeline above them. */}

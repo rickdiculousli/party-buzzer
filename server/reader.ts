@@ -49,6 +49,13 @@ export type ReaderOpts = {
   align?: Aligner
   /** Observer for tests: every clip that starts playing, with its start time. */
   onClip?: (clip: Clip, startedAt: number) => void
+  /**
+   * How long the "Next question" card holds the wall, with the new value on
+   * it, before the reader arms. Absent, it arms at once.
+   * ponytail: one number for every room; make it an autoplay field beside
+   * `nextSec` if hosts want to tune it.
+   */
+  nextCardMs?: number
 }
 
 /**
@@ -414,6 +421,8 @@ export class Reader {
         if (q.value !== undefined) {
           this.hub.dispatch({ a: 'setValue', value: q.value })
         }
+        // The room reads what the next one is worth before it starts.
+        if (this.opts.nextCardMs) await sleep(this.opts.nextCardMs, this.session.signal)
         this.hub.dispatch({ a: 'arm' })
         // Answer variants, memory only — this is the one path by which the judge
         // ever learns what the room is about to be asked.
@@ -778,10 +787,11 @@ export class Reader {
 }
 
 /**
- * The one wait with no predicate behind it — counting down to `armedAt`. It
- * takes the signal for the same reason the others do, and clears its timer on
- * the way out either way. Not unref'd: this one is short and load-bearing, and
- * a question half-armed is worse than a process that waits 250ms to exit.
+ * The waits with no predicate behind them — the next-question card, and the
+ * count down to `armedAt`. They take the signal for the same reason the others
+ * do, and clear their timer on the way out either way. Not unref'd: both are
+ * short and load-bearing, and a question half-armed is worse than a process
+ * that waits two seconds to exit.
  */
 const sleep = (ms: number, sig?: AbortSignal): Promise<void> => {
   sig?.throwIfAborted()

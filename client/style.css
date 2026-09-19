@@ -521,11 +521,30 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-.board__value {
+/* Between questions: what is coming and what it is worth. */
+.board__next { text-align: center; }
+.board__next-label {
   font-family: var(--display);
   font-size: var(--t-xl);
-  font-weight: 700;
+  font-weight: 500;
+  margin: 0 0 var(--s2);
+  color: var(--dim);
+}
+.board__next-value {
+  font-family: var(--display);
+  font-size: var(--t-mega);
+  font-weight: 800;
+  line-height: 0.9;
+  margin: 0;
   color: var(--tungsten);
+  text-transform: uppercase;
+}
+/* The stakes during a question: in the corner, dim, never competing with it. */
+.board__stakes {
+  position: absolute;
+  top: var(--s5);
+  right: var(--s6);
+  opacity: 0.6;
 }
 .board__barred {
   position: absolute;

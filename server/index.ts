@@ -150,7 +150,7 @@ export async function startServer(opts: {
       }
     : undefined
 
-  const reader = new Reader(hub, { packDir, cacheDir: join(packDir, '.cache'), judge, align })
+  const reader = new Reader(hub, { packDir, cacheDir: join(packDir, '.cache'), judge, align, nextCardMs: 2000 })
   hub.setReader(reader)
   // The three subscribers to a state change: the snapshot, the reader's waits,
   // and the judge's window.

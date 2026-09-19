@@ -152,7 +152,7 @@ export function momentOf(state: State, local: Local): Moment {
  * What is on the big screen.
  *
  * The invariant, and the point of the whole file: exactly one of `hero`,
- * `clue`, `nominations`, `faceoff`, `call` and `finale` is non-null. Those six are the
+ * `clue`, `nominations`, `faceoff`, `call`, `finale` and `next` is non-null. Those seven are the
  * middle band's occupants, and the seven-branch ternary they replace existed
  * only because nothing ever said they were mutually exclusive.
  *
@@ -168,6 +168,8 @@ export type Wall = {
   call: 'buzz' | 'standby' | 'ready' | 'dead' | null
   /** Everyone tied for the top when the setlist is spent. */
   finale: string[] | null
+  /** Between questions: what the next one is worth. */
+  next: number | null
 
   transcript: { name: string; text: string; hit: boolean } | null
   award: (Award & { answer?: string }) | null
@@ -180,7 +182,7 @@ export type Wall = {
  * The middle band's one occupant, as a one-key object.
  *
  * The type is the invariant: a `Middle` cannot name two occupants, so
- * "exactly one of six" is enforced by the compiler rather than asserted in a
+ * "exactly one of seven" is enforced by the compiler rather than asserted in a
  * comment and hoped for. Four `let`s initialised to null and assigned in a
  * branch said the same thing and guaranteed none of it.
  */
@@ -191,6 +193,7 @@ type Middle =
   | { faceoff: NonNullable<Wall['faceoff']> }
   | { call: NonNullable<Wall['call']> }
   | { finale: NonNullable<Wall['finale']> }
+  | { next: number }
 
 const EMPTY_MIDDLE = {
   hero: null,
@@ -199,7 +202,8 @@ const EMPTY_MIDDLE = {
   faceoff: null,
   call: null,
   finale: null,
-} satisfies Pick<Wall, 'hero' | 'clue' | 'nominations' | 'faceoff' | 'call' | 'finale'>
+  next: null,
+} satisfies Pick<Wall, 'hero' | 'clue' | 'nominations' | 'faceoff' | 'call' | 'finale' | 'next'>
 
 /**
  * The middle band's occupant: one row per moment, in preference order.
@@ -295,7 +299,12 @@ function middleOf(state: State, m: Moment): Middle {
       const top = leaders(state)
       return top.length ? { finale: top } : { call: 'ready' }
     }
+    // Between questions the stage says what is coming and what it is worth.
+    // An active reader alone puts an empty clue up, and that would hide the
+    // card for the whole beat before the arm; only words already said keep
+    // the clue. Welcome has nothing lined up yet, so it keeps "Ready".
     case 'idle:ready':
+      return or(r.fragments?.length ? clue : null, { next: r.value })
     case 'idle:welcome':
       return or(clue, { call: 'ready' })
   }
@@ -310,12 +319,9 @@ export function wallOf(state: State, local: Local): Wall {
   // the server is showing the miss until it opens the buzzers and the board
   // must not go dark in between.
   const showAward = !!r.award && (m === 'verdict:award' || m === 'verdict:penalty' || m === 'verdict:hold')
-  const penalised = showAward && isPenalty(r.award)
-
-  const reading = !!state.readingActive
 
   // The lower band's question, not the middle's: whose timeline, whose warm-up
-  // bar, whose value. `middleOf` owns who is on the stage.
+  // bar. `middleOf` owns who is on the stage.
   const leader = m === 'answer:locked' || m === 'buzz:collecting' ? r.order[0] : undefined
 
   return {
@@ -331,19 +337,10 @@ export function wallOf(state: State, local: Local): Wall {
     // A miss holding the stage keeps the whole lower band out of the way, or
     // the room reads a warm-up bar counting down under the name it just cost.
     filament: !leader && isFamily(m, 'buzz'),
-    // What the next question is worth, from Ready onward, so the room knows
-    // the stakes before the filament starts rather than for the few seconds
-    // until someone buzzes. Not while someone is answering or being judged —
-    // a value up under a transcript flicked off again when the stamp landed —
-    // and not on the welcome screen or the finale, where nothing is coming.
-    value:
-      !leader &&
-      !penalised &&
-      !isFamily(m, 'answer') &&
-      !isFamily(m, 'verdict') &&
-      (isFamily(m, 'buzz') || m === 'idle:ready' || reading)
-        ? r.value
-        : null,
+    // The stakes, as a dim chip in the corner, from the arm until the next
+    // question's card replaces them: through the read, the buzz, the answer
+    // and the verdict. Between questions the card says it instead.
+    value: r.phase !== 'IDLE' || isFamily(m, 'answer') || isFamily(m, 'verdict') ? r.value : null,
   }
 }
 
@@ -381,6 +378,8 @@ export type Mine = {
   judging: boolean
   /** Where this player (or their team) finished: 1 is the top, ties share. */
   place?: number
+  /** What the next question is worth, for the wait between questions. */
+  next?: number
 }
 
 /**
@@ -464,6 +463,10 @@ export function phoneOf(m: Moment, f: Mine): Phone {
   }
   if (f.open) return { label: 'Buzz', sub: '', mood: 'open', talk: false }
   if (f.armed) return { label: 'Wait', sub: 'Any moment', mood: 'waiting', talk: false }
+  // Between questions the phone reads the same card as the wall.
+  if (m === 'idle:ready' && f.next !== undefined) {
+    return { label: 'Wait', sub: `Next question · ${f.next} points`, mood: 'waiting', talk: false }
+  }
   return { label: 'Wait', sub: 'The host has not armed yet', mood: 'waiting', talk: false }
 }
 

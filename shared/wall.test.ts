@@ -35,7 +35,7 @@ function room(): State {
  * "the clue came back under the transcript" is precisely two of them at once.
  */
 function oneOf(w: Wall, why: string) {
-  const up = [w.hero, w.clue, w.nominations, w.faceoff, w.call, w.finale].filter((x) => x !== null)
+  const up = [w.hero, w.clue, w.nominations, w.faceoff, w.call, w.finale, w.next].filter((x) => x !== null)
   assert.equal(up.length, 1, `${why}: expected one middle-band occupant, got ${up.length} (${w.moment})`)
 }
 
@@ -85,7 +85,7 @@ test('a question end to end, one occupant the whole way', () => {
   assert.deepEqual(held.hero, { name: 'Bo', tone: 'penalised' })
   assert.equal(held.award?.points, -300)
   assert.ok(!held.filament, 'no warm-up bar under the name it just cost')
-  assert.equal(held.value, null)
+  assert.equal(held.value, 200, 'the stakes stay in the corner through the miss')
 
   // The rebound opens. The clue resumes on a clean wall: the server drops the
   // transcript with the hold, which is what `rebound` in state.ts does.
@@ -490,25 +490,44 @@ test('the finale tells each phone where it finished', () => {
   assert.equal(phoneOf('idle:finale', { ...mine, place: 11 }).sub, '11th place')
 })
 
-test('the value stays down while an answer is typed and judged', () => {
+test('the stakes chip stays up while an answer is typed and judged', () => {
   const s = room()
   s.readingActive = true
   s.round.armedAt = 1
   s.round.spoken = { name: 'Ada', transcript: 'the Atlantic', hit: false }
   assert.equal(wallOf(s, { ...LOCAL, settled: false }).moment, 'answer:judging')
-  assert.equal(wallOf(s, { ...LOCAL, settled: false }).value, null)
+  assert.equal(wallOf(s, { ...LOCAL, settled: false }).value, 200)
   s.round.held = true
   s.round.award = { name: 'Ada', points: -100, penalty: true }
-  assert.equal(wallOf(s, LOCAL).value, null)
+  assert.equal(wallOf(s, LOCAL).value, 200)
 })
 
-test('the value is up on Ready, before the arm, but not on welcome or the finale', () => {
+test('between questions the stage names the next one and what it is worth', () => {
   const s = room()
   assert.equal(wallOf(s, LOCAL).moment, 'idle:welcome')
-  assert.equal(wallOf(s, LOCAL).value, null)
+  assert.equal(wallOf(s, LOCAL).next, null)
+  assert.equal(wallOf(s, LOCAL).call, 'ready')
   s.scores = { a: 200, b: 0 }
-  assert.equal(wallOf(s, LOCAL).moment, 'idle:ready')
-  assert.equal(wallOf(s, LOCAL).value, 200)
+  const ready = wallOf(s, LOCAL)
+  oneOf(ready, 'ready')
+  assert.equal(ready.moment, 'idle:ready')
+  assert.equal(ready.next, 200)
+  assert.equal(ready.value, null, 'the card says it; no chip as well')
   s.setlist = { blocks: [{ game: 'trivia', options: {}, count: 1 }], at: 1, done: 0 }
-  assert.equal(wallOf(s, LOCAL).value, null)
+  assert.equal(wallOf(s, LOCAL).next, null)
+})
+
+test('a waiting phone reads the next question and its value', () => {
+  const mine = { frozen: false, barred: false, spectator: false, dead: false, won: false, pressed: false, armed: false, open: false, judging: false }
+  assert.equal(phoneOf('idle:ready', { ...mine, next: 300 }).sub, 'Next question · 300 points')
+  assert.equal(phoneOf('idle:welcome', { ...mine, next: 300 }).sub, 'The host has not armed yet')
+})
+
+test('the next-question card holds the stage while the reader waits to arm', () => {
+  const s = room()
+  s.scores = { a: 200, b: 0 }
+  s.readingActive = true
+  const w = wallOf(s, LOCAL)
+  oneOf(w, 'reader between questions')
+  assert.equal(w.next, 200)
 })

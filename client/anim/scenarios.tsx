@@ -515,12 +515,9 @@ export const SCENARIOS: Scenario[] = [
       <Stage
         mid={lead ? <p class="board__idle">Stand by</p> : <p class="board__call">Buzz</p>}
         below={
-          <>
-            <div class="board__countdown">
-              <div class={lead ? 'filament' : 'filament is-hot'} style={{ '--delay': '900ms' }} />
-            </div>
-            <p class="board__value">400</p>
-          </>
+          <div class="board__countdown">
+            <div class={lead ? 'filament' : 'filament is-hot'} style={{ '--delay': '900ms' }} />
+          </div>
         }
       />
     ),
