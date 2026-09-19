@@ -129,6 +129,8 @@ async function main() {
   const cleanup = () => {
     host.send({ t: 'host', action: { a: 'cancelMinigame' } })
     host.send({ t: 'host', action: { a: 'closeMinigame' } })
+    // Back to Ready: whatever the round held before the match does not come back up.
+    host.send({ t: 'host', action: { a: 'next' } })
     for (const bot of bots) host.send({ t: 'host', action: { a: 'kick', playerId: bot.conn!.playerId } })
     log('\n  match closed, bots removed.\n')
     setTimeout(() => process.exit(0), 200)

@@ -46,6 +46,8 @@ for (const name of NAMES) {
 const stop = () => {
   host.send({ t: 'host', action: { a: 'cancelMinigame' } })
   host.send({ t: 'host', action: { a: 'closeMinigame' } })
+  // Back to Ready: whatever the round held before the game does not come back up.
+  host.send({ t: 'host', action: { a: 'next' } })
   for (const bot of bots.values()) {
     bot.conn.close()
     if (!bot.borrowed) host.send({ t: 'host', action: { a: 'kick', playerId: bot.conn.playerId } })

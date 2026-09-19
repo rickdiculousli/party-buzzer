@@ -36,6 +36,7 @@
  *   rewind           forget where every pack got to, so a walkthrough repeats exactly
  *   read             start the reader on the chosen pack or the block's
  *   armed            wait for the buzzers to open — the reader arms, not you
+ *   done             wait for the reader to finish the pack
  *   mode:trivia      pin the mode (resets scores, as a host mode switch does)
  *   direct           drop any setlist — the one step that touches a setlist probe did not set
  *   act:name[:data]  host-scoped act (fragment / powerEnds / revealAnswer)
@@ -121,7 +122,7 @@ async function main() {
     // The header comment is the manual; printing a second copy is a second
     // thing to keep true.
     log('\n  usage: npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@120 correct')
-    log('  steps: loop join value arm buzz correct wrong next reset undo pack mode direct autoplay rewind read armed act speak say pick teams setlist jump duel in out vote unvote seat cancel wait clear')
+    log('  steps: loop join value arm buzz correct wrong next reset undo pack mode direct autoplay rewind read armed act speak say pick done teams setlist jump duel in out vote unvote seat cancel wait clear')
     log('  walks: npm run walk-duel   walk-teams   walk-setlist   walk-read-quizbowl   walk-read-trivia   walk-packs\n')
     return
   }
@@ -163,6 +164,8 @@ async function main() {
    * had already set up a teams grouping before probe arrived is left in it.
    */
   const assigned = new Set<string>()
+  /** Teams probe added. There is no host action to remove one, so their scores go to zero. */
+  const madeTeams = new Set<string>()
   let teamsAreOurs = false
   let setlistIsOurs = false
   let readIsOurs = false
@@ -187,6 +190,10 @@ async function main() {
     if (teamsAreOurs) host.send({ t: 'host', action: { a: 'setGrouping', grouping: 'solo' } })
     const gone = (host.state()?.players ?? []).filter((p) => p.id.startsWith('probe-'))
     for (const p of gone) host.send({ t: 'host', action: { a: 'kick', playerId: p.id } })
+    // A kick takes that player's score with it; a team's score outlives its
+    // team, and a room left holding one comes back up mid-game rather than on
+    // "Ready".
+    for (const key of madeTeams) host.send({ t: 'host', action: { a: 'setScore', key, score: 0 } })
     log(`  cleared ${gone.length}`)
   }
   // Ctrl-C tidies up the same as `clear`: the bots go and the teams, setlist
@@ -389,6 +396,12 @@ async function main() {
           await host.waitFor((s) => s.round.phase === 'ARMED', 300_000)
           break
 
+        // The pack is spent and the reader has stopped: the end of a read walk,
+        // however long its last question took to pass.
+        case 'done':
+          await host.waitFor((s) => !s.readingActive, 120_000)
+          break
+
         case 'act': {
           // Host-scoped acts, the reader's channel: act:fragment:Some text,
           // act:powerEnds, act:revealAnswer:The answer. Item uses go through
@@ -462,6 +475,7 @@ async function main() {
                 action: { a: 'addTeam', name: teamName, color: `var(--id-${n})` },
               })
               await host.waitFor((s) => s.teams.some((t) => t.name === teamName))
+              madeTeams.add(host.state()!.teams.find((t) => t.name === teamName)!.id)
             }
             const teamId = host.state()!.teams.find((t) => t.name === teamName)!.id
             for (const name of members.split(',').filter(Boolean)) {
