@@ -298,12 +298,24 @@ function NomList({
   )
 }
 
+/** The picking countdown as flip-clock tiles, one per digit; a digit flips in when it changes. */
+function FlipClock({ seconds }: { seconds: number }) {
+  const digits = String(seconds).padStart(2, '0')
+  return (
+    <p class="board__flip" data-review-id="board:countdown" aria-label={`${seconds} seconds`}>
+      {[...digits].map((d, i) => (
+        <span key={`${i}:${d}`} class="board__digit fx-flip">{d}</span>
+      ))}
+    </p>
+  )
+}
+
 /**
  * A choice question's options, in the band below the clue. The same grid
  * stays up for the reveal: the right cell lights, the rest dim with their
  * counts, and the room's winners sit under it.
  */
-function Choices({ c, now }: { c: ChoiceWall; now: () => number }) {
+function Choices({ c, now, colorOf }: { c: ChoiceWall; now: () => number; colorOf: (id: string) => string }) {
   const [, tick] = useState(0)
   useEffect(() => {
     if (c.closesAt === undefined || c.correct !== undefined) return
@@ -314,6 +326,20 @@ function Choices({ c, now }: { c: ChoiceWall; now: () => number }) {
   const revealed = c.correct !== undefined
   return (
     <div class="board__choices" data-review-id="board:choices">
+      <div class="board__gridwrap">
+      {/* Who is in, never what they chose: a dot per picker, tucked behind
+          the grid's top edge, filling in their colour when they pick. */}
+      {!revealed && (
+        <ol class="board__pickers" data-review-id="board:pickers">
+          {c.pickers.map((p) => (
+            <li
+              key={p.id}
+              class={p.picked ? 'board__picker fx-pop' : 'board__picker is-waiting'}
+              style={{ '--id': colorOf(p.id) }}
+            />
+          ))}
+        </ol>
+      )}
       <ol class="board__grid">
         {c.options.map((o, i) => (
           <li
@@ -326,6 +352,7 @@ function Choices({ c, now }: { c: ChoiceWall; now: () => number }) {
           </li>
         ))}
       </ol>
+      </div>
       {revealed ? (
         !!c.winners?.length && (
           <p class="board__winners">
@@ -333,9 +360,7 @@ function Choices({ c, now }: { c: ChoiceWall; now: () => number }) {
           </p>
         )
       ) : (
-        <p class="readout board__picking">
-          {c.in} of {c.of} in{left !== null && ` · ${left}s`}
-        </p>
+        left !== null && <FlipClock seconds={left} />
       )}
     </div>
   )
@@ -664,7 +689,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
           {/* `seen` still holds the previous count during render — the effect
               that advances it runs after. That is exactly the number a mark
               needs to know whether it arrived alone or in a crowd. */}
-          {w.choices && <Choices c={w.choices} now={now} />}
+          {w.choices && <Choices c={w.choices} now={now} colorOf={(id) => colorForPlayer(state, id)} />}
           {w.timeline && <Timeline state={state} round={round} enter={enter.current} />}
         </div>
 

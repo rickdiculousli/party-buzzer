@@ -604,7 +604,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
    question, in the same display face, and clamp to two lines so a long one
    cannot push the band. The reveal keeps the same cells and only changes
    their weight. */
-.board__choices { display: grid; gap: var(--s4); justify-items: center; width: min(100%, 56rem); margin-top: var(--s5); }
+.board__choices { display: grid; gap: var(--s4); justify-items: center; width: min(100%, 56rem); margin-top: var(--s4); }
 .board__grid { list-style: none; margin: 0; padding: 0; width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); }
 .board__choice {
   display: flex;
@@ -639,7 +639,39 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .board__choice.is-dim { opacity: 0.35; }
 .board__tally { color: var(--dim); font-size: 0.8em; }
 .board__winners { display: flex; flex-wrap: wrap; gap: var(--s2); justify-content: center; margin: 0; }
-.board__picking { color: var(--dim); margin: 0; }
+/* Pickers: identity dots behind the grid's top-left edge, three quarters showing. */
+.board__gridwrap { position: relative; width: 100%; margin-top: var(--s4); }
+.board__gridwrap > .board__grid { position: relative; z-index: 1; }
+.board__pickers {
+  --_dot: 1.5rem;
+  position: absolute;
+  z-index: 0;
+  top: calc(var(--_dot) * -0.75);
+  left: var(--s5);
+  display: flex;
+  gap: var(--s2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.board__picker { width: var(--_dot); height: var(--_dot); border-radius: 50%; background: var(--id); }
+.board__picker.is-waiting { background: none; box-shadow: inset 0 0 0 2px var(--dim); }
+/* The countdown: a flip-clock tile per digit, split across the middle. */
+.board__flip { display: flex; gap: var(--s1); margin: 0; }
+.board__digit {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 1.15em;
+  height: 1.5em;
+  border-radius: var(--r-md);
+  background: linear-gradient(var(--raise) 50%, var(--panel) 50%);
+  font-family: var(--display);
+  font-size: calc(var(--t-xl) * 0.72);
+  font-weight: 700;
+  color: var(--chalk);
+}
+.board__digit::after { content: ''; position: absolute; inset: 50% 0 auto; height: 1px; background: var(--stage); }
 /*
  * The judge's transcript. Dim while it is still typing — it is being read, not
  * yet judged, which is exactly what --dim is for — and brass or tally-red once

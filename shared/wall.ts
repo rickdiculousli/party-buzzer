@@ -198,8 +198,8 @@ export type Wall = {
 export type ChoiceWall = {
   options: string[]
   points: number
-  in: number
-  of: number
+  /** Everyone who may pick, and whether they have. Never which option. */
+  pickers: { id: string; picked: boolean }[]
   closesAt?: number
   correct?: number
   tally?: number[]
@@ -360,8 +360,7 @@ function choiceWall(state: State, m: Moment): ChoiceWall | null {
   return {
     options: r.choices,
     points: r.value,
-    in: picks.length,
-    of: pickers(state).length,
+    pickers: pickers(state).map((id) => ({ id, picked: r.picks?.[id] !== undefined })),
     closesAt: r.closesAt,
     ...(r.correct !== undefined && {
       correct: r.correct,

@@ -570,7 +570,10 @@ test('a choice question: listening, picking, reveal, with the clue in the middle
   s.round.picks = { a: 1 }
   assert.equal(momentOf(s, LOCAL), 'choice:picking')
   w = wallOf(s, LOCAL)
-  assert.deepEqual(w.choices, { options: ['Mars', 'Saturn'], points: 200, in: 1, of: 2, closesAt: undefined })
+  assert.deepEqual(w.choices, {
+    options: ['Mars', 'Saturn'], points: 200, closesAt: undefined,
+    pickers: [{ id: 'a', picked: true }, { id: 'b', picked: false }],
+  })
   assert.ok(w.clue)
 
   s.round.picks = { a: 1, b: 0 }
