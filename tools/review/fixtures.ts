@@ -142,19 +142,21 @@ export function makeReviewScenarios(): ReviewScenario[] {
     done: 0,
   }
 
+  // Four in the room: two on one answer, one on another, one yet to pick.
   const picking = question()
+  picking.players.push({ id: 'di', name: 'Di', connected: true })
+  picking.scores.di = 0
   picking.round.kind = 'choice'
   picking.round.fragments = ['Which planet has the most known moons?']
   picking.round.whole = 'Which planet has the most known moons?'
   picking.round.choices = ['Mars', 'Venus', 'Saturn', 'Jupiter']
-  picking.round.picks = { ada: 2, bo: 3 }
+  picking.round.picks = { ada: 2, cy: 2, bo: 3 }
   picking.round.closesAt = NOW + 12_000
 
   const revealed = structuredClone(picking)
-  revealed.round.picks = { ada: 2, bo: 3, cy: 2 }
   revealed.round.correct = 2
   revealed.round.phase = 'IDLE'
-  revealed.scores = { ada: 1000, bo: 400, cy: 600 }
+  revealed.scores = { ada: 1000, bo: 400, cy: 600, di: 0 }
 
   const inkState = (phase: 'ready' | 'playing') => {
     const state = base()

@@ -593,8 +593,11 @@ A **choice question** keeps the three bands, but lifts the middle one
 (`.board__wall.is-choice`, a 0.55 : 1.45 split) for the whole question so the
 grid has room. The question holds the middle from the arm, and the options
 appear as a two-column grid of raised, lettered panels (`.board__choices`) in
-the band below once it has been read, with "6 of 9 in" and the countdown
-under it. On the reveal the same grid stays up: the right cell turns brass
+the band below once it has been read. Who is in shows as identity dots
+(`.board__pickers`) tucked behind the grid's top-left edge, three quarters
+showing, filled once that player picks and never saying what; the countdown
+sits under the grid as flip-clock tiles (`.board__digit`, `fx-flip` per
+changed digit). On the reveal the same grid stays up: the right cell turns brass
 with `fx-tada`, the rest dim (`.is-dim`) with their counts, the winners' names
 sit under it as chips, and the brass stamp above reads "+400 · 5 right" or
 "Nobody". Its moments are `choice:listening`, `choice:picking` and
