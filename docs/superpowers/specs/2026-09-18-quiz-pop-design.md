@@ -65,18 +65,17 @@ Rules for the move:
   `--flare-fall`, `--stamp-dur`, `--bloom-dur`, `--punch-dur`, …) keeps its
   name and value. Each new class resolves `--_d` from `--fx-dur` and falls back
   to the existing tunable, the same pattern as the rest of the kit.
-- **Keyframes are renamed with the `fx-` prefix** and move into the FX section
-  of `style.css` as a new "Signature" family.
-- **Multi-part anchors stay multi-part.** `fx-pin-flash-drop` is one class on the mark
-  that drives the pin and name through child selectors, so the three
-  keyframes can't be separated by accident. `fx-hero-slam-glow` keeps its two animations
-  (slam and flare) on one element; it is the documented exception to
-  "one effect owns `animation`", like `fx-ripple`.
-- **Call sites switch to the class** where the element is rendered in JSX
-  (hero, award, timeline mark, vote). State-driven ones (`.buzzer.is-open`,
-  `.buzzer.is-first`, `.filament`) keep their state selector and are added
-  to the class's selector list (`.fx-buzz-snap, .buzzer.is-open { … }`), because
-  the class there is the state.
+- **Keyframes are renamed with the `fx-` prefix** and stay where they are;
+  the MOTION header becomes "FX: Signature", the first family of the kit.
+- **Multi-part anchors stay multi-part.** `fx-pin-flash-drop` drops the mark;
+  the pin's and name's flashes stay on `.timeline__pin` and `.timeline__name`.
+  `fx-hero-slam-glow` keeps its two animations (slam and glow) on one element;
+  it is the documented exception to "one effect owns `animation`", like
+  `fx-ripple`.
+- **Call sites don't change.** Each rule gains the class in its selector list
+  (`.fx-buzz-snap, .board__call, .buzzer.is-open { … }`), so the JSX, the
+  harness scenarios and the element classes stay as they are, and the class
+  is there for any new element that wants the motion.
 - **Harness:** the six anchors' existing scenarios move under a "Signature"
   family heading. No new scenarios are needed for them.
 - **Docs:** design.md §4 drops the separate "anchors" paragraph. The kit table
@@ -169,12 +168,17 @@ new moment's priority (below every verdict, above `idle:ready`).
   child's `data-key` position; after the render it plays the difference as a
   `transform` transition over `--base`. It is about 20 lines on the
   First-Last-Invert-Play pattern, with no dependency. Rows are already keyed.
+  It moves rows with the `translate` property, not `transform`, so it
+  composes with an effect's transform animation (B12's pop).
 - **Score deltas:** `CountUp` needs the previous value. The standings row keeps
   it in a ref, and the row's flash colour comes from the sign of the change.
-- **Retriggering one-shots** on an element that stays mounted (B2, B6, P1,
-  P5): a small `useHit(dep)` helper in `fx.tsx` that removes and re-adds a
-  class across a reflow when `dep` changes, the same trick `Glitch` uses for
-  flashes.
+- **Replaying one-shots** uses the kit's existing rule: a hit replays when
+  its element remounts with a new key. B6 and P5 mount a wrapper span when the
+  state arrives; B2 and P1 key the score by a change counter from a small
+  `useDelta(value)` hook in `fx.tsx` (previous value, sign, count; no flash on
+  first render).
+- **Coloured flash:** `fx-flash` only brightens. A modifier `fx-flash--tint`
+  also flashes the text to `--fx-color`, for B2 and P1.
 - **Slide rates:** three curve tokens, `--fx-ease` in `fx-slide`, three
   modifier classes.
 - **`idle:finale`** in `shared/wall.ts` and its projection in `phoneOf`.
