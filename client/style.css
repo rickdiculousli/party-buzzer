@@ -375,7 +375,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 
 .board {
   display: grid;
-  grid-template-columns: 1fr clamp(17rem, 23vw, 26rem);
+  --side-w: clamp(17rem, 23vw, 26rem);
+  grid-template-columns: 1fr var(--side-w);
   height: 100dvh;
   overflow: hidden;
 }
@@ -416,6 +417,79 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 /* Two classes deep so it outranks each occupant's own `margin: 0`. */
 .board__wall .board__mid > * { margin-block: auto; flex: none; }
+
+/* The finale's drum roll: a brass spotlight comes up on the empty stage, the
+   screen flashes white once, and the winner pops in on the animation's end.
+   One element and one animation, painting its own background: the spotlight's
+   colour and size are registered properties, so the gradient animates without
+   a layer of its own. */
+@property --finale-spot {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: transparent;
+}
+@property --finale-spot-r {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 20%;
+}
+.board__finale-flash {
+  --finale-build-dur: 2400ms;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(
+    ellipse calc(var(--finale-spot-r) * 0.85) var(--finale-spot-r) at 50% 50%,
+    var(--finale-spot),
+    color-mix(in srgb, var(--finale-spot) 30%, transparent) 40%,
+    transparent 75%
+  );
+  animation: fx-finale-build var(--finale-build-dur) ease-in both;
+}
+@keyframes fx-finale-build {
+  0% { --finale-spot: transparent; --finale-spot-r: 20%; background-color: transparent; }
+  82% { --finale-spot: color-mix(in srgb, var(--brass) 45%, transparent); --finale-spot-r: 60%; background-color: transparent; }
+  88% { --finale-spot: color-mix(in srgb, var(--brass) 65%, transparent); --finale-spot-r: 66%; background-color: var(--hot); animation-timing-function: ease-out; }
+  100% { --finale-spot: transparent; --finale-spot-r: 66%; background-color: transparent; }
+}
+
+/* The finale is a whole-screen scene: the wall spans both columns and the
+   sidebar sits over its right edge, off-screen for the build and the winner's
+   first seconds. Then the sidebar slides in and the scene moves left by half
+   its width, back to the centre of the wall. Both are translates, so the GPU
+   does them and nothing is laid out again mid-slide. Wide layout only; the
+   narrow one stacks the sidebar underneath. */
+@media (min-width: 40rem) {
+  .board:has(.board__finale-flash, .board__finale) .board__wall { grid-area: 1 / 1 / 2 / -1; }
+  .board:has(.board__finale-flash, .board__finale) .board__side { grid-area: 1 / 2; z-index: 1; }
+  .board:has(.board__finale-flash) .board__side { translate: 100% 0; }
+  .board:has(.board__finale) {
+    --finale-side-wait: 4s;
+    --finale-side-dur: 700ms;
+  }
+  .board:has(.board__finale) .board__side {
+    animation: fx-finale-side var(--finale-side-dur) var(--ease) var(--finale-side-wait) both;
+  }
+  .board:has(.board__finale) :is(.board__above, .board__mid, .board__below) {
+    animation: fx-finale-scene var(--finale-side-dur) var(--ease) var(--finale-side-wait) both;
+  }
+}
+@keyframes fx-finale-side { from { translate: 100% 0; } }
+@keyframes fx-finale-scene { to { translate: calc(var(--side-w) / -2) 0; } }
+
+/* A zero-height line across the wall's middle, so each cannon fires from the
+   midpoint of its edge. */
+.board__cannons {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 0;
+  font-size: var(--t-mega);
+  --fx-amp: 40vw;
+  --fx-dur: 1400ms;
+  pointer-events: none;
+}
 
 /* Each band grows away from the middle: the one above stacks upward from its
    bottom edge, the one below downward from its top. */

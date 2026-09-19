@@ -312,6 +312,12 @@ function middleOf(state: State, m: Moment): Middle {
   }
 }
 
+/** The question coming up, or being asked, is the setlist's last. */
+export function lastUp(state: State): boolean {
+  const s = state.setlist
+  return !!s && s.at === s.blocks.length - 1 && s.done === s.blocks[s.at].count - 1
+}
+
 export function wallOf(state: State, local: Local): Wall {
   const r = state.round
   const m = momentOf(state, local)
@@ -382,6 +388,8 @@ export type Mine = {
   place?: number
   /** What the next question is worth, for the wait between questions. */
   next?: number
+  /** That next question is the setlist's last. */
+  last?: boolean
 }
 
 /**
@@ -467,7 +475,7 @@ export function phoneOf(m: Moment, f: Mine): Phone {
   if (f.armed) return { label: 'Wait', sub: 'Any moment', mood: 'waiting', talk: false }
   // Between questions the phone reads the same card as the wall.
   if (m === 'idle:ready' && f.next !== undefined) {
-    return { label: 'Wait', sub: `Next question · ${f.next} points`, mood: 'waiting', talk: false }
+    return { label: 'Wait', sub: `${f.last ? 'Last' : 'Next'} question · ${f.next} points`, mood: 'waiting', talk: false }
   }
   return { label: 'Wait', sub: 'The host has not armed yet', mood: 'waiting', talk: false }
 }

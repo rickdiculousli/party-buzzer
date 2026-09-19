@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
+import { createPortal } from 'preact/compat'
 import { useOpen, useSocket, type SocketFixture } from './useSocket.ts'
 import { colorForPlayer, lockedNames, standings, willSeat } from './ui.ts'
 import { markGap, play, playSpaced, prime, startBed, stopBed, unlock } from './sound.ts'
 import { Votes } from './Votes.tsx'
 import { Spoken } from './Spoken.tsx'
-import { wallOf, type Wall } from '../shared/wall.ts'
+import { lastUp, wallOf, type Wall } from '../shared/wall.ts'
 import { isPenalty } from '../shared/protocol.ts'
 import { useReveal } from './useReveal.ts'
 import { COLLECT_MS, type BuzzEntry, type State } from '../shared/protocol.ts'
@@ -44,21 +45,59 @@ function Hero({ name, tone }: NonNullable<Wall['hero']>) {
 }
 
 /**
- * The end of the setlist: the winner in the effect palette, with confetti on
- * arrival and once more a beat later. Ties share the stage.
+ * The end of the setlist: a brass spotlight comes up on the empty stage, a
+ * white flash, then the winner. The build's own animation end is the cue, so it is
+ * tuned in the stylesheet alone.
  */
 export function Finale({ names }: { names: string[] }) {
+  const [shown, setShown] = useState(false)
+  if (!shown) return <span class="board__finale-flash" aria-hidden="true" onAnimationEnd={() => setShown(true)} />
+  return <FinaleShow names={names} />
+}
+
+/**
+ * The winner in the effect palette, with confetti on arrival and once more a
+ * beat later, from the name and from both edges. Ties share the stage.
+ */
+function FinaleShow({ names }: { names: string[] }) {
+  const [again, setAgain] = useState(false)
+  // The cannons go on the wall itself: the stage moves over for the sidebar,
+  // and a moving box would take the cannons' edges with it.
+  const name = useRef<HTMLParagraphElement>(null)
+  const [wall, setWall] = useState<Element | null>(null)
+  useEffect(() => {
+    setWall(name.current?.closest('.board__wall') ?? null)
+    const t = setTimeout(() => setAgain(true), 1200)
+    return () => clearTimeout(t)
+  }, [])
+  return (
+    <p ref={name} class="board__hero board__finale fx-anchor" data-review-id="board:finale">
+      <Letters text={names.join(' & ')} class="fx-rainbow" />
+      <Burst kind="confetti" from="top" />
+      {again && <Burst kind="confetti" from="top" />}
+      {wall && createPortal(<Cannons />, wall)}
+    </p>
+  )
+}
+
+/** Confetti cannons at the wall's left and right edges, fired up and inward. */
+function Cannons() {
   const [again, setAgain] = useState(false)
   useEffect(() => {
     const t = setTimeout(() => setAgain(true), 1200)
     return () => clearTimeout(t)
   }, [])
+  const volley = (
+    <>
+      <Burst kind="confetti" count={30} from="left" angle={-50} spread={30} />
+      <Burst kind="confetti" count={30} from="right" angle={-130} spread={30} />
+    </>
+  )
   return (
-    <p class="board__hero board__finale fx-anchor" data-review-id="board:finale">
-      <Letters text={names.join(' & ')} class="fx-rainbow" />
-      <Burst kind="confetti" from="top" />
-      {again && <Burst kind="confetti" from="top" />}
-    </p>
+    <span class="board__cannons" aria-hidden="true">
+      {volley}
+      {again && volley}
+    </span>
   )
 }
 
@@ -514,8 +553,18 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
           {w.finale && <Finale names={w.finale} />}
           {w.next !== null && (
             <div class="board__next fx-rise" data-review-id="board:next">
-              <p class="board__next-label">Next question</p>
-              <p class="board__next-value">{w.next} points</p>
+              {lastUp(state) ? (
+                // After the rise, so the two transforms do not fight.
+                <div class="fx-tada" style={{ animationDelay: 'var(--fx-rise-dur)' }}>
+                  <p class="board__next-label">Last question</p>
+                  <p class="board__next-value">{w.next} points</p>
+                </div>
+              ) : (
+                <>
+                  <p class="board__next-label">Next question</p>
+                  <p class="board__next-value">{w.next} points</p>
+                </>
+              )}
             </div>
           )}
           {w.nominations && (

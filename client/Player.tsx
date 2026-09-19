@@ -4,7 +4,7 @@ import { Talk } from './Talk.tsx'
 import { colorForPlayer, standings } from './ui.ts'
 import { PlayerDuel } from './PlayerDuel.tsx'
 import { PlayerItems } from './PlayerItems.tsx'
-import { momentOf, phoneOf } from '../shared/wall.ts'
+import { lastUp, momentOf, phoneOf } from '../shared/wall.ts'
 import type { Mood } from '../shared/wall.ts'
 import type { State } from '../shared/protocol.ts'
 import { scoreKey } from '../shared/scoring.ts'
@@ -249,6 +249,7 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     judging: !!round?.judge,
     place: state ? 1 + standings(state).filter((r) => r.score > score).length : undefined,
     next: round?.value,
+    last: !!state && lastUp(state),
   })
 
   const me = state?.players.find((p) => p.id === playerId)

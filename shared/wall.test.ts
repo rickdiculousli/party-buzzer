@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { momentOf, phoneOf, wallOf, type Local, type Wall } from './wall.ts'
+import { lastUp, momentOf, phoneOf, wallOf, type Local, type Wall } from './wall.ts'
 import type { State } from './protocol.ts'
 
 const LOCAL: Local = { open: false, settled: true, retired: false }
@@ -531,4 +531,18 @@ test('the next-question card holds the stage while the reader waits to arm', () 
   const w = wallOf(s, LOCAL)
   oneOf(w, 'reader between questions')
   assert.equal(w.next, 200)
+})
+
+test('the last question is the final block on its final count', () => {
+  const s = room()
+  assert.ok(!lastUp(s), 'no setlist, no last question')
+  const block = { game: 'trivia', options: {}, count: 2 }
+  s.setlist = { blocks: [block, block], at: 0, done: 1 }
+  assert.ok(!lastUp(s), 'the last of an earlier block')
+  s.setlist = { blocks: [block, block], at: 1, done: 0 }
+  assert.ok(!lastUp(s))
+  s.setlist.done = 1
+  assert.ok(lastUp(s))
+  s.setlist = { blocks: [block, block], at: 2, done: 0 }
+  assert.ok(!lastUp(s), 'a spent setlist has none left')
 })
