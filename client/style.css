@@ -392,6 +392,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
  */
 .board__wall {
   position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto minmax(0, 1fr);
   justify-items: center;
@@ -600,6 +601,9 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
    the grid below gets the room. The split holds from the arm, so nothing moves
    when the choices land. */
 .board__wall.is-choice { grid-template-rows: minmax(0, 0.55fr) auto minmax(0, 1.45fr); }
+/* The lane is hero-tall for a name; a choice question never has one, and on a
+   short screen that height is what pushed the grid off the bottom. */
+.board__wall.is-choice .board__mid { height: auto; }
 /* The grid: two columns, three rows at most. Options are a step below the
    question, in the same display face, and clamp to two lines so a long one
    cannot push the band. The reveal keeps the same cells and only changes
@@ -615,13 +619,14 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   display: flex;
   align-items: center;
   gap: var(--s4);
-  padding: var(--s3) var(--s5) var(--s3) var(--s3);
+  padding: min(var(--s3), 1.5vh) var(--s5) min(var(--s3), 1.5vh) min(var(--s3), 1.5vh);
   background: var(--raise);
   border: 1px solid var(--rule);
   border-radius: var(--r-lg);
   text-align: left;
   font-family: var(--display);
-  font-size: calc(var(--t-xl) * 0.72);
+  /* Height-bound too: a short screen shrinks the grid rather than cropping it. */
+  font-size: min(calc(var(--t-xl) * 0.72), 4.5vh);
   font-weight: 500;
   line-height: 1.1;
   color: var(--chalk);
@@ -646,8 +651,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 /* Reveal: an answer's picks peek three quarters above its top edge. */
 .board__who { position: absolute; top: calc(var(--_dot) * -0.75); left: var(--s5); display: flex; gap: 3px; }
 /* Picking: above the grid, the slot bar and the countdown side by side. */
-/* Sized to the clock, so the countdown arriving after the options are read moves nothing. */
-.board__status-row { --_dot: 0.625rem; display: flex; align-items: center; gap: var(--s4); min-height: calc(var(--t-lg) * 1.5); }
+.board__status-row { --_dot: 0.625rem; display: flex; align-items: center; justify-content: center; }
 .board__status-row.is-gone { visibility: hidden; }
 .board__slots {
   display: flex;
@@ -660,22 +664,23 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   border-radius: 999px;
 }
 .board__slot { width: var(--_dot); height: var(--_dot); border-radius: 50%; box-shadow: inset 0 0 0 1px var(--dim); }
-/* The countdown: a flip-clock tile per digit, split across the middle. */
-.board__flip { display: flex; gap: var(--s1); margin: 0; }
-.board__digit {
-  position: relative;
+/* The countdown, behind everything on the wall: centred, huge, and faded. */
+.board__countdown {
+  position: absolute;
+  inset: 0;
+  z-index: -1; /* under every stage child; the wall isolates, so not under the wall */
   display: grid;
   place-items: center;
-  width: 1.15em;
-  height: 1.5em;
-  border-radius: var(--r-md);
-  background: linear-gradient(var(--raise) 50%, var(--panel) 50%);
+  margin: 0;
   font-family: var(--display);
-  font-size: var(--t-lg);
-  font-weight: 700;
+  font-weight: 800;
+  font-size: 70vh;
+  line-height: 1;
   color: var(--chalk);
+  opacity: 0.05;
+  pointer-events: none;
+  user-select: none;
 }
-.board__digit::after { content: ''; position: absolute; inset: 50% 0 auto; height: 1px; background: var(--stage); }
 /*
  * The judge's transcript. Dim while it is still typing — it is being read, not
  * yet judged, which is exactly what --dim is for — and brass or tally-red once

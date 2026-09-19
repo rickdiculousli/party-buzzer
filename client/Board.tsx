@@ -298,14 +298,20 @@ function NomList({
   )
 }
 
-/** The picking countdown as flip-clock tiles, one per digit; a digit flips in when it changes. */
-function FlipClock({ seconds }: { seconds: number }) {
-  const digits = String(seconds).padStart(2, '0')
+/**
+ * The picking countdown: the seconds left, huge and faded behind the whole
+ * wall, so it is felt rather than read and takes no room from the grid.
+ */
+function Countdown({ until, now }: { until: number; now: () => number }) {
+  const [, tick] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => tick((n) => n + 1), 250)
+    return () => clearInterval(id)
+  }, [until])
+  const left = Math.max(0, Math.ceil((until - now()) / 1000))
   return (
-    <p class="board__flip" data-review-id="board:countdown" aria-label={`${seconds} seconds`}>
-      {[...digits].map((d, i) => (
-        <span key={`${i}:${d}`} class="board__digit fx-flip">{d}</span>
-      ))}
+    <p class="board__countdown" data-review-id="board:countdown" aria-label={`${left} seconds`}>
+      {left}
     </p>
   )
 }
@@ -315,21 +321,14 @@ function FlipClock({ seconds }: { seconds: number }) {
  * stays up for the reveal: the right cell lights, the rest dim with their
  * counts, and the room's winners sit under it.
  */
-function Choices({ c, now, colorOf }: { c: ChoiceWall; now: () => number; colorOf: (id: string) => string }) {
-  const [, tick] = useState(0)
-  useEffect(() => {
-    if (c.closesAt === undefined || c.correct !== undefined) return
-    const id = setInterval(() => tick((n) => n + 1), 250)
-    return () => clearInterval(id)
-  }, [c.closesAt, c.correct])
-  const left = c.closesAt === undefined ? null : Math.max(0, Math.ceil((c.closesAt - now()) / 1000))
+function Choices({ c, colorOf }: { c: ChoiceWall; colorOf: (id: string) => string }) {
   const revealed = c.correct !== undefined
   return (
     <div class="board__choices" data-review-id="board:choices">
       {/* While picking, above the grid: a slot per player, filling in their
           colour as they pick, so the room can see who is still out without
-          seeing what anyone chose; and the countdown beside it. The row
-          keeps its space at the reveal, so the grid does not move. */}
+          seeing what anyone chose. The row keeps its space at the reveal, so
+          the grid does not move. */}
       <div class={revealed ? 'board__status-row is-gone' : 'board__status-row'}>
         <ol class="board__slots" data-review-id="board:pickers">
           {c.pickers.map((p, i) => (
@@ -338,7 +337,6 @@ function Choices({ c, now, colorOf }: { c: ChoiceWall; now: () => number; colorO
             </li>
           ))}
         </ol>
-        {left !== null && <FlipClock seconds={revealed ? 0 : left} />}
       </div>
       <ol class="board__grid">
           {c.options.map((o, i) => (
@@ -546,6 +544,9 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
   return (
     <main class="board" data-review-id="board:root">
       <section class={w.moment.startsWith('choice:') ? 'board__wall is-choice' : 'board__wall'}>
+        {w.choices?.closesAt !== undefined && w.choices.correct === undefined && (
+          <Countdown until={w.choices.closesAt} now={now} />
+        )}
         <div class="board__status" data-review-id="board:status">
           {open && <span class="chip chip--open">Open</span>}
           {armed && !open && <span class="chip chip--armed">Standing by</span>}
@@ -688,7 +689,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
           {/* `seen` still holds the previous count during render — the effect
               that advances it runs after. That is exactly the number a mark
               needs to know whether it arrived alone or in a crowd. */}
-          {w.choices && <Choices c={w.choices} now={now} colorOf={(id) => colorForPlayer(state, id)} />}
+          {w.choices && <Choices c={w.choices} colorOf={(id) => colorForPlayer(state, id)} />}
           {w.timeline && <Timeline state={state} round={round} enter={enter.current} />}
         </div>
 
