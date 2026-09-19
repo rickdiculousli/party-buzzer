@@ -185,7 +185,17 @@ async function main() {
     for (const p of gone) host.send({ t: 'host', action: { a: 'kick', playerId: p.id } })
     log(`  cleared ${gone.length}`)
   }
-  process.on('SIGINT', () => setTimeout(() => process.exit(0), 100))
+  // Ctrl-C tidies up the same as `clear`: the bots go and the teams, setlist
+  // and reader go back to how the room had them. A second Ctrl-C quits at once.
+  let stopping = false
+  process.on('SIGINT', () => {
+    if (stopping) process.exit(1)
+    stopping = true
+    log('')
+    clear()
+    // Long enough for the host socket to flush the kicks before the process goes.
+    setTimeout(() => process.exit(0), 300)
+  })
 
   log(`\n  Party Buzzer — probe against ${URL}`)
   log(looping ? '  looping — Ctrl-C to stop and remove the players\n' : '')
