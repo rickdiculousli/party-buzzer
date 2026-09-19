@@ -9,12 +9,12 @@ import { isPenalty } from '../shared/protocol.ts'
 import { useReveal } from './useReveal.ts'
 import { COLLECT_MS, type BuzzEntry, type State } from '../shared/protocol.ts'
 import { MINIGAMES } from './minigames.tsx'
-import { ScoreChange, useFlip } from './fx.tsx'
+import { Burst, ScoreChange, useFlip } from './fx.tsx'
 
 type Mark = BuzzEntry & { lane: number }
 
 /**
- * The name owning the stage. `slam` and `flare` are mount animations, so the
+ * The name owning the stage. `fx-hero-slam-glow` is a mount animation, so the
  * arrival is the DOM node's lifetime — which makes "a different hero is a
  * different element" a rule, not a call site's discretion — and "the same
  * person, judged" a recolour rather than a second arrival. It lives here, on
@@ -24,7 +24,7 @@ type Mark = BuzzEntry & { lane: number }
  *
  * `wallOf` names the tone; the stylesheet is where it becomes a colour.
  */
-function Hero({ name, tone }: NonNullable<Wall['hero']>) {
+function Hero({ name, tone, celebrate }: NonNullable<Wall['hero']> & { celebrate?: string }) {
   return (
     <p
       data-review-id="board:hero"
@@ -34,9 +34,12 @@ function Hero({ name, tone }: NonNullable<Wall['hero']>) {
       key={name}
       // Not brass — brass is what a payoff looks like. Same tally-red as the
       // stamp above it, so the three parts of a miss read as one thing.
-      class={tone === 'penalised' ? 'board__hero is-penalised' : 'board__hero'}
+      class={tone === 'penalised' ? 'board__hero fx-anchor is-penalised' : 'board__hero fx-anchor'}
     >
-      {name}
+      {/* The shake mounts with the recolour, so it plays when the name is
+          judged, not when it arrives. */}
+      {tone === 'penalised' ? <span class="board__hero-hit fx-shake">{name}</span> : name}
+      {celebrate && <Burst key={celebrate} kind="confetti" from="top" />}
     </p>
   )
 }
@@ -401,12 +404,13 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
               board after the host scores it, not before. A penalty's leader
               is already gone to the rebound, so this gates on the award. */}
           {w.award && (
-            <p data-review-id="board:award" class={isPenalty(w.award) ? 'board__award is-neg' : 'board__award'}>
+            <p data-review-id="board:award" class={isPenalty(w.award) ? 'board__award fx-anchor is-neg' : 'board__award fx-anchor'}>
               {w.award.points > 0 ? '+' : ''}
               {w.award.points}
+              <Burst kind="dust" from="bottom" />
             </p>
           )}
-          {w.award?.answer && <p class="board__answer" data-review-id="board:answer">{w.award.answer}</p>}
+          {w.award?.answer && <p class="board__answer fx-rise" data-review-id="board:answer">{w.award.answer}</p>}
         </div>
 
         {/* The cue escalates through three sizes and the reserved line is what
@@ -414,7 +418,9 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
             not need it. Only the neutral hero — a penalty's name is a beat over
             a question still in progress, and the band it sits in is the cue's. */}
         <div class={w.hero?.tone === 'answering' ? 'board__mid' : 'board__mid board__mid--cue'}>
-          {w.hero && <Hero {...w.hero} />}
+          {w.hero && (
+            <Hero {...w.hero} celebrate={w.moment === 'verdict:award' ? round.attemptId || 'award' : undefined} />
+          )}
           {w.nominations && (
             <div class="board__noms">
               <p class="board__idle">Who plays?</p>

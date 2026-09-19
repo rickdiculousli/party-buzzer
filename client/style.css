@@ -1379,6 +1379,11 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
    makes it read as struck rather than faded up. */
 .fx-rubber-stamp,
 .board__award { animation: fx-rubber-stamp var(--fx-dur, var(--strike-dur)) var(--slam); }
+/* The dust comes off the stamp's bottom edge on the frame it lands: the
+   overshoot peaks at 55% of the strike. */
+.board__award > .fx-burst > i { animation-delay: calc(var(--delay) + var(--strike-dur) * 0.55); }
+/* Shake and wobble need a box to move. */
+.board__hero-hit, .buzzer__hit { display: inline-block; }
 @keyframes fx-rubber-stamp {
   from { opacity: 0; transform: scale(var(--strike-scale)); }
   55% { opacity: 1; transform: scale(var(--strike-recoil)); }
