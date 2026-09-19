@@ -54,8 +54,8 @@ test('a question end to end, one occupant the whole way', () => {
   s.round.phase = 'ARMED'
   s.round.armedAt = 1000
   assert.equal(at().moment, 'buzz:arming')
-  assert.equal(at().call, 'standby')
-  assert.ok(at().filament, 'the warm-up runs through the lead')
+  assert.equal(at().next, 200, 'the card holds through the lead')
+  assert.equal(at().value, null, 'without the chip repeating it')
   assert.equal(at({ open: true }).moment, 'buzz:open')
   assert.equal(at({ open: true }).call, 'buzz')
 
@@ -84,7 +84,6 @@ test('a question end to end, one occupant the whole way', () => {
   assert.equal(held.moment, 'verdict:hold')
   assert.deepEqual(held.hero, { name: 'Bo', tone: 'penalised' })
   assert.equal(held.award?.points, -300)
-  assert.ok(!held.filament, 'no warm-up bar under the name it just cost')
   assert.equal(held.value, 200, 'the stakes stay in the corner through the miss')
 
   // The rebound opens. The clue resumes on a clean wall: the server drops the
@@ -93,6 +92,8 @@ test('a question end to end, one occupant the whole way', () => {
   delete s.round.spoken
   s.round.phase = 'ARMED'
   s.round.armedAt = 5000
+  // With no box, the miss holds through the lead.
+  assert.deepEqual(at({ retired: true }).hero, { name: 'Bo', tone: 'penalised' })
   s.readingActive = true
   s.reading = {
     pack: 'p', qIndex: 0, qTotal: 3, fragIndex: 1, fragTotal: 4,

@@ -144,7 +144,8 @@ async function main() {
     const difficulty = Math.random()
     const value = (Math.floor(Math.random() * 5) + 1) * 100
     host.send({ t: 'host', action: { a: 'setValue', value } })
-    await beat(600)
+    // The next-question card's beat.
+    await beat(2500)
 
     log('')
     log(`  ── Q${q}  ${value} points  ·  ${difficulty < 0.35 ? 'gimme' : difficulty < 0.7 ? 'fair' : 'stumper'}`)
@@ -197,10 +198,6 @@ async function main() {
       await beat(1800)
     }
 
-    if (!resolved) {
-      host.send({ t: 'host', action: { a: 'next' } })
-      await beat(1200)
-    }
 
     const scores = host.state()?.scores ?? {}
     log(
@@ -210,6 +207,9 @@ async function main() {
         .join('   ')}`,
     )
     await beat(1500)
+    // Cleared either way, as the reader does. The next value goes up straight
+    // after, so the next-question card shows the new stakes, not these.
+    host.send({ t: 'host', action: { a: 'next' } })
   }
 
   cleanup()

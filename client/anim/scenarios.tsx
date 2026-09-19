@@ -505,7 +505,7 @@ export const SCENARIOS: Scenario[] = [
     id: 'open',
     family: 'Signature',
     label: 'The buzzers open',
-    note: 'Standing by, then live. The same element changes class here exactly as it does on the board, so the punch fires off the class and not a remount.',
+    note: 'Waiting, then live. The same element changes class here exactly as it does on the board, so the punch fires off the class and not a remount.',
     subject: '.board__call',
     dials: [
       { var: '--punch-dur', label: 'Punch', min: 30, max: 500, step: 10, unit: 'ms' },
@@ -513,12 +513,7 @@ export const SCENARIOS: Scenario[] = [
     ],
     render: (lead) => (
       <Stage
-        mid={lead ? <p class="board__idle">Stand by</p> : <p class="board__call">Buzz</p>}
-        below={
-          <div class="board__countdown">
-            <div class={lead ? 'filament' : 'filament is-hot'} style={{ '--delay': '900ms' }} />
-          </div>
-        }
+        mid={lead ? <p class="board__idle">Ready</p> : <p class="board__call">Buzz</p>}
       />
     ),
   },
@@ -539,7 +534,6 @@ export const SCENARIOS: Scenario[] = [
           </span>
           <span class="player__score readout">400</span>
         </div>
-        <div class="player__countdown" />
         <button class={lead ? 'buzzer is-open' : 'buzzer is-placed'}>
           {lead ? 'Buzz' : 'In'}
           {!lead && <span class="buzzer__sub">Counting the rest of the field</span>}

@@ -295,47 +295,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .panel { background: var(--panel); border: 1px solid var(--rule); border-radius: var(--r-md); padding: var(--s4); }
 
 /* ===================================================================
- * SIGNATURE 1 — THE FILAMENT
- * Arming is scheduled ~300ms ahead. Rather than hide that gap, the room
- * watches it: a cold filament draws across and heats to white, landing on
- * the exact instant the buzzers open. The animation runs for whatever time
- * is actually left, so late clients see a shorter warm-up, not a wrong one.
- * =================================================================== */
-
-.filament {
-  position: relative;
-  height: 6px;
-  width: min(56rem, 80%);
-  background: #1a1108;
-  border-radius: 999px;
-  overflow: visible;
-}
-.filament::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  transform: scaleX(0);
-  transform-origin: left;
-  background: var(--ember);
-  animation: fx-bulb-warm var(--delay, 300ms) linear forwards;
-}
-@keyframes fx-bulb-warm {
-  from { transform: scaleX(0); background: var(--ember); box-shadow: none; }
-  to { transform: scaleX(1); background: var(--hot); box-shadow: 0 0 60px var(--tungsten); }
-}
-/* The same fill on any bar: left to right, ember to white-hot. */
-.fx-bulb-warm { transform-origin: left; animation: fx-bulb-warm var(--fx-dur, 300ms) linear forwards; }
-/* Held at full power for as long as the buzzers stay open. */
-.filament.is-hot::after {
-  animation: none;
-  transform: scaleX(1);
-  background: var(--hot);
-  box-shadow: 0 0 60px var(--tungsten);
-}
-
-/* ===================================================================
- * SIGNATURE 2 — THE TIMELINE
+ * SIGNATURE — THE TIMELINE
  * The buzz order is a measurement, so the board shows it as one. Marks sit
  * at their real millisecond on a shared scale: the room sees the gap
  * instead of reading it. Cold colours only — this is instrumentation.
@@ -442,7 +402,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
  * The middle band is one fixed lane, a hero line tall, whatever holds it. The
  * cue escalates through three sizes, a clue runs to several lines, and a
  * picture question adds an image; a band that sized itself to them moved the
- * filament and the value under it every time the stage changed hands. Taller
+ * band under it every time the stage changed hands. Taller
  * occupants grow upward out of the lane instead (flex-end overflows at the
  * start), and a shorter one sits in its middle on auto margins, which fall to
  * zero as soon as it no longer fits.
@@ -472,14 +432,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   gap: var(--s5);
   width: 100%;
   min-width: 0;
-}
-/* Reserved whether or not the filament is in it, so arming does not nudge the
-   value down a line. */
-.board__countdown {
-  height: 6px;
-  width: 100%;
-  display: flex;
-  justify-content: center;
 }
 .board__status {
   position: absolute;
@@ -660,12 +612,23 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
  * vocabulary: brass left rail on the pair that would be seated.
  */
 .board__noms {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--s3);
+  position: relative;
   width: 100%;
+  /* Up off the middle, heading and lists together, so the lists have the room. */
+  translate: 0 -14vh;
 }
+/* "Who plays?" is the only thing in the lane, pinned to its top, so it never
+   moves; the lists hang below it however many names there are. Two classes
+   deep to outrank the lane's auto margins. */
+.board__wall .board__mid > .board__noms { margin-block: 0 auto; }
+.board__noms > .board__pool,
+.board__noms > .board__sides {
+  position: absolute;
+  top: calc(100% + var(--s4));
+  left: 50%;
+  translate: -50% 0;
+}
+.board__noms > .board__pool { width: min(32rem, 80vw); }
 .board__pool {
   list-style: none;
   margin: 0;
@@ -990,9 +953,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 /* The answer window's seconds, big enough to read with the phone at arm's length. */
 .talk__count { display: inline-block; font-family: var(--display); font-size: var(--t-lg); letter-spacing: 0; border-radius: 999px; padding: 0 var(--s2); }
 
-/* The phone gets the filament too, so the go cue is felt before it is read. */
-.player__filament { width: 100%; }
-.player__countdown { height: 6px; flex: none; }
 
 .player__items {
   display: flex;
@@ -1459,8 +1419,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 
 /* --- 4. The buzzers open ----------------------------------------------
    The loudest instant of the round, and the only one every surface shares.
-   Short and hard on purpose: a slow open would undersell a moment the
-   filament has spent 300ms building to. */
+   Short and hard on purpose: a slow open would undersell it. */
 .fx-buzz-snap,
 .board__call,
 .buzzer.is-open { animation: fx-buzz-snap var(--fx-dur, var(--punch-dur)) var(--slam); }

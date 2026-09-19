@@ -165,7 +165,7 @@ export type Wall = {
   clue: { whole?: string; shown: string; image?: string } | null
   nominations: 'solo' | 'teams' | null
   faceoff: [string, string] | null
-  call: 'buzz' | 'standby' | 'ready' | 'dead' | null
+  call: 'buzz' | 'ready' | 'dead' | null
   /** Everyone tied for the top when the setlist is spent. */
   finale: string[] | null
   /** Between questions: what the next one is worth. */
@@ -174,7 +174,6 @@ export type Wall = {
   transcript: { name: string; text: string; hit: boolean } | null
   award: (Award & { answer?: string }) | null
   timeline: boolean
-  filament: boolean
   value: number | null
 }
 
@@ -283,8 +282,9 @@ function middleOf(state: State, m: Moment): Middle {
     case 'buzz:collecting':
       // The pair is who *may* answer; the leader is who *is*. Before the order
       // is published — the hub holds it 150ms — the pair still holds the stage,
-      // so a duel's buzz-in replaces it rather than blanking it first.
-      return or(leader, clue, pair, { call: 'standby' })
+      // so a duel's buzz-in replaces it rather than blanking it first. The
+      // buzzers are still taking presses until then, so it still says so.
+      return or(leader, clue, pair, { call: 'buzz' })
     case 'duel:nominating':
       return { nominations: state.grouping === 'teams' ? 'teams' : 'solo' }
     case 'duel:dead':
@@ -293,8 +293,10 @@ function middleOf(state: State, m: Moment): Middle {
       return or(clue, pair)
     case 'buzz:open':
       return or(clue, { call: 'buzz' })
+    // The ~300ms before the buzzers open is too short to read, so it holds
+    // whatever came before: the miss on a rebound, the card on a fresh arm.
     case 'buzz:arming':
-      return or(clue, { call: 'standby' })
+      return or(clue, isPenalty(r.award) ? scorer : null, { next: r.value })
     case 'idle:finale': {
       const top = leaders(state)
       return top.length ? { finale: top } : { call: 'ready' }
@@ -324,23 +326,23 @@ export function wallOf(state: State, local: Local): Wall {
   // bar. `middleOf` owns who is on the stage.
   const leader = m === 'answer:locked' || m === 'buzz:collecting' ? r.order[0] : undefined
 
+  const middle = middleOf(state, m)
+
   return {
     moment: m,
     ...EMPTY_MIDDLE,
-    ...middleOf(state, m),
+    ...middle,
     transcript: r.spoken
       ? { name: r.spoken.name, text: r.spoken.transcript, hit: r.spoken.hit }
       : null,
     award:
       showAward && r.award ? { ...r.award, answer: r.answer } : null,
     timeline: !!leader && r.order.length > 1,
-    // A miss holding the stage keeps the whole lower band out of the way, or
-    // the room reads a warm-up bar counting down under the name it just cost.
-    filament: !leader && isFamily(m, 'buzz'),
     // The stakes, as a dim chip in the corner, from the arm until the next
     // question's card replaces them: through the read, the buzz, the answer
     // and the verdict. Between questions the card says it instead.
-    value: r.phase !== 'IDLE' || isFamily(m, 'answer') || isFamily(m, 'verdict') ? r.value : null,
+    // Not beside the card, which says the same number large.
+    value: 'next' in middle ? null : r.phase !== 'IDLE' || isFamily(m, 'answer') || isFamily(m, 'verdict') ? r.value : null,
   }
 }
 

@@ -11,7 +11,6 @@ export type ReviewPhone = {
 export type ReviewPresentation = {
   now: number
   open: boolean
-  delay: number
   settled: boolean
   retired: boolean
 }

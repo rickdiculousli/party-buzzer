@@ -75,7 +75,6 @@ async function start() {
       <Board preview={{
         socket: { state: scenario.board, connected: true, now: presentation.now, frame: scenario.boardFrame },
         open: presentation.open,
-        delay: presentation.delay,
         settled: presentation.settled,
         retired: presentation.retired,
       }} />,
@@ -95,7 +94,6 @@ async function start() {
           frame: phone.frame,
         },
         open: presentation.open,
-        delay: presentation.delay,
         pressed: phone.pressed,
       }} />,
       document.getElementById('app')!,

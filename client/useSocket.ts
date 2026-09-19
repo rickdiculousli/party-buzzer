@@ -41,17 +41,10 @@ export function useOpen(
   now: () => number,
   onOpen?: () => void,
   active = true,
-): { open: boolean; delay: number } {
+): { open: boolean } {
   const armed = round?.phase === 'ARMED' || round?.phase === 'COLLECTING'
   const armedAt = round?.armedAt ?? 0
   const attemptId = round?.attemptId ?? ''
-  /**
-   * The countdown can never exceed the delay the server actually schedules, so
-   * clamp to it. Without this a client whose clock is behind — including one
-   * that armed before its first sync landed — computes a wait of roughly the
-   * current unix time and simply never opens.
-   */
-  const delay = Math.min(ARM_DELAY_MS, Math.max(0, armedAt - now()))
   // Which arm we have opened for. The timer is the authority — re-reading the
   // clock here would leave us shut whenever setTimeout fires a hair early, with
   // no second render coming to correct it.
@@ -66,6 +59,9 @@ export function useOpen(
       setOpenedFor(attemptId)
       fire.current?.()
     }
+    // Never longer than the delay the server actually schedules. Without the
+    // clamp a client whose clock is behind — including one that armed before
+    // its first sync landed — waits roughly the current unix time and never opens.
     const wait = Math.min(ARM_DELAY_MS, Math.max(0, armedAt - now()))
     // Already past it: this client heard late. Open now rather than never.
     if (wait <= 0) return go()
@@ -73,7 +69,7 @@ export function useOpen(
     return () => clearTimeout(id)
   }, [armed, attemptId, armedAt, active])
 
-  return { open: armed && openedFor === attemptId, delay }
+  return { open: armed && openedFor === attemptId }
 }
 
 export function useSocket(role: Role, fixture?: SocketFixture) {

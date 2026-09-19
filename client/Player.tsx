@@ -72,7 +72,6 @@ function StandingsDial({ state }: { state: State }) {
 export type PlayerPreview = {
   socket: SocketFixture
   open: boolean
-  delay: number
   pressed: boolean
 }
 
@@ -150,7 +149,6 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     blip(audio.current, 440)
   }, !preview)
   const open = preview?.open ?? opening.open
-  const delay = preview?.delay ?? opening.delay
 
   // A distinct low double-thud when you are shut out, so the phone tells you
   // why nothing happened instead of leaving you mashing a dead button.
@@ -275,18 +273,6 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
       {!!round?.fragments?.length && (
         <p class="player__question" data-review-id="phone:question">{round.fragments.join(' ')}</p>
       )}
-
-      {/* Reserved whether or not the filament is in it. Otherwise arming
-          shrinks the buzzer under the thumb that is about to press it. */}
-      <div class="player__countdown">
-        {armed && !barred && (
-          <div
-            key={round?.attemptId}
-            class={open ? 'filament is-hot player__filament' : 'filament player__filament'}
-            style={{ '--delay': `${delay}ms` }}
-          />
-        )}
-      </div>
 
       {state && <PlayerDuel state={state} playerId={playerId} send={send} />}
 

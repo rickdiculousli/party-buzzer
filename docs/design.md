@@ -62,8 +62,7 @@ at a party. Keeping both, and keeping them visually separate, is the design.
 | `--brass` | `#c9a227` | First place, correct, awarded, connected. |
 | `--silver` | `#b8bcc4` | Second place, in the standings dial. |
 | `--bronze` | `#b0793f` | Third place, in the standings dial. |
-| `--ember` | `#7a3b10` | A lamp with no current in it yet. Filament only. |
-| `--hot` | `#fff6e8` | White-hot filament at full power. Filament and open buzzer only. |
+| `--hot` | `#fff6e8` | White-hot at full power. Open buzzer and glow cores only. |
 
 ### Signal — cold carries measurement
 
@@ -145,9 +144,7 @@ exception is `--r-buzzer` (28px), because the buzzer is a physical object in
 someone's hand.
 
 **Motion** is `--fast` (80ms) for anything under a finger, `--base` (160ms) for
-layout, both on `--ease`. The filament is the only animation whose duration is
-data rather than taste — it runs for whatever time is left before the buzzers
-open. `prefers-reduced-motion` is honoured globally in `tokens.css` — you don't
+layout, both on `--ease`. `prefers-reduced-motion` is honoured globally in `tokens.css` — you don't
 have to handle it per component.
 
 The first family of the interest kit is **Signature**: the hand-tuned motions
@@ -158,7 +155,6 @@ Their tunables are hand-tuned; change a tunable, not a curve.
 
 | Class | What you see | Where |
 |---|---|---|
-| `fx-bulb-warm` | Bar fills left to right, ember to white-hot, glow rising | The filament |
 | `fx-pin-flash-drop` | Pin drops onto the rail; a glow flashes at touchdown and fades | A timeline mark |
 | `fx-rubber-stamp` | Fades in large, overshoots small, settles | The award |
 | `fx-hero-slam-glow` | Fades in large with a brass glow already lit, cooling | The leader's name |
@@ -529,30 +525,10 @@ the room is reacting to, so it stays up until the next question arms.
 
 ---
 
-## 6. The two signatures
+## 6. The signature
 
-Spend boldness in one place. Everything above is deliberately quiet so these two
+Spend boldness in one place. Everything above is deliberately quiet so this
 can carry the design.
-
-### The filament — `.filament`
-
-Arming is scheduled ~300 ms ahead so every phone opens on the same real instant
-(see `ARM_DELAY_MS`). Rather than hide that gap, every surface shows it: a cold
-filament draws left to right and heats from `--ember` to `--hot`, landing exactly
-when the buzzers open. The room *feels* "go" coming instead of being surprised by
-it, which is the whole point of a synchronised start.
-
-```html
-<div class="filament" style="--delay: 300ms" />  <!-- warming -->
-<div class="filament is-hot" />                  <!-- open, held at full -->
-```
-
-Two rules:
-
-- `--delay` is **time actually remaining** (`armedAt - now()`), not the constant.
-  A client that heard late gets a shorter warm-up, never a wrong one.
-- Key the element on `round.armedAt` so the animation restarts once per arm and
-  not on every unrelated broadcast.
 
 ### The timeline — `.timeline`
 
@@ -608,8 +584,9 @@ States, in priority order:
 
 1. **Result** — hero name in brass, timeline beneath, and the brass award stamp
    once the host has scored it.
-2. **Buzzers open** — "Buzz" in tally, filament at full.
-3. **Standing by** — "Stand by", filament warming, question value.
+2. **Buzzers open** — "Buzz" in tally.
+3. **Arming** — whatever was up holds until the buzzers open: the next-question
+   card, or the miss on a rebound.
 4. **Idle** — "Ready", dim.
 
 **The leader shows early, the field fills in.** A beat after the first buzz

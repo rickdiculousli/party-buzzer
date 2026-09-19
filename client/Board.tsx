@@ -119,7 +119,6 @@ function Held({ class: cls }: { class: string }) {
 /** The middle band when nobody owns it: what the room is being told to do. */
 const CALL_TEXT: Record<NonNullable<Wall['call']>, string> = {
   buzz: 'Buzz',
-  standby: 'Stand by',
   ready: 'Ready',
   dead: 'Both missed — waiting for the host',
 }
@@ -230,20 +229,31 @@ function NomList({
   entries: NonNullable<State['duel']>['pool']
   seating: string[] | null
 }) {
+  // A vote reorders the pool; the names slide to their new places like the standings.
+  const list = useRef<HTMLOListElement>(null)
+  useFlip(list)
+  // Ranked with flex `order`, not by moving nodes: a moved node restarts the
+  // animations inside it, and every head in the row would drop in again.
+  const rank = entries
+    .slice()
+    .sort((a, b) => b.votes.length - a.votes.length)
+    .map((e) => e.playerId)
   return (
-    <ol class="board__pool">
-      {entries
-        .slice()
-        .sort((a, b) => b.votes.length - a.votes.length)
-        .map((e) => (
-          <li key={e.playerId} class={seating?.includes(e.playerId) ? 'nom is-lead' : 'nom'}>
-            <span class="nom__name">
-              {state.players.find((p) => p.id === e.playerId)?.name ?? '?'}
-            </span>
-            {e.in && <span class="chip chip--armed">In</span>}
-            <Votes voters={e.votes} />
-          </li>
-        ))}
+    <ol class="board__pool" ref={list}>
+      {entries.map((e) => (
+        <li
+          key={e.playerId}
+          data-key={e.playerId}
+          class={seating?.includes(e.playerId) ? 'nom is-lead' : 'nom'}
+          style={{ order: rank.indexOf(e.playerId) }}
+        >
+          <span class="nom__name">
+            {state.players.find((p) => p.id === e.playerId)?.name ?? '?'}
+          </span>
+          {e.in && <span class="chip chip--armed">In</span>}
+          <Votes voters={e.votes} />
+        </li>
+      ))}
     </ol>
   )
 }
@@ -284,7 +294,6 @@ function Question({ whole, shown, image }: { whole?: string; shown: string; imag
 export type BoardPreview = {
   socket: SocketFixture
   open: boolean
-  delay: number
   settled: boolean
   retired: boolean
 }
@@ -295,7 +304,6 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
   // the phones do. Same countdown to armedAt as every other surface.
   const opening = useOpen(state?.round, now, undefined, !preview)
   const open = preview?.open ?? opening.open
-  const delay = preview?.delay ?? opening.delay
 
   /**
    * The board is the only surface with a speaker the whole room can hear, and
@@ -500,7 +508,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
         </div>
 
         {/* One fixed lane: taller occupants grow upward out of it, so the
-            filament and value below never move (style.css, .board__mid). */}
+            band below never moves (style.css, .board__mid). */}
         <div class="board__mid">
           {w.hero && <Hero {...w.hero} />}
           {w.finale && <Finale names={w.finale} />}
@@ -557,23 +565,6 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
               that advances it runs after. That is exactly the number a mark
               needs to know whether it arrived alone or in a crowd. */}
           {w.timeline && <Timeline state={state} round={round} enter={enter.current} />}
-          {!leader && (
-            <>
-              {/* The slot is always here, so the band keeps its shape whether or
-                  not the filament is in it. */}
-              <div class="board__countdown">
-                {w.filament && (
-                  // Keyed on the arm instant so the warm-up restarts once per
-                  // arm and not on every unrelated broadcast.
-                  <div
-                    key={round.attemptId}
-                    class={open ? 'filament is-hot' : 'filament'}
-                    style={{ '--delay': `${delay}ms` }}
-                  />
-                )}
-              </div>
-            </>
-          )}
         </div>
 
         {/* The stakes, dim in the corner for the whole question: the card

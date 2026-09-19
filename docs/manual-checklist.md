@@ -90,6 +90,9 @@ settles on Eve, so Red holds both of the top spots on votes — and the seat
 cannot take two from one team, so it reaches past Bo to Eve. That skip is the
 thing to watch, and the two columns are what make it obvious.
 
+Before it settles, each column reorders both ways: Bo passes Ada and Fen passes
+Eve, then both drop back. The names slide, and the heads stay where they are.
+
 - [ ] The standings switch to Red and Blue, and your phone shows its team colour
 - [ ] Your nomination list is **your own team only** — no Blue name is on it,
       and the hint says your team picks its own
@@ -157,7 +160,7 @@ ever opens — the run stops on "no answer window for Ada" rather than hanging.
 - [ ] Bo answers "Rosalind Franklin" on the Curie question. The transcript goes
       up in red and the matcher refuses it — the machine is doing the judging
 - [ ] After that wrong answer the miss holds the wall — red name, red stamp, no
-      filament, no value — with **the buzzers shut** for three seconds. Nothing
+      value — with **the buzzers shut** for three seconds. Nothing
       opens on the verdict itself
 - [ ] During that hold the host's Correct button reads **Reopen now**. Pressing
       it (or R, or C) opens the rebound early; leaving it alone lets the reader
@@ -165,7 +168,7 @@ ever opens — the run stops on "no answer window for Ada" rather than hanging.
 - [ ] Cy's answer is judgeable **by hand** — C and W are live on the retake even
       though Bo's −300 is still on State. Judging it with the mouse scores the
       same as letting the machine do it
-- [ ] Then the filament runs, and the clue picks back up from the start of the
+- [ ] Then the buzzers reopen, and the clue picks back up from the start of the
       fragment the buzz cut *as* the buzzers open, not seconds after
 - [ ] Cy lets **two more sentences** go by before buzzing, and says "Marie
       Curie". That gap is the point: a rebound is a live question again, not a

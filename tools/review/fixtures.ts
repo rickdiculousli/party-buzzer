@@ -61,7 +61,7 @@ export function makeReviewScenarios(): ReviewScenario[] {
     presentation,
   })
   const at = (overrides: Partial<ReviewScenario['presentation']> = {}) => ({
-    now: NOW, open: false, delay: 0, settled: true, retired: false, ...overrides,
+    now: NOW, open: false, settled: true, retired: false, ...overrides,
   })
 
   const welcome = base()
@@ -171,7 +171,7 @@ export function makeReviewScenarios(): ReviewScenario[] {
   return [
     build('welcome', 'Welcome', welcome, at()),
     build('waiting', 'Waiting between questions', waiting, at()),
-    build('delay', 'Arm delay', delay, at({ delay: 200 })),
+    build('delay', 'Arm delay', delay, at()),
     build('open', 'Question open', open, at({ open: true })),
     build('collecting', 'Collecting buzzes', collecting, at({ open: true })),
     build('leader-answering', 'Leader answering', answering, at()),
