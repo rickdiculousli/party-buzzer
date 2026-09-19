@@ -320,8 +320,9 @@ function Choices({ c, now, colorOf }: { c: ChoiceWall; now: () => number; colorO
   const revealed = c.correct !== undefined
   // Picking is over but the answer is not up yet: the bar goes brass for that beat.
   const closed = !revealed && (c.pickers.every((p) => p.picked) || (c.closesAt !== undefined && now() >= c.closesAt))
+  // The block mounts when the choices go up, so its rise plays once, there.
   return (
-    <div class="board__choices" data-review-id="board:choices">
+    <div class="board__choices fx-rise" data-review-id="board:choices">
       {/* While picking, above the grid: a slot per player, filling in their
           colour as they pick, so the room can see who is still out without
           seeing what anyone chose. The row keeps its space at the reveal, so

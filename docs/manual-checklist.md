@@ -207,10 +207,11 @@ npm run walk-read-trivia
 - [ ] The rebound re-reads the interrupted clause, and Cy buzzes two seconds
       after it opens and says "Albert Einstein" for 300
 - [ ] The moons question: the question is up and read first, then the four
-      choices appear on the board and the phones and the voice reads them;
+      choices **rise in** on the board and the phones and the voice reads them;
       phones show **Listen** until then, not a buzzer
-- [ ] Ada and Cy pick C, Bo picks D; the picker bar fills, and picking settles
-      as soon as the last one lands. Saturn lights, Ada's and Cy's dots sit on
+- [ ] Ada, Bo and Cy pick while the options are still being read — Ada and Cy
+      pick C, Bo picks D. The picker bar fills, and a beat after the last one
+      lands the bar goes brass and pings before the answer. Saturn lights, Ada's and Cy's dots sit on
       it, and the stamp reads "+400 · 2 right"
 - [ ] Nobody buzzes the Everest question: it reveals its answer and passes on
       its own

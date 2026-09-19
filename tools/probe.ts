@@ -43,8 +43,8 @@
  *   speak:A=text     A's transcript, POSTed as text/plain into the judge
  *   say:A=words      the same, but spoken: `say` renders the words to a clip and
  *                    the clip goes in as audio, so STT and the matcher both run
- *   pick:A=C,B=A     picks on a choice question, by letter, once the choices are
- *                    up; waits for the question to settle
+ *   pick:A=C@1500    picks on a choice question, by letter, that many ms after
+ *                    the choices go up (@0 by default); waits for it to settle
  *   teams:R=A,B/S=C  teams grouping, those teams, those players on them
  *   setlist:t*2@p.txt,q*1:v
  *                    setlist: mode*count blocks, @pack the reader takes that
@@ -250,11 +250,19 @@ async function main() {
         // moment the choices go up. Letters, as the board shows them.
         case 'pick': {
           await host.waitFor((s) => !!s.round.choices, 60_000)
+          // From the moment the choices went up, not from the arm: the room
+          // cannot pick before it can read them, and a walk that picks on that
+          // instant never shows the voice reading the options.
+          const up = Date.now()
           for (const spec of arg.split(',').filter(Boolean)) {
-            const [name, letter = ''] = spec.split('=')
+            const [who, offset = '0'] = spec.split('@')
+            const [name, letter = ''] = who.split('=')
             const index = LETTERS.indexOf(letter.toUpperCase())
             if (!name || letter.length !== 1 || index < 0) throw new Error(`pick needs Name=Letter, got "${spec}"`)
-            player(name).send({ t: 'act', act: 'pick', data: index })
+            const conn = player(name)
+            void sleep(Math.max(0, up + Number(offset) - Date.now())).then(() =>
+              conn.send({ t: 'act', act: 'pick', data: index }),
+            )
           }
           // Everyone the walk scripts picks, so the reader settles at once; a
           // player left out is waited for until the countdown runs out.
