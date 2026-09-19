@@ -181,6 +181,12 @@ new moment's priority (below every verdict, above `idle:ready`).
   also flashes the text to `--fx-color`, for B2 and P1.
 - **Slide rates:** three curve tokens, `--fx-ease` in `fx-slide`, three
   modifier classes.
+- **Aimed bursts:** `<Burst>` takes `from` (`center`, `edge`, `top`,
+  `bottom`, `left`, `right`), `angle` and `spread`; radius stays `--fx-amp`.
+  Start points are percentages of the anchor's box, so they fit any element;
+  the burst measures the box's aspect once on mount so an outline spreads
+  evenly along a long word. B4 and the finale use `from="top"`, B7 and B10
+  `from="bottom"`, P10 `from="edge"`.
 - **`idle:finale`** in `shared/wall.ts` and its projection in `phoneOf`.
 
 Every new effect site gets a harness scenario only if it introduces a new
