@@ -1220,6 +1220,9 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
      question back. A payoff has no equivalent: it sits until the next arm,
      because nothing is running behind it. */
   --penalty-dwell: 2200ms;
+  /* How far a missed name shakes. Hero type is huge, so the kit's default
+     reads as a lurch rather than a shudder. */
+  --hero-shake-amp: 0.04em;
   /* A standings row sliding to its new rank. */
   --rank-slide-dur: 480ms;
   /* The face-off: each name charging in, and the dust where they stop. */
@@ -1395,6 +1398,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .board__award > .fx-burst > i { animation-delay: calc(var(--delay) + var(--strike-dur) * 0.55); }
 /* Shake and wobble need a box to move. */
 .board__hero-hit, .buzzer__hit { display: inline-block; }
+.board__hero-hit { --fx-amp: var(--hero-shake-amp); }
 @keyframes fx-rubber-stamp {
   from { opacity: 0; transform: scale(var(--strike-scale)); }
   55% { opacity: 1; transform: scale(var(--strike-recoil)); }

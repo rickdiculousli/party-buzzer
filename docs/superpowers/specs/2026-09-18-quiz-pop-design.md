@@ -96,9 +96,8 @@ marked **new**.
 |---|---|---|---|
 | B1 | Any score change | Standings row | Row slides to its new rank (**new** `useFlip` helper, below). Score uses `CountUp` from its old value. |
 | B2 | Score went up / down | Standings row | `fx-flash` in brass / tally red. |
-| B4 | `verdict:award` | Hero name | Confetti `Burst` from the name. |
 | B5 | `verdict:award` | Answer line | `fx-rise`. |
-| B6 | `verdict:penalty` | Hero name | `fx-shake` once, at the recolour (not at the arrival). |
+| B6 | `verdict:penalty` | Hero name | `fx-shake` once, at the recolour (not at the arrival), narrowed to `--hero-shake-amp` for hero-sized type. |
 | B7 | Any verdict | Points stamp, + or − | Dust `Burst` from under the stamp as it lands. The stamp keeps `fx-rubber-stamp`. The dust is the stamp's weight, so it fires either way; the stamp's colour says which. |
 | B9 | Clue fragment arrives | Newly said words | Fade in over `--fast`. Today words appear at once. |
 | B10 | `duel:faceoff` | The two names | Each name slides in from its own side at the **charge** rate (below), slow then fast. When both stop, a big dust `Burst` under each, like two weights colliding. "vs" gets `fx-pop`. |
@@ -185,7 +184,7 @@ new moment's priority (below every verdict, above `idle:ready`).
   `bottom`, `left`, `right`), `angle` and `spread`; radius stays `--fx-amp`.
   Start points are percentages of the anchor's box, so they fit any element;
   the burst measures the box's aspect once on mount so an outline spreads
-  evenly along a long word. B4 and the finale use `from="top"`, B7 and B10
+  evenly along a long word. The finale uses `from="top"`, B7 and B10
   `from="bottom"`, P10 `from="edge"`.
 - **`idle:finale`** in `shared/wall.ts` and its projection in `phoneOf`.
 

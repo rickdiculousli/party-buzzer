@@ -24,7 +24,7 @@ type Mark = BuzzEntry & { lane: number }
  *
  * `wallOf` names the tone; the stylesheet is where it becomes a colour.
  */
-function Hero({ name, tone, celebrate }: NonNullable<Wall['hero']> & { celebrate?: string }) {
+function Hero({ name, tone }: NonNullable<Wall['hero']>) {
   return (
     <p
       data-review-id="board:hero"
@@ -39,7 +39,6 @@ function Hero({ name, tone, celebrate }: NonNullable<Wall['hero']> & { celebrate
       {/* The shake mounts with the recolour, so it plays when the name is
           judged, not when it arrives. */}
       {tone === 'penalised' ? <span class="board__hero-hit fx-shake">{name}</span> : name}
-      {celebrate && <Burst key={celebrate} kind="confetti" from="top" />}
     </p>
   )
 }
@@ -486,9 +485,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
             not need it. Only the neutral hero — a penalty's name is a beat over
             a question still in progress, and the band it sits in is the cue's. */}
         <div class={w.hero?.tone === 'answering' || w.finale ? 'board__mid' : 'board__mid board__mid--cue'}>
-          {w.hero && (
-            <Hero {...w.hero} celebrate={w.moment === 'verdict:award' ? round.attemptId || 'award' : undefined} />
-          )}
+          {w.hero && <Hero {...w.hero} />}
           {w.finale && <Finale names={w.finale} />}
           {w.nominations && (
             <div class="board__noms">
