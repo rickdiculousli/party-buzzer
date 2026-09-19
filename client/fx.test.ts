@@ -121,3 +121,35 @@ test('flipDeltas moves only rows that were there before and moved', () => {
   const after = new Map([['a', 40], ['b', 0], ['c', 80], ['d', 120]])
   assert.deepEqual([...flipDeltas(before, after)], [['a', -40], ['b', 40]])
 })
+
+test('centre bursts start at the centre', () => {
+  for (const p of particles('stars', 10, seeded(10))) assert.deepEqual([p.sx, p.sy], [0, 0])
+})
+
+test('edge bursts start on the outline and fly outward', () => {
+  for (const p of particles('sparkle', 60, seeded(11), undefined, { from: 'edge', aspect: 4 })) {
+    const onSide = Math.abs(p.sx) === 1
+    assert.ok(onSide || Math.abs(p.sy) === 1, `start ${p.sx},${p.sy}`)
+    assert.ok(onSide ? Math.sign(p.x) === p.sx : Math.sign(p.y) === p.sy, `inward from ${p.sx},${p.sy}`)
+  }
+})
+
+test('a wide box gets most edge particles on its long sides', () => {
+  let long = 0
+  let short = 0
+  for (const p of particles('sparkle', 400, seeded(12), undefined, { from: 'edge', aspect: 4 }))
+    Math.abs(p.sy) === 1 ? long++ : short++
+  assert.ok(long > short * 3, `${long} long, ${short} short`)
+})
+
+test("one side starts along it and keeps the kind's direction", () => {
+  for (const p of particles('dust', 30, seeded(13), undefined, { from: 'bottom' })) {
+    assert.equal(p.sy, 1)
+    assert.ok(Math.abs(p.y) < Math.abs(p.x))
+  }
+})
+
+test('angle and spread aim the burst', () => {
+  for (const p of particles('dust', 30, seeded(14), undefined, { angle: -90, spread: 10 }))
+    assert.ok(p.y < 0 && Math.abs(p.x) < Math.abs(p.y), `${p.x},${p.y}`)
+})

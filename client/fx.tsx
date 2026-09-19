@@ -5,7 +5,7 @@
  */
 import { Fragment, type RefObject } from 'preact'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
-import { BURST_COUNT, countAt, flashTimes, flipDeltas, glitchCut, particles, words, type BurstKind } from './fx.ts'
+import { BURST_COUNT, countAt, flashTimes, flipDeltas, glitchCut, particles, words, type Aim, type BurstKind, type Particle } from './fx.ts'
 import { parseTune } from './sound.ts'
 
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -58,29 +58,47 @@ export function CountUp({ to, from = 0, ms = 600 }: { to: number; from?: number;
 }
 
 /**
- * A one-off spray of particles from the centre of the nearest positioned
- * ancestor (give it `fx-anchor`). It removes itself when the last particle
- * lands; mount a new one (a new `key`) to fire again. Renders nothing under
- * reduced motion.
+ * A one-off spray of particles from the nearest positioned ancestor (give it
+ * `fx-anchor`): from its centre, its whole outline (`from="edge"`), or one
+ * side, aimed with `angle` and `spread` (see `Aim` in fx.ts). It measures the
+ * box once on mount, so an outline spreads evenly along a long word. It
+ * removes itself when the last particle lands; mount a new one (a new `key`)
+ * to fire again. Renders nothing under reduced motion.
  */
-export function Burst({ kind, glyph, count }: { kind: BurstKind; glyph?: string; count?: number }) {
-  const [bits] = useState(() => particles(kind, count ?? BURST_COUNT[kind], Math.random, glyph))
-  const left = useRef(bits.length)
+export function Burst({
+  kind,
+  glyph,
+  count,
+  from,
+  angle,
+  spread,
+}: { kind: BurstKind; glyph?: string; count?: number } & Omit<Aim, 'aspect'>) {
+  const box = useRef<HTMLSpanElement>(null)
+  const [bits, setBits] = useState<Particle[] | null>(null)
+  const left = useRef(0)
   const [done, setDone] = useState(false)
+  useLayoutEffect(() => {
+    const el = box.current
+    const aspect = el && el.offsetHeight ? el.offsetWidth / el.offsetHeight : 1
+    const made = particles(kind, count ?? BURST_COUNT[kind], Math.random, glyph, { from, angle, spread, aspect })
+    left.current = made.length
+    setBits(made)
+  }, [])
   if (done || reduced()) return null
   return (
     <span
+      ref={box}
       class={`fx-burst fx-burst--${kind}`}
       aria-hidden="true"
       onAnimationEnd={() => {
         if (--left.current === 0) setDone(true)
       }}
     >
-      {bits.map((p, i) => (
+      {bits?.map((p, i) => (
         <i
           key={i}
           style={
-            `--x:${p.x};--y:${p.y};--rot:${p.rot}deg;--delay:${p.delay}ms;--size:${p.size}` +
+            `--x:${p.x};--y:${p.y};--sx:${p.sx};--sy:${p.sy};--rot:${p.rot}deg;--delay:${p.delay}ms;--size:${p.size}` +
             (p.color ? `;color:${p.color}` : '')
           }
         >

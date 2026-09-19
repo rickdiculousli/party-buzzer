@@ -27,6 +27,7 @@ import { NUMERIC, type NumericField } from '../cues.ts'
 import { Votes } from '../Votes.tsx'
 import { Spoken } from '../Spoken.tsx'
 import { Burst, CountUp, Glitch, Letters } from '../fx.tsx'
+import type { BurstFrom } from '../fx.ts'
 import type { Recipe } from '../synth.ts'
 
 /**
@@ -260,9 +261,14 @@ function fx(
   }
 }
 
-function burst(kind: 'sparkle' | 'dust' | 'confetti' | 'embers' | 'stars' | 'emoji', label: string, note: string): Scenario {
+function burst(
+  kind: 'sparkle' | 'dust' | 'confetti' | 'embers' | 'stars' | 'emoji',
+  label: string,
+  note: string,
+  aim: { from?: BurstFrom; angle?: number; spread?: number } = {},
+): Scenario {
   return {
-    id: `fx-burst-${kind}`,
+    id: `fx-burst-${kind}${aim.from ? `-${aim.from}` : ''}`,
     label,
     family: 'Particles',
     note,
@@ -271,8 +277,9 @@ function burst(kind: 'sparkle' | 'dust' | 'confetti' | 'embers' | 'stars' | 'emo
     render: (lead) => (
       <div class="fx-stage">
         <p class="fx-demo fx-anchor">
-          Ada
-          {!lead && <Burst kind={kind} glyph="🦆" />}
+          {/* A long name for an edge burst, so the outline is visibly long. */}
+          {aim.from ? 'Alexander' : 'Ada'}
+          {!lead && <Burst kind={kind} glyph="🦆" {...aim} />}
         </p>
       </div>
     ),
@@ -404,6 +411,9 @@ const FX: Scenario[] = [
   burst('embers', 'Embers', '<Burst kind="embers"> — sparks drifting up. Runs 1.5× the duration.'),
   burst('stars', 'Stars', '<Burst kind="stars"> — brass stars flung out.'),
   burst('emoji', 'Emoji', '<Burst kind="emoji" glyph="🦆"> — any glyph, flung up.'),
+  burst('sparkle', 'Sparkle (edge)', '<Burst kind="sparkle" from="edge"> — along the whole outline, out from each side.', { from: 'edge' }),
+  burst('dust', 'Dust (bottom)', '<Burst kind="dust" from="bottom"> — along the bottom edge, spreading sideways: something heavy landing.', { from: 'bottom' }),
+  burst('confetti', 'Confetti (top)', '<Burst kind="confetti" from="top"> — off the whole top edge of a wide word.', { from: 'top' }),
 ]
 
 export const SCENARIOS: Scenario[] = [

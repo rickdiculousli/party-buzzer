@@ -27,6 +27,9 @@ export type Particle = {
   size: number
   color: string
   glyph: string
+  /** Where it starts, −1…1 of the box's half-width and half-height; 0,0 is the centre. */
+  sx: number
+  sy: number
 }
 
 export const BURST_COUNT: Record<BurstKind, number> = {
@@ -41,11 +44,25 @@ export const BURST_COUNT: Record<BurstKind, number> = {
 const PALETTE = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => `var(--fx-${n})`)
 const WARM = ['var(--hot)', 'var(--tungsten)', 'var(--brass)']
 
+export type BurstFrom = 'center' | 'edge' | 'top' | 'bottom' | 'left' | 'right'
+/**
+ * Where a burst starts and which way it goes. `from` picks the start: the
+ * centre, anywhere on the outline (`edge`), or one side. The direction is
+ * `angle` (degrees, 0 is right, 90 is down) if given, outward from the side
+ * for `edge`, and the kind's own otherwise; `spread` fans either side of it.
+ * `aspect` is the box's width over its height, so an outline gets particles
+ * in proportion to each side's length.
+ */
+export type Aim = { from?: BurstFrom; angle?: number; spread?: number; aspect?: number }
+
+const OUTWARD = { top: -90, bottom: 90, left: 180, right: 0 } as const
+
 export function particles(
   kind: BurstKind,
   count: number,
   rand: () => number = Math.random,
   glyph = '🎉',
+  aim: Aim = {},
 ): Particle[] {
   const r = (lo: number, hi: number) => lo + (hi - lo) * rand()
   const pick = (xs: string[]) => xs[Math.floor(rand() * xs.length)]
@@ -55,7 +72,7 @@ export function particles(
     y: Math.sin((deg * Math.PI) / 180) * dist,
   })
 
-  return Array.from({ length: count }, (): Particle => {
+  const own = (): Omit<Particle, 'sx' | 'sy'> => {
     switch (kind) {
       case 'sparkle':
         return { ...at(r(0, 360), r(0.5, 1)), rot: 0, delay: r(0, 300), size: r(0.6, 1.2), color: pick(WARM), glyph: '✦' }
@@ -70,6 +87,27 @@ export function particles(
       case 'emoji':
         return { ...at(r(200, 340), r(0.6, 1)), rot: r(-30, 30), delay: r(0, 80), size: r(0.8, 1.3), color: '', glyph }
     }
+  }
+
+  const from = aim.from ?? 'center'
+  const side = (): keyof typeof OUTWARD => {
+    const a = aim.aspect ?? 1
+    const t = rand() * (2 * a + 2)
+    return t < a ? 'top' : t < 2 * a ? 'bottom' : t < 2 * a + 1 ? 'left' : 'right'
+  }
+
+  return Array.from({ length: count }, (): Particle => {
+    const p = own()
+    // Today's burst, drawing nothing extra from `rand`, so a seed still gives
+    // the same one.
+    if (from === 'center' && aim.angle === undefined) return { ...p, sx: 0, sy: 0 }
+    const s = from === 'edge' ? side() : from === 'center' ? null : from
+    const [sx, sy] =
+      s === 'top' ? [r(-1, 1), -1] : s === 'bottom' ? [r(-1, 1), 1] : s === 'left' ? [-1, r(-1, 1)] : s === 'right' ? [1, r(-1, 1)] : [0, 0]
+    const dir = aim.angle ?? (from === 'edge' && s ? OUTWARD[s] : undefined)
+    if (dir === undefined) return { ...p, sx, sy }
+    const spread = aim.spread ?? 60
+    return { ...p, ...at(dir + r(-spread, spread), Math.hypot(p.x, p.y)), sx, sy }
   })
 }
 

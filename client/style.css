@@ -1959,8 +1959,10 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .fx-burst > i {
   position: absolute;
-  left: 50%;
-  top: 50%;
+  /* The start point: the centre, or a spot on the outline (`--sx`/`--sy`,
+     −1…1 of the half-box). Percentages, so it fits any box. */
+  left: calc(50% + var(--sx, 0) * 50%);
+  top: calc(50% + var(--sy, 0) * 50%);
   translate: -50% -50%;
   font-style: normal;
   line-height: 1;
