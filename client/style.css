@@ -613,26 +613,25 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 /* The cell is the box; the li around it is its stacking context, so the dots
    behind the cell stay behind it even while the reveal animates the li. */
 .board__choice { --_dot: 0.625rem; position: relative; transition: opacity 300ms; }
-.board__cell {
+/* One option's box, on the board and on the phone alike: a raised panel with
+   the letter in a badge. Each surface sets only the size. */
+.choice__cell {
   position: relative;
-  z-index: 1;
   display: flex;
   align-items: center;
-  gap: var(--s4);
-  padding: min(var(--s3), 1.5vh) var(--s5) min(var(--s3), 1.5vh) min(var(--s3), 1.5vh);
+  gap: 0.6em;
+  width: 100%;
   background: var(--raise);
   border: 1px solid var(--rule);
   border-radius: var(--r-lg);
   text-align: left;
   font-family: var(--display);
-  /* Height-bound too: a short screen shrinks the grid rather than cropping it. */
-  font-size: min(calc(var(--t-xl) * 0.72), 4.5vh);
   font-weight: 500;
   line-height: 1.1;
   color: var(--chalk);
   transition: border-color 300ms;
 }
-.board__letter {
+.choice__letter {
   flex: none;
   display: grid;
   place-items: center;
@@ -643,9 +642,15 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   color: var(--dim);
   font-weight: 700;
 }
-.board__option { flex: 1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.board__choice.is-right .board__cell { border-color: var(--brass); color: var(--brass); }
-.board__choice.is-right .board__letter { background: var(--brass); color: #201a03; }
+.choice__option { flex: 1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.board__choice .choice__cell {
+  z-index: 1;
+  padding: min(var(--s3), 1.5vh) var(--s5) min(var(--s3), 1.5vh) min(var(--s3), 1.5vh);
+  /* Height-bound too: a short screen shrinks the grid rather than cropping it. */
+  font-size: min(calc(var(--t-xl) * 0.72), 4.5vh);
+}
+.board__choice.is-right .choice__cell { border-color: var(--brass); color: var(--brass); }
+.board__choice.is-right .choice__letter { background: var(--brass); color: #201a03; }
 .board__choice.is-dim { opacity: 0.35; }
 .board__dot { display: block; width: var(--_dot); height: var(--_dot); border-radius: 50%; background: var(--id); }
 /* Reveal: an answer's picks peek three quarters above its top edge. */
@@ -2199,9 +2204,11 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   color: var(--chalk);
 }
 /* A choice question's options, one tap each; the pick is final. */
-.player__choices { display: grid; gap: var(--s3); padding: var(--s4); }
-.player__choice { display: flex; gap: var(--s3); align-items: center; min-height: 4rem; font-size: var(--t-lg); text-align: left; }
-.player__letter { font-weight: 800; color: var(--dim); }
+.player__choices { display: grid; gap: var(--s3); padding: 0 var(--s4) var(--s4); }
+.player__choice { padding: var(--s3); font-size: var(--t-xl); cursor: pointer; }
+.player__choice:active { border-color: var(--tungsten); }
+/* The seconds left to pick, above the options. */
+.player__countdown { margin: 0; padding: var(--s2) var(--s4) var(--s3); text-align: center; font-family: var(--display); font-weight: 800; font-size: var(--t-mega); line-height: 1; color: var(--dim); }
 
 /* --- the harness waveform editor -------------------------------------- */
 .layers {

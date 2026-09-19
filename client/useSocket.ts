@@ -30,6 +30,16 @@ function medianOffset(samples: { rtt: number; offset: number }[]): number {
   return best[Math.floor(best.length / 2)]
 }
 
+/** Whole seconds until `until` on the server clock, re-rendering four times a second. */
+export function useSecondsLeft(until: number, now: () => number): number {
+  const [, tick] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => tick((n) => n + 1), 250)
+    return () => clearInterval(id)
+  }, [until])
+  return Math.max(0, Math.ceil((until - now()) / 1000))
+}
+
 /**
  * The buzzers open at `round.armedAt`, which the server sets a beat in the
  * future. Every surface counts down to that instant on its own synced clock,

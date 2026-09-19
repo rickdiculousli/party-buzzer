@@ -603,7 +603,9 @@ each pick's dot lands on the top edge of the answer it chose, three quarters
 showing (`.board__who`); the right cell turns brass with `fx-tada`, the rest
 dim (`.is-dim`) with their dots, and the brass stamp above reads "+400 · 2
 right" or "Nobody". Its moments are `choice:listening`, `choice:picking` and
-`choice:reveal`; there is no hero.
+`choice:reveal`; there is no hero. The option box (`.choice__cell`,
+`.choice__letter`) is shared with the phone, which shows the same panels as its
+pick buttons and the seconds left above them (`.player__countdown`).
 
 **The leader shows early, the field fills in.** A beat after the first buzz
 (150 ms — long enough for the true photo finish to land) the board lights up

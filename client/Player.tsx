@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
-import { useOpen, useSocket, type SocketFixture } from './useSocket.ts'
+import { useOpen, useSecondsLeft, useSocket, type SocketFixture } from './useSocket.ts'
 import { Talk } from './Talk.tsx'
 import { colorForPlayer, standings } from './ui.ts'
 import { PlayerDuel } from './PlayerDuel.tsx'
@@ -74,6 +74,12 @@ export type PlayerPreview = {
   socket: SocketFixture
   open: boolean
   pressed: boolean
+}
+
+/** The seconds left to pick, so a phone knows how long it has. */
+function PickCountdown({ until, now }: { until: number; now: () => number }) {
+  const left = useSecondsLeft(until, now)
+  return <p class="player__countdown" data-review-id="phone:countdown" aria-label={`${left} seconds`}>{left}</p>
 }
 
 export function Player({ preview }: { preview?: PlayerPreview } = {}) {
@@ -290,12 +296,16 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
 
       {state && <PlayerDuel state={state} playerId={playerId} send={send} />}
 
+      {moment === 'choice:picking' && round?.closesAt !== undefined && (
+        <PickCountdown until={round.closesAt} now={now} />
+      )}
+
       {moment === 'choice:picking' && myPick === undefined && !frozen && !spectator ? (
         <div class="player__choices" data-review-id="phone:choices">
           {round!.choices!.map((c, i) => (
-            <button key={i} class="btn player__choice" onClick={() => pick(i)}>
-              <span class="player__letter">{LETTERS[i]}</span>
-              {c}
+            <button key={i} class="choice__cell player__choice" onClick={() => pick(i)}>
+              <span class="choice__letter">{LETTERS[i]}</span>
+              <span class="choice__option">{c}</span>
             </button>
           ))}
         </div>

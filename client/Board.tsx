@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { createPortal } from 'preact/compat'
-import { useOpen, useSocket, type SocketFixture } from './useSocket.ts'
+import { useOpen, useSecondsLeft, useSocket, type SocketFixture } from './useSocket.ts'
 import { colorForPlayer, lockedNames, standings, willSeat } from './ui.ts'
 import { markGap, play, playSpaced, prime, startBed, stopBed, unlock } from './sound.ts'
 import { Votes } from './Votes.tsx'
@@ -303,12 +303,7 @@ function NomList({
  * wall, so it is felt rather than read and takes no room from the grid.
  */
 function Countdown({ until, now }: { until: number; now: () => number }) {
-  const [, tick] = useState(0)
-  useEffect(() => {
-    const id = setInterval(() => tick((n) => n + 1), 250)
-    return () => clearInterval(id)
-  }, [until])
-  const left = Math.max(0, Math.ceil((until - now()) / 1000))
+  const left = useSecondsLeft(until, now)
   return (
     <p class="board__countdown" data-review-id="board:countdown" aria-label={`${left} seconds`}>
       {left}
@@ -352,9 +347,9 @@ function Choices({ c, colorOf }: { c: ChoiceWall; colorOf: (id: string) => strin
                   ))}
                 </span>
               )}
-              <div class="board__cell">
-                <span class="board__letter">{LETTERS[i]}</span>
-                <span class="board__option">{o}</span>
+              <div class="choice__cell">
+                <span class="choice__letter">{LETTERS[i]}</span>
+                <span class="choice__option">{o}</span>
               </div>
             </li>
           ))}
