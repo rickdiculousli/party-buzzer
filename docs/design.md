@@ -277,9 +277,10 @@ speed, so put something at the stop, like dust) and `fx-slide--even`
 
 **Particles** — `<Burst kind glyph count from angle spread>` inside an element
 with `fx-anchor`. `from` is where particles start: `center` (the default),
-`edge` (the whole outline, spread by each side's length) or one side (`top`,
-`bottom`, `left`, `right`). They go toward `angle` (degrees, 0 is right, 90 is
-down) if given, outward for `edge`, and in the kind's own direction otherwise;
+`edge` (the whole outline, spread by each side's length), one side (`top`,
+`bottom`, `left`, `right`) or a list of them (`{['left', 'bottom', 'right']}`).
+They go toward `angle` (degrees, 0 is right, 90 is down) if given, outward for
+`edge` or a list, and in the kind's own direction otherwise;
 `spread` fans either side of it (60° by default). Distance is `--fx-amp`.
 
 | Kind | Looks like | Use for |

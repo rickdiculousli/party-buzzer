@@ -153,3 +153,14 @@ test('angle and spread aim the burst', () => {
   for (const p of particles('dust', 30, seeded(14), undefined, { angle: -90, spread: 10 }))
     assert.ok(p.y < 0 && Math.abs(p.x) < Math.abs(p.y), `${p.x},${p.y}`)
 })
+
+test('a list of sides starts only on those, flying outward', () => {
+  const seen = new Set<string>()
+  for (const p of particles('dust', 200, seeded(15), undefined, { from: ['left', 'bottom', 'right'], aspect: 3 })) {
+    const side = p.sx === -1 ? 'left' : p.sx === 1 ? 'right' : p.sy === 1 ? 'bottom' : 'other'
+    seen.add(side)
+    assert.ok(side !== 'other', `start ${p.sx},${p.sy}`)
+    assert.ok(side === 'bottom' ? p.y > 0 : Math.sign(p.x) === p.sx, `inward from ${side}`)
+  }
+  assert.deepEqual([...seen].sort(), ['bottom', 'left', 'right'])
+})

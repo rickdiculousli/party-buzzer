@@ -488,7 +488,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
                 <p data-review-id="board:award" class={isPenalty(w.award) ? 'board__award fx-anchor is-neg' : 'board__award fx-anchor'}>
                   {w.award.points > 0 ? '+' : ''}
                   {w.award.points}
-                  <Burst kind="dust" from="bottom" />
+                  <Burst kind="dust" from={['left', 'bottom', 'right']} />
                 </p>
               ) : (
                 <Held class="board__award" />

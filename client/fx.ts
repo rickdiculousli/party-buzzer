@@ -44,14 +44,15 @@ export const BURST_COUNT: Record<BurstKind, number> = {
 const PALETTE = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => `var(--fx-${n})`)
 const WARM = ['var(--hot)', 'var(--tungsten)', 'var(--brass)']
 
-export type BurstFrom = 'center' | 'edge' | 'top' | 'bottom' | 'left' | 'right'
+export type Side = 'top' | 'bottom' | 'left' | 'right'
+export type BurstFrom = 'center' | 'edge' | Side | Side[]
 /**
  * Where a burst starts and which way it goes. `from` picks the start: the
- * centre, anywhere on the outline (`edge`), or one side. The direction is
- * `angle` (degrees, 0 is right, 90 is down) if given, outward from the side
- * for `edge`, and the kind's own otherwise; `spread` fans either side of it.
- * `aspect` is the box's width over its height, so an outline gets particles
- * in proportion to each side's length.
+ * centre, anywhere on the outline (`edge`), one side, or a list of sides. The
+ * direction is `angle` (degrees, 0 is right, 90 is down) if given, outward
+ * from the side for `edge` or a list, and the kind's own otherwise; `spread`
+ * fans either side of it. `aspect` is the box's width over its height, so
+ * sides get particles in proportion to their length.
  */
 export type Aim = { from?: BurstFrom; angle?: number; spread?: number; aspect?: number }
 
@@ -90,10 +91,17 @@ export function particles(
   }
 
   const from = aim.from ?? 'center'
-  const side = (): keyof typeof OUTWARD => {
-    const a = aim.aspect ?? 1
-    const t = rand() * (2 * a + 2)
-    return t < a ? 'top' : t < 2 * a ? 'bottom' : t < 2 * a + 1 ? 'left' : 'right'
+  const sides: Side[] =
+    from === 'center' ? [] : from === 'edge' ? ['top', 'bottom', 'left', 'right'] : Array.isArray(from) ? from : [from]
+  // Several sides throw outward; one side keeps the kind's own direction.
+  const outward = sides.length > 1
+  // A side, picked in proportion to its length.
+  const length = (s: Side) => (s === 'top' || s === 'bottom' ? (aim.aspect ?? 1) : 1)
+  const total = sides.reduce((n, s) => n + length(s), 0)
+  const side = (): Side => {
+    let t = rand() * total
+    for (const s of sides) if ((t -= length(s)) < 0) return s
+    return sides[sides.length - 1]
   }
 
   return Array.from({ length: count }, (): Particle => {
@@ -101,10 +109,10 @@ export function particles(
     // Today's burst, drawing nothing extra from `rand`, so a seed still gives
     // the same one.
     if (from === 'center' && aim.angle === undefined) return { ...p, sx: 0, sy: 0 }
-    const s = from === 'edge' ? side() : from === 'center' ? null : from
+    const s = sides.length > 1 ? side() : (sides[0] ?? null)
     const [sx, sy] =
       s === 'top' ? [r(-1, 1), -1] : s === 'bottom' ? [r(-1, 1), 1] : s === 'left' ? [-1, r(-1, 1)] : s === 'right' ? [1, r(-1, 1)] : [0, 0]
-    const dir = aim.angle ?? (from === 'edge' && s ? OUTWARD[s] : undefined)
+    const dir = aim.angle ?? (outward && s ? OUTWARD[s] : undefined)
     if (dir === undefined) return { ...p, sx, sy }
     const spread = aim.spread ?? 60
     return { ...p, ...at(dir + r(-spread, spread), Math.hypot(p.x, p.y)), sx, sy }

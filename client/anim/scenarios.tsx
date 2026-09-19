@@ -269,7 +269,7 @@ function burst(
   aim: { from?: BurstFrom; angle?: number; spread?: number } = {},
 ): Scenario {
   return {
-    id: `fx-burst-${kind}${aim.from ? `-${aim.from}` : ''}`,
+    id: `fx-burst-${kind}${aim.from ? `-${[aim.from].flat().join('-')}` : ''}`,
     label,
     family: 'Particles',
     note,
@@ -414,6 +414,7 @@ const FX: Scenario[] = [
   burst('emoji', 'Emoji', '<Burst kind="emoji" glyph="🦆"> — any glyph, flung up.'),
   burst('sparkle', 'Sparkle (edge)', '<Burst kind="sparkle" from="edge"> — along the whole outline, out from each side.', { from: 'edge' }),
   burst('dust', 'Dust (bottom)', '<Burst kind="dust" from="bottom"> — along the bottom edge, spreading sideways: something heavy landing.', { from: 'bottom' }),
+  burst('dust', 'Dust (sides and bottom)', '<Burst kind="dust" from={[\'left\', \'bottom\', \'right\']}> — out of both sides and the bottom: the points stamp landing.', { from: ['left', 'bottom', 'right'] }),
   burst('confetti', 'Confetti (top)', '<Burst kind="confetti" from="top"> — off the whole top edge of a wide word.', { from: 'top' }),
 ]
 
