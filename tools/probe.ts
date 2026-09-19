@@ -42,6 +42,8 @@
  *   speak:A=text     A's transcript, POSTed as text/plain into the judge
  *   say:A=words      the same, but spoken: `say` renders the words to a clip and
  *                    the clip goes in as audio, so STT and the matcher both run
+ *   pick:A=C,B=A     picks on a choice question, by letter, once the choices are
+ *                    up; waits for the question to settle
  *   teams:R=A,B/S=C  teams grouping, those teams, those players on them
  *   setlist:t*2@p.txt,q*1:v
  *                    setlist: mode*count blocks, @pack the reader takes that
@@ -65,6 +67,7 @@
  * all four packets arrive in the same tick, and the marks would appear at once
  * instead of landing one after another.
  */
+import { LETTERS } from '../shared/choice.ts'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { existsSync, mkdirSync, renameSync, rmSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
@@ -118,7 +121,7 @@ async function main() {
     // The header comment is the manual; printing a second copy is a second
     // thing to keep true.
     log('\n  usage: npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@120 correct')
-    log('  steps: loop join value arm buzz correct wrong next reset undo pack mode direct autoplay rewind read armed act speak say teams setlist jump duel in out vote unvote seat cancel wait clear')
+    log('  steps: loop join value arm buzz correct wrong next reset undo pack mode direct autoplay rewind read armed act speak say pick teams setlist jump duel in out vote unvote seat cancel wait clear')
     log('  walks: npm run walk-duel   walk-teams   walk-setlist   walk-read-quizbowl   walk-read-trivia   walk-packs\n')
     return
   }
@@ -233,6 +236,22 @@ async function main() {
           // buzz step is measured from that instant, and the whole point of this
           // tool is that the numbers you type are the numbers you get.
           await host.waitFor((s) => s.round.phase === 'ARMED')
+          break
+        }
+
+        // pick:Ada=C,Bo=A — each player's pick on a choice question, sent the
+        // moment the choices go up. Letters, as the board shows them.
+        case 'pick': {
+          await host.waitFor((s) => !!s.round.choices, 60_000)
+          for (const spec of arg.split(',').filter(Boolean)) {
+            const [name, letter = ''] = spec.split('=')
+            const index = LETTERS.indexOf(letter.toUpperCase())
+            if (!name || letter.length !== 1 || index < 0) throw new Error(`pick needs Name=Letter, got "${spec}"`)
+            player(name).send({ t: 'act', act: 'pick', data: index })
+          }
+          // Everyone the walk scripts picks, so the reader settles at once; a
+          // player left out is waited for until the countdown runs out.
+          await host.waitFor((s) => s.round.correct !== undefined, 180_000)
           break
         }
 

@@ -189,23 +189,32 @@ ever opens — the run stops on "no answer window for Ada" rather than hanging.
 
 ### Reading plain trivia — `npm run walk-read-trivia`
 
-The same shape on one-sentence trivia (`packs/walk-trivia.txt`): three players,
-autoplay on, every answer spoken and judged. Needs the judge, like the pyramid
-walk. Under a minute.
+Shown trivia and one multiple-choice question (`packs/walk-trivia.txt`): three
+players, autoplay on, every buzz answer spoken and judged, the choice picked
+from the players' own sockets. Needs the judge, like the pyramid walk. About a
+minute.
 
 ```bash
 npm run walk-read-trivia
 ```
 
+- [ ] Each shown question is up **whole** on the board the moment it arms, and
+      the voice still reads it; nothing is revealed clause by clause
 - [ ] Ada buzzes during "Which planet is known as the Red Planet?", says
       "Mars", and scores 200
 - [ ] Bo buzzes the Einstein question mid-sentence and says "Isaac Newton"; the
       matcher refuses it and the miss holds the wall with the buzzers shut
 - [ ] The rebound re-reads the interrupted clause, and Cy buzzes two seconds
       after it opens and says "Albert Einstein" for 300
-- [ ] Nobody buzzes the Everest question: it is read in full, reveals its
-      answer and passes on its own
-- [ ] Scores end Ada 200, Bo −300, Cy 300
+- [ ] The moons question: the question is up and read first, then the four
+      choices appear on the board and the phones and the voice reads them;
+      phones show **Listen** until then, not a buzzer
+- [ ] Ada and Cy pick C, Bo picks D; the picker bar fills, and picking settles
+      as soon as the last one lands. Saturn lights, Ada's and Cy's dots sit on
+      it, and the stamp reads "+400 · 2 right"
+- [ ] Nobody buzzes the Everest question: it reveals its answer and passes on
+      its own
+- [ ] Scores end Ada 600, Bo −300, Cy 700
 
 ### Two packs in one setlist — `npm run walk-packs`
 
