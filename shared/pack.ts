@@ -5,6 +5,9 @@
  *   First fragment. / Second, which  ` / ` splits fragments
  *   continues the second. / Third.   bare lines join the current fragment
  *   I: images/tower.jpg              optional; a picture under packs/ for the board
+ *   K: shown                         optional; on the board whole, still read aloud
+ *   C: Mars | Venus | Saturn         optional; makes a multiple-choice question,
+ *                                    and A: must equal one choice
  *   A: The answer | an alternate      required, so the host can judge
  *
  *   Blank line separates questions.
@@ -20,6 +23,12 @@ export type Question = {
   answers: string[]
   /** Path relative to the pack directory. */
   image?: string
+  /** Absent = read: revealed clause by clause as it is spoken. */
+  kind?: 'shown' | 'choice'
+  /** Choice questions only, in display order. */
+  choices?: string[]
+  /** Index into `choices` of the right one. Set exactly when `choices` is. */
+  correct?: number
 }
 export type PackResult = { questions: Question[]; errors: string[] }
 
@@ -31,20 +40,39 @@ export function parsePack(text: string): PackResult {
   let answer = ''
   let variants: string[] = []
   let image: string | undefined
+  let kind: 'shown' | undefined
+  let choices: string[] | undefined
+  let kindError: string | undefined
   let startLine = 0
 
   const flush = () => {
-    if (value === undefined && fragments.length === 0 && !answer && !image) return
-    if (fragments.length === 0 || !answer) {
+    if (value === undefined && fragments.length === 0 && !answer && !image && !kind && !choices && !kindError) return
+    if (kindError) {
+      errors.push(kindError)
+    } else if (fragments.length === 0 || !answer) {
       errors.push(`line ${startLine}: a question needs at least one fragment and an A: line`)
+    } else if (choices) {
+      const correct = choices.findIndex((c) => c.toLowerCase() === answer.toLowerCase())
+      if (kind === 'shown') {
+        errors.push(`line ${startLine}: a C: line makes a choice question; drop K: shown`)
+      } else if (choices.length < 2 || choices.length > 6) {
+        errors.push(`line ${startLine}: a choice question needs 2 to 6 choices`)
+      } else if (correct < 0) {
+        errors.push(`line ${startLine}: A: must equal one of the C: choices`)
+      } else {
+        questions.push({ value, fragments, answer, answers: variants, kind: 'choice', choices, correct, ...(image && { image }) })
+      }
     } else {
-      questions.push({ value, fragments, answer, answers: variants, ...(image && { image }) })
+      questions.push({ value, fragments, answer, answers: variants, ...(kind && { kind }), ...(image && { image }) })
     }
     value = undefined
     fragments = []
     answer = ''
     variants = []
     image = undefined
+    kind = undefined
+    choices = undefined
+    kindError = undefined
   }
 
   text.split('\n').forEach((raw, i) => {
@@ -69,6 +97,18 @@ export function parsePack(text: string): PackResult {
       // matcher; the first stays the display answer.
       variants = line.slice(2).split(' | ').map((s) => s.trim()).filter(Boolean)
       answer = variants[0] ?? ''
+      return
+    }
+    if (line.startsWith('K:')) {
+      const k = line.slice(2).trim()
+      if (k === 'shown') kind = 'shown'
+      else if (k !== 'read') kindError = `line ${n}: K: must be read or shown; a C: line makes a choice question`
+      if (fragments.length === 0) startLine = n
+      return
+    }
+    if (line.startsWith('C:')) {
+      choices = line.slice(2).split(' | ').map((s) => s.trim()).filter(Boolean)
+      if (fragments.length === 0) startLine = n
       return
     }
     if (line.startsWith('I:')) {

@@ -85,3 +85,61 @@ A: gold
   assert.equal(questions[0].answer, 'gold')
   assert.deepEqual(questions[0].answers, ['gold'])
 })
+
+test('K: shown marks a question shown; K: read is the default', () => {
+  const { questions, errors } = parsePack(`K: shown
+Shown question.
+A: yes
+
+K: read
+Read question.
+A: yes
+`)
+  assert.deepEqual(errors, [])
+  assert.equal(questions[0].kind, 'shown')
+  assert.equal(questions[1].kind, undefined)
+})
+
+test('a C: line makes a choice question and records the right index', () => {
+  const { questions, errors } = parsePack(`V: 200
+C: Mars | Venus | Saturn | Jupiter
+Which planet has the most moons?
+A: saturn
+`)
+  assert.deepEqual(errors, [])
+  assert.equal(questions[0].kind, 'choice')
+  assert.deepEqual(questions[0].choices, ['Mars', 'Venus', 'Saturn', 'Jupiter'])
+  assert.equal(questions[0].correct, 2)
+  assert.equal(questions[0].value, 200)
+})
+
+test('bad choice questions are skipped with a reason', () => {
+  const { questions, errors } = parsePack(`C: Mars | Venus
+Q one.
+A: Pluto
+
+C: Only
+Q two.
+A: Only
+
+C: a | b | c | d | e | f | g
+Q three.
+A: a
+
+K: shown
+C: a | b
+Q four.
+A: a
+
+K: choice
+Q five.
+A: a
+`)
+  assert.equal(questions.length, 0)
+  assert.equal(errors.length, 5)
+  assert.match(errors[0], /must equal one of the C: choices/)
+  assert.match(errors[1], /2 to 6/)
+  assert.match(errors[2], /2 to 6/)
+  assert.match(errors[3], /K: shown/)
+  assert.match(errors[4], /K: must be read or shown/)
+})
