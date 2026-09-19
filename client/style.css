@@ -596,18 +596,48 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 /* The penalty is the award's mirror: same stamp, tally-red. */
 .board__award.is-neg { background: var(--tally); color: #2a0704; }
-/* A choice question's grid, in the band below the clue. Two columns, three
-   rows at most; option text clamps to two lines so a long one cannot push the
-   band. The reveal keeps the same cells and only changes their weight. */
-.board__choices { display: grid; gap: var(--s3); justify-items: center; width: min(100%, 60rem); margin-top: var(--s4); }
+/* A choice question lifts the middle band: the question sits above centre and
+   the grid below gets the room. The split holds from the arm, so nothing moves
+   when the choices land. */
+.board__wall.is-choice { grid-template-rows: minmax(0, 0.55fr) auto minmax(0, 1.45fr); }
+/* The grid: two columns, three rows at most. Options are a step below the
+   question, in the same display face, and clamp to two lines so a long one
+   cannot push the band. The reveal keeps the same cells and only changes
+   their weight. */
+.board__choices { display: grid; gap: var(--s4); justify-items: center; width: min(100%, 56rem); margin-top: var(--s5); }
 .board__grid { list-style: none; margin: 0; padding: 0; width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); }
-.board__choice { display: flex; align-items: center; gap: var(--s4); padding: var(--s3) var(--s4); border: 2px solid var(--dim); border-radius: var(--r-sm); text-align: left; font-size: var(--t-xl); line-height: 1.1; color: var(--chalk); transition: opacity 300ms; }
-.board__letter { font-weight: 800; color: var(--dim); }
+.board__choice {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  padding: var(--s3) var(--s5) var(--s3) var(--s3);
+  background: var(--raise);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  text-align: left;
+  font-family: var(--display);
+  font-size: calc(var(--t-xl) * 0.72);
+  font-weight: 500;
+  line-height: 1.1;
+  color: var(--chalk);
+  transition: opacity 300ms, border-color 300ms;
+}
+.board__letter {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.7em;
+  height: 1.7em;
+  border-radius: var(--r-md);
+  background: var(--rule);
+  color: var(--dim);
+  font-weight: 700;
+}
 .board__option { flex: 1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .board__choice.is-right { border-color: var(--brass); color: var(--brass); }
-.board__choice.is-right .board__letter { color: var(--brass); }
+.board__choice.is-right .board__letter { background: var(--brass); color: #201a03; }
 .board__choice.is-dim { opacity: 0.35; }
-.board__tally { color: var(--dim); }
+.board__tally { color: var(--dim); font-size: 0.8em; }
 .board__winners { display: flex; flex-wrap: wrap; gap: var(--s2); justify-content: center; margin: 0; }
 .board__picking { color: var(--dim); margin: 0; }
 /*

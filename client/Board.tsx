@@ -521,7 +521,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
 
   return (
     <main class="board" data-review-id="board:root">
-      <section class="board__wall">
+      <section class={w.moment.startsWith('choice:') ? 'board__wall is-choice' : 'board__wall'}>
         <div class="board__status" data-review-id="board:status">
           {open && <span class="chip chip--open">Open</span>}
           {armed && !open && <span class="chip chip--armed">Standing by</span>}

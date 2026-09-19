@@ -589,9 +589,11 @@ States, in priority order:
    card, or the miss on a rebound.
 4. **Idle** — "Ready", dim.
 
-A **choice question** keeps the three bands. The question holds the middle
-from the arm, and the options appear as a two-column grid (`.board__choices`)
-in the band below once it has been read, with "6 of 9 in" and the countdown
+A **choice question** keeps the three bands, but lifts the middle one
+(`.board__wall.is-choice`, a 0.55 : 1.45 split) for the whole question so the
+grid has room. The question holds the middle from the arm, and the options
+appear as a two-column grid of raised, lettered panels (`.board__choices`) in
+the band below once it has been read, with "6 of 9 in" and the countdown
 under it. On the reveal the same grid stays up: the right cell turns brass
 with `fx-tada`, the rest dim (`.is-dim`) with their counts, the winners' names
 sit under it as chips, and the brass stamp above reads "+400 · 5 right" or
