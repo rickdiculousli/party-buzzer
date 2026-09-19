@@ -71,6 +71,13 @@ export type ReaderOpts = {
  */
 const REVEAL_LAG_MS = -80
 
+/**
+ * The beat between the last pick landing and the answer. Without it the grid
+ * lights the instant the last phone taps, and the room never sees that
+ * everyone is in before it is told who was right.
+ */
+const LOCK_BEAT_MS = 1000
+
 export class Reader {
   private hub: Hub
   private opts: ReaderOpts
@@ -662,6 +669,8 @@ export class Reader {
     // Everyone is in; the rest of the options would be read to nobody.
     this.playback?.stop()
     await options
+    // The bar fills, the room reads it, then the answer.
+    await sleep(LOCK_BEAT_MS, sig)
     if (stillMine()) this.hub.dispatch({ a: 'settleChoice', correct: q.correct! })
   }
 

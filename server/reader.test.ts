@@ -553,8 +553,11 @@ test('choices go up after the question, the options are read, and it settles whe
   assert.equal(state.round.kind, 'choice')
   assert.equal(speech.spoken[0], 'Which planet has the most moons?', 'choices wait for the question')
   hub.handle(ada, { t: 'act', act: 'pick', data: 2 })
+  const lastPick = Date.now()
   hub.handle(bo, { t: 'act', act: 'pick', data: 0 })
   while (state.round.correct === undefined) await tick()
+  // A beat with every slot filled before the answer, never a reveal on the tap.
+  assert.ok(Date.now() - lastPick >= 900, 'the room sees the bar full first')
   assert.equal(state.round.correct, 2)
   assert.equal(state.scores.ada, 200)
   assert.equal(state.scores.bo ?? 0, 0)

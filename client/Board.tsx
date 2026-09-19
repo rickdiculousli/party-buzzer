@@ -316,8 +316,10 @@ function Countdown({ until, now }: { until: number; now: () => number }) {
  * stays up for the reveal: the right cell lights, the rest dim with their
  * counts, and the room's winners sit under it.
  */
-function Choices({ c, colorOf }: { c: ChoiceWall; colorOf: (id: string) => string }) {
+function Choices({ c, now, colorOf }: { c: ChoiceWall; now: () => number; colorOf: (id: string) => string }) {
   const revealed = c.correct !== undefined
+  // Picking is over but the answer is not up yet: the bar goes brass for that beat.
+  const closed = !revealed && (c.pickers.every((p) => p.picked) || (c.closesAt !== undefined && now() >= c.closesAt))
   return (
     <div class="board__choices" data-review-id="board:choices">
       {/* While picking, above the grid: a slot per player, filling in their
@@ -325,7 +327,7 @@ function Choices({ c, colorOf }: { c: ChoiceWall; colorOf: (id: string) => strin
           seeing what anyone chose. The row keeps its space at the reveal, so
           the grid does not move. */}
       <div class={revealed ? 'board__status-row is-gone' : 'board__status-row'}>
-        <ol class="board__slots" data-review-id="board:pickers">
+        <ol class={closed ? 'board__slots is-closed' : 'board__slots'} data-review-id="board:pickers">
           {c.pickers.map((p, i) => (
             <li key={i} class="board__slot">
               {p.picked && <span key={p.id} class="board__dot fx-pop" style={{ '--id': colorOf(p.id) }} />}
@@ -684,7 +686,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
           {/* `seen` still holds the previous count during render — the effect
               that advances it runs after. That is exactly the number a mark
               needs to know whether it arrived alone or in a crowd. */}
-          {w.choices && <Choices c={w.choices} colorOf={(id) => colorForPlayer(state, id)} />}
+          {w.choices && <Choices c={w.choices} now={now} colorOf={(id) => colorForPlayer(state, id)} />}
           {w.timeline && <Timeline state={state} round={round} enter={enter.current} />}
         </div>
 
