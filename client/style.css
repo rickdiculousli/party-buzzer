@@ -2204,11 +2204,14 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   color: var(--chalk);
 }
 /* A choice question's options, one tap each; the pick is final. */
-.player__choices { display: grid; gap: var(--s3); padding: 0 var(--s4) var(--s4); }
-.player__choice { padding: var(--s3); font-size: var(--t-xl); cursor: pointer; }
+/* The options take the buzzer's slot: they share whatever height the phone
+   has left and shrink with it, so the page never scrolls. */
+.player__choices { flex: 1; min-height: 0; display: grid; grid-auto-rows: minmax(0, 1fr); gap: var(--s2); }
+.player__choice { min-height: 0; padding: 0 var(--s3); font-size: clamp(0.875rem, 3.4vh, var(--t-xl)); cursor: pointer; }
 .player__choice:active { border-color: var(--tungsten); }
+.player__choice .choice__letter { height: min(1.7em, calc(100% - 2 * var(--s1))); }
 /* The seconds left to pick, above the options. */
-.player__countdown { margin: 0; padding: var(--s2) var(--s4) var(--s3); text-align: center; font-family: var(--display); font-weight: 800; font-size: var(--t-mega); line-height: 1; color: var(--dim); }
+.player__countdown { flex: none; margin: 0; text-align: center; font-family: var(--display); font-weight: 800; font-size: var(--t-xl); line-height: 1; color: var(--dim); }
 
 /* --- the harness waveform editor -------------------------------------- */
 .layers {
