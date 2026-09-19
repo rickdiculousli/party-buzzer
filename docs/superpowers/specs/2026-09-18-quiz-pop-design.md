@@ -35,7 +35,7 @@ the kit so there is one pipeline.
    Board effects are large and slow enough to catch from ten feet. Phone
    effects are about the player's own state and pair with the vibration the
    phone already does.
-5. **The host desk stays quiet.** It is a control surface.
+5. **The host desk gets no effects.** It is a control surface.
 
 ## Part 1: consolidate the existing motions
 
@@ -97,16 +97,13 @@ marked **new**.
 |---|---|---|---|
 | B1 | Any score change | Standings row | Row slides to its new rank (**new** `useFlip` helper, below). Score uses `CountUp` from its old value. |
 | B2 | Score went up / down | Standings row | `fx-flash` in brass / tally red. |
-| B3 | Lead changes | 1st place rank label | `fx-tada` once. |
-| B4 | `verdict:award` | Hero name | Confetti `Burst` from the name, then one `fx-shine` pass after the slam lands. |
+| B4 | `verdict:award` | Hero name | Confetti `Burst` from the name. |
 | B5 | `verdict:award` | Answer line | `fx-rise`. |
 | B6 | `verdict:penalty` | Hero name | `fx-shake` once, at the recolour (not at the arrival). |
-| B7 | `verdict:penalty` | −points stamp | Dust `Burst` from under the stamp. The stamp keeps `fx-rubber-stamp`. |
-| B8 | Photo finish: second mark within `--photo-finish` (default 30ms) of first | Second mark's `+ms` readout | `fx-flash` in cyan. It is a measurement, so cyan is correct. |
+| B7 | Any verdict | Points stamp, + or − | Dust `Burst` from under the stamp as it lands. The stamp keeps `fx-rubber-stamp`. The dust is the stamp's weight, so it fires either way; the stamp's colour says which. |
 | B9 | Clue fragment arrives | Newly said words | Fade in over `--fast`. Today words appear at once. |
-| B10 | `duel:faceoff` | The two names | `fx-slide` in from opposite sides; "vs" gets `fx-pop`. |
-| B11 | `duel:dead` | "Both missed" call | `<Glitch>`. |
-| B12 | Player joins | Their standings row | `fx-drop`. |
+| B10 | `duel:faceoff` | The two names | Each name slides in from its own side at the **charge** rate (below), slow then fast. When both stop, a big dust `Burst` under each, like two weights colliding. "vs" gets `fx-pop`. |
+| B12 | Player joins | Their standings row | `fx-pop`. |
 | B13 | Lobby, no players yet | QR | `fx-glow-pulse` until the first join. |
 | B14 | Setlist block advances | Position chip | `fx-flip`. |
 | B15 | **Setlist complete** | Middle band | Finale, see below. |
@@ -116,10 +113,8 @@ marked **new**.
 | # | Moment | Element | Effect |
 |---|---|---|---|
 | P1 | Own score changes | Bar score | `CountUp`, then `fx-flash` brass / tally red. |
-| P2 | Own correct answer | Buzzer | Sparkle `Burst`. The label stays whatever `phoneOf` says. |
-| P4 | Locked out ("Out") | Buzzer | `fx-shake` once, with the existing vibration. |
-| P5 | Frozen by an item | Buzzer label | `<Glitch>`. |
-| P6 | Answering, last 3s of the window | Countdown | `fx-heartbeat`. |
+| P5 | Frozen by an item | Buzzer label | `fx-wobble` once. |
+| P6 | Answering, last 3s of the window | Countdown | `fx-ripple`. |
 | P7 | Rank changes | Standings dial row | Same `useFlip` slide as B1. |
 | P8 | Vote cast | Nominee button | `fx-nudge`. |
 | P9 | Seated in a duel | Heads-up card | `fx-tada` once. |
@@ -129,11 +124,26 @@ marked **new**.
 
 ### Host
 
-| # | Moment | Element | Effect |
-|---|---|---|---|
-| H1 | Action refused | The button that sent it | `fx-shake` once. |
+No effects. The host desk is a control surface.
 
-Nothing else on the host desk.
+### Slide rates
+
+`fx-slide` runs on `--ease` today, which is fast then slow. Slides get three
+canonical rates, as curve tokens in `tokens.css`, and `fx-slide` honours a new
+`--fx-ease` override:
+
+| Token | Feel | Curve | Use |
+|---|---|---|---|
+| `--rate-glide` | Fast then slow; arrives and settles | exponential out, `cubic-bezier(0.16, 1, 0.3, 1)` | The default. Anything arriving. |
+| `--rate-charge` | Slow then fast; builds and hits | exponential in, `cubic-bezier(0.7, 0, 0.84, 0)` | Things that collide at the end: the face-off. |
+| `--rate-even` | Eases both ends | `cubic-bezier(0.65, 0, 0.35, 1)` | Things moving between two places. |
+
+Modifier classes `fx-slide--glide`, `fx-slide--charge` and `fx-slide--even`
+set `--fx-ease`. The harness's slide scenario gets a picker for the three.
+
+A charge ends at full speed, so it needs something to land on: the dust in
+B10 mounts on each name's `animationend`, which makes the impact and the
+stop the same frame without a timer.
 
 ### The finale (B15)
 
@@ -147,8 +157,7 @@ The one placement that needs new wiring. Today a finished setlist shows
 - The board shows the name as `fx-rainbow` at hero size, with a confetti
   `Burst` on arrival and a second one 1.2s later.
 - Phones show `phoneOf` label "Winner" (mood `first`) for the winner and
-  "Final" with their rank as the sub for everyone else. The winner's buzzer
-  also gets P2's sparkle.
+  "Final" with their rank as the sub for everyone else.
 - It lasts until the host clears or loads another setlist.
 
 This changes `wall.ts`'s moment list, so it needs `wall.test.ts` cases for the
@@ -163,15 +172,16 @@ new moment's priority (below every verdict, above `idle:ready`).
 - **Score deltas:** `CountUp` needs the previous value. The standings row keeps
   it in a ref, and the row's flash colour comes from the sign of the change.
 - **Retriggering one-shots** on an element that stays mounted (B2, B6, P1,
-  P4, H1): a small `useHit(dep)` helper in `fx.tsx` that removes and
-  re-adds a class across a reflow when `dep` changes, the same trick `Glitch`
-  uses for flashes.
+  P5): a small `useHit(dep)` helper in `fx.tsx` that removes and re-adds a
+  class across a reflow when `dep` changes, the same trick `Glitch` uses for
+  flashes.
+- **Slide rates:** three curve tokens, `--fx-ease` in `fx-slide`, three
+  modifier classes.
 - **`idle:finale`** in `shared/wall.ts` and its projection in `phoneOf`.
-- **Tunable:** `--photo-finish: 30ms` in `anim:tunables`.
 
 Every new effect site gets a harness scenario only if it introduces a new
-combination (the finale, the standings slide). Single kit classes are already
-in the harness.
+combination (the finale, the face-off collision, the standings slide).
+Single kit classes are already in the harness.
 
 ## Fixes found on the tour
 
@@ -181,12 +191,12 @@ in the harness.
 - **Talk screen** ("Say it out loud") renders flush left and wraps into the
   edge at 390px; the "7s" countdown is at `--t-xs`. Center it and make the
   countdown readable.
-- **Add review fixtures** for the new states: lead change, finale, frozen.
+- **Add review fixtures** for the new states: lead change, finale, frozen, face-off.
 
 ## Reduced motion
 
-`tokens.css` already cuts every animation to 1ms. `Burst`, `CountUp` and
-`Glitch` already opt out. `useFlip` skips the transform when reduced motion is
+`tokens.css` already cuts every animation to 1ms. `Burst` and `CountUp`
+already opt out. `useFlip` skips the transform when reduced motion is
 set, so rows just move.
 
 ## Testing
@@ -200,8 +210,8 @@ set, so rows just move.
 
 1. Consolidation (Part 1). It's a rename with no visible change, so it's
    checked by eye in the harness before and after.
-2. Standings motion: B1–B3, P1, P7.
-3. Correct and wrong: B4–B7, P2, P4.
+2. Standings motion: B1, B2, P1, P7.
+3. Correct and wrong: B4–B7.
 4. The finale: B15.
 5. Everything else.
 
