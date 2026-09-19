@@ -119,7 +119,7 @@ async function main() {
     // thing to keep true.
     log('\n  usage: npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@120 correct')
     log('  steps: loop join value arm buzz correct wrong next reset undo pack mode direct autoplay rewind read armed act speak say teams setlist jump duel in out vote unvote seat cancel wait clear')
-    log('  walks: npm run walk-duel   walk-teams   walk-setlist   walk-read   walk-packs\n')
+    log('  walks: npm run walk-duel   walk-teams   walk-setlist   walk-read-quizbowl   walk-read-trivia   walk-packs\n')
     return
   }
 

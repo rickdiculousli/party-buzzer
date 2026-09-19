@@ -251,7 +251,7 @@ npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@140 correct
 ```
 
 These tools change the live room. The `walk-duel`, `walk-teams`, `walk-setlist`,
-`walk-read`, `walk-packs`, and `walk-images` scripts exercise longer flows. Start with
+`walk-read-quizbowl`, `walk-read-trivia`, `walk-packs`, and `walk-images` scripts exercise longer flows. Start with
 `TRACE=1 npm start` to record `trace.jsonl`, then inspect it with `npm run trace`.
 Before a game night, follow the [manual checklist](docs/manual-checklist.md)
 on actual phones and the room's audio setup.

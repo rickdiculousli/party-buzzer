@@ -132,7 +132,7 @@ npm run walk-setlist
 - [ ] Saving, clearing and loading the same setlist returns the same blocks
 - [ ] `clear` leaves the room with no setlist
 
-### Reading itself — `npm run walk-read`
+### Reading a pyramid — `npm run walk-read-quizbowl`
 
 Three players, one pack (`packs/walk-c.txt`), autoplay on. Nobody presses N and
 nobody judges: every answer is **spoken out loud** and scored by the judge, so
@@ -144,7 +144,7 @@ reader's clips, so the first run pays for three short clips and every run after
 posts files that are already there.
 
 ```bash
-npm run walk-read
+npm run walk-read-quizbowl
 ```
 
 **It needs the judge.** No `swiftc`, no `server/stt/stt.swift`, and no window
@@ -186,6 +186,26 @@ ever opens — the run stops on "no answer window for Ada" rather than hanging.
 - [ ] Scores end Ada 200, Bo −300, Cy 300 — the same three numbers every run.
       Different numbers with the same words spoken means STT drifted, and the
       transcripts on the board say which one
+
+### Reading plain trivia — `npm run walk-read-trivia`
+
+The same shape on one-sentence trivia (`packs/walk-trivia.txt`): three players,
+autoplay on, every answer spoken and judged. Needs the judge, like the pyramid
+walk. Under a minute.
+
+```bash
+npm run walk-read-trivia
+```
+
+- [ ] Ada buzzes during "Which planet is known as the Red Planet?", says
+      "Mars", and scores 200
+- [ ] Bo buzzes the Einstein question mid-sentence and says "Isaac Newton"; the
+      matcher refuses it and the miss holds the wall with the buzzers shut
+- [ ] The rebound re-reads the interrupted clause, and Cy buzzes two seconds
+      after it opens and says "Albert Einstein" for 300
+- [ ] Nobody buzzes the Everest question: it is read in full, reveals its
+      answer and passes on its own
+- [ ] Scores end Ada 200, Bo −300, Cy 300
 
 ### Two packs in one setlist — `npm run walk-packs`
 

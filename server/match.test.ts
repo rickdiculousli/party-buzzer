@@ -37,12 +37,12 @@ test('an empty transcript never matches', () => {
 })
 
 /**
- * `npm run walk-read` speaks three answers aloud and asserts three scores. If
+ * `npm run walk-read-quizbowl` speaks three answers aloud and asserts three scores. If
  * one of them stops landing on the side the walkthrough expects, the run turns
  * into a minute of audio that ends on the wrong numbers with nothing saying
  * why — so the pack and the words the script says are checked together here.
  */
-test('walk-read: the pack takes the answers the walkthrough speaks, and refuses the miss', () => {
+test('walk-read-quizbowl: the pack takes the answers the walkthrough speaks, and refuses the miss', () => {
   const { questions, errors } = parsePack(
     readFileSync(join(import.meta.dirname, '..', 'packs', 'walk-c.txt'), 'utf8'),
   )
@@ -55,4 +55,18 @@ test('walk-read: the pack takes the answers the walkthrough speaks, and refuses 
   assert.ok(matchAnswer('the Pacific Ocean', questions[0].answers))
   assert.ok(matchAnswer('Marie Curie', questions[1].answers))
   assert.ok(!matchAnswer('Rosalind Franklin', questions[1].answers))
+})
+
+/** The same pairing for `npm run walk-read-trivia`, on plain one-sentence questions. */
+test('walk-read-trivia: the pack takes the answers the walkthrough speaks, and refuses the miss', () => {
+  const { questions, errors } = parsePack(
+    readFileSync(join(import.meta.dirname, '..', 'packs', 'walk-trivia.txt'), 'utf8'),
+  )
+  assert.deepEqual(errors, [])
+  assert.equal(questions.length, 3)
+  assert.ok(questions.every((q) => q.kind === undefined), 'read questions, as the walk expects')
+
+  assert.ok(matchAnswer('Mars', questions[0].answers))
+  assert.ok(matchAnswer('Albert Einstein', questions[1].answers))
+  assert.ok(!matchAnswer('Isaac Newton', questions[1].answers))
 })
