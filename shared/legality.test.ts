@@ -31,6 +31,7 @@ function room(): State {
     packSizes: {},
     mirrorFragments: false,
     answerWindowSec: 0,
+    choiceSec: 20,
     autoplay: { on: false, nextSec: 4, reboundSec: 3 },
   }
 }
@@ -66,6 +67,14 @@ const LEGAL: Record<HostAction['a'], [State, HostAction]> = {
   undo: [locked(room()), { a: 'undo' }],
   setValue: [locked(room()), { a: 'setValue', value: 400 }],
   setAnswerWindow: [locked(room()), { a: 'setAnswerWindow', sec: 10 }],
+  setChoiceTime: [locked(room()), { a: 'setChoiceTime', sec: 20 }],
+  settleChoice: [(() => {
+    const s = room()
+    s.round.phase = 'ARMED'
+    s.round.kind = 'choice'
+    s.round.choices = ['a', 'b']
+    return s
+  })(), { a: 'settleChoice', correct: 1 }],
   setScore: [locked(room()), { a: 'setScore', key: 'a', score: 300 }],
   rename: [locked(room()), { a: 'rename', playerId: 'a', name: 'Ada L' }],
   kick: [locked(room()), { a: 'kick', playerId: 'b' }],
@@ -107,6 +116,7 @@ test('every action kind has a shape it is legal in', () => {
 
 /** One case per code, each driving a room into the shape that refuses. */
 const REFUSED: [Refusal, State, HostAction][] = [
+  ['no-choice', locked(room()), { a: 'settleChoice', correct: 0 }],
   // Setup is refused mid-question, which is six actions and one code. Every one
   // of them listed: `not-idle` covering only the case somebody remembered is
   // exactly the drift this module exists to stop.

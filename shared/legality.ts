@@ -67,6 +67,7 @@ export type Refusal =
   | 'unpicked'
   | 'team-too-small'
   | 'ink-cards'
+  | 'no-choice'
 
 export function refuses(s: State, a: HostAction): Refusal | null {
   const r = s.round
@@ -101,6 +102,13 @@ export function refuses(s: State, a: HostAction): Refusal | null {
     case 'wrong':
       if (r.phase !== 'LOCKED' || !r.order[0]) return 'no-leader'
       return r.award && !isPenalty(r.award) ? 'already-scored' : null
+
+    // Only while a choice question's options are up and nothing has been revealed.
+    case 'settleChoice':
+      return r.kind === 'choice' && r.choices && r.correct === undefined &&
+        Number.isInteger(a.correct) && a.correct >= 0 && a.correct < r.choices.length
+        ? null
+        : 'no-choice'
 
     // Only ever opens a rebound that is being held. A stray one — a double tap,
     // a reader waking on a round that already moved — has nothing to open.
@@ -180,6 +188,7 @@ export function refuses(s: State, a: HostAction): Refusal | null {
     // Their `applyHostAction` cases guard nothing, and this is that said out loud.
     case 'setValue':
     case 'setAnswerWindow':
+    case 'setChoiceTime':
     case 'setScore':
     case 'rename':
     case 'kick':

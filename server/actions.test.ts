@@ -129,3 +129,85 @@ test('preparing a minigame stops reader work before the new state is published',
   assert.equal(stopped, 1)
   assert.deepEqual(changes, ['IDLE'])
 })
+
+function choiceRoom() {
+  const state = newState()
+  state.players = [
+    { id: 'ada', name: 'Ada', connected: true },
+    { id: 'bo', name: 'Bo', connected: true },
+    { id: 'cy', name: 'Cy', connected: true },
+  ]
+  applyHostAction(state, { a: 'arm', kind: 'choice' })
+  state.round.value = 300
+  state.round.choices = ['Mars', 'Saturn', 'Venus']
+  state.round.picks = { ada: 1, bo: 1, cy: 0 }
+  return state
+}
+
+test('settleChoice pays each right pick the value and costs a wrong pick nothing', () => {
+  const state = choiceRoom()
+  assert.deepEqual(applyHostAction(state, { a: 'settleChoice', correct: 1 }), { status: 'applied' })
+  assert.equal(state.scores.ada, 300)
+  assert.equal(state.scores.bo, 300)
+  assert.equal(state.scores.cy ?? 0, 0)
+  assert.equal(state.round.correct, 1)
+  assert.equal(state.round.phase, 'IDLE')
+  assert.equal(state.round.award, undefined, 'no hero, no stamp')
+  assert.deepEqual(applyHostAction(state, { a: 'settleChoice', correct: 1 }), { status: 'refused', reason: 'no-choice' })
+})
+
+test('settleChoice pays a team once per right member', () => {
+  const state = choiceRoom()
+  state.grouping = 'teams'
+  state.teams = [{ id: 'red', name: 'Red', color: '#f00' }, { id: 'blue', name: 'Blue', color: '#00f' }]
+  state.players[0].teamId = 'red'
+  state.players[1].teamId = 'red'
+  state.players[2].teamId = 'blue'
+  applyHostAction(state, { a: 'settleChoice', correct: 1 })
+  assert.equal(state.scores.red, 600)
+  assert.equal(state.scores.blue ?? 0, 0)
+})
+
+test('settleChoice is refused on a buzz question, before choices, and out of range', () => {
+  const state = newState()
+  applyHostAction(state, { a: 'arm' })
+  assert.deepEqual(applyHostAction(state, { a: 'settleChoice', correct: 0 }), { status: 'refused', reason: 'no-choice' })
+  applyHostAction(state, { a: 'arm', kind: 'choice' })
+  assert.deepEqual(applyHostAction(state, { a: 'settleChoice', correct: 0 }), { status: 'refused', reason: 'no-choice' })
+  state.round.choices = ['a', 'b']
+  assert.deepEqual(applyHostAction(state, { a: 'settleChoice', correct: 2 }), { status: 'refused', reason: 'no-choice' })
+})
+
+test('arm and next sweep the choice fields', () => {
+  const state = choiceRoom()
+  state.round.closesAt = 5
+  applyHostAction(state, { a: 'settleChoice', correct: 1 })
+  applyHostAction(state, { a: 'next' })
+  for (const k of ['kind', 'choices', 'picks', 'closesAt', 'correct'] as const) {
+    assert.equal(state.round[k], undefined, k)
+  }
+  applyHostAction(state, { a: 'arm', kind: 'shown' })
+  assert.equal(state.round.kind, 'shown')
+  applyHostAction(state, { a: 'arm' })
+  assert.equal(state.round.kind, undefined)
+})
+
+test('undo takes back a settled choice question', () => {
+  const { state, hub } = rig()
+  Object.assign(state, choiceRoom())
+  hub.dispatch({ a: 'settleChoice', correct: 1 })
+  assert.equal(state.scores.ada, 300)
+  hub.dispatch({ a: 'undo' })
+  assert.equal(state.scores.ada ?? 0, 0)
+  assert.equal(state.round.correct, undefined)
+  assert.deepEqual(state.round.picks, { ada: 1, bo: 1, cy: 0 })
+})
+
+test('setChoiceTime clamps to 5..120', () => {
+  const state = newState()
+  assert.equal(state.choiceSec, 20)
+  applyHostAction(state, { a: 'setChoiceTime', sec: 1 })
+  assert.equal(state.choiceSec, 5)
+  applyHostAction(state, { a: 'setChoiceTime', sec: 500 })
+  assert.equal(state.choiceSec, 120)
+})

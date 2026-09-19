@@ -43,6 +43,7 @@ export function newState(): State {
     // Ten seconds of silence is a stall. Only ever read by the judge, which
     // only runs while the reader drives a pack, so host-read games never feel it.
     answerWindowSec: 10,
+    choiceSec: 20,
     // Off by default: a host who has not asked for it should never find the
     // room moving on without them.
     // The rebound beat is long enough for the board to finish the miss: the
@@ -93,6 +94,21 @@ function openRebound(state: State): void {
   for (const e of state.effects) e.attemptId = round.attemptId
 }
 
+/** Everything a question put on the round. Cleared whenever a question ends or starts. */
+function clearQuestion(round: State['round']): void {
+  delete round.award
+  delete round.held
+  delete round.fragments
+  delete round.whole
+  delete round.image
+  delete round.answer
+  delete round.kind
+  delete round.choices
+  delete round.closesAt
+  delete round.picks
+  delete round.correct
+}
+
 /** Validate before mutation and report whether anything actually changed. */
 export function applyHostAction(state: State, action: HostAction): ActionResult {
   const reason = refuses(state, action)
@@ -130,12 +146,8 @@ function mutateHostAction(state: State, action: HostAction): void {
       round.armedAt = Date.now() + ARM_DELAY_MS
       round.order = []
       round.total = 0
-      delete round.award
-      delete round.held
-      delete round.fragments
-      delete round.whole
-      delete round.image
-      delete round.answer
+      clearQuestion(round)
+      if (action.kind) round.kind = action.kind
       delete round.judge
       delete round.spoken
       delete round.buzzable
@@ -234,12 +246,7 @@ function mutateHostAction(state: State, action: HostAction): void {
       round.order = []
       round.total = 0
       round.lockedOut = []
-      delete round.award
-      delete round.held
-      delete round.fragments
-      delete round.whole
-      delete round.image
-      delete round.answer
+      clearQuestion(round)
       delete round.judge
       delete round.spoken
       delete round.buzzable
@@ -288,17 +295,24 @@ function mutateHostAction(state: State, action: HostAction): void {
       round.order = []
       round.total = 0
       round.lockedOut = []
-      delete round.award
-      delete round.held
-      delete round.fragments
-      delete round.whole
-      delete round.image
-      delete round.answer
+      clearQuestion(round)
       return
     }
 
     case 'setValue':
       round.value = action.value
+      return
+
+    case 'settleChoice':
+      for (const [playerId, pick] of Object.entries(round.picks ?? {})) {
+        if (pick === action.correct) bump(state, scoreKey(state, playerId), round.value)
+      }
+      round.correct = action.correct
+      round.phase = 'IDLE'
+      return
+
+    case 'setChoiceTime':
+      state.choiceSec = Math.min(120, Math.max(5, Math.round(action.sec) || 20))
       return
 
     case 'setAnswerWindow':
@@ -522,6 +536,7 @@ export function loadState(path: string): State {
     if (!Array.isArray(loaded.packs)) loaded.packs = []
     if (typeof loaded.mirrorFragments !== 'boolean') loaded.mirrorFragments = false
     if (typeof loaded.answerWindowSec !== 'number') loaded.answerWindowSec = 10
+    if (typeof loaded.choiceSec !== 'number') loaded.choiceSec = 20
     // A snapshot from before autoplay existed, or one hand-edited into nonsense.
     const auto = loaded.autoplay as Partial<State['autoplay']> | undefined
     loaded.autoplay = {

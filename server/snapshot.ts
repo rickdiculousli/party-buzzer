@@ -74,6 +74,7 @@ export function persistedSnapshot(state: State) {
       round: { value: state.round.value },
       mirrorFragments: state.mirrorFragments,
       answerWindowSec: state.answerWindowSec,
+      choiceSec: state.choiceSec,
       autoplay: state.autoplay,
       minigame: state.minigame && (state.minigame.phase === 'ready' || state.minigame.phase === 'results')
         ? state.minigame

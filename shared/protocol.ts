@@ -127,6 +127,16 @@ export type Round = {
   image?: string
   /** Revealed after scoring, if a question pack supplied one. Stripped from player views. */
   answer?: string
+  /** How the question is put to the room. Absent = read aloud and revealed as it is spoken. */
+  kind?: 'shown' | 'choice'
+  /** A choice question's options, published once the question has been read. Every role sees them. */
+  choices?: string[]
+  /** Server-time end of picking, set when the voice finishes reading the options. */
+  closesAt?: number
+  /** Each player's pick, by index. Host and board see all; a phone sees its own. */
+  picks?: Record<PlayerId, number>
+  /** The right option, set when picking closes. Its presence is what "revealed" means. */
+  correct?: number
 }
 
 /** The active game mode. `id` names a registered module; the rest is its data. */
@@ -491,6 +501,8 @@ export type State = {
   mirrorFragments: boolean
   /** Seconds a locked-in player has to speak before silence scores wrong. 0 = no timeout. */
   answerWindowSec: number
+  /** Seconds of picking after the voice has read a choice question's options. */
+  choiceSec: number
   /** Hands-off reading: the reader supplies its own N and paces the beats. */
   autoplay: Autoplay
   /** Public gameplay fact, independent of private pack progress. */
@@ -501,7 +513,9 @@ export type State = {
 }
 
 export type HostAction =
-  | { a: 'arm' }
+  | { a: 'arm'; kind?: 'shown' | 'choice' }
+  | { a: 'settleChoice'; correct: number }
+  | { a: 'setChoiceTime'; sec: number }
   | { a: 'correct' }
   | { a: 'wrong'; neg: number }
   /** Opens a rebound the miss is still holding. No-op if none is held. */
