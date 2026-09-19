@@ -195,8 +195,8 @@ a scenario in the motion harness (`npm run motion`) to preview and tune it.
   cyan, with one exception: `<Glitch>` uses pure cyan, magenta and yellow
   (Display-P3 where the screen has it), because a channel split only reads as
   one in the printer's primaries.
-- Tune one element with `--fx-dur`, `--fx-amp` and `--fx-color`. Defaults live
-  in `anim:tunables`. An override also reaches effects nested inside it.
+- Tune one element with `--fx-dur`, `--fx-amp`, `--fx-color` and (slides)
+  `--fx-ease`. Defaults live in `anim:tunables`. An override also reaches effects nested inside it.
 - A one-shot replays when its class is removed and re-added, or when the element
   remounts with a new `key`. An exit leaves the element invisible but in place;
   unmount it on `animationend`.
@@ -220,11 +220,17 @@ move all eight; tune them in the harness's Palette scenario.
 | `fx-pop` | overshoot scale | Chips, badges, a new item |
 | `fx-drop` | fall distance | Something landing: a card dealt, a token placed |
 | `fx-rise` | distance | Text coming up into view |
-| `fx-slide` | distance; side from `--fx-from` (-1/1) | Rows joining a list |
+| `fx-slide` | distance; side from `--fx-from` (-1/1); rate from `--fx-ease` | Rows joining a list |
 | `fx-flip` | — | A reveal: a card turning over |
 | `fx-zoom` | start scale | A title slamming in from the camera |
 | `fx-shrink` | — | Leaving quietly |
 | `fx-poof` | — | Leaving with a puff; pair with `<Burst kind="dust">` |
+
+Slides take one of three rates, curves in `tokens.css`:
+`fx-slide--glide` (`--rate-glide`, the default: fast then slow, arrives and
+settles), `fx-slide--charge` (`--rate-charge`: slow then fast; it ends at full
+speed, so put something at the stop, like dust) and `fx-slide--even`
+(`--rate-even`: eases both ends, for moving between two places).
 
 **Idle loops** — while a state lasts.
 
@@ -246,6 +252,7 @@ move all eight; tune them in the harness's Palette scenario.
 | `fx-shake` | distance | Wrong, refused, locked out |
 | `fx-squash` | squash | A press landing |
 | `fx-flash` | — | A value changing |
+| `fx-flash--tint` | also flashes the text to `--fx-color` | A score going up (brass) or down (tally) |
 | `fx-ripple` | end scale; colour from `--fx-color` | A tap, a ping |
 | `fx-nudge` | distance | A small acknowledgement |
 | `fx-wobble` | skew | A comic miss |
@@ -268,7 +275,12 @@ move all eight; tune them in the harness's Palette scenario.
 `--fx-stagger` sets the delay between letters for `fx-wave` and `fx-cascade`.
 `fx-rainbow` always puts each letter one palette step behind the last.
 
-**Particles** — `<Burst kind glyph count>` inside an element with `fx-anchor`.
+**Particles** — `<Burst kind glyph count from angle spread>` inside an element
+with `fx-anchor`. `from` is where particles start: `center` (the default),
+`edge` (the whole outline, spread by each side's length) or one side (`top`,
+`bottom`, `left`, `right`). They go toward `angle` (degrees, 0 is right, 90 is
+down) if given, outward for `edge`, and in the kind's own direction otherwise;
+`spread` fans either side of it (60° by default). Distance is `--fx-amp`.
 
 | Kind | Looks like | Use for |
 |---|---|---|
@@ -287,9 +299,15 @@ or it shrinks away with it.
 ```tsx
 <p class="board__hero fx-anchor">
   {name}
-  <Burst key={round.id} kind="confetti" />
+  <Burst key={round.id} kind="confetti" from="top" />
 </p>
 ```
+
+**Helpers** in `client/fx.tsx`: `useFlip(listRef)` slides a list's children
+to a new order (children need `data-key`; it moves them with `translate`, so
+they can wear a transform effect too). `useDelta(value)` gives a number's last
+change and a count to key a replay on. `<ScoreChange score>` counts to a new
+score and flashes brass going up, tally going down; still on first render.
 
 ---
 
