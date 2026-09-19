@@ -9,6 +9,7 @@ import { isPenalty } from '../shared/protocol.ts'
 import { useReveal } from './useReveal.ts'
 import { COLLECT_MS, type BuzzEntry, type State } from '../shared/protocol.ts'
 import { MINIGAMES } from './minigames.tsx'
+import { ScoreChange, useFlip } from './fx.tsx'
 
 type Mark = BuzzEntry & { lane: number }
 
@@ -303,6 +304,9 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
     nextSlot.current = at + gap
   }
 
+  const standingsList = useRef<HTMLOListElement>(null)
+  useFlip(standingsList)
+
   const seen = useRef(0)
   useEffect(() => {
     if (preview) return
@@ -502,16 +506,16 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
       <aside class="board__side">
         <div class="board__standings" data-review-id="board:standings">
           <p class="eyebrow">Standings</p>
-          <ol class="stack">
+          <ol class="stack" ref={standingsList}>
             {standings(state).map((r, i) => (
-              <li key={r.key} data-review-id={`board:standing:${r.key}`} class="row" style={{ borderLeftColor: r.color }}>
+              <li key={r.key} data-key={r.key} data-review-id={`board:standing:${r.key}`} class="row fx-pop" style={{ borderLeftColor: r.color }}>
                 {/* Medals for the podium only, but the space is kept either
                     way so every name lines up. */}
                 <span class={i < 3 ? `rank rank--${i + 1}` : 'rank'}>
                   {i < 3 ? ['1st', '2nd', '3rd'][i] : ''}
                 </span>
                 <span class="row__label">{r.label}</span>
-                <span class="row__score readout">{r.score}</span>
+                <ScoreChange class="row__score readout" score={r.score} />
               </li>
             ))}
           </ol>

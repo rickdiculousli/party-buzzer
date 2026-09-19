@@ -9,6 +9,7 @@ import type { Mood } from '../shared/wall.ts'
 import type { State } from '../shared/protocol.ts'
 import { scoreKey } from '../shared/scoring.ts'
 import { MINIGAMES } from './minigames.tsx'
+import { ScoreChange, useFlip } from './fx.tsx'
 
 /** `phoneOf` names the mood; the stylesheet is where it becomes a colour. */
 const MOOD_CLASS: Record<Mood, string> = {
@@ -45,19 +46,21 @@ function blip(ctx: AudioContext | null, hz = 660, ms = 150) {
  */
 function StandingsDial({ state }: { state: State }) {
   const rows = standings(state)
+  const list = useRef<HTMLOListElement>(null)
+  useFlip(list)
   const ordinal = (i: number) =>
     i === 0 ? '1st' : i === 1 ? '2nd' : i === 2 ? '3rd' : `${i + 1}th`
 
   return (
     <div class="dial" aria-label="Standings" data-review-id="phone:standings">
-      <ol class="dial__list">
+      <ol class="dial__list" ref={list}>
         {rows.map((r, i) => (
-          <li key={r.key} data-review-id={`phone:standing:${r.key}`} class="dial__row" style={{ '--id': r.color }}>
+          <li key={r.key} data-key={r.key} data-review-id={`phone:standing:${r.key}`} class="dial__row fx-pop" style={{ '--id': r.color }}>
             <span class={i < 3 ? `dial__rank rank rank--${i + 1}` : 'dial__rank rank'}>
               {ordinal(i)}
             </span>
             <span class="dial__name">{r.label}</span>
-            <span class="dial__score readout">{r.score}</span>
+            <ScoreChange class="dial__score readout" score={r.score} />
           </li>
         ))}
       </ol>
@@ -259,7 +262,7 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
           <span class={connected ? 'lamp-dot is-on' : 'lamp-dot is-off'} />
           {connected ? 'Connected' : 'Disconnected'}
         </span>
-        <span class="player__score readout">{score}</span>
+        <ScoreChange class="player__score readout" score={score} />
       </div>
 
       {round?.image && <img class="player__image" data-review-id="phone:image" src={round.image} alt="" />}
