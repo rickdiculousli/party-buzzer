@@ -9,7 +9,7 @@ import { isPenalty } from '../shared/protocol.ts'
 import { useReveal } from './useReveal.ts'
 import { COLLECT_MS, type BuzzEntry, type State } from '../shared/protocol.ts'
 import { MINIGAMES } from './minigames.tsx'
-import { Burst, ScoreChange, useFlip } from './fx.tsx'
+import { Burst, Letters, ScoreChange, useFlip } from './fx.tsx'
 
 type Mark = BuzzEntry & { lane: number }
 
@@ -40,6 +40,25 @@ function Hero({ name, tone, celebrate }: NonNullable<Wall['hero']> & { celebrate
           judged, not when it arrives. */}
       {tone === 'penalised' ? <span class="board__hero-hit fx-shake">{name}</span> : name}
       {celebrate && <Burst key={celebrate} kind="confetti" from="top" />}
+    </p>
+  )
+}
+
+/**
+ * The end of the setlist: the winner in the effect palette, with confetti on
+ * arrival and once more a beat later. Ties share the stage.
+ */
+export function Finale({ names }: { names: string[] }) {
+  const [again, setAgain] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setAgain(true), 1200)
+    return () => clearTimeout(t)
+  }, [])
+  return (
+    <p class="board__hero board__finale fx-anchor" data-review-id="board:finale">
+      <Letters text={names.join(' & ')} class="fx-rainbow" />
+      <Burst kind="confetti" from="top" />
+      {again && <Burst kind="confetti" from="top" />}
     </p>
   )
 }
@@ -417,10 +436,11 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
             keeps the band from growing under it; a name owning the stage does
             not need it. Only the neutral hero — a penalty's name is a beat over
             a question still in progress, and the band it sits in is the cue's. */}
-        <div class={w.hero?.tone === 'answering' ? 'board__mid' : 'board__mid board__mid--cue'}>
+        <div class={w.hero?.tone === 'answering' || w.finale ? 'board__mid' : 'board__mid board__mid--cue'}>
           {w.hero && (
             <Hero {...w.hero} celebrate={w.moment === 'verdict:award' ? round.attemptId || 'award' : undefined} />
           )}
+          {w.finale && <Finale names={w.finale} />}
           {w.nominations && (
             <div class="board__noms">
               <p class="board__idle">Who plays?</p>

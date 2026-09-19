@@ -136,6 +136,7 @@ function notesFor(
     case 'buzz:arming':
       return { judge: null, arm: null }
 
+    case 'idle:finale':
     case 'idle:ready':
     case 'idle:welcome':
       return { judge: null, arm: null }

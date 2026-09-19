@@ -27,7 +27,7 @@ import { isPenalty } from './protocol.ts'
 import type { Award, State } from './protocol.ts'
 
 /**
- * The thirteen states, in priority order — `momentOf` returns the first that
+ * The fourteen states, in priority order — `momentOf` returns the first that
  * matches, and that ordering is the load-bearing part.
  *
  * Reordering within a family is safe. Reordering across one is a behaviour
@@ -52,6 +52,7 @@ export type Moment =
   | 'buzz:collecting'
   | 'buzz:open'
   | 'buzz:arming'
+  | 'idle:finale'
   | 'idle:ready'
   | 'idle:welcome'
 
@@ -137,6 +138,12 @@ export function momentOf(state: State, local: Local): Moment {
   // the next card would be unbearable by round three. It ends at the first arm,
   // for good. Keyed on `armedAt` rather than on the buzz count because the
   // count is redacted and a non-buzzing phone would disagree with the wall.
+  // Every block of the setlist has been played. Below every verdict, so the
+  // last payoff is still read first; it lasts until the host clears or loads
+  // another setlist.
+  const s = state.setlist
+  if (s && s.blocks.length > 0 && s.at >= s.blocks.length) return 'idle:finale'
+
   const started = r.armedAt > 0 || Object.values(state.scores).some((n) => n !== 0)
   return started ? 'idle:ready' : 'idle:welcome'
 }
@@ -145,7 +152,7 @@ export function momentOf(state: State, local: Local): Moment {
  * What is on the big screen.
  *
  * The invariant, and the point of the whole file: exactly one of `hero`,
- * `clue`, `nominations`, `faceoff` and `call` is non-null. Those five are the
+ * `clue`, `nominations`, `faceoff`, `call` and `finale` is non-null. Those six are the
  * middle band's occupants, and the seven-branch ternary they replace existed
  * only because nothing ever said they were mutually exclusive.
  *
@@ -159,6 +166,8 @@ export type Wall = {
   nominations: 'solo' | 'teams' | null
   faceoff: [string, string] | null
   call: 'buzz' | 'standby' | 'ready' | 'dead' | null
+  /** Everyone tied for the top when the setlist is spent. */
+  finale: string[] | null
 
   transcript: { name: string; text: string; hit: boolean } | null
   award: (Award & { answer?: string }) | null
@@ -171,7 +180,7 @@ export type Wall = {
  * The middle band's one occupant, as a one-key object.
  *
  * The type is the invariant: a `Middle` cannot name two occupants, so
- * "exactly one of five" is enforced by the compiler rather than asserted in a
+ * "exactly one of six" is enforced by the compiler rather than asserted in a
  * comment and hoped for. Four `let`s initialised to null and assigned in a
  * branch said the same thing and guaranteed none of it.
  */
@@ -181,6 +190,7 @@ type Middle =
   | { nominations: NonNullable<Wall['nominations']> }
   | { faceoff: NonNullable<Wall['faceoff']> }
   | { call: NonNullable<Wall['call']> }
+  | { finale: NonNullable<Wall['finale']> }
 
 const EMPTY_MIDDLE = {
   hero: null,
@@ -188,7 +198,8 @@ const EMPTY_MIDDLE = {
   nominations: null,
   faceoff: null,
   call: null,
-} satisfies Pick<Wall, 'hero' | 'clue' | 'nominations' | 'faceoff' | 'call'>
+  finale: null,
+} satisfies Pick<Wall, 'hero' | 'clue' | 'nominations' | 'faceoff' | 'call' | 'finale'>
 
 /**
  * The middle band's occupant: one row per moment, in preference order.
@@ -204,6 +215,16 @@ const EMPTY_MIDDLE = {
  * compile until it has a row, and `or` returns exactly one occupant by
  * construction.
  */
+/** Everyone tied for the top of the standings, by the name the room knows. */
+function leaders(state: State): string[] {
+  const rows =
+    state.grouping === 'teams'
+      ? state.teams.map((t) => ({ name: t.name, score: state.scores[t.id] ?? 0 }))
+      : state.players.map((p) => ({ name: p.name, score: state.scores[p.id] ?? 0 }))
+  const best = Math.max(...rows.map((r) => r.score))
+  return rows.filter((r) => r.score === best).map((r) => r.name)
+}
+
 function middleOf(state: State, m: Moment): Middle {
   const r = state.round
   const nameOf = (id: string) => state.players.find((p) => p.id === id)?.name ?? '?'
@@ -270,6 +291,10 @@ function middleOf(state: State, m: Moment): Middle {
       return or(clue, { call: 'buzz' })
     case 'buzz:arming':
       return or(clue, { call: 'standby' })
+    case 'idle:finale': {
+      const top = leaders(state)
+      return top.length ? { finale: top } : { call: 'ready' }
+    }
     case 'idle:ready':
     case 'idle:welcome':
       return or(clue, { call: 'ready' })
@@ -342,6 +367,8 @@ export type Mine = {
   open: boolean
   /** `!!round.judge` — the judge's spoken-answer window is open. */
   judging: boolean
+  /** Where this player (or their team) finished: 1 is the top, ties share. */
+  place?: number
 }
 
 /**
@@ -355,6 +382,11 @@ export type Mine = {
  * even if it wanted to.
  */
 export function phoneOf(m: Moment, f: Mine): Phone {
+  if (m === 'idle:finale') {
+    return f.place === 1
+      ? { label: 'Winner', sub: 'Top of the standings', mood: 'first', talk: false }
+      : { label: 'Final', sub: f.place ? `${ordinal(f.place)} place` : '', mood: 'waiting', talk: false }
+  }
   if (f.frozen) {
     return {
       label: 'Frozen',
@@ -421,4 +453,9 @@ export function phoneOf(m: Moment, f: Mine): Phone {
   if (f.open) return { label: 'Buzz', sub: '', mood: 'open', talk: false }
   if (f.armed) return { label: 'Wait', sub: 'Any moment', mood: 'waiting', talk: false }
   return { label: 'Wait', sub: 'The host has not armed yet', mood: 'waiting', talk: false }
+}
+
+const ordinal = (n: number) => {
+  const t = n % 100
+  return `${n}${t >= 11 && t <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th')}`
 }

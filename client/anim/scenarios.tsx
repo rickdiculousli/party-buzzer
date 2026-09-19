@@ -27,6 +27,7 @@ import { NUMERIC, type NumericField } from '../cues.ts'
 import { Votes } from '../Votes.tsx'
 import { Spoken } from '../Spoken.tsx'
 import { Burst, CountUp, Glitch, Letters } from '../fx.tsx'
+import { Finale } from '../Board.tsx'
 import type { BurstFrom } from '../fx.ts'
 import type { Recipe } from '../synth.ts'
 
@@ -612,4 +613,13 @@ export const SCENARIOS: Scenario[] = [
     ),
   },
   ...FX,
+  {
+    id: 'finale',
+    label: 'The finale',
+    family: 'Quiz',
+    note: 'The last block of the setlist is done. The winner takes the stage in the effect palette.',
+    subject: '.board__finale',
+    dials: [ms('--fx-rainbow-dur', 6000), ms('--fx-burst-dur', 2000, 'Confetti')],
+    render: (lead) => <Stage mid={lead ? <div class="harness__ghost" /> : <Finale names={['Ada']} />} />,
+  },
 ]

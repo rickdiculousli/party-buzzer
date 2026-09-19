@@ -35,7 +35,7 @@ function room(): State {
  * "the clue came back under the transcript" is precisely two of them at once.
  */
 function oneOf(w: Wall, why: string) {
-  const up = [w.hero, w.clue, w.nominations, w.faceoff, w.call].filter((x) => x !== null)
+  const up = [w.hero, w.clue, w.nominations, w.faceoff, w.call, w.finale].filter((x) => x !== null)
   assert.equal(up.length, 1, `${why}: expected one middle-band occupant, got ${up.length} (${w.moment})`)
 }
 
@@ -460,4 +460,32 @@ test('a payoff keeps the stage while the box has a clue up', () => {
   assert.deepEqual(paid.hero, { name: 'Ada', tone: 'answering' }, 'the winner, not the spent question')
   assert.equal(paid.clue, null)
   assert.equal(paid.award?.answer, 'Marie Curie')
+})
+
+test('a spent setlist is the finale, with every tied leader named', () => {
+  const s = room()
+  s.scores = { a: 400, b: 400 }
+  s.setlist = { blocks: [{ game: 'trivia', options: {}, count: 1 }], at: 1, done: 0 }
+  const w = wallOf(s, LOCAL)
+  oneOf(w, 'finale')
+  assert.equal(w.moment, 'idle:finale')
+  assert.deepEqual(w.finale, ['Ada', 'Bo'])
+})
+
+test('a payoff on the last question outranks the finale', () => {
+  const s = room()
+  s.scores = { a: 400, b: 0 }
+  s.setlist = { blocks: [{ game: 'trivia', options: {}, count: 1 }], at: 1, done: 0 }
+  s.round.award = { name: 'Ada', points: 400 }
+  s.round.armedAt = 1
+  assert.equal(momentOf(s, LOCAL), 'verdict:award')
+})
+
+test('the finale tells each phone where it finished', () => {
+  const mine = { frozen: false, barred: false, spectator: false, dead: false, won: false, pressed: false, armed: false, open: false, judging: false }
+  assert.equal(phoneOf('idle:finale', { ...mine, place: 1 }).label, 'Winner')
+  const second = phoneOf('idle:finale', { ...mine, place: 2 })
+  assert.equal(second.label, 'Final')
+  assert.equal(second.sub, '2nd place')
+  assert.equal(phoneOf('idle:finale', { ...mine, place: 11 }).sub, '11th place')
 })

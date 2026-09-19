@@ -245,6 +245,7 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     armed,
     open,
     judging: !!round?.judge,
+    place: state ? 1 + standings(state).filter((r) => r.score > score).length : undefined,
   })
 
   const me = state?.players.find((p) => p.id === playerId)
