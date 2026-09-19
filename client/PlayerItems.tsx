@@ -1,5 +1,6 @@
 import { useState } from 'preact/hooks'
 import type { ClientMsg, State } from '../shared/protocol.ts'
+import { Burst } from './fx.tsx'
 
 // Mirror of server/items.ts — ids, display names, targeting. The wire carries
 // only ids, and three items do not justify a catalog channel.
@@ -30,12 +31,19 @@ export function PlayerItems({
   const itemCounts = [...myItems.reduce((m, id) => m.set(id, (m.get(id) ?? 0) + 1), new Map<string, number>())]
   const opponents = state.players.filter((p) => p.id !== playerId && p.connected)
 
+  // A used item leaves a ghost that poofs out, so spending one is seen even
+  // though the server takes it away on the next broadcast.
+  // ponytail: the ghost sits at the end of the row, not where the button was.
+  // Overlay it on the button's rect if that reads wrong.
+  const [gone, setGone] = useState<{ key: number; name: string }[]>([])
+
   const fireItem = (itemId: string, targetId?: string) => {
     send({ t: 'act', act: 'useItem', data: { itemId, targetId } })
     setTargetFor(null)
+    setGone((g) => [...g, { key: performance.now(), name: ITEM_INFO[itemId]?.name ?? itemId }])
   }
 
-  if (itemCounts.length === 0) return null
+  if (itemCounts.length === 0 && gone.length === 0) return null
 
   return (
     <div class="player__items">
@@ -57,18 +65,30 @@ export function PlayerItems({
           if (!info) return null
           const count = n > 1 ? ` ×${n}` : ''
           // Passive items (shield) show as chips: held, never fired by hand.
-          if (info.passive) return <span key={id} class="chip chip--data">{info.name}{count}</span>
+          // Keyed on the count, so a newly held one pops in.
+          if (info.passive) return <span key={`${id}:${n}`} class="chip chip--data fx-pop">{info.name}{count}</span>
           return (
             <button
-              key={id}
-              class="btn"
+              key={`${id}:${n}`}
+              class="btn fx-pop fx-anchor"
               onPointerDown={() => (info.opponent ? setTargetFor(id) : fireItem(id))}
             >
               {info.name}{count}
+              <Burst kind="sparkle" from="edge" />
             </button>
           )
         })
       )}
+      {gone.map((g) => (
+        <span
+          key={g.key}
+          class="btn fx-poof"
+          aria-hidden="true"
+          onAnimationEnd={() => setGone((x) => x.filter((y) => y.key !== g.key))}
+        >
+          {g.name}
+        </span>
+      ))}
     </div>
   )
 }

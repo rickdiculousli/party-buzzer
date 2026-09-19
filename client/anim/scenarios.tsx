@@ -27,7 +27,7 @@ import { NUMERIC, type NumericField } from '../cues.ts'
 import { Votes } from '../Votes.tsx'
 import { Spoken } from '../Spoken.tsx'
 import { Burst, CountUp, Glitch, Letters } from '../fx.tsx'
-import { Finale } from '../Board.tsx'
+import { FaceOff, Finale } from '../Board.tsx'
 import type { BurstFrom } from '../fx.ts'
 import type { Recipe } from '../synth.ts'
 
@@ -621,5 +621,14 @@ export const SCENARIOS: Scenario[] = [
     subject: '.board__finale',
     dials: [ms('--fx-rainbow-dur', 6000), ms('--fx-burst-dur', 2000, 'Confetti')],
     render: (lead) => <Stage mid={lead ? <div class="harness__ghost" /> : <Finale names={['Ada']} />} />,
+  },
+  {
+    id: 'faceoff',
+    label: 'The face-off',
+    family: 'Quiz',
+    note: 'The host seats the pair. Each name charges in from its side and the dust goes up where they stop.',
+    subject: '.board__faceoff',
+    dials: [ms('--faceoff-slide-dur', 1500, 'Charge'), amount('--faceoff-dust-amp', 0, 20, 0.5, 'em', 'Dust')],
+    render: (lead) => <Stage mid={lead ? <div class="harness__ghost" /> : <FaceOff pair={['Ada', 'Bo']} />} />,
   },
 ]

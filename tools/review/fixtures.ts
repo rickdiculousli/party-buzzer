@@ -91,6 +91,8 @@ export function makeReviewScenarios(): ReviewScenario[] {
   correct.round.spoken = { name: 'Ada', transcript: 'the Pacific Ocean', hit: true }
   correct.round.award = { name: 'Ada', points: 400 }
   correct.round.answer = 'Pacific Ocean'
+  // The server scores to IDLE and keeps the order up.
+  correct.round.phase = 'IDLE'
 
   const wrong = structuredClone(answering)
   delete wrong.round.judge
@@ -107,6 +109,20 @@ export function makeReviewScenarios(): ReviewScenario[] {
   rebound.round.attemptId = 'review-rebound'
   rebound.round.armedAt = NOW - 100
   delete rebound.round.held
+
+  const frozen = question()
+  frozen.effects = [{ kind: 'frozen', playerId: 'ada', attemptId: frozen.round.attemptId }]
+
+  const faceoff = base()
+  faceoff.duel = {
+    rule: 'vote',
+    pool: [
+      { playerId: 'ada', votes: ['cy'], in: false },
+      { playerId: 'bo', votes: [], in: false },
+    ],
+    missed: [],
+    seated: ['ada', 'bo'],
+  }
 
   const duel = base()
   duel.duel = {
@@ -162,7 +178,9 @@ export function makeReviewScenarios(): ReviewScenario[] {
     build('correct', 'Correct award', correct, at()),
     build('wrong-hold', 'Wrong answer hold', wrong, at({ settled: true })),
     build('rebound', 'Rebound with lockout', rebound, at({ open: true })),
+    build('frozen', 'Frozen by an item', frozen, at({ open: true })),
     build('duel', 'Duel selection', duel, at()),
+    build('faceoff', 'Face-off seated', faceoff, at()),
     build('setlist-complete', 'Setlist complete', spent, at()),
     build('ink-lobby', 'Ink teams forming', inkState('ready'), at()),
     ink('ink-choosing', 'Ink word choice', (game) => {

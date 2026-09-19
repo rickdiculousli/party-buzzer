@@ -56,7 +56,7 @@ export function PlayerDuel({
           which is the one moment it means two different things — so say which
           one it is here rather than letting a seated player find out by pressing. */}
       {duel.seated && !round.buzzable && (
-        <div class="player__duel">
+        <div class={duel.seated.includes(playerId ?? '') ? 'player__duel fx-tada' : 'player__duel'}>
           <p class="eyebrow">Heads-up</p>
           <p class="player__faceoff">
             {seatedNames?.[0]} <span class="muted">vs</span> {seatedNames?.[1]}
@@ -97,7 +97,7 @@ export function PlayerDuel({
                   return (
                     <button
                       key={p.id}
-                      class={myVoteFor === p.id ? 'btn nom-btn is-mine' : 'btn nom-btn'}
+                      class={myVoteFor === p.id ? 'btn nom-btn is-mine fx-nudge' : 'btn nom-btn'}
                       // The identity rail, which in a teams grouping is the team's
                       // colour — the only thing on this list that says which
                       // side a name is on, and it matches the colour this

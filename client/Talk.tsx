@@ -24,7 +24,9 @@ function TalkCountdown({
   // Same rule as the arm countdown: clamp to the most it can ever be, because
   // an unclamped one once read 1.7 trillion ms.
   const left = Math.min(capSec * 1000, Math.max(0, until - now()))
-  return <span>{Math.ceil(left / 1000)}s</span>
+  const secs = Math.ceil(left / 1000)
+  // A ring each second of the last three, so the end is felt, not read.
+  return <span key={secs} class={secs <= 3 ? 'talk__count fx-ripple' : 'talk__count'}>{secs}s</span>
 }
 
 /**

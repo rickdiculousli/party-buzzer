@@ -619,6 +619,11 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   justify-content: center;
   gap: var(--s3);
 }
+/* A charging name is a slide, not a slam: `.fx-slide` comes later in this
+   file, so it wins over `.board__hero`'s animation at equal specificity. */
+.board__charger { --fx-dur: var(--faceoff-slide-dur); --fx-amp: 40vw; }
+.board__charger > .fx-burst { --fx-dur: initial; --fx-amp: var(--faceoff-dust-amp); }
+.board__vs { animation-delay: var(--faceoff-slide-dur); }
 
 /*
  * The nomination pool, at the size the rest of the stage is read at.
@@ -859,6 +864,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   justify-content: center;
   text-align: center;
 }
+/* One wave as the screen opens, not a loop under the name field. */
+.join__mark .fx-wave .fx-word > span { animation-iteration-count: 1; }
 .join__mark {
   font-family: var(--display);
   font-size: clamp(3rem, 18vw, 5rem);
@@ -915,6 +922,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   user-select: none;
   display: grid;
   place-content: center;
+  /* The no-mic slab is a div, which doesn't centre its text the way a button does. */
+  text-align: center;
   gap: var(--s2);
   transition: background var(--fast) var(--ease), color var(--fast) var(--ease);
 }
@@ -953,6 +962,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   color: var(--dim);
   cursor: default;
 }
+/* The answer window's seconds, big enough to read with the phone at arm's length. */
+.talk__count { display: inline-block; font-family: var(--display); font-size: var(--t-lg); letter-spacing: 0; border-radius: 999px; padding: 0 var(--s2); }
 
 /* The phone gets the filament too, so the go cue is felt before it is read. */
 .player__filament { width: 100%; }

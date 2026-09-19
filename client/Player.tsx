@@ -9,7 +9,7 @@ import type { Mood } from '../shared/wall.ts'
 import type { State } from '../shared/protocol.ts'
 import { scoreKey } from '../shared/scoring.ts'
 import { MINIGAMES } from './minigames.tsx'
-import { ScoreChange, useFlip } from './fx.tsx'
+import { Letters, ScoreChange, useFlip } from './fx.tsx'
 
 /** `phoneOf` names the mood; the stylesheet is where it becomes a colour. */
 const MOOD_CLASS: Record<Mood, string> = {
@@ -185,7 +185,11 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
   if (!ready) {
     return (
       <main class="join">
-        <h1 class="join__mark">Party<br />Buzzer</h1>
+        <h1 class="join__mark">
+          <Letters text="Party" class="fx-wave" />
+          <br />
+          <Letters text="Buzzer" class="fx-wave" />
+        </h1>
         <input
           class="input"
           placeholder="Your name"
@@ -301,7 +305,7 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
           onPointerDown={buzz}
           disabled={!open || barred || pressed || frozen || spectator}
         >
-          {label}
+          {frozen ? <span class="buzzer__hit fx-wobble">{label}</span> : label}
           {sub && <span class="buzzer__sub">{sub}</span>}
         </button>
       )}

@@ -63,6 +63,55 @@ export function Finale({ names }: { names: string[] }) {
   )
 }
 
+/**
+ * The duel's pair charging in from each side, slow then fast, and dust where
+ * each one stops: two weights meeting in the middle.
+ */
+export function FaceOff({ pair }: { pair: [string, string] }) {
+  return (
+    <p class="board__faceoff">
+      <Charger key={pair[0]} name={pair[0]} from={-1} />
+      <span class="board__idle board__vs fx-pop">vs</span>
+      <Charger key={pair[1]} name={pair[1]} from={1} />
+    </p>
+  )
+}
+
+function Charger({ name, from }: { name: string; from: number }) {
+  const [landed, setLanded] = useState(false)
+  return (
+    <span
+      class="board__hero board__charger fx-slide fx-slide--charge fx-anchor"
+      style={{ '--fx-from': from }}
+      // Only the slide's own end; the dust's particles bubble theirs up here.
+      onAnimationEnd={(e) => e.target === e.currentTarget && setLanded(true)}
+    >
+      {name}
+      {landed && <Burst kind="dust" count={16} from="bottom" />}
+    </span>
+  )
+}
+
+/**
+ * Said text in the pieces it arrived in, each fading in where it already
+ * stood. A shorter text is a new question and starts the pieces over.
+ */
+function Said({ text }: { text: string }) {
+  const cuts = useRef<number[]>([])
+  if (text.length < (cuts.current[cuts.current.length - 1] ?? 0)) cuts.current = []
+  if (text.length > (cuts.current[cuts.current.length - 1] ?? 0)) cuts.current = [...cuts.current, text.length]
+  let at = 0
+  return (
+    <>
+      {cuts.current.map((end) => {
+        const piece = <span key={at} class="fx-fade">{text.slice(at, end)}</span>
+        at = end
+        return piece
+      })}
+    </>
+  )
+}
+
 /** The middle band when nobody owns it: what the room is being told to do. */
 const CALL_TEXT: Record<NonNullable<Wall['call']>, string> = {
   buzz: 'Buzz',
@@ -212,10 +261,10 @@ function NomList({
  */
 function Question({ whole, shown, image }: { whole?: string; shown: string; image?: string }) {
   const text = !whole ? (
-    <p class="board__question" data-review-id="board:question">{shown}</p>
+    <p class="board__question" data-review-id="board:question"><Said text={shown} /></p>
   ) : (
     <p class="board__question" data-review-id="board:question">
-      {whole.slice(0, shown.length)}
+      <Said text={whole.slice(0, shown.length)} />
       <span class="board__unsaid">{whole.slice(shown.length)}</span>
     </p>
   )
@@ -387,7 +436,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
           {/* Position, not drama. The stage belongs to the question; a setlist that
               pulls the eye during a buzz has failed at its job. */}
           {state.setlist?.blocks[state.setlist.at] && (
-            <span class="chip">
+            <span key={state.setlist.at} class="chip fx-flip">
               {state.setlist.at + 1}/{state.setlist.blocks.length} · Q{state.setlist.done + 1} of{' '}
               {state.setlist.blocks[state.setlist.at].count}
             </span>
@@ -477,13 +526,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
           {w.clue && <Question {...w.clue} />}
           {/* The face-off yields the stage to the question text while the
               reader is speaking, and to the leader the moment someone buzzes. */}
-          {w.faceoff && (
-            <p class="board__faceoff">
-              <span class="board__hero">{w.faceoff[0]}</span>
-              <span class="board__idle">vs</span>
-              <span class="board__hero">{w.faceoff[1]}</span>
-            </p>
-          )}
+          {w.faceoff && <FaceOff pair={w.faceoff} />}
           {w.call && (
             <p data-review-id="board:call" class={w.call === 'buzz' ? 'board__call' : 'board__idle'}>{CALL_TEXT[w.call]}</p>
           )}
@@ -548,7 +591,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
         </div>
 
         {/* Full size until the first player is in, then out of the way. */}
-        <div data-review-id="board:join" class={state.players.length === 0 ? 'board__qr' : 'board__qr is-small'}>
+        <div data-review-id="board:join" class={state.players.length === 0 ? 'board__qr fx-glow-pulse' : 'board__qr is-small'}>
           <img src="/qr.svg" alt="Scan to join" />
           <p>Scan to join</p>
         </div>
