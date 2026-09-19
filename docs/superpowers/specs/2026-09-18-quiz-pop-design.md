@@ -117,7 +117,6 @@ marked **new**.
 |---|---|---|---|
 | P1 | Own score changes | Bar score | `CountUp`, then `fx-flash` brass / tally red. |
 | P2 | Own correct answer | Buzzer | Sparkle `Burst`. The label stays whatever `phoneOf` says. |
-| P3 | Press registered ("In") | Buzzer | `fx-squash`. |
 | P4 | Locked out ("Out") | Buzzer | `fx-shake` once, with the existing vibration. |
 | P5 | Frozen by an item | Buzzer label | `<Glitch>`. |
 | P6 | Answering, last 3s of the window | Countdown | `fx-heartbeat`. |
@@ -164,7 +163,7 @@ new moment's priority (below every verdict, above `idle:ready`).
 - **Score deltas:** `CountUp` needs the previous value. The standings row keeps
   it in a ref, and the row's flash colour comes from the sign of the change.
 - **Retriggering one-shots** on an element that stays mounted (B2, B6, P1,
-  P3, P4, H1): a small `useHit(dep)` helper in `fx.tsx` that removes and
+  P4, H1): a small `useHit(dep)` helper in `fx.tsx` that removes and
   re-adds a class across a reflow when `dep` changes, the same trick `Glitch`
   uses for flashes.
 - **`idle:finale`** in `shared/wall.ts` and its projection in `phoneOf`.
@@ -202,7 +201,7 @@ set, so rows just move.
 1. Consolidation (Part 1). It's a rename with no visible change, so it's
    checked by eye in the harness before and after.
 2. Standings motion: B1–B3, P1, P7.
-3. Correct and wrong: B4–B7, P2–P4.
+3. Correct and wrong: B4–B7, P2, P4.
 4. The finale: B15.
 5. Everything else.
 
