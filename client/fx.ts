@@ -134,3 +134,17 @@ export function flashTimes(rest: number, rand: () => number = Math.random): numb
     return Math.round(rest * (rand() < 0.5 ? 0.05 + edge : 0.95 - edge))
   }).sort((a, b) => a - b)
 }
+
+/**
+ * How far each row has to be pushed back to sit where it was before a
+ * re-sort: old top minus new top, for rows present both times that moved.
+ * New rows are left out; they have nowhere to come from.
+ */
+export function flipDeltas(before: Map<string, number>, after: Map<string, number>): Map<string, number> {
+  const out = new Map<string, number>()
+  for (const [key, top] of after) {
+    const was = before.get(key)
+    if (was !== undefined && was !== top) out.set(key, was - top)
+  }
+  return out
+}

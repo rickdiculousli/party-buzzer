@@ -1209,6 +1209,11 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
      question back. A payoff has no equivalent: it sits until the next arm,
      because nothing is running behind it. */
   --penalty-dwell: 2200ms;
+  /* A standings row sliding to its new rank. */
+  --rank-slide-dur: 480ms;
+  /* The face-off: each name charging in, and the dust where they stop. */
+  --faceoff-slide-dur: 520ms;
+  --faceoff-dust-amp: 6em;
 
   /* Interest kit — each effect's defaults (FX section below; design.md §4).
      Tune one element with --fx-dur / --fx-amp / --fx-color instead. */
@@ -1509,12 +1514,16 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 @keyframes fx-rise { from { opacity: 0; transform: translateY(var(--_a)); } }
 
-/* `--fx-from`: -1 slides in from the left, 1 from the right. */
+/* `--fx-from`: -1 slides in from the left, 1 from the right. `--fx-ease`
+   picks the rate; the modifiers name the three in tokens.css. */
 .fx-slide {
   --_d: var(--fx-dur, var(--fx-slide-dur));
   --_a: var(--fx-amp, var(--fx-slide-amp));
-  animation: fx-slide var(--_d) var(--ease) both;
+  animation: fx-slide var(--_d) var(--fx-ease, var(--rate-glide)) both;
 }
+.fx-slide--glide { --fx-ease: var(--rate-glide); }
+.fx-slide--charge { --fx-ease: var(--rate-charge); }
+.fx-slide--even { --fx-ease: var(--rate-even); }
 @keyframes fx-slide { from { opacity: 0; transform: translateX(calc(var(--fx-from, -1) * var(--_a))); } }
 
 .fx-flip { --_d: var(--fx-dur, var(--fx-flip-dur)); animation: fx-flip var(--_d) var(--ease) both; }
@@ -1632,6 +1641,9 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 
 .fx-flash { --_d: var(--fx-dur, var(--fx-flash-dur)); animation: fx-flash var(--_d) var(--ease); }
 @keyframes fx-flash { from { filter: brightness(2.5); } }
+/* The flash in a colour as well: `--fx-color` on the text. */
+.fx-flash--tint { --_c: var(--fx-color, var(--tungsten)); animation-name: fx-flash-tint; }
+@keyframes fx-flash-tint { from { filter: brightness(1.6); color: var(--_c); } }
 
 /* Draws on ::after, so it leaves the element's own transform alone and can
    sit beside another effect. It positions the element to anchor the ring. */

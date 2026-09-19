@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { BURST_COUNT, countAt, flashTimes, glitchCut, graphemes, particles, words, type BurstKind } from './fx.ts'
+import { BURST_COUNT, countAt, flashTimes, flipDeltas, glitchCut, graphemes, particles, words, type BurstKind } from './fx.ts'
 
 /** A deterministic stand-in for Math.random. */
 function seeded(seed = 1) {
@@ -114,4 +114,10 @@ test('flashTimes bunches toward both ends of the breather', () => {
   for (let s = 1; s < 200; s++)
     for (const ms of flashTimes(3000, seeded(s))) ms > 1000 && ms < 2000 ? middle++ : ends++
   assert.ok(ends > middle * 2, `${ends} at the ends, ${middle} in the middle`)
+})
+
+test('flipDeltas moves only rows that were there before and moved', () => {
+  const before = new Map([['a', 0], ['b', 40], ['c', 80]])
+  const after = new Map([['a', 40], ['b', 0], ['c', 80], ['d', 120]])
+  assert.deepEqual([...flipDeltas(before, after)], [['a', -40], ['b', 40]])
 })

@@ -308,7 +308,20 @@ const FX: Scenario[] = [
   fx('Entrances', 'pop', 'Pop', 'fx-pop — scales past full size and settles. Amount is the overshoot.', [ms('--fx-pop-dur', 1000), amount('--fx-pop-amp', 1, 1.6, 0.01, '')], 'enter', word()),
   fx('Entrances', 'drop', 'Drop', 'fx-drop — falls in and squashes on landing. Amount is the fall.', [ms('--fx-drop-dur', 1200), amount('--fx-drop-amp', 0, 4, 0.1, 'em')], 'enter', word()),
   fx('Entrances', 'rise', 'Rise', 'fx-rise — floats up into place. Amount is the distance.', [ms('--fx-rise-dur', 1200), amount('--fx-rise-amp', 0, 3, 0.1, 'em')], 'enter', word()),
-  fx('Entrances', 'slide', 'Slide', 'fx-slide — slides in from --fx-from (-1 left, 1 right). Amount is the distance.', [ms('--fx-slide-dur', 1200), amount('--fx-slide-amp', 0, 6, 0.1, 'em')], 'enter', word()),
+  fx('Entrances', 'slide', 'Slide', 'fx-slide — slides in from --fx-from (-1 left, 1 right) at the glide rate, fast then slow. Amount is the distance.', [ms('--fx-slide-dur', 1200), amount('--fx-slide-amp', 0, 6, 0.1, 'em')], 'enter', word()),
+  ...(['charge', 'even'] as const).map((rate): Scenario => ({
+    id: `fx-slide-${rate}`,
+    label: `Slide (${rate})`,
+    family: 'Entrances',
+    note: `fx-slide fx-slide--${rate} — ${rate === 'charge' ? 'slow then fast, for things that hit something at the end' : 'eases both ends, for moving between two places'}.`,
+    subject: '.fx-slide',
+    dials: [ms('--fx-slide-dur', 1200), amount('--fx-slide-amp', 0, 6, 0.1, 'em')],
+    render: (lead) => (
+      <div class="fx-stage">
+        {lead ? <p class="fx-demo" style="visibility:hidden">Ada</p> : <p class={`fx-demo fx-slide fx-slide--${rate}`}>Ada</p>}
+      </div>
+    ),
+  })),
   fx('Entrances', 'flip', 'Flip', 'fx-flip — turns over like a card.', [ms('--fx-flip-dur', 1200)], 'enter', chip),
   fx('Entrances', 'zoom', 'Zoom', 'fx-zoom — scales in from large with a blur clearing. Amount is the start scale.', [ms('--fx-zoom-dur', 1200), amount('--fx-zoom-amp', 1, 4, 0.05, '')], 'enter', word()),
   fx('Entrances', 'shrink', 'Shrink out', 'fx-shrink — shrinks and fades out.', [ms('--fx-shrink-dur', 1000)], 'class', word()),
@@ -345,6 +358,19 @@ const FX: Scenario[] = [
   fx('Hits', 'shake', 'Shake', 'fx-shake — no. Amount is the distance.', [ms('--fx-shake-dur', 1200), amount('--fx-shake-amp', 0, 1, 0.01, 'em')], 'class', word()),
   fx('Hits', 'squash', 'Squash', 'fx-squash — squash and stretch. Amount is the squash.', [ms('--fx-squash-dur', 1200), amount('--fx-squash-amp', 0, 0.6, 0.01, '')], 'class', tile),
   fx('Hits', 'flash', 'Flash', 'fx-flash — a flash of brightness.', [ms('--fx-flash-dur', 1200)], 'class', word()),
+  {
+    id: 'fx-flash-tint',
+    label: 'Flash (tint)',
+    family: 'Hits',
+    note: 'fx-flash fx-flash--tint — brightens and flashes the text to --fx-color (brass here).',
+    subject: '.fx-flash',
+    dials: [ms('--fx-flash-dur', 1200)],
+    render: (lead) => (
+      <div class="fx-stage">
+        <p class={lead ? 'fx-demo' : 'fx-demo fx-flash fx-flash--tint'} style="--fx-color: var(--brass)">400</p>
+      </div>
+    ),
+  },
   fx('Hits', 'ripple', 'Ripple', 'fx-ripple — a ring spreads out. Amount is the end scale.', [ms('--fx-ripple-dur', 2000), amount('--fx-ripple-amp', 1, 4, 0.05, '')], 'class', tile),
   fx('Hits', 'nudge', 'Nudge', 'fx-nudge — a small recoil. Amount is the distance.', [ms('--fx-nudge-dur', 1000), amount('--fx-nudge-amp', 0, 1, 0.01, 'em')], 'class', chip),
   fx('Hits', 'wobble', 'Wobble', 'fx-wobble — jelly. Amount is the skew.', [ms('--fx-wobble-dur', 2000), amount('--fx-wobble-amp', 0, 40, 0.5, 'deg')], 'class', tile),

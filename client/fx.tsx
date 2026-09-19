@@ -3,9 +3,9 @@
  * Everything else is a class in the FX section of style.css. Rules and the
  * full catalogue: docs/design.md §4 "Interest kit".
  */
-import { Fragment } from 'preact'
+import { Fragment, type RefObject } from 'preact'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
-import { BURST_COUNT, countAt, flashTimes, glitchCut, particles, words, type BurstKind } from './fx.ts'
+import { BURST_COUNT, countAt, flashTimes, flipDeltas, glitchCut, particles, words, type BurstKind } from './fx.ts'
 import { parseTune } from './sound.ts'
 
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -158,6 +158,61 @@ export function Glitch({ text, class: cls = '' }: { text: string; class?: string
       <span class="fx-glitch__layer fx-glitch__m" aria-hidden="true">{text}</span>
       <span class="fx-glitch__layer fx-glitch__y" aria-hidden="true">{text}</span>
       <span class="fx-glitch__layer fx-glitch__t" aria-hidden="true">{text}</span>
+    </span>
+  )
+}
+
+/**
+ * Slides a list's children from where they were to where a re-sort put them.
+ * Children need `data-key`. It moves them with `translate`, not `transform`,
+ * so a row can wear a transform effect (an entrance pop) at the same time.
+ * Under reduced motion rows just move.
+ */
+export function useFlip(list: RefObject<HTMLElement>) {
+  const last = useRef(new Map<string, number>())
+  useLayoutEffect(() => {
+    const el = list.current
+    if (!el) return
+    const rows = [...el.children] as HTMLElement[]
+    const now = new Map(rows.filter((r) => r.dataset.key).map((r) => [r.dataset.key!, r.offsetTop]))
+    const moves = flipDeltas(last.current, now)
+    last.current = now
+    if (reduced()) return
+    for (const r of rows) {
+      const dy = moves.get(r.dataset.key ?? '')
+      if (!dy) continue
+      r.style.transition = 'none'
+      r.style.translate = `0 ${dy}px`
+      void r.offsetWidth
+      r.style.transition = 'translate var(--rank-slide-dur) var(--rate-even)'
+      r.style.translate = ''
+    }
+  })
+}
+
+/**
+ * A number's last change: where it came from, which way it went, and a count
+ * that goes up on every change (0 until the first), for keying a replay.
+ */
+export function useDelta(value: number) {
+  const r = useRef({ value, from: value, n: 0 })
+  if (value !== r.current.value) r.current = { value, from: r.current.value, n: r.current.n + 1 }
+  return { from: r.current.from, up: value >= r.current.from, n: r.current.n }
+}
+
+/**
+ * A score that counts to its new value and flashes brass going up, tally red
+ * going down. Still on first render, so a page load doesn't light every row.
+ */
+export function ScoreChange({ score, class: cls = '' }: { score: number; class?: string }) {
+  const d = useDelta(score)
+  return (
+    <span
+      key={d.n}
+      class={d.n ? `${cls} fx-flash fx-flash--tint` : cls}
+      style={d.n ? { '--fx-color': d.up ? 'var(--brass)' : 'var(--tally)' } : undefined}
+    >
+      <CountUp from={d.from} to={score} />
     </span>
   )
 }
