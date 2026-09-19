@@ -326,20 +326,21 @@ function Choices({ c, now, colorOf }: { c: ChoiceWall; now: () => number; colorO
   const revealed = c.correct !== undefined
   return (
     <div class="board__choices" data-review-id="board:choices">
-      <div class="board__gridwrap">
-        {/* While picking: a slot per player on the grid's top edge, filling
-            in their colour as they pick, so the room can see who is still
-            out without seeing what anyone chose. */}
-        {!revealed && (
-          <ol class="board__slots" data-review-id="board:pickers">
-            {c.pickers.map((p, i) => (
-              <li key={i} class="board__slot">
-                {p.picked && <span key={p.id} class="board__dot fx-pop" style={{ '--id': colorOf(p.id) }} />}
-              </li>
-            ))}
-          </ol>
-        )}
-        <ol class="board__grid">
+      {/* While picking, above the grid: a slot per player, filling in their
+          colour as they pick, so the room can see who is still out without
+          seeing what anyone chose; and the countdown beside it. The row
+          keeps its space at the reveal, so the grid does not move. */}
+      <div class={revealed ? 'board__status-row is-gone' : 'board__status-row'}>
+        <ol class="board__slots" data-review-id="board:pickers">
+          {c.pickers.map((p, i) => (
+            <li key={i} class="board__slot">
+              {p.picked && <span key={p.id} class="board__dot fx-pop" style={{ '--id': colorOf(p.id) }} />}
+            </li>
+          ))}
+        </ol>
+        {left !== null && <FlipClock seconds={revealed ? 0 : left} />}
+      </div>
+      <ol class="board__grid">
           {c.options.map((o, i) => (
             <li
               key={i}
@@ -359,9 +360,7 @@ function Choices({ c, now, colorOf }: { c: ChoiceWall; now: () => number; colorO
               </div>
             </li>
           ))}
-        </ol>
-      </div>
-      {!revealed && left !== null && <FlipClock seconds={left} />}
+      </ol>
     </div>
   )
 }

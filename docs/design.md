@@ -593,12 +593,13 @@ A **choice question** keeps the three bands, but lifts the middle one
 (`.board__wall.is-choice`, a 0.55 : 1.45 split) for the whole question so the
 grid has room. The question holds the middle from the arm, and the options
 appear as a two-column grid of raised, lettered panels (`.board__choices`) in
-the band below once it has been read. While picking, a pill bar
-(`.board__slots`) sits on the grid's top edge with a slot per player; a slot
-fills in that player's colour when they pick, in pick order, so the room sees
-who is still out but never what anyone chose. The countdown sits under the
-grid as flip-clock tiles (`.board__digit`, `fx-flip` per changed digit). On
-the reveal the bar goes and each pick's dot lands on the top edge of the
+the band below once it has been read. While picking, a row above the grid holds a small
+pill bar (`.board__slots`) with a slot per player, filling in that player's
+colour when they pick, in pick order, so the room sees who is still out but
+never what anyone chose; beside it, the countdown as flip-clock tiles
+(`.board__digit`, `fx-flip` per changed digit). The row keeps its space at the
+reveal so the grid never moves. On
+the reveal each pick's dot lands on the top edge of the
 answer it chose, three quarters showing (`.board__who`); the right cell turns
 brass with `fx-tada`, the rest dim (`.is-dim`) with their dots, and the brass
 stamp above reads "+400 · 2 right" or "Nobody". Its moments are

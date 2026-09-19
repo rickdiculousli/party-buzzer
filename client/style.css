@@ -605,10 +605,10 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
    cannot push the band. The reveal keeps the same cells and only changes
    their weight. */
 .board__choices { display: grid; gap: var(--s4); justify-items: center; width: min(100%, 56rem); margin-top: var(--s4); }
-.board__grid { list-style: none; margin: 0; padding: 0; width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: var(--s5) var(--s3); }
+.board__grid { list-style: none; margin: 0; padding: 0; width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4) var(--s3); }
 /* The cell is the box; the li around it is its stacking context, so the dots
    behind the cell stay behind it even while the reveal animates the li. */
-.board__choice { --_dot: 1.5rem; position: relative; transition: opacity 300ms; }
+.board__choice { --_dot: 0.625rem; position: relative; transition: opacity 300ms; }
 .board__cell {
   position: relative;
   z-index: 1;
@@ -644,26 +644,22 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .board__choice.is-dim { opacity: 0.35; }
 .board__dot { display: block; width: var(--_dot); height: var(--_dot); border-radius: 50%; background: var(--id); }
 /* Reveal: an answer's picks peek three quarters above its top edge. */
-.board__who { position: absolute; top: calc(var(--_dot) * -0.75); left: var(--s5); display: flex; gap: var(--s1); }
-/* Picking: one slot per player in a bar on the grid's top edge. */
-.board__gridwrap { --_dot: 1.5rem; position: relative; width: 100%; margin-top: var(--s5); }
-.board__gridwrap > .board__grid { position: relative; z-index: 1; }
+.board__who { position: absolute; top: calc(var(--_dot) * -0.75); left: var(--s5); display: flex; gap: 3px; }
+/* Picking: above the grid, the slot bar and the countdown side by side. */
+/* Sized to the clock, so the countdown arriving after the options are read moves nothing. */
+.board__status-row { --_dot: 0.625rem; display: flex; align-items: center; gap: var(--s4); min-height: calc(var(--t-lg) * 1.5); }
+.board__status-row.is-gone { visibility: hidden; }
 .board__slots {
-  position: absolute;
-  z-index: 0;
-  left: 50%;
-  top: calc((var(--_dot) + 2 * var(--s1)) * -0.75);
-  transform: translateX(-50%);
   display: flex;
-  gap: var(--s1);
+  gap: 3px;
   margin: 0;
-  padding: var(--s1);
+  padding: 4px;
   list-style: none;
   background: var(--panel);
   border: 1px solid var(--rule);
   border-radius: 999px;
 }
-.board__slot { width: var(--_dot); height: var(--_dot); border-radius: 50%; box-shadow: inset 0 0 0 2px var(--rule); }
+.board__slot { width: var(--_dot); height: var(--_dot); border-radius: 50%; box-shadow: inset 0 0 0 1px var(--dim); }
 /* The countdown: a flip-clock tile per digit, split across the middle. */
 .board__flip { display: flex; gap: var(--s1); margin: 0; }
 .board__digit {
@@ -675,7 +671,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   border-radius: var(--r-md);
   background: linear-gradient(var(--raise) 50%, var(--panel) 50%);
   font-family: var(--display);
-  font-size: calc(var(--t-xl) * 0.72);
+  font-size: var(--t-lg);
   font-weight: 700;
   color: var(--chalk);
 }
