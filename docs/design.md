@@ -150,12 +150,26 @@ data rather than taste — it runs for whatever time is left before the buzzers
 open. `prefers-reduced-motion` is honoured globally in `tokens.css` — you don't
 have to handle it per component.
 
-Six moments have their own hand-tuned motion, the **anchors**: a mark landing on
-the timeline, the award, the leader's name, the buzzers opening, your own press
-registering, and a vote landing. They share `--slam`, an ease that spends nearly
-all its distance in the first few frames, because each one is a thing arriving
-rather than a thing moving. They live under `MOTION` in `style.css`. Leave them
-as they are; everything else draws from the interest kit.
+The first family of the interest kit is **Signature**: the hand-tuned motions
+the round was built around. They share `--slam`, an ease that spends nearly
+all its distance in the first few frames, because each is a thing arriving
+rather than a thing moving. Each is also a class, so any element can wear it.
+Their tunables are hand-tuned; change a tunable, not a curve.
+
+| Class | What you see | Where |
+|---|---|---|
+| `fx-bulb-warm` | Bar fills left to right, ember to white-hot, glow rising | The filament |
+| `fx-pin-flash-drop` | Pin drops onto the rail; a glow flashes at touchdown and fades | A timeline mark |
+| `fx-rubber-stamp` | Fades in large, overshoots small, settles | The award |
+| `fx-hero-slam-glow` | Fades in large with a brass glow already lit, cooling | The leader's name |
+| `fx-buzz-snap` | Already visible; snaps from slightly large to size | Buzzers opening |
+| `fx-press-flash` | Background flashes white-hot, settles into its colour | Your press registering |
+| `fx-vote-drop-glow` | Falls from above, lands with a small glow | A vote |
+| `fx-loading-sweep` | A bar slides across a track, looping | Pending states |
+| `fx-touch-ring` | A ring swells and fades | Ink touches |
+
+`fx-hero-slam-glow` and `fx-vote-drop-glow` run two animations on one element;
+like `fx-ripple`, they are exceptions to "one effect per element".
 
 ### Interest kit
 
@@ -354,7 +368,7 @@ grow a third register for it.
 A vote is never a `.readout--ms`; nothing about it is a duration. The host desk
 is the one place a digit rides alongside, because that screen calls the close.
 
-Each figure animates on mount (`cast`, anchor 6), which is why `Votes` keys by
+Each figure animates on mount (`fx-vote-drop-glow`), which is why `Votes` keys by
 voter id: the arriving vote must be the element that mounts, and taking a vote
 back must not restart the ones that stay.
 

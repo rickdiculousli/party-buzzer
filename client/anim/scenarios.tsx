@@ -49,7 +49,7 @@ export const dialKey = (d: Dial) => ('var' in d ? d.var : d.recipe)
 export type Scenario = {
   id: string
   label: string
-  /** Heading the harness list groups this under. The anchors have none. */
+  /** Heading the harness list groups this under. Every scenario has one. */
   family?: string
   /** One line on what the moment is, shown above the stage. */
   note: string
@@ -383,6 +383,7 @@ const FX: Scenario[] = [
 export const SCENARIOS: Scenario[] = [
   {
     id: 'mark',
+    family: 'Signature',
     label: 'A mark lands',
     note: 'Three marks are already down. The fourth arrives — which is what the board does all through the collection window, one packet at a time.',
     subject: '.timeline__mark',
@@ -394,6 +395,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: 'leader',
+    family: 'Signature',
     label: "The leader's name",
     note: 'The round resolves onto a stage whose timeline is already filling in.',
     subject: '.board__hero',
@@ -420,6 +422,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: 'award',
+    family: 'Signature',
     label: 'The award',
     note: 'The host scores it. The name and the timeline have been up for a while; only the points are new.',
     subject: '.board__award',
@@ -439,6 +442,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: 'penalty',
+    family: 'Signature',
     label: 'The penalty',
     note: 'A wrong answer that costs. Same stamp as the award, tally-red, and the room is already buzzing again below it.',
     subject: '.board__award',
@@ -461,6 +465,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: 'open',
+    family: 'Signature',
     label: 'The buzzers open',
     note: 'Standing by, then live. The same element changes class here exactly as it does on the board, so the punch fires off the class and not a remount.',
     subject: '.board__call',
@@ -484,6 +489,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: 'press',
+    family: 'Signature',
     label: 'Your press registers',
     note: 'The buzzer is open under your thumb, then the press lands. A class change on the same button, as on the phone.',
     subject: '.buzzer',
@@ -508,6 +514,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: 'vote',
+    family: 'Signature',
     label: 'A vote lands',
     // The pool below carries a duel mid-vote, because a single figure arriving
     // beside an empty name reads nothing like the same figure joining a row
@@ -546,6 +553,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: 'spoken',
+    family: 'Signature',
     label: 'The spoken verdict',
     note: 'The judge has heard the leader and the transcript types itself out, a word or two a tap, in the colour it was said in. It holds, and only then turns brass or red — on the board the award stamp lands on that same instant. The name and timeline are already up; only the line is new.',
     subject: '.board__spoken',

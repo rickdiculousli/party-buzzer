@@ -318,12 +318,14 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   transform: scaleX(0);
   transform-origin: left;
   background: var(--ember);
-  animation: warm var(--delay, 300ms) linear forwards;
+  animation: fx-bulb-warm var(--delay, 300ms) linear forwards;
 }
-@keyframes warm {
+@keyframes fx-bulb-warm {
   from { transform: scaleX(0); background: var(--ember); box-shadow: none; }
   to { transform: scaleX(1); background: var(--hot); box-shadow: 0 0 60px var(--tungsten); }
 }
+/* The same fill on any bar: left to right, ember to white-hot. */
+.fx-bulb-warm { transform-origin: left; animation: fx-bulb-warm var(--fx-dur, 300ms) linear forwards; }
 /* Held at full power for as long as the buzzers stay open. */
 .filament.is-hot::after {
   animation: none;
@@ -1135,14 +1137,14 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 
 /* ===================================================================
- * MOTION — the five moments worth watching land
+ * FX: Signature — the hand-tuned moments, first family of the kit
  * Everything here is a one-shot on an event the round already produces:
  * an element mounting, or a class arriving on one that was already there.
  * Both fire a CSS animation on their own, which is why none of this needs
  * a timer, a key, or a line of JS. Reduced motion is handled in tokens.css.
  *
- * These are anchors, not decoration. Add one only for a moment the room
- * would otherwise miss.
+ * Each rule also carries an `fx-` class so any element can wear the same
+ * motion. The tunables are hand-tuned: change a tunable, not a curve.
  *
  * The numbers live in the block below rather than in the rules, so the
  * harness at /anim.html can drive these exact rules instead of a copy of
@@ -1308,8 +1310,9 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
  * `backwards` matters: without it a delayed mark sits fully drawn until its
  * turn, which is worse than no stagger at all.
  */
-.timeline__mark { animation: stamp var(--stamp-dur) var(--slam) var(--enter, 0ms) backwards; }
-@keyframes stamp {
+.fx-pin-flash-drop,
+.timeline__mark { animation: fx-pin-drop var(--fx-dur, var(--stamp-dur)) var(--slam) var(--enter, 0ms) backwards; }
+@keyframes fx-pin-drop {
   from { opacity: 0; transform: translateX(-50%) scale(var(--stamp-scale)); }
   to { opacity: 1; transform: translateX(-50%) scale(1); }
 }
@@ -1337,8 +1340,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
  * opacities: the rise becomes one element's duration, the decay the other's
  * delay, and both become dials.
  */
-.timeline__pin { animation: aftershock var(--bloom-dur) var(--ease) var(--enter, 0ms) backwards; }
-@keyframes aftershock {
+.timeline__pin { animation: fx-pin-flash var(--bloom-dur) var(--ease) var(--enter, 0ms) backwards; }
+@keyframes fx-pin-flash {
   0% {
     box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent;
     animation-timing-function: var(--bloom-rise);
@@ -1351,8 +1354,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; }
 }
 /* The name blooms with its pin, in the player's own colour. */
-.timeline__name { animation: bloom var(--bloom-dur) var(--ease) var(--enter, 0ms) backwards; }
-@keyframes bloom {
+.timeline__name { animation: fx-pin-flash-name var(--bloom-dur) var(--ease) var(--enter, 0ms) backwards; }
+@keyframes fx-pin-flash-name {
   0% {
     text-shadow: 0 0 0 transparent, 0 0 0 transparent;
     animation-timing-function: var(--bloom-rise);
@@ -1369,8 +1372,9 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
    The heaviest stamp on any surface, because it is the only moment where
    the score actually changes. Past the mark and back: the recoil is what
    makes it read as struck rather than faded up. */
-.board__award { animation: strike var(--strike-dur) var(--slam); }
-@keyframes strike {
+.fx-rubber-stamp,
+.board__award { animation: fx-rubber-stamp var(--fx-dur, var(--strike-dur)) var(--slam); }
+@keyframes fx-rubber-stamp {
   from { opacity: 0; transform: scale(var(--strike-scale)); }
   55% { opacity: 1; transform: scale(var(--strike-recoil)); }
   to { transform: scale(1); }
@@ -1383,8 +1387,9 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
    rather than something that happens to the name shortly after it. A glow that
    ramps up reads as a second event however tight the timing; one already at
    full power when the letters land reads as the same event. */
-.board__hero { animation: slam var(--slam-dur) var(--slam), flare var(--flare-dur) var(--flare-fall); }
-@keyframes slam {
+.fx-hero-slam-glow,
+.board__hero { animation: fx-hero-slam var(--fx-dur, var(--slam-dur)) var(--slam), fx-hero-glow var(--flare-dur) var(--flare-fall); }
+@keyframes fx-hero-slam {
   from { opacity: 0; transform: scale(var(--slam-scale)); }
   to { opacity: 1; transform: scale(1); }
 }
@@ -1392,7 +1397,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
    white-hot core inside a brass body inside a wide throw that reaches well past
    the letters. The long tail is the filament cooling, which is the slowest and
    most visible part of it from across the room. */
-@keyframes flare {
+@keyframes fx-hero-glow {
   from {
     text-shadow:
       0 0 var(--flare-core) var(--hot),
@@ -1406,9 +1411,10 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
    The loudest instant of the round, and the only one every surface shares.
    Short and hard on purpose: a slow open would undersell a moment the
    filament has spent 300ms building to. */
+.fx-buzz-snap,
 .board__call,
-.buzzer.is-open { animation: punch var(--punch-dur) var(--slam); }
-@keyframes punch {
+.buzzer.is-open { animation: fx-buzz-snap var(--fx-dur, var(--punch-dur)) var(--slam); }
+@keyframes fx-buzz-snap {
   from { transform: scale(var(--punch-scale)); }
   to { transform: scale(1); }
 }
@@ -1417,9 +1423,10 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
    A full second passes between the press and the result. This is the
    receipt for it: the button flashes white-hot and settles into whichever
    mood the press earned, so the wait is never dead air. */
+.fx-press-flash,
 .buzzer.is-placed,
-.buzzer.is-first { animation: land var(--land-dur) var(--ease); }
-@keyframes land {
+.buzzer.is-first { animation: fx-press-flash var(--fx-dur, var(--land-dur)) var(--ease); }
+@keyframes fx-press-flash {
   /* No `to` — the resting frame is the mood class's own colours, whatever
      they turn out to be, so this stays correct if those change. */
   from { background: var(--hot); color: var(--stage); }
@@ -1431,15 +1438,16 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
    out from nothing: a vote is cast, and the figure arrives where it was
    thrown. The glow is the same cooling filament as the leader's flare,
    scaled down to the size of one decision. */
-.vote { animation: cast var(--cast-dur) var(--slam), cast-flare var(--cast-flare-dur) var(--flare-fall); }
-@keyframes cast {
+.fx-vote-drop-glow,
+.vote { animation: fx-vote-drop var(--fx-dur, var(--cast-dur)) var(--slam), fx-vote-glow var(--cast-flare-dur) var(--flare-fall); }
+@keyframes fx-vote-drop {
   from { opacity: 0; transform: translateY(calc(var(--cast-rise) * -1)) scale(var(--cast-scale)); }
   to { opacity: 1; transform: none; }
 }
 /* drop-shadow, not text-shadow: an emoji is a bitmap glyph, and text-shadow
    paints behind a box it does not have. The tint lives on the parent so this
    keyframe can own `filter` outright without cancelling it. */
-@keyframes cast-flare {
+@keyframes fx-vote-glow {
   from { filter: drop-shadow(0 0 var(--cast-glow) var(--hot)); }
   to { filter: drop-shadow(0 0 0 transparent); }
 }
@@ -2259,9 +2267,10 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .pending { display: grid; gap: var(--s1); margin: var(--s2) 0; }
 .pending__label { color: var(--dim); font-size: var(--t-sm); }
 .pending__track { height: 3px; border-radius: 999px; background: var(--rule); overflow: hidden; }
-.pending__sweep { display: block; height: 100%; width: 35%; border-radius: inherit; background: var(--tungsten); animation: pending-sweep 1.4s var(--ease) infinite; }
+.pending__sweep { display: block; height: 100%; width: 35%; border-radius: inherit; background: var(--tungsten); }
+.fx-loading-sweep, .pending__sweep { animation: fx-loading-sweep var(--fx-dur, 1.4s) var(--ease) infinite; }
 
-@keyframes pending-sweep {
+@keyframes fx-loading-sweep {
   from { transform: translateX(-100%); }
   to { transform: translateX(300%); }
 }
@@ -2284,20 +2293,21 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .ink-canvas-area { padding: var(--s4) var(--s6); touch-action: none; }
 /* Taps and long presses point at things; they never select text or open the callout. */
 .ink-phone, .ink-board { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
-.ink-ring { position: absolute; width: 2.5rem; height: 2.5rem; margin: -1.25rem 0 0 -1.25rem; border-radius: 50%; border: 3px solid var(--ring-color, var(--chalk)); pointer-events: none; animation: ink-ring var(--touch-ms) linear forwards; }
+.ink-ring { position: absolute; width: 2.5rem; height: 2.5rem; margin: -1.25rem 0 0 -1.25rem; border-radius: 50%; border: 3px solid var(--ring-color, var(--chalk)); pointer-events: none; }
+.fx-touch-ring, .ink-ring { animation: fx-touch-ring var(--fx-dur, var(--touch-ms)) linear forwards; }
 
-@keyframes ink-ring {
+@keyframes fx-touch-ring {
   from { opacity: 1; transform: scale(1); }
   to { opacity: 0; transform: scale(1.4); }
 }
 /* The ring still has to go away; it just does not swell on the way out. */
-@keyframes ink-ring-still {
+@keyframes fx-touch-ring-still {
   from { opacity: 1; }
   to { opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ink-ring { animation-name: ink-ring-still; }
+  .ink-ring { animation-name: fx-touch-ring-still; }
 }
 .ink-ring__name { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); font: 600 var(--t-xs)/1 var(--mono); white-space: nowrap; color: var(--ring-color, var(--chalk)); }
 
