@@ -42,17 +42,22 @@ the kit so there is one pipeline.
 Today there are two motion systems: the kit's `fx-*` classes, and the anchors
 and other keyframes written directly against their elements. They become one.
 
-| New class | Keyframes it replaces | Used by |
-|---|---|---|
-| `fx-warm` | `warm` | `.filament` |
-| `fx-stamp` | `stamp`, `aftershock`, `bloom` | `.timeline__mark`, `__pin`, `__name` |
-| `fx-strike` | `strike` | `.board__award` |
-| `fx-slam` | `slam`, `flare` | `.board__hero` |
-| `fx-punch` | `punch` | `.buzzer.is-open` |
-| `fx-land` | `land` | `.buzzer.is-first` |
-| `fx-cast` | `cast`, `cast-flare` | `.vote` |
-| `fx-sweep` | `pending-sweep` | `.pending__sweep` |
-| `fx-ring` | `ink-ring`, `ink-ring-still` | `.ink-ring` |
+**Naming:** a name says what you see, not how it was built. If an effect
+is tied to one element or moment, the name starts with that, then the
+motion, then any light: `fx-hero-slam-glow` rather than a bare `fx-slam`.
+Generic effects keep the kit's short names (`fx-pop`, `fx-drop`).
+
+| New class | What you see | Keyframes it replaces | Used by |
+|---|---|---|---|
+| `fx-bulb-warm` | Bar fills left to right, ember to white-hot, glow rising | `warm` | `.filament` |
+| `fx-pin-flash-drop` | Pin drops from 1.45× onto the rail; a glow flashes at touchdown and fades | `stamp`, `aftershock`, `bloom` | `.timeline__mark`, `__pin`, `__name` |
+| `fx-rubber-stamp` | Fades in from 1.8×, overshoots to 0.94×, settles | `strike` | `.board__award` |
+| `fx-hero-slam-glow` | Fades in from 1.25× with a brass glow already lit, cooling over ~1s | `slam`, `flare` | `.board__hero` |
+| `fx-buzz-snap` | Already visible; snaps from 1.12× to size in 90ms | `punch` | `.board__call`, `.buzzer.is-open` |
+| `fx-press-flash` | Background flashes white-hot, then settles into its mood colour | `land` | `.buzzer.is-placed`, `.buzzer.is-first` |
+| `fx-vote-drop-glow` | Falls from above at 2.2× and lands with a small white glow | `cast`, `cast-flare` | `.vote` |
+| `fx-loading-sweep` | A bar slides across a track, looping | `pending-sweep` | `.pending__sweep` |
+| `fx-touch-ring` | A ring swells to 1.4× and fades | `ink-ring`, `ink-ring-still` | `.ink-ring` |
 
 Rules for the move:
 
@@ -62,15 +67,15 @@ Rules for the move:
   to the existing tunable, the same pattern as the rest of the kit.
 - **Keyframes are renamed with the `fx-` prefix** and move into the FX section
   of `style.css` as a new "Signature" family.
-- **Multi-part anchors stay multi-part.** `fx-stamp` is one class on the mark
+- **Multi-part anchors stay multi-part.** `fx-pin-flash-drop` is one class on the mark
   that drives the pin and name through child selectors, so the three
-  keyframes can't be separated by accident. `fx-slam` keeps its two animations
+  keyframes can't be separated by accident. `fx-hero-slam-glow` keeps its two animations
   (slam and flare) on one element; it is the documented exception to
   "one effect owns `animation`", like `fx-ripple`.
 - **Call sites switch to the class** where the element is rendered in JSX
   (hero, award, timeline mark, vote). State-driven ones (`.buzzer.is-open`,
   `.buzzer.is-first`, `.filament`) keep their state selector and are added
-  to the class's selector list (`.fx-punch, .buzzer.is-open { … }`), because
+  to the class's selector list (`.fx-buzz-snap, .buzzer.is-open { … }`), because
   the class there is the state.
 - **Harness:** the six anchors' existing scenarios move under a "Signature"
   family heading. No new scenarios are needed for them.
@@ -96,7 +101,7 @@ marked **new**.
 | B4 | `verdict:award` | Hero name | Confetti `Burst` from the name, then one `fx-shine` pass after the slam lands. |
 | B5 | `verdict:award` | Answer line | `fx-rise`. |
 | B6 | `verdict:penalty` | Hero name | `fx-shake` once, at the recolour (not at the arrival). |
-| B7 | `verdict:penalty` | −points stamp | Dust `Burst` from under the stamp. The stamp keeps `fx-strike`. |
+| B7 | `verdict:penalty` | −points stamp | Dust `Burst` from under the stamp. The stamp keeps `fx-rubber-stamp`. |
 | B8 | Photo finish: second mark within `--photo-finish` (default 30ms) of first | Second mark's `+ms` readout | `fx-flash` in cyan. It is a measurement, so cyan is correct. |
 | B9 | Clue fragment arrives | Newly said words | Fade in over `--fast`. Today words appear at once. |
 | B10 | `duel:faceoff` | The two names | `fx-slide` in from opposite sides; "vs" gets `fx-pop`. |
