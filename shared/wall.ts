@@ -24,11 +24,13 @@
  *    arrives in `Local`. That is what keeps it runnable under `node:test`.
  */
 import { isPenalty } from './protocol.ts'
+import { pickers } from './choice.ts'
 import type { Award, State } from './protocol.ts'
 
 /**
- * The fourteen states, in priority order — `momentOf` returns the first that
- * matches, and that ordering is the load-bearing part.
+ * The seventeen states, in priority order — `momentOf` returns the first that
+ * matches, and that ordering is the load-bearing part. The three `choice`
+ * states come first because a choice question never reaches any of the others.
  *
  * Reordering within a family is safe. Reordering across one is a behaviour
  * change. Two pairs are ordered the way they are for a reason that is not
@@ -41,6 +43,9 @@ import type { Award, State } from './protocol.ts'
  *   the transcript before it reads the result.
  */
 export type Moment =
+  | 'choice:listening'
+  | 'choice:picking'
+  | 'choice:reveal'
   | 'answer:judging'
   | 'verdict:hold'
   | 'answer:locked'
@@ -66,7 +71,7 @@ export type Moment =
  */
 export type Local = { open: boolean; settled: boolean; retired: boolean }
 
-export type Family = 'answer' | 'verdict' | 'duel' | 'buzz' | 'idle'
+export type Family = 'choice' | 'answer' | 'verdict' | 'duel' | 'buzz' | 'idle'
 /** Typed prefix matching, so a family question stays one line and stays checked. */
 export function isFamily<F extends Family>(m: Moment, f: F): m is Extract<Moment, `${F}:${string}`> {
   return m.startsWith(`${f}:`)
@@ -74,6 +79,13 @@ export function isFamily<F extends Family>(m: Moment, f: F): m is Extract<Moment
 
 export function momentOf(state: State, local: Local): Moment {
   const r = state.round
+
+  // The whole room answers a choice question at once: there is no leader, no
+  // transcript and no verdict, so none of the moments below apply to it.
+  if (r.kind === 'choice' && r.questionId) {
+    if (r.correct !== undefined) return 'choice:reveal'
+    return r.choices ? 'choice:picking' : 'choice:listening'
+  }
 
   // The room reads what was said before it reads how it scored — even though
   // the server has already scored it and said so in the same broadcast.
@@ -175,6 +187,23 @@ export type Wall = {
   award: (Award & { answer?: string }) | null
   timeline: boolean
   value: number | null
+  /**
+   * A choice question's grid, in the band below the clue. Null outside
+   * `choice:picking` and `choice:reveal`. Built from `picks`, which only the
+   * host and board receive; phones never call `wallOf`.
+   */
+  choices: ChoiceWall | null
+}
+
+export type ChoiceWall = {
+  options: string[]
+  points: number
+  in: number
+  of: number
+  closesAt?: number
+  correct?: number
+  tally?: number[]
+  winners?: string[]
 }
 
 /**
@@ -260,6 +289,11 @@ function middleOf(state: State, m: Moment): Middle {
   const scorer = hero(r.award?.name, isPenalty(r.award) ? 'penalised' : 'answering')
 
   switch (m) {
+    // The question holds the middle through the reveal; the grid below is the answer.
+    case 'choice:listening':
+    case 'choice:picking':
+    case 'choice:reveal':
+      return or(clue)
     // The verdict clears `order` the instant it lands, but the room is still
     // reading the transcript above. Without this the stage flicks back to the
     // clue and is taken away again when the stamp arrives — the question
@@ -318,6 +352,25 @@ export function lastUp(state: State): boolean {
   return !!s && s.at === s.blocks.length - 1 && s.done === s.blocks[s.at].count - 1
 }
 
+function choiceWall(state: State, m: Moment): ChoiceWall | null {
+  const r = state.round
+  if (!isFamily(m, 'choice') || !r.choices) return null
+  const picks = Object.entries(r.picks ?? {})
+  const nameOf = (id: string) => state.players.find((p) => p.id === id)?.name ?? '?'
+  return {
+    options: r.choices,
+    points: r.value,
+    in: picks.length,
+    of: pickers(state).length,
+    closesAt: r.closesAt,
+    ...(r.correct !== undefined && {
+      correct: r.correct,
+      tally: r.choices.map((_, i) => picks.filter(([, p]) => p === i).length),
+      winners: picks.filter(([, p]) => p === r.correct).map(([id]) => nameOf(id)),
+    }),
+  }
+}
+
 export function wallOf(state: State, local: Local): Wall {
   const r = state.round
   const m = momentOf(state, local)
@@ -348,7 +401,8 @@ export function wallOf(state: State, local: Local): Wall {
     // question's card replaces them: through the read, the buzz, the answer
     // and the verdict. Between questions the card says it instead.
     // Not beside the card, which says the same number large.
-    value: 'next' in middle ? null : r.phase !== 'IDLE' || isFamily(m, 'answer') || isFamily(m, 'verdict') ? r.value : null,
+    value: 'next' in middle ? null : r.phase !== 'IDLE' || isFamily(m, 'answer') || isFamily(m, 'verdict') || isFamily(m, 'choice') ? r.value : null,
+    choices: choiceWall(state, m),
   }
 }
 
@@ -390,6 +444,12 @@ export type Mine = {
   next?: number
   /** That next question is the setlist's last. */
   last?: boolean
+  /** This phone's pick on a choice question. */
+  pick?: number
+  choices?: string[]
+  correct?: number
+  /** The round value, for the reveal's "+200". */
+  value?: number
 }
 
 /**
@@ -435,6 +495,21 @@ export function phoneOf(m: Moment, f: Mine): Phone {
       mood: 'barred',
       talk: false,
     }
+  }
+  if (m === 'choice:listening') {
+    return { label: 'Listen', sub: 'The choices come after the question', mood: 'waiting', talk: false }
+  }
+  if (m === 'choice:picking') {
+    return f.pick === undefined
+      ? { label: 'Pick', sub: '', mood: 'open', talk: false }
+      : { label: 'Locked', sub: f.choices?.[f.pick] ?? '', mood: 'placed', talk: false }
+  }
+  if (m === 'choice:reveal') {
+    if (f.pick !== undefined && f.pick === f.correct) {
+      return { label: 'Right', sub: `+${f.value ?? 0}`, mood: 'first', talk: false }
+    }
+    const answer = f.correct === undefined ? '' : f.choices?.[f.correct] ?? ''
+    return { label: f.pick === undefined ? 'No pick' : 'Wrong', sub: `It was ${answer}`, mood: 'barred', talk: false }
   }
   // The buzzers being shut is what "somebody is answering" means to a phone.
   // A transcript typing itself out over an *open* rebound is not that: the

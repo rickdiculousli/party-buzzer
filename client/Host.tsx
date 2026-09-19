@@ -71,7 +71,7 @@ const KEYS: Record<string, HostAction> = {
 /**
  * What the desk says, as a lookup against the moment.
  *
- * One row per `Moment`, no `default`, so a fourteenth moment does not compile
+ * One row per `Moment`, no `default`, so a new moment does not compile
  * until it has said what the judging row and the arm row show while it is up.
  * Rows never rank each other — `momentOf` has already done that. A row reading
  * `f` is fetching its own data, not holding a second opinion about what is on
@@ -97,6 +97,13 @@ function notesFor(
   const played = 'Press N for next round. Arm to redo (score not reverted)'
 
   switch (m) {
+    case 'choice:listening':
+      return { judge: 'Everyone picks on their phone once the question is read.', arm: null }
+    case 'choice:picking':
+      return { judge: 'Close picking to settle it now.', arm: null }
+    case 'choice:reveal':
+      return { judge: null, arm: played }
+
     // The desk passes `settled: true`, so this moment does not reach it.
     case 'answer:judging':
       return { judge: null, arm: played }

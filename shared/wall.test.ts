@@ -547,3 +547,53 @@ test('the last question is the final block on its final count', () => {
   s.setlist = { blocks: [block, block], at: 2, done: 0 }
   assert.ok(!lastUp(s), 'a spent setlist has none left')
 })
+
+function choiceRoom(): State {
+  const s = room()
+  s.round = {
+    ...s.round, questionId: 'q', attemptId: 'a1', phase: 'ARMED', armedAt: 1, kind: 'choice',
+    fragments: ['Which planet has the most moons?'], whole: 'Which planet has the most moons?',
+  }
+  s.readingActive = true
+  return s
+}
+
+test('a choice question: listening, picking, reveal, with the clue in the middle throughout', () => {
+  const s = choiceRoom()
+  assert.equal(momentOf(s, LOCAL), 'choice:listening')
+  let w = wallOf(s, LOCAL)
+  assert.equal(w.choices, null)
+  assert.equal(w.clue?.shown, 'Which planet has the most moons?')
+  assert.equal(w.hero, null)
+
+  s.round.choices = ['Mars', 'Saturn']
+  s.round.picks = { a: 1 }
+  assert.equal(momentOf(s, LOCAL), 'choice:picking')
+  w = wallOf(s, LOCAL)
+  assert.deepEqual(w.choices, { options: ['Mars', 'Saturn'], points: 200, in: 1, of: 2, closesAt: undefined })
+  assert.ok(w.clue)
+
+  s.round.picks = { a: 1, b: 0 }
+  s.round.correct = 1
+  s.round.phase = 'IDLE'
+  assert.equal(momentOf(s, LOCAL), 'choice:reveal')
+  w = wallOf(s, LOCAL)
+  assert.deepEqual(w.choices?.tally, [1, 1])
+  assert.deepEqual(w.choices?.winners, ['Ada'])
+  assert.equal(w.award, null)
+  assert.equal(w.hero, null)
+  assert.ok(w.clue)
+  assert.equal(w.value, 200)
+})
+
+test('the phone during a choice question', () => {
+  const base = { frozen: false, barred: false, spectator: false, dead: false, won: false, pressed: false, armed: true, open: true, judging: false }
+  assert.equal(phoneOf('choice:listening', base).label, 'Listen')
+  assert.equal(phoneOf('choice:picking', base).label, 'Pick')
+  assert.equal(phoneOf('choice:picking', { ...base, pick: 1, choices: ['Mars', 'Saturn'] }).sub, 'Saturn')
+  const right = phoneOf('choice:reveal', { ...base, armed: false, pick: 1, correct: 1, choices: ['Mars', 'Saturn'], value: 200 })
+  assert.deepEqual([right.label, right.sub, right.mood], ['Right', '+200', 'first'])
+  const wrong = phoneOf('choice:reveal', { ...base, armed: false, pick: 0, correct: 1, choices: ['Mars', 'Saturn'], value: 200 })
+  assert.deepEqual([wrong.label, wrong.sub], ['Wrong', 'It was Saturn'])
+  assert.equal(phoneOf('choice:reveal', { ...base, armed: false, correct: 1, choices: ['Mars', 'Saturn'] }).label, 'No pick')
+})
