@@ -201,6 +201,8 @@ export function useFlip(list: RefObject<HTMLElement>) {
       if (!dy) continue
       r.style.transition = 'none'
       r.style.translate = `0 ${dy}px`
+      // A row climbing the table passes over the ones it overtakes, not under.
+      r.style.zIndex = dy > 0 ? '1' : ''
       void r.offsetWidth
       r.style.transition = 'translate var(--rank-slide-dur) var(--rate-even)'
       r.style.translate = ''
