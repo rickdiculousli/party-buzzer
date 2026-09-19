@@ -111,6 +111,11 @@ function Said({ text }: { text: string }) {
   )
 }
 
+/** A lane's space, kept with nothing in it: the element's own box, unseen. */
+function Held({ class: cls }: { class: string }) {
+  return <p class={cls} style={{ visibility: 'hidden' }} aria-hidden="true">{'\u00a0'}</p>
+}
+
 /** The middle band when nobody owns it: what the room is being told to do. */
 const CALL_TEXT: Record<NonNullable<Wall['call']>, string> = {
   buzz: 'Buzz',
@@ -455,29 +460,46 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
           the marks down in the first place.
         */}
         <div class="board__above">
-          {/* What was said, as the judge heard it — the award's evidence while
-              the points are up, and the whole story while a rebound runs. */}
-          {w.transcript && (
-            <Spoken
-              prefix="board"
-              transcript={w.transcript.text}
-              hit={w.transcript.hit}
-              onSettled={onSettled}
-              instant={!!preview}
-            />
+          {/* Three lanes — what was said, the stamp, the answer — each held open
+              by an invisible stand-in while the others are up, so one arriving
+              never pushes another along. */}
+          {(w.transcript || w.award) && (
+            <>
+              {/* What was said, as the judge heard it — the award's evidence
+                  while the points are up, and the whole story while a rebound
+                  runs. */}
+              {w.transcript ? (
+                <Spoken
+                  prefix="board"
+                  transcript={w.transcript.text}
+                  hit={w.transcript.hit}
+                  onSettled={onSettled}
+                  instant={!!preview}
+                />
+              ) : (
+                <Held class="board__spoken" />
+              )}
+              {/* The payoff — or its mirror, a penalty stamped negative. Stays
+                  up until the next question is armed, because the room looks
+                  at the board after the host scores it, not before. A
+                  penalty's leader is already gone to the rebound, so this
+                  gates on the award. */}
+              {w.award ? (
+                <p data-review-id="board:award" class={isPenalty(w.award) ? 'board__award fx-anchor is-neg' : 'board__award fx-anchor'}>
+                  {w.award.points > 0 ? '+' : ''}
+                  {w.award.points}
+                  <Burst kind="dust" from="bottom" />
+                </p>
+              ) : (
+                <Held class="board__award" />
+              )}
+              {w.award?.answer ? (
+                <p class="board__answer fx-rise" data-review-id="board:answer">{w.award.answer}</p>
+              ) : (
+                <Held class="board__answer" />
+              )}
+            </>
           )}
-          {/* The payoff — or its mirror, a penalty stamped negative. Stays up
-              until the next question is armed, because the room looks at the
-              board after the host scores it, not before. A penalty's leader
-              is already gone to the rebound, so this gates on the award. */}
-          {w.award && (
-            <p data-review-id="board:award" class={isPenalty(w.award) ? 'board__award fx-anchor is-neg' : 'board__award fx-anchor'}>
-              {w.award.points > 0 ? '+' : ''}
-              {w.award.points}
-              <Burst kind="dust" from="bottom" />
-            </p>
-          )}
-          {w.award?.answer && <p class="board__answer fx-rise" data-review-id="board:answer">{w.award.answer}</p>}
         </div>
 
         {/* The cue escalates through three sizes and the reserved line is what
