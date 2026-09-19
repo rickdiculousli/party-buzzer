@@ -20,27 +20,6 @@ import { makeReviewScenarios } from './fixtures.ts'
  * needs a scenario before this can see it.
  */
 
-/**
- * Scenarios that break a rule today, each a layout still to fix, per rule.
- * Checked both ways: one that starts passing fails the test until it leaves
- * its list, so the lists only ever shrink.
- */
-const INK = [
-  'ink-choosing', 'ink-choose', 'ink-offer', 'ink-keep', 'ink-clue',
-  'ink-clue-stopped', 'ink-guess', 'ink-guess-missed', 'ink-peek', 'ink-over',
-]
-const KNOWN_SCROLL = new Set([
-  // 2px at 360x560 on every phone.
-  'duel',
-  // The Ink board is a two-column list of eight rows a side, ~1260px tall;
-  // some Ink phones spill too (the prompt offer, even at 390x844).
-  ...INK,
-])
-// Whatever scrolls has boxes past the screen's edge: the same two layouts.
-const KNOWN_BOUNDS = new Set(KNOWN_SCROLL)
-// Ink phones' prompt lists run over the rows and headings around them.
-const KNOWN_OVERLAP = new Set(INK)
-
 const SIZES = {
   board: [
     { width: 1280, height: 720 },
@@ -74,13 +53,9 @@ function measure(): Finding {
     if (sides.some((s) => parseFloat(cs.getPropertyValue(`border-${s}-width`)) > 0 && cs.getPropertyValue(`border-${s}-style`) !== 'none')) return true
     return [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent!.trim() !== '')
   }
-  const visible = (el: Element) => {
-    for (let e: Element | null = el; e; e = e.parentElement) {
-      const cs = getComputedStyle(e)
-      if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) === 0) return false
-    }
-    return true
-  }
+  // The browser's own answer, which also knows what a closed <details> hides.
+  const visible = (el: Element) =>
+    el.checkVisibility({ opacityProperty: true, visibilityProperty: true, contentVisibilityAuto: true })
   /** The rect as it actually shows: cut to every clipping ancestor. */
   const shown = (el: Element): Rect => {
     const b = el.getBoundingClientRect()
@@ -162,25 +137,18 @@ async function sweep(page: Page): Promise<Sweep> {
 // One sweep, three verdicts: loading every page three times would triple a slow test.
 let swept: Promise<Sweep> | undefined
 
-function check(known: Set<string>, pick: (f: Finding) => string[]) {
+function check(pick: (f: Finding) => string[]) {
   return async ({ page }: { page: Page }) => {
     test.setTimeout(600_000)
     swept ??= sweep(page)
     const failures: string[] = []
-    const failing = new Set<string>()
     for (const [id, found] of await swept) {
-      for (const { where, f } of found) {
-        const hits = pick(f)
-        if (!hits.length) continue
-        failing.add(id)
-        if (!known.has(id)) failures.push(...hits.map((h) => `${id} ${where}: ${h}`))
-      }
+      for (const { where, f } of found) failures.push(...pick(f).map((h) => `${id} ${where}: ${h}`))
     }
     expect(failures).toEqual([])
-    expect([...known].filter((id) => !failing.has(id)), 'these pass now; remove them from the known list').toEqual([])
   }
 }
 
-test('no board or phone preview scrolls', check(KNOWN_SCROLL, (f) => (f.scroll ? [f.scroll] : [])))
-test('every visible box sits inside the screen', check(KNOWN_BOUNDS, (f) => f.bounds))
-test('no two visible boxes overlap', check(KNOWN_OVERLAP, (f) => f.overlaps))
+test('no board or phone preview scrolls', check((f) => (f.scroll ? [f.scroll] : [])))
+test('every visible box sits inside the screen', check((f) => f.bounds))
+test('no two visible boxes overlap', check((f) => f.overlaps))

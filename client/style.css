@@ -1059,10 +1059,12 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 
 .buzzer {
   flex: 1;
+  min-height: 0;
   border: 2px solid var(--rule);
   border-radius: var(--r-buzzer);
   font-family: var(--display);
-  font-size: clamp(3rem, 16vw, 6rem);
+  /* Height-bound too: on a short phone the word shrinks with the button. */
+  font-size: min(clamp(3rem, 16vw, 6rem), 10vh);
   font-weight: 900;
   letter-spacing: 0.04em;
   line-height: 0.9;
@@ -1190,7 +1192,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
    sets the angle from scroll position), which is what makes it a dial and
    not a list. */
 .dial {
-  --dial-row: 2.75rem;
+  /* Shorter rows on a short phone, so the buzzer keeps its share. */
+  --dial-row: min(2.75rem, 6vh);
   position: relative;
   flex: none;
   height: calc(var(--dial-row) * 5);
@@ -2391,6 +2394,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .ink-board__title { font: 700 var(--t-mega)/1 var(--display); margin: 0; }
 .ink-board__bar, .ink-phone__bar { display: flex; gap: var(--s3); align-items: center; font: 600 var(--t-lg)/1.2 var(--mono); }
 .ink-phone__bar { font-size: var(--t-md); flex-wrap: wrap; }
+.ink-phone { gap: var(--s3); }
 .ink-board__secret { margin-left: auto; font: 700 var(--t-xl)/1 var(--display); color: var(--brass); }
 .ink-turn--sun { color: var(--tungsten); }
 .ink-turn--moon { color: var(--id-3); }
@@ -2446,7 +2450,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .ink-phone__reveal { margin: 0; font-size: var(--t-xl); text-align: center; }
 .ink-phone__reveal strong { color: var(--brass); }
 .ink-phone__row { grid-template-columns: 4.5rem 1fr; }
-.ink-phone__more { display: grid; gap: var(--s2); margin-top: var(--s4); color: var(--dim); }
+.ink-phone__more { display: grid; gap: var(--s2); color: var(--dim); }
 .ink-phone__more summary { cursor: pointer; }
 .ink-phone__more ul { margin: var(--s2) 0 0; padding-left: var(--s4); }
 .ink-phone__more .ink-pad { grid-template-columns: 1fr; margin-top: var(--s2); }
@@ -2502,7 +2506,12 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .ink-ring__name { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); font: 600 var(--t-xs)/1 var(--mono); white-space: nowrap; color: var(--ring-color, var(--chalk)); }
 
-.ink-hand { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: var(--s2); }
+/* Prompts to pick from: one row each, the text small, and the pips and a
+   small Vote on the right, so a whole hand fits a phone. */
+.ink-hand { display: grid; gap: var(--s1); }
+.ink-hand .ink-card { display: flex; align-items: center; gap: var(--s2); padding: var(--s1) var(--s2) var(--s1) var(--s3); }
+.ink-hand .ink-card > span:first-child { flex: 1; font-size: var(--t-sm); line-height: 1.3; }
+.ink-hand .ink-card > .btn { flex: none; padding: var(--s1) var(--s2); font-size: var(--t-xs); }
 .ink-card { background: var(--panel); border: 1px solid var(--rule); border-radius: var(--r-md); padding: var(--s3); display: grid; gap: var(--s2); }
 .ink-card.is-selected { border-color: var(--tungsten); }
 .ink-vote { display: grid; gap: var(--s2); }
@@ -2519,6 +2528,17 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 /* The pip lane is held open on every word, so a pick never narrows its button. */
 .ink-word > .ink-pips { min-width: 0.6rem; }
 .ink-discard { margin: 0; padding-left: var(--s4); color: var(--dim); }
+/* The board is one screen: bar, pad and footer, with the pad taking what is
+   left and its eight rows a side sharing it. A row keeps its 5:1 ink field and
+   narrows rather than squashing the strokes. */
+.ink-board { height: 100dvh; min-height: 0; grid-template-rows: auto minmax(0, 1fr) auto; }
+.ink-board .ink-pad { min-height: 0; grid-template-rows: minmax(0, 1fr); }
+.ink-board .ink-pad__page { min-height: 0; grid-template-rows: auto; grid-auto-rows: minmax(0, 1fr); gap: var(--s1); }
+.ink-board .ink-row { min-height: 0; padding: 2px var(--s2); }
+.ink-board .ink-row__svg { height: 100%; width: auto; max-width: 100%; justify-self: start; }
+.ink-board__foot { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s4); }
+.ink-board__foot > p { margin: 0; }
+.ink-board .ink-discard { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); padding: 0; list-style: none; font-size: var(--t-sm); }
 
 @media (max-width: 700px) {
   .ink-pad { grid-template-columns: 1fr; }
