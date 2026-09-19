@@ -533,3 +533,72 @@ test('a shown question still closes quizbowl power as the voice passes the fragm
   reader.stop()
   await reader.settled()
 })
+
+const CHOICE = 'V: 200\nC: Mars | Venus | Saturn\nWhich planet has the most moons?\nA: Saturn\n'
+
+function withPhones(hub: Hub, ids: string[]) {
+  return ids.map((id) => {
+    const conn = { id, playerId: id, role: 'player' as const, send() {} }
+    hub.handle(conn, { t: 'hello', role: 'player', name: id, playerId: id })
+    return conn
+  })
+}
+
+test('choices go up after the question, the options are read, and it settles when everyone has picked', async () => {
+  const { hub, state, reader, speech } = rig(CHOICE)
+  const [ada, bo] = withPhones(hub, ['ada', 'bo'])
+  await reader.select('one.txt')
+  reader.start()
+  while (!state.round.choices) await tick()
+  assert.equal(state.round.kind, 'choice')
+  assert.equal(speech.spoken[0], 'Which planet has the most moons?', 'choices wait for the question')
+  hub.handle(ada, { t: 'act', act: 'pick', data: 2 })
+  hub.handle(bo, { t: 'act', act: 'pick', data: 0 })
+  while (state.round.correct === undefined) await tick()
+  assert.equal(state.round.correct, 2)
+  assert.equal(state.scores.ada, 200)
+  assert.equal(state.scores.bo ?? 0, 0)
+  assert.ok(speech.spoken.includes('A, Mars. B, Venus. C, Saturn.'))
+  reader.stop()
+  await reader.settled()
+})
+
+test('a choice question settles when the timer runs out after the options are read', async () => {
+  const { hub, state, reader } = rig(CHOICE)
+  withPhones(hub, ['ada'])
+  state.choiceSec = 0.05
+  await reader.select('one.txt')
+  reader.start()
+  while (state.round.correct === undefined) await tick()
+  assert.ok(state.round.closesAt, 'the countdown was published')
+  reader.stop()
+  await reader.settled()
+})
+
+test('the host closes picking early', async () => {
+  const { hub, state, reader } = rig(CHOICE)
+  hub.setReader(reader)
+  withPhones(hub, ['ada'])
+  await reader.select('one.txt')
+  reader.start()
+  while (!state.round.choices) await tick()
+  hub.handle({ id: 'h', role: 'host', send: () => {} }, { t: 'act', act: 'closeChoice' })
+  while (state.round.correct === undefined) await tick()
+  reader.stop()
+  await reader.settled()
+})
+
+test('autoplay moves on from a settled choice question', async () => {
+  const { hub, state, reader, speech } = rig(CHOICE + '\nV: 100\nNext.\nA: x\n')
+  const [ada] = withPhones(hub, ['ada'])
+  hub.dispatch({ a: 'setAutoplay', on: true, nextSec: 0.01, reboundSec: 0.01 })
+  await reader.select('one.txt')
+  reader.start()
+  while (!state.round.choices) await tick()
+  hub.handle(ada, { t: 'act', act: 'pick', data: 2 })
+  // The next question is armed, read and passed within a tick at a zero
+  // dwell, so the voice is the evidence rather than the round.
+  while (!speech.spoken.includes('Next.')) await tick()
+  reader.stop()
+  await reader.settled()
+})

@@ -25,6 +25,7 @@ import { loadPack } from './packs.ts'
 import { render as realRender, play as realPlay, type Clip, type Playback, type Speech } from './speech.ts'
 import type { Question } from '../shared/pack.ts'
 import type { State } from '../shared/protocol.ts'
+import { allPicked, optionsText } from '../shared/choice.ts'
 import type { Judge } from './judge.ts'
 
 /**
@@ -101,6 +102,8 @@ export class Reader {
   private pack = ''
   private fragIndex = 0
   private paused = false
+  /** The host's Close on the choice question being read. Reset per question. */
+  private closeNow = false
   private playback: Playback | undefined
   private loop: Promise<void> = Promise.resolve()
   private running = false
@@ -175,7 +178,8 @@ export class Reader {
    * fragment-at-a-time read sound chopped.
    */
   private textsFor(q: Question): string[] {
-    return this.opts.align ? [joinFragments(q.fragments).text] : q.fragments
+    const question = this.opts.align ? [joinFragments(q.fragments).text] : q.fragments
+    return q.choices ? [...question, optionsText(q.choices)] : question
   }
 
   /**
@@ -315,7 +319,10 @@ export class Reader {
     this.publish({})
   }
 
-  closeChoice(): void {}
+  closeChoice(): void {
+    this.closeNow = true
+    this.wake()
+  }
 
   resume(): void {
     this.paused = false
@@ -428,7 +435,7 @@ export class Reader {
         this.hub.dispatch({ a: 'arm', ...(q.kind && { kind: q.kind }) })
         // Answer variants, memory only — this is the one path by which the judge
         // ever learns what the room is about to be asked.
-        this.opts.judge?.prime(q.answers)
+        if (q.kind !== 'choice') this.opts.judge?.prime(q.answers)
         await this.until((s) => s.round.phase === 'ARMED', undefined, this.session.signal)
 
         const stamp = this.hub.state.round.armedAt
@@ -444,6 +451,19 @@ export class Reader {
         await sleep(Math.max(0, stamp - Date.now()), sig)
 
         await this.speakQuestion(q, questionId, stillMine, sig)
+
+        if (q.kind === 'choice') {
+          await this.runChoice(q, stillMine, sig)
+          // The grid stays up with its answer; the host's N, or the autoplay
+          // dwell, moves on.
+          await this.until(() => !stillMine(), this.dwellMs(), this.session.signal)
+          if (!stillMine() && this.hub.state.round.questionId) {
+            throw new DOMException('Question replaced', 'AbortError')
+          }
+          if (stillMine()) this.hub.dispatch({ a: 'next' })
+          this.qIndex += 1
+          continue
+        }
 
         // The host judges from here. Resolved means scored, or passed with nobody
         // left in the round.
@@ -598,6 +618,51 @@ export class Reader {
         this.hub.fragmentEnded(questionId, f + 1)
       }
     }
+  }
+
+  /**
+   * The choices go up once the question has been read, and the phones take
+   * picks from then on. The voice reads the options meanwhile, and the
+   * countdown starts when it finishes, so the read-out does not use up the
+   * room's time. Picking ends on the last eligible pick, the deadline, or the
+   * host's Close.
+   */
+  private async runChoice(q: Question, stillMine: () => boolean, sig: AbortSignal): Promise<void> {
+    const choices = q.choices!
+    this.closeNow = false
+    this.hub.send(this.conn, { t: 'act', act: 'choices', data: choices })
+    let done = false
+    // Set by the timer itself: a timeout can fire a millisecond before the
+    // clock reads the deadline, and a re-check of the clock would then wait forever.
+    let expired = false
+    let timer: NodeJS.Timeout | undefined
+    const options = this.speak(optionsText(choices), sig).then(
+      () => {
+        if (done || sig.aborted || !stillMine()) return
+        const ms = this.hub.state.choiceSec * 1000
+        this.hub.send(this.conn, { t: 'act', act: 'closesAt', data: Date.now() + ms })
+        timer = setTimeout(() => {
+          expired = true
+          this.wake()
+        }, ms)
+        timer.unref?.()
+      },
+      () => {},
+    )
+    try {
+      await this.until(
+        (s) => this.closeNow || expired || allPicked(s),
+        undefined,
+        sig,
+      )
+    } finally {
+      done = true
+      clearTimeout(timer)
+    }
+    // Everyone is in; the rest of the options would be read to nobody.
+    this.playback?.stop()
+    await options
+    if (stillMine()) this.hub.dispatch({ a: 'settleChoice', correct: q.correct! })
   }
 
   /**
