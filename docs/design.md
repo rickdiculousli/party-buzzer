@@ -589,6 +589,15 @@ States, in priority order:
    card, or the miss on a rebound.
 4. **Idle** — "Ready", dim.
 
+A **choice question** keeps the three bands. The question holds the middle
+from the arm, and the options appear as a two-column grid (`.board__choices`)
+in the band below once it has been read, with "6 of 9 in" and the countdown
+under it. On the reveal the same grid stays up: the right cell turns brass
+with `fx-tada`, the rest dim (`.is-dim`) with their counts, the winners' names
+sit under it as chips, and the brass stamp above reads "+400 · 5 right" or
+"Nobody". Its moments are `choice:listening`, `choice:picking` and
+`choice:reveal`; there is no hero.
+
 **The leader shows early, the field fills in.** A beat after the first buzz
 (150 ms — long enough for the true photo finish to land) the board lights up
 with the provisional leader, and the timeline keeps filling for the rest of the
@@ -709,6 +718,9 @@ disagree, the code is what gets renamed.
   setlist. A round is not a question is not a block.
 - **value / points / score** — `round.value` is what is at stake,
   `award.points` is what was awarded, `state.scores` is what has accumulated.
+- **pick / buzz** — a pick is a player's answer on a choice question
+  (`round.picks`); a buzz is a press for the floor. A choice question has no
+  buzz and no leader.
 - **order / standings** — `round.order` is the buzz order. The score ranking
   is the standings, never "the order".
 - **leader / hero** — the leader is `order[0]`, a fact about the round; the

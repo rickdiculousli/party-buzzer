@@ -205,8 +205,10 @@ remain private in Reader/Judge memory; the display answer enters State when
 revealed. Keep those separate when adding content or projections.
 
 `shared/wall.ts` chooses a semantic moment from public gameplay facts plus local
-presentation inputs (`open`, `settled`, `retired`). Its 13 moments belong to five
-families. Wall and phone projections use this shared decision; the wall selects
+presentation inputs (`open`, `settled`, `retired`). Its 17 moments belong to six
+families; the `choice` family ranks first while a choice question is up.
+A choice question keeps the clue in the middle band and puts `Wall.choices`, a
+grid, in the band below, so no hero appears. Wall and phone projections use this shared decision; the wall selects
 one middle occupant, such as a clue or hero. Browser effects supply clock and
 animation progress. Equal inputs yield equal moments, but individual browsers
 can be at different local animation stages.
@@ -269,6 +271,18 @@ Buzzing interrupts speech. Autoplay waits for verdict, applies the configured
 dwell, then rebounds or advances. Seeking can resume at the interrupted clause;
 a joined clip without seeking support can restart from its beginning. Reader
 cancellation prevents stopped/replaced sessions from driving later questions.
+
+Each question has a kind. `speakQuestion` reads read and shown questions the
+same way; a shown one publishes every fragment at the arm, and the mode still
+hears each fragment end as the voice passes it. `runChoice` publishes a choice
+question's options after the question is read, reads them, publishes
+`closesAt` when that clip ends, and waits for every eligible picker
+(`shared/choice.ts`), the deadline, or the host's `closeChoice`. It then
+dispatches `settleChoice`, which pays every right pick without calling the
+mode's scoring hooks. The round stays `ARMED` while picking and never passes
+through `COLLECTING` or `LOCKED`. Phones submit a `pick` act; `viewFor` redacts
+`picks` to the viewer's own and sends shown and choice text regardless of the
+mirror.
 
 The Reader primes the Judge with private accepted answers. The Judge offers an
 answer window for the current locked leader, accepts a submission, transcribes

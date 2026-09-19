@@ -1,0 +1,13 @@
+V: 100
+This thing always shows Earth the same face. / Name this body that pulls on the ocean tides.
+A: The Moon | Moon
+
+V: 200
+K: shown
+What country is home to the city of Timbuktu?
+A: Mali
+
+V: 300
+C: Mars | Venus | Saturn | Jupiter
+Which planet has the most known moons?
+A: Saturn

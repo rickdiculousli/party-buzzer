@@ -150,6 +150,17 @@ verdict dwell, rebound pauses, and advancing through questions. With spoken
 answer recognition available, the judge can also apply verdicts automatically.
 The host can still judge manually.
 
+A question can also be **shown** or **multiple choice**; one pack can mix all
+three. `K: shown` puts the whole question on the board at the arm while the
+voice still reads it, and buzzing works as usual. A `C: Mars | Venus | Saturn`
+line makes a multiple-choice question: the voice reads the question, the
+choices appear on the board and phones, the voice reads them, and every
+player picks once. Picking closes when everyone has picked or **Choice time**
+runs out after the options are read (the host can also press **Close
+picking**). Every right pick scores the round value; a wrong one costs
+nothing. `A:` must equal one of the choices. Shown and choice text reaches
+phones whatever the mirror setting. See [the mixed pack](packs/mixed.txt).
+
 Local speech uses macOS tools and optional Swift helpers. Without speech
 support, text still progresses silently. Browser cues play separately on the
 phones and board; the question voice plays on the server machine.
