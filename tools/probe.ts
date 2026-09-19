@@ -70,6 +70,7 @@ import { existsSync, mkdirSync, renameSync, rmSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { connect, reachable, type Conn } from './conn.ts'
+import { link } from '../server/net.ts'
 import { clipPath, run } from '../server/speech.ts'
 import { ARM_DELAY_MS, COLLECT_MS } from '../shared/protocol.ts'
 
@@ -197,7 +198,7 @@ async function main() {
     setTimeout(() => process.exit(0), 300)
   })
 
-  log(`\n  Party Buzzer — probe against ${URL}`)
+  log(`\n  Party Buzzer — probe against ${link(URL)}`)
   log(looping ? '  looping — Ctrl-C to stop and remove the players\n' : '')
 
   for (let pass = 1; ; pass++) {

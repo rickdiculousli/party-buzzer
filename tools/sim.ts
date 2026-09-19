@@ -19,6 +19,7 @@
  */
 import { setTimeout as sleep } from 'node:timers/promises'
 import { connect, reachable, type Conn } from './conn.ts'
+import { link } from '../server/net.ts'
 import type { State } from '../shared/protocol.ts'
 
 const argv = process.argv.slice(2)
@@ -107,7 +108,7 @@ function attempt(bots: Bot[], armedAt: number, difficulty: number, barred: Set<s
 }
 
 async function main() {
-  log(`\n  Party Buzzer — synthetic self-play against ${URL}`)
+  log(`\n  Party Buzzer — synthetic self-play against ${link(URL)}`)
   log(`  pace ×${PACE}${ROUNDS === Infinity ? '' : `, ${ROUNDS} rounds`}  ·  Ctrl-C to stop\n`)
 
   const host = await connect(URL, 'host')

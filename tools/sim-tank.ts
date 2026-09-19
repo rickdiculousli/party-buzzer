@@ -14,6 +14,7 @@
  */
 import { setTimeout as sleep } from 'node:timers/promises'
 import { connect, reachable, type Conn } from './conn.ts'
+import { link } from '../server/net.ts'
 import type { TankCrew, TankInput } from '../shared/protocol.ts'
 
 const [argMatches, argSeconds, argUrl] = process.argv.slice(2)
@@ -91,7 +92,7 @@ async function crewLoop(crew: TankCrew, bots: Map<string, Bot>, board: Conn, mat
 }
 
 async function main() {
-  log(`\n  Party Buzzer — tank self-play against ${URL}`)
+  log(`\n  Party Buzzer — tank self-play against ${link(URL)}`)
   log(`  ${SECONDS}-second matches${MATCHES === Infinity ? '' : `, ${MATCHES} of them`}  ·  Ctrl-C to stop\n`)
 
   const host = await connect(URL, 'host')

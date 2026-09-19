@@ -13,7 +13,7 @@ import { transcribePool, sttBinary, transcribe as sttTranscribe } from './stt.ts
 import { locate } from './align.ts'
 import type { Aligner } from './reader.ts'
 import { render as renderClip } from './speech.ts'
-import { lanAddresses, pickAddress, banner, qrFor, qrSvg } from './net.ts'
+import { lanAddresses, pickAddress, banner, link, qrFor, qrSvg } from './net.ts'
 import { certHost, ensureCert } from './cert.ts'
 import type { ClientMsg } from '../shared/protocol.ts'
 import { MinigameRuntime } from './minigames/runtime.ts'
@@ -322,7 +322,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const candidates = lanAddresses()
   if (candidates.length > 1) {
     console.log(`  Multiple networks found: ${candidates.join(', ')}`)
-    console.log(`  Using ${server.url}. Override with HOST_IP=<addr> npm start\n`)
+    console.log(`  Using ${link(server.url)}. Override with HOST_IP=<addr> npm start\n`)
   }
   console.log(banner(server.url, await qrFor(server.url)))
 
@@ -330,7 +330,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   // at the moment a phone will not join.
   if (server.tls) {
     console.log(`  Phones need this name, not the IP — it is what the certificate covers.`)
-    console.log(`  If it will not resolve, ${server.fallbackUrl} still plays (no mic).\n`)
+    console.log(`  If it will not resolve, ${link(server.fallbackUrl)} still plays (no mic).\n`)
   } else {
     console.log(`  No certificate: serving http, so phones cannot use the microphone.`)
     console.log(`  Spoken answers need internet at startup to fetch one.\n`)

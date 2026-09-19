@@ -19,6 +19,7 @@
  */
 import { setTimeout as sleep } from 'node:timers/promises'
 import { connect, reachable, type Conn } from './conn.ts'
+import { link } from '../server/net.ts'
 import type { InkInput, LobbyChange, State } from '../shared/protocol.ts'
 
 const args = process.argv.slice(2)
@@ -76,7 +77,7 @@ if (waiting.length) {
   try {
     await host.waitFor((s) => unpicked(s).length === 0, 60_000)
   } catch {
-    console.log(`Still unpicked: ${unpicked(host.state()!).join(', ')}. Close those tabs or kick them on /host.`)
+    console.log(`Still unpicked: ${unpicked(host.state()!).join(', ')}. Close those tabs or kick them on ${link(`${URL}/host`)}.`)
     stop()
     await sleep(1_000)
   }

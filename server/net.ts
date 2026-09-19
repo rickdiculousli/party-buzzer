@@ -32,6 +32,11 @@ export function qrSvg(url: string): Promise<string> {
   return QRCode.toString(url, { type: 'svg', margin: 1 })
 }
 
+/** An OSC 8 hyperlink, so the url is clickable in the terminal. Plain text when piped. */
+export function link(url: string): string {
+  return process.stdout.isTTY ? `\x1b]8;;${url}\x1b\\${url}\x1b]8;;\x1b\\` : url
+}
+
 export function banner(url: string, qr: string): string {
   return [
     '',
@@ -39,11 +44,11 @@ export function banner(url: string, qr: string): string {
     '  │  PARTY BUZZER                           │',
     '  └─────────────────────────────────────────┘',
     '',
-    `  Players join at:  ${url}`,
+    `  Players join at:  ${link(url)}`,
     '',
     qr,
-    `  Host panel:   ${url}/host`,
-    `  Big screen:   ${url}/board`,
+    `  Host panel:   ${link(`${url}/host`)}`,
+    `  Big screen:   ${link(`${url}/board`)}`,
     '',
     '  Ctrl-C to stop.',
     '',

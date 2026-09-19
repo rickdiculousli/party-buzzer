@@ -17,6 +17,7 @@
  */
 import { setTimeout as sleep } from 'node:timers/promises'
 import { connect, reachable, type Conn } from './conn.ts'
+import { link } from '../server/net.ts'
 import { BOW_FIELD, BOW_STEP_MS, type Vec2 } from '../server/minigames/bow/types.ts'
 import { createBowWorld } from '../server/minigames/bow/world.ts'
 
@@ -110,7 +111,7 @@ async function play(bot: Bot, matchId: string, startsAt: number, endsAt: number,
 }
 
 async function main() {
-  log(`\n  Party Buzzer — bow self-play against ${URL}`)
+  log(`\n  Party Buzzer — bow self-play against ${link(URL)}`)
   log(`  ${SECONDS}-second matches${MATCHES === Infinity ? '' : `, ${MATCHES} of them`}  ·  Ctrl-C to stop\n`)
 
   const host = await connect(URL, 'host')
