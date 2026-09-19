@@ -425,7 +425,7 @@ export class Reader {
         }
         // The room reads what the next one is worth before it starts.
         if (this.opts.nextCardMs) await sleep(this.opts.nextCardMs, this.session.signal)
-        this.hub.dispatch({ a: 'arm' })
+        this.hub.dispatch({ a: 'arm', ...(q.kind && { kind: q.kind }) })
         // Answer variants, memory only — this is the one path by which the judge
         // ever learns what the room is about to be asked.
         this.opts.judge?.prime(q.answers)
@@ -443,69 +443,7 @@ export class Reader {
 
         await sleep(Math.max(0, stamp - Date.now()), sig)
 
-        const j = joinFragments(q.fragments)
-        // The board needs the shape of the whole question before it says any of
-        // it, or every line it has already put up moves when the next one lands.
-        // Players never see this — the hub strips it.
-        this.hub.send(this.conn, { t: 'act', act: 'whole', data: j.text })
-        if (q.image) {
-          this.hub.send(this.conn, { t: 'act', act: 'image', data: `/pack-media/${encodeURI(q.image)}` })
-        }
-        const whole = this.aligned.get(j.text)
-
-        if (whole) {
-          // One clip, revealed a clause at a time as the voice reaches each one.
-          let shown = 0 // characters of the joined text on the board
-          let frags = 0 // how many fragment entries that has taken
-          let completed = 0
-
-          const revealTo = (upto: number) => {
-            if (upto <= shown) return
-            shown = upto
-            for (let i = 0; i < q.fragments.length; i++) {
-              const start = j.fragmentAt[i]
-              if (upto <= start) break
-              const text = q.fragments[i].slice(0, Math.min(q.fragments[i].length, upto - start)).trimEnd()
-              if (!text) continue
-              if (i >= frags) {
-                // Crossing into a fragment starts a new entry, so `fragments`
-                // stays a list of fragments however finely it is revealed.
-                this.hub.send(this.conn, { t: 'act', act: 'fragment', data: text })
-                frags = i + 1
-                this.fragIndex = i + 1
-                this.publish({})
-              } else if (i === frags - 1) {
-                this.hub.send(this.conn, { t: 'act', act: 'extend', data: text })
-              }
-            }
-            // Report whole fragments once, even when a fold crosses several.
-            const complete = q.fragments.filter((f, i) => upto >= j.fragmentAt[i] + f.length).length
-            if (complete > completed) {
-              completed = complete
-              this.hub.fragmentEnded(questionId, completed)
-            }
-          }
-
-          // Both scopes, not just the question's: a fold timer due in the window
-          // between `stop()` and the `clearTimeout` after `pb.done` would
-          // otherwise reveal into a dead session, which is the class this file
-          // was converted to kill still alive inside one callback.
-          const live = () => !sig.aborted && stillMine()
-          const finished = await this.speakWhole(whole, j, revealTo, live, sig)
-          if (finished) revealTo(j.text.length)
-        } else {
-          for (let f = 0; f < q.fragments.length; f++) {
-            this.fragIndex = f + 1
-            const text = q.fragments[f]
-            this.hub.send(this.conn, { t: 'act', act: 'fragment', data: text })
-            this.publish({})
-            const finished = await this.speak(text, sig)
-            // Someone buzzed and the question was scored while they held the
-            // floor. The rest of the clue is not read out — the host judges.
-            if (!finished) break
-            this.hub.fragmentEnded(questionId, f + 1)
-          }
-        }
+        await this.speakQuestion(q, questionId, stillMine, sig)
 
         // The host judges from here. Resolved means scored, or passed with nobody
         // left in the round.
@@ -576,6 +514,90 @@ export class Reader {
       this.hub.dispatch({ ...auto, a: 'setAutoplay', on: false })
     }
     this.stop()
+  }
+
+  /**
+   * Put the question on the board and read it. A read question is revealed as
+   * the voice reaches each clause; a shown or choice question is up whole from
+   * the arm. Either way the mode hears each fragment end as the voice passes it.
+   */
+  private async speakQuestion(
+    q: Question,
+    questionId: string,
+    stillMine: () => boolean,
+    sig: AbortSignal,
+  ): Promise<void> {
+    const revealAll = !!q.kind
+    const j = joinFragments(q.fragments)
+    // The board needs the shape of the whole question before it says any of
+    // it, or every line it has already put up moves when the next one lands.
+    // Players never see this — the hub strips it.
+    this.hub.send(this.conn, { t: 'act', act: 'whole', data: j.text })
+    if (q.image) {
+      this.hub.send(this.conn, { t: 'act', act: 'image', data: `/pack-media/${encodeURI(q.image)}` })
+    }
+    if (revealAll) {
+      for (const f of q.fragments) this.hub.send(this.conn, { t: 'act', act: 'fragment', data: f })
+      this.fragIndex = q.fragments.length
+      this.publish({})
+    }
+    const whole = this.aligned.get(j.text)
+
+    if (whole) {
+      // One clip, revealed a clause at a time as the voice reaches each one.
+      let shown = 0 // characters of the joined text on the board
+      let frags = 0 // how many fragment entries that has taken
+      let completed = 0
+
+      const revealTo = (upto: number) => {
+        if (upto <= shown) return
+        shown = upto
+        for (let i = 0; !revealAll && i < q.fragments.length; i++) {
+          const start = j.fragmentAt[i]
+          if (upto <= start) break
+          const text = q.fragments[i].slice(0, Math.min(q.fragments[i].length, upto - start)).trimEnd()
+          if (!text) continue
+          if (i >= frags) {
+            // Crossing into a fragment starts a new entry, so `fragments`
+            // stays a list of fragments however finely it is revealed.
+            this.hub.send(this.conn, { t: 'act', act: 'fragment', data: text })
+            frags = i + 1
+            this.fragIndex = i + 1
+            this.publish({})
+          } else if (i === frags - 1) {
+            this.hub.send(this.conn, { t: 'act', act: 'extend', data: text })
+          }
+        }
+        // Report whole fragments once, even when a fold crosses several.
+        const complete = q.fragments.filter((f, i) => upto >= j.fragmentAt[i] + f.length).length
+        if (complete > completed) {
+          completed = complete
+          this.hub.fragmentEnded(questionId, completed)
+        }
+      }
+
+      // Both scopes, not just the question's: a fold timer due in the window
+      // between `stop()` and the `clearTimeout` after `pb.done` would
+      // otherwise reveal into a dead session, which is the class this file
+      // was converted to kill still alive inside one callback.
+      const live = () => !sig.aborted && stillMine()
+      const finished = await this.speakWhole(whole, j, revealTo, live, sig)
+      if (finished) revealTo(j.text.length)
+    } else {
+      for (let f = 0; f < q.fragments.length; f++) {
+        const text = q.fragments[f]
+        if (!revealAll) {
+          this.fragIndex = f + 1
+          this.hub.send(this.conn, { t: 'act', act: 'fragment', data: text })
+          this.publish({})
+        }
+        const finished = await this.speak(text, sig)
+        // Someone buzzed and the question was scored while they held the
+        // floor. The rest of the clue is not read out — the host judges.
+        if (!finished) break
+        this.hub.fragmentEnded(questionId, f + 1)
+      }
+    }
   }
 
   /**

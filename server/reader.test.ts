@@ -503,3 +503,33 @@ test('stop halts the loop and clears reading progress', async () => {
   await reader.settled()
   assert.equal(state.reading, undefined)
 })
+
+const tick = () => new Promise((r) => setTimeout(r, 5))
+
+test('a shown question is on the board whole before the voice starts, and is still read', async () => {
+  const { state, reader, speech } = rig('K: shown\nFirst fragment. / Second fragment.\nA: gold\n')
+  let atFirstClip: string[] | undefined
+  const play = speech.play
+  speech.play = (path, at) => {
+    atFirstClip ??= [...(state.round.fragments ?? [])]
+    return play(path, at)
+  }
+  await reader.select('one.txt')
+  reader.start()
+  while (speech.spoken.length < 2) await tick()
+  reader.stop()
+  await reader.settled()
+  assert.equal(state.round.kind, 'shown')
+  assert.deepEqual(atFirstClip, ['First fragment.', 'Second fragment.'])
+  assert.deepEqual(speech.spoken, ['First fragment.', 'Second fragment.'])
+})
+
+test('a shown question still closes quizbowl power as the voice passes the fragment', async () => {
+  const { hub, state, reader } = rig('K: shown\nFirst fragment. / Second fragment.\nA: gold\n')
+  hub.dispatch({ a: 'setMode', id: 'quizbowl', options: { powerAfterFragment: 1 } })
+  await reader.select('one.txt')
+  reader.start()
+  while ((state.game.moduleState as { powerEndsAt?: number }).powerEndsAt === undefined) await tick()
+  reader.stop()
+  await reader.settled()
+})
