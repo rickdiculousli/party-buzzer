@@ -331,11 +331,17 @@ export function wallOf(state: State, local: Local): Wall {
     // A miss holding the stage keeps the whole lower band out of the way, or
     // the room reads a warm-up bar counting down under the name it just cost.
     filament: !leader && isFamily(m, 'buzz'),
-    // Not while someone is answering or being judged: the stakes are for a
-    // question the room can still take, and a value up under a transcript
-    // flicked off again when the stamp landed.
+    // What the next question is worth, from Ready onward, so the room knows
+    // the stakes before the filament starts rather than for the few seconds
+    // until someone buzzes. Not while someone is answering or being judged —
+    // a value up under a transcript flicked off again when the stamp landed —
+    // and not on the welcome screen or the finale, where nothing is coming.
     value:
-      !leader && !penalised && !isFamily(m, 'answer') && !isFamily(m, 'verdict') && (isFamily(m, 'buzz') || reading)
+      !leader &&
+      !penalised &&
+      !isFamily(m, 'answer') &&
+      !isFamily(m, 'verdict') &&
+      (isFamily(m, 'buzz') || m === 'idle:ready' || reading)
         ? r.value
         : null,
   }

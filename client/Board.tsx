@@ -569,10 +569,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
                   />
                 )}
               </div>
-              {/* What is at stake, and only while there is something at stake:
-                  at the end of a read — reader stopped, stage back to "Ready",
-                  nobody playing — an unconditional value is a bare 400 floating
-                  under it with nothing to be the value of. */}
+              {/* What the next question is worth: `wallOf` decides when. */}
               {w.value !== null && <p class="board__value">{w.value}</p>}
             </>
           )}

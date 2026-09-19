@@ -501,3 +501,14 @@ test('the value stays down while an answer is typed and judged', () => {
   s.round.award = { name: 'Ada', points: -100, penalty: true }
   assert.equal(wallOf(s, LOCAL).value, null)
 })
+
+test('the value is up on Ready, before the arm, but not on welcome or the finale', () => {
+  const s = room()
+  assert.equal(wallOf(s, LOCAL).moment, 'idle:welcome')
+  assert.equal(wallOf(s, LOCAL).value, null)
+  s.scores = { a: 200, b: 0 }
+  assert.equal(wallOf(s, LOCAL).moment, 'idle:ready')
+  assert.equal(wallOf(s, LOCAL).value, 200)
+  s.setlist = { blocks: [{ game: 'trivia', options: {}, count: 1 }], at: 1, done: 0 }
+  assert.equal(wallOf(s, LOCAL).value, null)
+})
