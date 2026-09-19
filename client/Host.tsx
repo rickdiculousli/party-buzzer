@@ -397,6 +397,11 @@ export function Host() {
           <button class="btn" onClick={() => act({ a: 'next' })}>
             Next question<span class="key">N</span>
           </button>
+          {moment === 'choice:picking' && (
+            <button class="btn" onClick={() => fire('closeChoice')}>
+              Close picking
+            </button>
+          )}
         </div>
         {/* Under the row rather than on the buttons: these three are the most
             pressed controls on the desk, and a `title` on a disabled button is

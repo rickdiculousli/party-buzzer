@@ -9,6 +9,7 @@ import type { Mood } from '../shared/wall.ts'
 import type { State } from '../shared/protocol.ts'
 import { scoreKey } from '../shared/scoring.ts'
 import { MINIGAMES } from './minigames.tsx'
+import { LETTERS } from '../shared/choice.ts'
 import { Letters, ScoreChange, useFlip } from './fx.tsx'
 
 /** `phoneOf` names the mood; the stylesheet is where it becomes a colour. */
@@ -212,9 +213,17 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     return <Surface state={state} playerId={playerId} frame={minigameFrame} now={now} send={send} ack={minigameAck} touches={minigameTouches} />
   }
 
+  const choice = round?.kind === 'choice'
+  const myPick = playerId ? round?.picks?.[playerId] : undefined
+  const pick = (i: number) => {
+    if (preview) return
+    send({ t: 'act', act: 'pick', data: i })
+    navigator.vibrate?.(30)
+  }
+
   const buzz = () => {
     if (preview) return
-    if (!open || barred || pressed || frozen || spectator) return
+    if (!open || barred || pressed || frozen || spectator || choice) return
     // Stamp before anything else so render work never inflates the time.
     send({ t: 'buzz', at: now() })
     setPressedFor(round?.attemptId ?? '')
@@ -250,6 +259,10 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     place: state ? 1 + standings(state).filter((r) => r.score > score).length : undefined,
     next: round?.value,
     last: !!state && lastUp(state),
+    pick: myPick,
+    choices: round?.choices,
+    correct: round?.correct,
+    value: round?.value,
   })
 
   const me = state?.players.find((p) => p.id === playerId)
@@ -277,7 +290,16 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
 
       {state && <PlayerDuel state={state} playerId={playerId} send={send} />}
 
-      {talk ? (
+      {moment === 'choice:picking' && myPick === undefined && !frozen && !spectator ? (
+        <div class="player__choices" data-review-id="phone:choices">
+          {round!.choices!.map((c, i) => (
+            <button key={i} class="btn player__choice" onClick={() => pick(i)}>
+              <span class="player__letter">{LETTERS[i]}</span>
+              {c}
+            </button>
+          ))}
+        </div>
+      ) : talk ? (
         <Talk
           playerId={playerId}
           until={round?.judge?.until}
@@ -291,7 +313,7 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
           data-review-id="phone:buzzer"
           class={`buzzer ${MOOD_CLASS[mood]}`}
           onPointerDown={buzz}
-          disabled={!open || barred || pressed || frozen || spectator}
+          disabled={!open || barred || pressed || frozen || spectator || choice}
         >
           {frozen ? <span class="buzzer__hit fx-wobble">{label}</span> : label}
           {sub && <span class="buzzer__sub">{sub}</span>}

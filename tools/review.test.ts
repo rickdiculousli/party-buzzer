@@ -135,6 +135,8 @@ test('review scenarios cover the main board and phone moments', async () => {
     'duel',
     'faceoff',
     'setlist-complete',
+    'choice-picking',
+    'choice-reveal',
     'ink-lobby',
     'ink-choosing',
     'ink-choose',

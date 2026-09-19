@@ -138,6 +138,21 @@ export function HostSetup({
             </label>
 
             <label class="field">
+              Choice time
+              <input
+                class="input input--num"
+                type="number"
+                min={5}
+                max={120}
+                value={state.choiceSec}
+                onInput={(e) =>
+                  act({ a: 'setChoiceTime', sec: Number((e.target as HTMLInputElement).value) })
+                }
+              />
+              <span class="muted">sec after the options are read</span>
+            </label>
+
+            <label class="field">
               Autoplay
               <input
                 type="checkbox"

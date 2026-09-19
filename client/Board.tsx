@@ -5,7 +5,8 @@ import { colorForPlayer, lockedNames, standings, willSeat } from './ui.ts'
 import { markGap, play, playSpaced, prime, startBed, stopBed, unlock } from './sound.ts'
 import { Votes } from './Votes.tsx'
 import { Spoken } from './Spoken.tsx'
-import { lastUp, wallOf, type Wall } from '../shared/wall.ts'
+import { lastUp, wallOf, type ChoiceWall, type Wall } from '../shared/wall.ts'
+import { LETTERS } from '../shared/choice.ts'
 import { isPenalty } from '../shared/protocol.ts'
 import { useReveal } from './useReveal.ts'
 import { COLLECT_MS, type BuzzEntry, type State } from '../shared/protocol.ts'
@@ -298,6 +299,49 @@ function NomList({
 }
 
 /**
+ * A choice question's options, in the band below the clue. The same grid
+ * stays up for the reveal: the right cell lights, the rest dim with their
+ * counts, and the room's winners sit under it.
+ */
+function Choices({ c, now }: { c: ChoiceWall; now: () => number }) {
+  const [, tick] = useState(0)
+  useEffect(() => {
+    if (c.closesAt === undefined || c.correct !== undefined) return
+    const id = setInterval(() => tick((n) => n + 1), 250)
+    return () => clearInterval(id)
+  }, [c.closesAt, c.correct])
+  const left = c.closesAt === undefined ? null : Math.max(0, Math.ceil((c.closesAt - now()) / 1000))
+  const revealed = c.correct !== undefined
+  return (
+    <div class="board__choices" data-review-id="board:choices">
+      <ol class="board__grid">
+        {c.options.map((o, i) => (
+          <li
+            key={i}
+            class={!revealed ? 'board__choice' : i === c.correct ? 'board__choice is-right fx-tada' : 'board__choice is-dim'}
+          >
+            <span class="board__letter">{LETTERS[i]}</span>
+            <span class="board__option">{o}</span>
+            {revealed && <span class="readout board__tally">{c.tally?.[i] ?? 0}</span>}
+          </li>
+        ))}
+      </ol>
+      {revealed ? (
+        !!c.winners?.length && (
+          <p class="board__winners">
+            {c.winners.map((n) => <span key={n} class="chip fx-pop">{n}</span>)}
+          </p>
+        )
+      ) : (
+        <p class="readout board__picking">
+          {c.in} of {c.of} in{left !== null && ` · ${left}s`}
+        </p>
+      )}
+    </div>
+  )
+}
+
+/**
  * The question on the wall, laid out whole from the first frame.
  *
  * The board is given the entire question at the arm and renders all of it; only
@@ -507,7 +551,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
           {/* Three lanes — what was said, the stamp, the answer — each held open
               by an invisible stand-in while the others are up, so one arriving
               never pushes another along. */}
-          {(w.transcript || w.award) && (
+          {(w.transcript || w.award) ? (
             <>
               {/* What was said, as the judge heard it — the award's evidence
                   while the points are up, and the whole story while a rebound
@@ -543,7 +587,14 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
                 <Held class="board__answer" />
               )}
             </>
-          )}
+          ) : w.choices?.correct !== undefined ? (
+            // A choice question pays the room, not a hero: the stamp says how
+            // many, and the grid below says who and what.
+            <p data-review-id="board:award" class="board__award fx-anchor">
+              {w.choices.winners?.length ? `+${w.choices.points} · ${w.choices.winners.length} right` : 'Nobody'}
+              {!!w.choices.winners?.length && <Burst kind="dust" from={['left', 'bottom', 'right']} />}
+            </p>
+          ) : null}
         </div>
 
         {/* One fixed lane: taller occupants grow upward out of it, so the
@@ -613,6 +664,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
           {/* `seen` still holds the previous count during render — the effect
               that advances it runs after. That is exactly the number a mark
               needs to know whether it arrived alone or in a crowd. */}
+          {w.choices && <Choices c={w.choices} now={now} />}
           {w.timeline && <Timeline state={state} round={round} enter={enter.current} />}
         </div>
 

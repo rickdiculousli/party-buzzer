@@ -142,6 +142,20 @@ export function makeReviewScenarios(): ReviewScenario[] {
     done: 0,
   }
 
+  const picking = question()
+  picking.round.kind = 'choice'
+  picking.round.fragments = ['Which planet has the most known moons?']
+  picking.round.whole = 'Which planet has the most known moons?'
+  picking.round.choices = ['Mars', 'Venus', 'Saturn', 'Jupiter']
+  picking.round.picks = { ada: 2, bo: 3 }
+  picking.round.closesAt = NOW + 12_000
+
+  const revealed = structuredClone(picking)
+  revealed.round.picks = { ada: 2, bo: 3, cy: 2 }
+  revealed.round.correct = 2
+  revealed.round.phase = 'IDLE'
+  revealed.scores = { ada: 1000, bo: 400, cy: 600 }
+
   const inkState = (phase: 'ready' | 'playing') => {
     const state = base()
     state.players = structuredClone(INK_PLAYERS)
@@ -182,6 +196,8 @@ export function makeReviewScenarios(): ReviewScenario[] {
     build('duel', 'Duel selection', duel, at()),
     build('faceoff', 'Face-off seated', faceoff, at()),
     build('setlist-complete', 'Setlist complete', spent, at()),
+    build('choice-picking', 'Choice question, picking', picking, at({ open: true })),
+    build('choice-reveal', 'Choice question, revealed', revealed, at()),
     build('ink-lobby', 'Ink teams forming', inkState('ready'), at()),
     ink('ink-choosing', 'Ink word choice', (game) => {
       game.play('di', { kind: 'pickWord', index: 2, at: 0 })
