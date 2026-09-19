@@ -315,6 +315,8 @@ export class Reader {
     this.publish({})
   }
 
+  closeChoice(): void {}
+
   resume(): void {
     this.paused = false
     this.publish({})

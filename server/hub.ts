@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { resolveBuzzes, type RawBuzz, type Resolved } from './resolve.ts'
 import { applyHostAction } from './state.ts'
-import { buzzBlockReason } from './eligibility.ts'
+import { buzzBlockReason, pickBlockReason } from './eligibility.ts'
 import { bump, lockedPlayerIds, scoreKey } from '../shared/scoring.ts'
 import { catalog, moduleFor } from './modes/index.ts'
 import { useItem } from './items.ts'
@@ -49,6 +49,8 @@ export type ReaderControls = {
   resume(): void
   stop(): void
   rewind(): void
+  /** End picking on the choice question being read. */
+  closeChoice(): void
 }
 
 export type HubOpts = {
@@ -263,6 +265,16 @@ export class Hub {
       if (duelAct(this.state, conn.playerId, name, data)) this.changed('duel')
       return
     }
+    // A pick belongs to a player, like an item.
+    if (name === 'pick') {
+      const round = this.state.round
+      if (!conn.playerId || typeof data !== 'number' || !Number.isInteger(data)) return
+      if (data < 0 || data >= (round.choices?.length ?? 0)) return
+      if (pickBlockReason(this.state, conn.playerId)) return
+      round.picks = { ...round.picks, [conn.playerId]: data }
+      this.changed('pick')
+      return
+    }
     if (conn.role !== 'host') return
     const round = this.state.round
     if (name === 'fragment' && typeof data === 'string') {
@@ -282,6 +294,12 @@ export class Hub {
       round.whole = data
     } else if (name === 'image' && typeof data === 'string') {
       round.image = data
+    } else if (name === 'choices' && Array.isArray(data)) {
+      round.choices = data.filter((c): c is string => typeof c === 'string')
+    } else if (name === 'closesAt' && typeof data === 'number') {
+      round.closesAt = data
+    } else if (name === 'closeChoice') {
+      this.reader?.closeChoice()
     } else if (name === 'revealAnswer' && typeof data === 'string') {
       round.answer = data
     } else if (name === 'judgeWindow') {
@@ -529,17 +547,22 @@ export class Hub {
     }
     if (conn.role !== 'player') return { ...this.state, game }
     const round = this.state.round
+    // Shown and choice questions are on the board whole from the arm, so the
+    // phone may have the same text; the mirror only governs read questions.
+    const mirror = this.state.mirrorFragments || !!round.kind
+    const mine = conn.playerId !== undefined ? round.picks?.[conn.playerId] : undefined
     return {
       ...this.state,
       game,
       round: {
         ...round,
         order: round.order.filter((b) => b.playerId === conn.playerId),
-        fragments: this.state.mirrorFragments ? round.fragments : undefined,
+        fragments: mirror ? round.fragments : undefined,
         // Unconditional, mirror or not: this is the unspoken remainder.
         whole: undefined,
-        image: this.state.mirrorFragments ? round.image : undefined,
+        image: mirror ? round.image : undefined,
         answer: this.state.mirrorFragments ? round.answer : undefined,
+        picks: mine === undefined ? undefined : { [conn.playerId!]: mine },
       },
       reading: undefined,
     }

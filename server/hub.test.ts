@@ -230,6 +230,7 @@ test('a selectPack that fails is logged, not thrown — the process must survive
       resume: () => {},
       stop: () => {},
       rewind: () => {},
+      closeChoice: () => {},
     },
   })
   const host: Conn = { id: 'h', role: 'host', send: () => {} }
@@ -364,4 +365,56 @@ test('lobby picks broadcast state and touches reach only the named audience', ()
   assert.deepEqual(boardMsgs, [expected])
   assert.deepEqual(adaMsgs, [expected])
   assert.deepEqual(boMsgs, [])
+})
+
+function pickRig() {
+  const state = newState()
+  const hub = new Hub(state, { collectMs: 30, revealMs: 10 })
+  const host: Conn = { id: 'h', role: 'host', send() {} }
+  const phone = (id: string): Conn => {
+    const conn: Conn = { id, playerId: id, role: 'player', send() {} }
+    hub.handle(conn, { t: 'hello', role: 'player', name: id, playerId: id })
+    return conn
+  }
+  const ada = phone('ada')
+  const bo = phone('bo')
+  hub.dispatch({ a: 'arm', kind: 'choice' })
+  state.round.armedAt = Date.now() - 10
+  return { state, hub, host, ada, bo }
+}
+
+test('a pick is taken once, only while picking is open, and a buzz is refused', () => {
+  const { state, hub, host, ada, bo } = pickRig()
+  hub.handle(ada, { t: 'act', act: 'pick', data: 0 })
+  assert.equal(state.round.picks, undefined, 'no pick before the choices are up')
+  hub.handle(host, { t: 'act', act: 'choices', data: ['Mars', 'Saturn'] })
+  hub.handle(ada, { t: 'act', act: 'pick', data: 1 })
+  hub.handle(ada, { t: 'act', act: 'pick', data: 0 })
+  hub.handle(bo, { t: 'act', act: 'pick', data: 7 })
+  assert.deepEqual(state.round.picks, { ada: 1 }, 'locked in; out of range ignored')
+  hub.handle(bo, { t: 'buzz', at: Date.now() })
+  assert.equal(state.round.phase, 'ARMED', 'nobody buzzes a choice question')
+  hub.handle(host, { t: 'act', act: 'closesAt', data: Date.now() - 1 })
+  hub.handle(bo, { t: 'act', act: 'pick', data: 0 })
+  assert.deepEqual(state.round.picks, { ada: 1 }, 'late pick ignored')
+})
+
+test('a phone sees only its own pick, and the text of a choice question without the mirror', () => {
+  const { state, hub, host, ada, bo } = pickRig()
+  hub.handle(host, { t: 'act', act: 'fragment', data: 'Which planet?' })
+  hub.handle(host, { t: 'act', act: 'choices', data: ['Mars', 'Saturn'] })
+  hub.handle(ada, { t: 'act', act: 'pick', data: 1 })
+  hub.handle(bo, { t: 'act', act: 'pick', data: 0 })
+  assert.equal(state.mirrorFragments, false)
+  const view = hub.viewFor(ada)
+  assert.deepEqual(view.round.picks, { ada: 1 })
+  assert.deepEqual(view.round.fragments, ['Which planet?'])
+  assert.deepEqual(view.round.choices, ['Mars', 'Saturn'])
+  assert.deepEqual(hub.viewFor(host).round.picks, { ada: 1, bo: 0 })
+})
+
+test('a phone may not publish choices', () => {
+  const { state, hub, ada } = pickRig()
+  hub.handle(ada, { t: 'act', act: 'choices', data: ['x', 'y'] })
+  assert.equal(state.round.choices, undefined)
 })

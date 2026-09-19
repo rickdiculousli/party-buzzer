@@ -102,7 +102,7 @@ test('undo publishes a complete restoration after stopping reader runtime', () =
   const hub = new Hub(state, { onChange: (s) => values.push(s.round.value) })
   const host: Conn = { id: 'reader', role: 'host', send() {} }
   hub.setReader({
-    async select() {}, start() {}, pause() {}, resume() {}, rewind() {},
+    async select() {}, start() {}, pause() {}, resume() {}, rewind() {}, closeChoice() {},
     stop() { hub.handle(host, { t: 'act', act: 'reading', data: undefined }) },
   })
   hub.dispatch({ a: 'setValue', value: 400 })
@@ -113,7 +113,7 @@ test('undo publishes a complete restoration after stopping reader runtime', () =
 test('preparing a minigame stops reader work before the new state is published', () => {
   const { state, hub, host, changes } = rig()
   let stopped = 0
-  hub.setReader({ async select() {}, start() {}, pause() {}, resume() {}, rewind() {}, stop() { stopped++ } })
+  hub.setReader({ async select() {}, start() {}, pause() {}, resume() {}, rewind() {}, closeChoice() {}, stop() { stopped++ } })
   hub.setMinigameRuntime({
     host() {
       state.minigame = { id: 'bow', matchId: 'm', phase: 'ready', options: { durationSec: 40, reloadMs: 700, seed: 1 }, participants: [] }
