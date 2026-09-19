@@ -331,7 +331,13 @@ export function wallOf(state: State, local: Local): Wall {
     // A miss holding the stage keeps the whole lower band out of the way, or
     // the room reads a warm-up bar counting down under the name it just cost.
     filament: !leader && isFamily(m, 'buzz'),
-    value: !leader && !penalised && (isFamily(m, 'buzz') || reading) ? r.value : null,
+    // Not while someone is answering or being judged: the stakes are for a
+    // question the room can still take, and a value up under a transcript
+    // flicked off again when the stamp landed.
+    value:
+      !leader && !penalised && !isFamily(m, 'answer') && !isFamily(m, 'verdict') && (isFamily(m, 'buzz') || reading)
+        ? r.value
+        : null,
   }
 }
 

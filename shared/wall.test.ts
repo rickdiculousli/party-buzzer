@@ -489,3 +489,15 @@ test('the finale tells each phone where it finished', () => {
   assert.equal(second.sub, '2nd place')
   assert.equal(phoneOf('idle:finale', { ...mine, place: 11 }).sub, '11th place')
 })
+
+test('the value stays down while an answer is typed and judged', () => {
+  const s = room()
+  s.readingActive = true
+  s.round.armedAt = 1
+  s.round.spoken = { name: 'Ada', transcript: 'the Atlantic', hit: false }
+  assert.equal(wallOf(s, { ...LOCAL, settled: false }).moment, 'answer:judging')
+  assert.equal(wallOf(s, { ...LOCAL, settled: false }).value, null)
+  s.round.held = true
+  s.round.award = { name: 'Ada', points: -100, penalty: true }
+  assert.equal(wallOf(s, LOCAL).value, null)
+})

@@ -439,17 +439,23 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   min-width: 0;
 }
 /*
- * The cue escalates through three sizes — "Ready" and "Stand by" at --t-mega,
- * "Buzz" at --t-hero — and the middle band is auto-height, so growing into the
- * big one would push the filament and the value down the screen at the exact
- * moment the room is watching them. One hero line reserved for all three keeps
- * the cue changing size inside a box that does not.
+ * The middle band is one fixed lane, a hero line tall, whatever holds it. The
+ * cue escalates through three sizes, a clue runs to several lines, and a
+ * picture question adds an image; a band that sized itself to them moved the
+ * filament and the value under it every time the stage changed hands. Taller
+ * occupants grow upward out of the lane instead (flex-end overflows at the
+ * start), and a shorter one sits in its middle on auto margins, which fall to
+ * zero as soon as it no longer fits.
  */
-.board__mid--cue {
-  min-height: calc(var(--t-hero) * 0.86); /* 0.86 is the hero's line-height. */
-  display: grid;
-  place-content: center;
+.board__mid {
+  height: calc(var(--t-hero) * 0.86); /* 0.86 is the hero's line-height. */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
 }
+/* Two classes deep so it outranks each occupant's own `margin: 0`. */
+.board__wall .board__mid > * { margin-block: auto; flex: none; }
 
 /* Each band grows away from the middle: the one above stacks upward from its
    bottom edge, the one below downward from its top. */

@@ -502,11 +502,9 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
           )}
         </div>
 
-        {/* The cue escalates through three sizes and the reserved line is what
-            keeps the band from growing under it; a name owning the stage does
-            not need it. Only the neutral hero — a penalty's name is a beat over
-            a question still in progress, and the band it sits in is the cue's. */}
-        <div class={w.hero?.tone === 'answering' || w.finale ? 'board__mid' : 'board__mid board__mid--cue'}>
+        {/* One fixed lane: taller occupants grow upward out of it, so the
+            filament and value below never move (style.css, .board__mid). */}
+        <div class="board__mid">
           {w.hero && <Hero {...w.hero} />}
           {w.finale && <Finale names={w.finale} />}
           {w.nominations && (
