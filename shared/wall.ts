@@ -198,11 +198,15 @@ export type Wall = {
 export type ChoiceWall = {
   options: string[]
   points: number
-  /** Everyone who may pick, and whether they have. Never which option. */
+  /**
+   * Everyone who may pick, in the order they picked, then those still out.
+   * Never which option: the board is in front of the room.
+   */
   pickers: { id: string; picked: boolean }[]
   closesAt?: number
   correct?: number
-  tally?: number[]
+  /** At the reveal: who picked each option, by player id. */
+  by?: string[][]
   winners?: string[]
 }
 
@@ -360,11 +364,15 @@ function choiceWall(state: State, m: Moment): ChoiceWall | null {
   return {
     options: r.choices,
     points: r.value,
-    pickers: pickers(state).map((id) => ({ id, picked: r.picks?.[id] !== undefined })),
+    // `picks` keeps insertion order, which is the order the room picked in.
+    pickers: [
+      ...picks.map(([id]) => ({ id, picked: true })),
+      ...pickers(state).filter((id) => r.picks?.[id] === undefined).map((id) => ({ id, picked: false })),
+    ],
     closesAt: r.closesAt,
     ...(r.correct !== undefined && {
       correct: r.correct,
-      tally: r.choices.map((_, i) => picks.filter(([, p]) => p === i).length),
+      by: r.choices.map((_, i) => picks.filter(([, p]) => p === i).map(([id]) => id)),
       winners: picks.filter(([, p]) => p === r.correct).map(([id]) => nameOf(id)),
     }),
   }

@@ -567,12 +567,12 @@ test('a choice question: listening, picking, reveal, with the clue in the middle
   assert.equal(w.hero, null)
 
   s.round.choices = ['Mars', 'Saturn']
-  s.round.picks = { a: 1 }
+  s.round.picks = { b: 1 }
   assert.equal(momentOf(s, LOCAL), 'choice:picking')
   w = wallOf(s, LOCAL)
   assert.deepEqual(w.choices, {
     options: ['Mars', 'Saturn'], points: 200, closesAt: undefined,
-    pickers: [{ id: 'a', picked: true }, { id: 'b', picked: false }],
+    pickers: [{ id: 'b', picked: true }, { id: 'a', picked: false }],
   })
   assert.ok(w.clue)
 
@@ -581,7 +581,7 @@ test('a choice question: listening, picking, reveal, with the clue in the middle
   s.round.phase = 'IDLE'
   assert.equal(momentOf(s, LOCAL), 'choice:reveal')
   w = wallOf(s, LOCAL)
-  assert.deepEqual(w.choices?.tally, [1, 1])
+  assert.deepEqual(w.choices?.by, [['b'], ['a']])
   assert.deepEqual(w.choices?.winners, ['Ada'])
   assert.equal(w.award, null)
   assert.equal(w.hero, null)

@@ -327,41 +327,41 @@ function Choices({ c, now, colorOf }: { c: ChoiceWall; now: () => number; colorO
   return (
     <div class="board__choices" data-review-id="board:choices">
       <div class="board__gridwrap">
-      {/* Who is in, never what they chose: a dot per picker, tucked behind
-          the grid's top edge, filling in their colour when they pick. */}
-      {!revealed && (
-        <ol class="board__pickers" data-review-id="board:pickers">
-          {c.pickers.map((p) => (
+        {/* While picking: a slot per player on the grid's top edge, filling
+            in their colour as they pick, so the room can see who is still
+            out without seeing what anyone chose. */}
+        {!revealed && (
+          <ol class="board__slots" data-review-id="board:pickers">
+            {c.pickers.map((p, i) => (
+              <li key={i} class="board__slot">
+                {p.picked && <span key={p.id} class="board__dot fx-pop" style={{ '--id': colorOf(p.id) }} />}
+              </li>
+            ))}
+          </ol>
+        )}
+        <ol class="board__grid">
+          {c.options.map((o, i) => (
             <li
-              key={p.id}
-              class={p.picked ? 'board__picker fx-pop' : 'board__picker is-waiting'}
-              style={{ '--id': colorOf(p.id) }}
-            />
+              key={i}
+              class={!revealed ? 'board__choice' : i === c.correct ? 'board__choice is-right fx-tada' : 'board__choice is-dim'}
+            >
+              {/* At the reveal each pick lands on the edge of its answer. */}
+              {revealed && !!c.by?.[i]?.length && (
+                <span class="board__who">
+                  {c.by[i].map((id) => (
+                    <span key={id} class="board__dot fx-pop" style={{ '--id': colorOf(id) }} />
+                  ))}
+                </span>
+              )}
+              <div class="board__cell">
+                <span class="board__letter">{LETTERS[i]}</span>
+                <span class="board__option">{o}</span>
+              </div>
+            </li>
           ))}
         </ol>
-      )}
-      <ol class="board__grid">
-        {c.options.map((o, i) => (
-          <li
-            key={i}
-            class={!revealed ? 'board__choice' : i === c.correct ? 'board__choice is-right fx-tada' : 'board__choice is-dim'}
-          >
-            <span class="board__letter">{LETTERS[i]}</span>
-            <span class="board__option">{o}</span>
-            {revealed && <span class="readout board__tally">{c.tally?.[i] ?? 0}</span>}
-          </li>
-        ))}
-      </ol>
       </div>
-      {revealed ? (
-        !!c.winners?.length && (
-          <p class="board__winners">
-            {c.winners.map((n) => <span key={n} class="chip fx-pop">{n}</span>)}
-          </p>
-        )
-      ) : (
-        left !== null && <FlipClock seconds={left} />
-      )}
+      {!revealed && left !== null && <FlipClock seconds={left} />}
     </div>
   )
 }
