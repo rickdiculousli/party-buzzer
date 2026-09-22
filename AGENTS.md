@@ -15,8 +15,6 @@ standings, leader, and hero describe different things.
 
 Historical plans under `docs/superpowers/` are context, not current contracts.
 Inspect actual call sites and tests before changing an established boundary.
-Preserve unrelated working-tree changes. Keep each requested task bounded,
-finish its validation, and report what changed and any remaining limitations.
 
 ## Implementation boundaries
 
@@ -45,10 +43,9 @@ finish its validation, and report what changed and any remaining limitations.
   from facts available to every role; a phone does not have the full order or
   private reader progress.
 
-Prefer a small explicit function or static registry over a new abstraction.
-Do not introduce an event bus, dependency container, storage layer, or framework
-just to connect existing components. Evaluate new dependencies as a deliberate
-project decision.
+Prefer a small explicit function or static registry over new abstractions
+(no event bus, container, or framework) and treat new dependencies as a project
+decision.
 
 ## Runtime and UI conventions
 
@@ -79,10 +76,8 @@ improvement that would make that path ordinary.
 
 ## Validation
 
-For behavior changes, add meaningful regression tests and validate after each
-completed task before proceeding to another. Test outcomes and boundaries,
-including timing or stale-work cases where relevant, rather than duplicating
-the implementation in assertions.
+Keep tests light: cover pure logic that could silently go wrong, including
+timing or stale-work cases where relevant. Skip tests for glue and UI.
 
 ```sh
 node --test server/resolve.test.ts   # focused example
@@ -99,7 +94,7 @@ Use injected speech, alignment, and transcription fakes for deterministic
 logic tests. Integration servers should use temporary persistence and
 `tls: false, transcribe: null` when native/network boot is not under test.
 Local socket tests need permission to bind; native speech tests may depend on
-macOS tools. Report blocked or skipped checks accurately.
+macOS tools.
 
 `npm start` serves the build in `dist/` and does not watch server changes.
 Vite's proxy currently supports an HTTP backend on 8080 and omits `/spoken`;
@@ -107,10 +102,6 @@ see the architecture guide before using HMR to test connected behavior.
 Simulation and walkthrough commands mutate the running room. Use a disposable
 room for them. Validate microphone, playback, and multi-device behavior with
 [the manual checklist](docs/manual-checklist.md) when affected.
-
-For documentation-only changes, check source claims, paths, commands, links,
-and `git diff --check`; a full behavioral suite is not required unless code
-also changes.
 
 ## Keep documentation useful
 
@@ -120,6 +111,5 @@ also changes.
 - `docs/design.md`: visual language and terminology.
 - `docs/question-styles/`: writing rules per question style, plus shared accepted-answer rules.
 
-Update the relevant guide when changing its contract. Describe the current
-implementation, distinguish limitations from intended behavior, and avoid
-pinning test counts or duplicating long source-level API inventories in prose.
+Update the relevant guide when changing its contract. Avoid pinning test
+counts or duplicating long source-level API inventories in prose.

@@ -9,6 +9,4 @@ commands, state, projections, playback, and persistence connect. Use
 [README.md](README.md) for running the app and
 [docs/design.md](docs/design.md) for visual conventions and canonical words.
 
-Keep common guidance in `AGENTS.md`; do not duplicate it here. Plans under
-`docs/superpowers/` describe earlier work and may contain superseded designs.
-Check the current code before following their implementation details.
+Keep common guidance in `AGENTS.md`; do not duplicate it here.
