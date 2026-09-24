@@ -150,5 +150,13 @@ export function willSeat(state: State): [ScoreKey, ScoreKey] | null {
 export function packLabel(state: State, pack: string): string {
   const cost = state.packCost[pack]
   if (cost === undefined) return pack
-  return cost ? `${pack} — ~${cost.toLocaleString()} credits` : `${pack} — paid`
+  return cost ? `${pack} — ~${credits(cost)} credits` : `${pack} — paid`
+}
+
+/**
+ * Characters to credits. ponytail: the rate v3 billed on this account in
+ * testing; an estimate, and it moves with the plan.
+ */
+export function credits(chars: number): string {
+  return Math.round(chars * 0.55).toLocaleString()
 }

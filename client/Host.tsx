@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'preact/hooks'
 import { useOpen, useSocket } from './useSocket.ts'
-import { REFUSAL_TEXT, colorForPlayer, playerName, standings } from './ui.ts'
+import { REFUSAL_TEXT, colorForPlayer, credits, playerName, standings } from './ui.ts'
 import { refuses } from '../shared/legality.ts'
 import { DuelPanel } from './DuelPanel.tsx'
 import { HostSetup } from './HostSetup.tsx'
@@ -443,7 +443,7 @@ export function Host() {
                   </button>
                 )}
                 {!state.readingActive && unpaid > 0 && (
-                  <span class="chip chip--data">~{unpaid.toLocaleString()} credits to read</span>
+                  <span class="chip chip--data">~{credits(unpaid)} credits to read</span>
                 )}
                 <button class="btn btn--ghost" onClick={() => fire('stopRead')} disabled={!state.reading}>
                   Stop
