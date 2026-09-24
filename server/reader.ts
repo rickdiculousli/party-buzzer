@@ -27,6 +27,8 @@ import type { Question } from '../shared/pack.ts'
 import type { State } from '../shared/protocol.ts'
 import { allPicked, optionsText } from '../shared/choice.ts'
 import type { Judge } from './judge.ts'
+import { Picker, poolScript, type Pools, type Span, type Verdict } from './quips.ts'
+import { isPenalty } from '../shared/protocol.ts'
 
 /**
  * Where the fragments and clauses fall inside a clip of the whole question.
@@ -48,6 +50,17 @@ export type ReaderOpts = {
    * time — which needs to know where the clauses are, which is this.
    */
   align?: Aligner
+  /**
+   * Speak a question's `S:` script, when it has one, in place of its fragments.
+   * Only for a voice that performs tags and stress — `say` would read the
+   * brackets aloud.
+   */
+  perform?: boolean
+  /**
+   * The verdict asides, for a performing voice. Each pool renders as one take;
+   * `cut` finds where each of its lines is spoken in it.
+   */
+  quips?: { pools: Pools; cut: (clipPath: string, lines: string[]) => (Span | undefined)[] }
   /** Observer for tests: every clip that starts playing, with its start time. */
   onClip?: (clip: Clip, startedAt: number) => void
   /**
@@ -112,6 +125,12 @@ export class Reader {
   /** The host's Close on the choice question being read. Reset per question. */
   private closeNow = false
   private playback: Playback | undefined
+  /**
+   * A quip, apart from `playback`: it plays over the payoff, where every state
+   * change would otherwise stop it as if it were the question being buzzed.
+   */
+  private quipback: Playback | undefined
+  private picker = new Picker()
   private loop: Promise<void> = Promise.resolve()
   private running = false
   private waiters = new Set<() => void>()
@@ -185,8 +204,9 @@ export class Reader {
    * fragment-at-a-time read sound chopped.
    */
   private textsFor(q: Question): string[] {
-    const question = this.opts.align ? [joinFragments(q.fragments).text] : q.fragments
-    return q.choices ? [...question, optionsText(q.choices)] : question
+    const question = this.opts.align ? [this.spoken(q)] : q.fragments
+    const reaction = this.opts.perform && q.reaction ? [q.reaction] : []
+    return [...question, ...(q.choices ? [optionsText(q.choices)] : []), ...reaction]
   }
 
   /**
@@ -218,7 +238,7 @@ export class Reader {
     // cache path at once, and `speech.render` has no lock of its own to protect
     // that write. Deduped across packs too, so a shared line renders once ever.
     const texts = [...new Set(questions.flatMap((q) => this.textsFor(q)))]
-    for (const text of texts) {
+    for (const text of [...texts, ...this.poolTexts()]) {
       if (this.ready.has(text)) continue
       this.ready.set(text, new Promise<void>((r) => this.resolvers.set(text, r)))
       this.queue.push(text)
@@ -298,11 +318,52 @@ export class Reader {
       } catch {
         continue
       }
-      const texts = new Set(questions.flatMap((q) => this.textsFor(q)))
+      const texts = new Set([...questions.flatMap((q) => this.textsFor(q)), ...this.poolTexts()])
       cost[name] = [...texts].reduce((n, t) => n + (cached(this.opts.cacheDir, t) ? 0 : t.length), 0)
     }
     this.hub.state.packCost = cost
     this.hub.broadcast()
+  }
+
+  /** Each quip pool as the one take it renders to. None without a performing voice. */
+  private poolTexts(): string[] {
+    const pools = this.opts.perform ? this.opts.quips?.pools : undefined
+    return pools ? Object.values(pools).filter((l) => l.length).map(poolScript) : []
+  }
+
+  /**
+   * Say something about the verdict, or nothing — the picker skips most. A
+   * question's own `R:` line always plays on a right answer. Resolves when the
+   * quip is over, so the caller does not start the next thing on top of it.
+   */
+  private async quip(v: Verdict, q?: Question): Promise<void> {
+    if (!this.opts.perform) return
+    let path: string | undefined
+    let span: Span | undefined
+    if (v === 'correct' && q?.reaction) {
+      path = this.clips.get(q.reaction)
+      this.picker.forced()
+    } else {
+      const quips = this.opts.quips
+      const lines = quips?.pools[v] ?? []
+      const i = this.picker.pick(v, lines)
+      if (!quips || i === undefined) return
+      path = this.clips.get(poolScript(lines))
+      span = path ? quips.cut(path, lines.map((l) => l.text))[i] : undefined
+      if (!span) return
+    }
+    if (!path) return
+    const pb = this.speech.play(path, span?.startMs ?? 0)
+    this.quipback = pb
+    let cut: NodeJS.Timeout | undefined
+    if (span) {
+      await pb.started
+      // A little past the last word, so the line's tail is not clipped.
+      cut = setTimeout(() => pb.stop(), span.endMs - span.startMs + 150)
+    }
+    await pb.done
+    clearTimeout(cut)
+    if (this.quipback === pb) this.quipback = undefined
   }
 
   /** Hold the loop until this question's audio exists. Usually already true. */
@@ -311,13 +372,18 @@ export class Reader {
     sig?.throwIfAborted()
   }
 
-  /** The fragments that joined to this text — needed to place their boundaries. */
-  private fragmentsFor(joinedText: string): string[] {
+  /** What is said for a question read in one breath: its script, or its fragments joined. */
+  private spoken(q: Question): string {
+    return (this.opts.perform && q.script) || joinFragments(q.fragments).text
+  }
+
+  /** The fragments behind this spoken text — needed to place their boundaries. */
+  private fragmentsFor(spokenText: string): string[] {
     for (const questions of this.loaded.values()) {
-      const q = questions.find((x) => joinFragments(x.fragments).text === joinedText)
+      const q = questions.find((x) => this.spoken(x) === spokenText)
       if (q) return q.fragments
     }
-    return [joinedText]
+    return [spokenText]
   }
 
   start(): void {
@@ -347,6 +413,7 @@ export class Reader {
     this.paused = true
     // Kill the clip; `speak` sees `paused` still set and holds, then replays it.
     this.playback?.stop()
+    this.quipback?.stop()
     this.publish({})
   }
 
@@ -365,6 +432,7 @@ export class Reader {
     this.session.abort()
     this.paused = false
     this.playback?.stop()
+    this.quipback?.stop()
     this.playback = undefined
     this.opts.judge?.unprime()
     this.hub.send(this.conn, { t: 'act', act: 'reading', data: undefined })
@@ -531,6 +599,10 @@ export class Reader {
         if (stillMine() && (this.hub.state.round.award || deadAir)) {
           this.hub.send(this.conn, { t: 'act', act: 'revealAnswer', data: q.answer })
         }
+        const award = this.hub.state.round.award
+        const said = stillMine()
+          ? this.quip(award && !isPenalty(award) ? 'correct' : deadAir ? 'nobody' : 'wrong', q)
+          : Promise.resolve()
         // Let the payoff sit on the wall; the host's N clears it and releases us —
         // under autoplay the reader presses N itself once the dwell is up.
         await this.until(
@@ -541,6 +613,9 @@ export class Reader {
         if (!stillMine() && this.hub.state.round.questionId) {
           throw new DOMException('Question replaced', 'AbortError')
         }
+        // The quip runs over the dwell, not after it — but the next question
+        // never starts on top of its tail.
+        await said
         if (stillMine() && (this.hub.state.round.award || deadAir)) {
           this.hub.dispatch({ a: 'next' })
         }
@@ -592,7 +667,7 @@ export class Reader {
       this.fragIndex = q.fragments.length
       this.publish({})
     }
-    const whole = this.aligned.get(j.text)
+    const whole = this.aligned.get(this.spoken(q))
 
     if (whole) {
       // One clip, revealed a clause at a time as the voice reaches each one.
@@ -841,8 +916,12 @@ export class Reader {
     )
     const auto = this.hub.state.autoplay
     if (this.hub.state.round.held) {
+      // The miss gets its quip in the beat before the rebound opens, and the
+      // rebound waits for it: a live buzzer under the host's voice is a race.
+      const said = this.quip('wrong')
       // Ends early if anything else takes the round — a host arming, an undo.
       await this.until((s) => !s.round.held, auto.reboundSec * 1000, sig)
+      await said
       if (this.hub.state.round.held) {
         this.hub.dispatch({ a: 'rebound' })
       }

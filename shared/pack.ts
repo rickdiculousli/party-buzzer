@@ -8,6 +8,12 @@
  *   K: shown                         optional; on the board whole, still read aloud
  *   C: Mars | Venus | Saturn         optional; makes a multiple-choice question,
  *                                    and A: must equal one choice
+ *   S: [curious] This composer...    optional; the performed read — tags,
+ *                                    stress, ad-libs — spoken in place of the
+ *                                    fragments by a paid voice; the board
+ *                                    still shows the fragments
+ *   R: [sarcastic] Oh, Vivaldi...     optional; a paid voice says it when
+ *                                    the question is answered right
  *   A: The answer | an alternate      required, so the host can judge
  *
  *   Blank line separates questions.
@@ -29,6 +35,10 @@ export type Question = {
   choices?: string[]
   /** Index into `choices` of the right one. Set exactly when `choices` is. */
   correct?: number
+  /** What a paid voice speaks instead of the fragments. Must say their words in order. */
+  script?: string
+  /** What a paid voice says when this question is answered right. */
+  reaction?: string
 }
 export type PackResult = { questions: Question[]; errors: string[] }
 
@@ -43,10 +53,12 @@ export function parsePack(text: string): PackResult {
   let kind: 'shown' | undefined
   let choices: string[] | undefined
   let kindError: string | undefined
+  let script: string | undefined
+  let reaction: string | undefined
   let startLine = 0
 
   const flush = () => {
-    if (value === undefined && fragments.length === 0 && !answer && !image && !kind && !choices && !kindError) return
+    if (value === undefined && fragments.length === 0 && !answer && !image && !kind && !choices && !kindError && !script && !reaction) return
     if (kindError) {
       errors.push(kindError)
     } else if (fragments.length === 0 || !answer) {
@@ -60,10 +72,10 @@ export function parsePack(text: string): PackResult {
       } else if (correct < 0) {
         errors.push(`line ${startLine}: A: must equal one of the C: choices`)
       } else {
-        questions.push({ value, fragments, answer, answers: variants, kind: 'choice', choices, correct, ...(image && { image }) })
+        questions.push({ value, fragments, answer, answers: variants, kind: 'choice', choices, correct, ...(image && { image }), ...(script && { script }), ...(reaction && { reaction }) })
       }
     } else {
-      questions.push({ value, fragments, answer, answers: variants, ...(kind && { kind }), ...(image && { image }) })
+      questions.push({ value, fragments, answer, answers: variants, ...(kind && { kind }), ...(image && { image }), ...(script && { script }), ...(reaction && { reaction }) })
     }
     value = undefined
     fragments = []
@@ -73,6 +85,8 @@ export function parsePack(text: string): PackResult {
     kind = undefined
     choices = undefined
     kindError = undefined
+    script = undefined
+    reaction = undefined
   }
 
   text.split('\n').forEach((raw, i) => {
@@ -103,6 +117,17 @@ export function parsePack(text: string): PackResult {
       const k = line.slice(2).trim()
       if (k === 'shown') kind = 'shown'
       else if (k !== 'read') kindError = `line ${n}: K: must be read or shown; a C: line makes a choice question`
+      if (fragments.length === 0) startLine = n
+      return
+    }
+    if (line.startsWith('S:')) {
+      // Several S: lines are one script, so a long performance can wrap.
+      script = script ? `${script} ${line.slice(2).trim()}` : line.slice(2).trim()
+      if (fragments.length === 0) startLine = n
+      return
+    }
+    if (line.startsWith('R:')) {
+      reaction = line.slice(2).trim()
       if (fragments.length === 0) startLine = n
       return
     }

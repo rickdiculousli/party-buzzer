@@ -143,3 +143,13 @@ A: a
   assert.match(errors[3], /K: shown/)
   assert.match(errors[4], /K: must be read or shown/)
 })
+
+test('S: lines are one performed script, kept beside the fragments', () => {
+  const { questions, errors } = parsePack(`Plain one. / Plain two.
+S: [curious] Plain ONE...
+S: and get this — plain twooo!
+A: x`)
+  assert.deepEqual(errors, [])
+  assert.deepEqual(questions[0].fragments, ['Plain one.', 'Plain two.'])
+  assert.equal(questions[0].script, '[curious] Plain ONE... and get this — plain twooo!')
+})

@@ -14,7 +14,8 @@ import { transcribePool, sttBinary, transcribe as sttTranscribe } from './stt.ts
 import { locate } from './align.ts'
 import type { Aligner } from './reader.ts'
 import { render as renderClip, play as playClip, type Speech } from './speech.ts'
-import { synthesize, timedFor, folds, takePath } from './eleven.ts'
+import { synthesize, timedFor, folds, takePath, spans } from './eleven.ts'
+import { parsePools } from './quips.ts'
 import { lanAddresses, pickAddress, banner, link, qrFor, qrSvg } from './net.ts'
 import { certHost, ensureCert } from './cert.ts'
 import type { ClientMsg } from '../shared/protocol.ts'
@@ -164,12 +165,14 @@ export async function startServer(opts: {
           render: (dir, text, voice) =>
             synthesize(dir, text, elevenVoice, elevenKey).catch((e) => {
               console.warn(`[speech] elevenlabs failed, falling back to say — ${e}`)
-              return renderClip(dir, text, voice)
+              // A script's tags are directions, not words; `say` would read them.
+              return renderClip(dir, text.replace(/\[[^\]]*\]\s*/g, ''), voice)
             }),
           play: playClip,
           cached: (dir, text) => existsSync(takePath(dir, text, elevenVoice)),
         }
       : undefined
+  const poolsPath = join(packDir, 'quips', 'pools.txt')
   const align: Aligner | undefined = speech
     ? async (joined, clip) => {
         const timed = timedFor(clip.path)
@@ -178,7 +181,24 @@ export async function startServer(opts: {
       }
     : sttAlign
 
-  const reader = new Reader(hub, { packDir, cacheDir: join(packDir, '.cache'), speech, judge, align, nextCardMs: 2000 })
+  const reader = new Reader(hub, {
+    packDir,
+    cacheDir: join(packDir, '.cache'),
+    speech,
+    perform: !!speech,
+    quips: speech && existsSync(poolsPath)
+      ? {
+          pools: parsePools(await readFile(poolsPath, 'utf8')),
+          cut: (path, lines) => {
+            const timed = timedFor(path)
+            return timed ? spans(timed, lines) : []
+          },
+        }
+      : undefined,
+    judge,
+    align,
+    nextCardMs: 2000,
+  })
   hub.setReader(reader)
   reader.priceUp()
   // The three subscribers to a state change: the snapshot, the reader's waits,

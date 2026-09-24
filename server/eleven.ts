@@ -81,7 +81,9 @@ function tokens(text: string): { word: string; at: number; end: number }[] {
   const bare = text.replace(/\[[^\]]*\]/g, (t) => ' '.repeat(t.length))
   const out: { word: string; at: number; end: number }[] = []
   for (const m of bare.matchAll(/\S+/g)) {
-    const word = norm(m[0])
+    // Doubled letters collapse on both sides, so a stretched "Reeed" still
+    // matches the "Red" it performs.
+    const word = norm(m[0]).replace(/(.)\1+/g, '$1')
     if (word) out.push({ word, at: m.index, end: m.index + m[0].length })
   }
   return out

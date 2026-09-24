@@ -1,7 +1,11 @@
 V: 400
 This composer wrote the Four Seasons. / He was known in Venice as the Red Priest. / He taught at an orphanage there for thirty years.
+S: This composer wrote the Four Seasons. He was known in Venice as the Red Priest.
+S: He taught at an orphanage there for thirty years. [sarcastic] Thirty years of ... [sharply] yeesh. What a saint. Hell no.
+R: [sarcastic] Oh, Vivaldi, wow, look who took music appreciation. Want a gold star?
 A: Vivaldi | Antonio Vivaldi
 
 V: 400
 This is the only mammal that truly flies. / It finds its way by echolocation. / It roosts upside down.
+R: [deadpan] Bats. Congratulations. You know what a bat is. [muttering] Truly the future of this nation.
 A: bat | bats | the bat

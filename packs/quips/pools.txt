@@ -1,0 +1,25 @@
+# The host's asides after a verdict, for a performing voice (ElevenLabs).
+# Each pool renders as one take; editing any line re-renders its pool.
+# ★ marks a sincere line — it plays a quarter as often.
+
+# correct
+[sarcastic] Oh, great, a genius. Just what this room needed.
+[deadpan] Correct. Somebody's mom is so proud.
+[sarcastic] Wow. You read a book once. Incredible.
+[mocking] Hell yeah, nerd. Real proud of you.
+[deadpan] Fine. Correct. Don't let it go to your head.
+★ [impressed] Well, shit. That was actually good.
+
+# wrong
+[sarcastic] Wow. Bold. Wrong, but bold.
+[mocking] Oh, buddy. Oh, sweetie. No.
+[deadpan] No. Absolutely not. Sit your ass down.
+[laughs] Confidently wrong. Love that for you.
+[strained groan] Jesus. What? Why?
+★ [sighs] Ugh, so close. Damn.
+
+# nobody
+[sarcastic] [staccato] No one? Cool. Great. Love the energy.
+[deadpan] Crickets. [sharp inhale] [quick groan] Riveting stuff, people.
+[mocking] Too scared? Yeah. Yeah, I get it.
+★ [sighs] Honestly? Fair. That one was brutal.

@@ -162,6 +162,15 @@ picking**). Every right pick scores the round value; a wrong one costs
 nothing. `A:` must equal one of the choices. Shown and choice text reaches
 phones whatever the mirror setting. See [the mixed pack](packs/mixed.txt).
 
+Set `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` and ElevenLabs v3 reads the
+questions instead of `say`; the host's pack picker shows what each pack still
+costs to render, and a rendered line is cached and never billed again. With it
+set, an `S:` line gives a question a performed read —
+v3 audio tags, CAPS stress, stretched words, ad-libs — spoken in place of the
+fragments, which still go up on the board in time with it. The script must
+say the fragments' words in order; anything around them is stepped over.
+`say` ignores it.
+
 Local speech uses macOS tools and optional Swift helpers. Without speech
 support, text still progresses silently. Browser cues play separately on the
 phones and board; the question voice plays on the server machine.

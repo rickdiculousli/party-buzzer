@@ -213,3 +213,48 @@ test('a paid voice prices each pack at the characters it has not rendered yet', 
   reader.priceUp()
   assert.deepEqual(state.packCost, { 'one.txt': 0 })
 })
+
+test('a performing voice speaks the S: script and folds it against the fragments', { timeout: 3000 }, async () => {
+  const packDir = mkdtempSync(pathJoin(tmpdir(), 'pb-script-'))
+  const script = '[curious] First one, with a clause. [excited] and get this — Second one!'
+  writeFileSync(pathJoin(packDir, 'one.txt'), `V: 300\n${FRAGMENTS.join(' / ')}\nS: ${script}\nA: gold\n`)
+  const state = newState()
+  const hub = new Hub(state, { packDir })
+  const { speech, plays } = heldSpeech()
+  const aligned: string[] = []
+  const reader = new Reader(hub, {
+    packDir,
+    cacheDir: pathJoin(packDir, '.cache'),
+    speech,
+    perform: true,
+    align: async (j, clip) => {
+      aligned.push(`${j.text} <- ${clip.path}`)
+      return foldsFor()(j, clip)
+    },
+  })
+  hub.setOnChange((s) => reader.onStateChange(s))
+  await reader.select('one.txt')
+  reader.start()
+  while (plays.length < 1) await settle(5)
+  reader.stop()
+  assert.deepEqual(aligned, [`${join(FRAGMENTS).text} <- /fake/${script}`])
+  assert.equal(plays[0]?.path, `/fake/${script}`)
+})
+
+test('a performing voice prices in R: lines and the quip pools', () => {
+  const packDir = mkdtempSync(pathJoin(tmpdir(), 'pb-quip-price-'))
+  writeFileSync(pathJoin(packDir, 'one.txt'), `V: 300\n${FRAGMENTS.join(' / ')}\nR: Nice.\nA: gold\n`)
+  const state = newState()
+  const hub = new Hub(state, { packDir })
+  const { speech } = heldSpeech()
+  const reader = new Reader(hub, {
+    packDir,
+    cacheDir: pathJoin(packDir, '.cache'),
+    speech: { ...speech, cached: () => false },
+    align: foldsFor(),
+    perform: true,
+    quips: { pools: { correct: [{ text: 'Wow.', sincere: false }], wrong: [], nobody: [] }, cut: () => [] },
+  })
+  reader.priceUp()
+  assert.equal(state.packCost['one.txt'], join(FRAGMENTS).text.length + 'Nice.'.length + 'Wow.'.length)
+})

@@ -60,3 +60,9 @@ test("an ad-lib sharing a clause's first word does not take its fold", () => {
   const f = folds(join(['Won the prize,', 'and is best known for relativity.']), timed(script))
   assert.equal(f[1].ms, script.indexOf('and is') * 10)
 })
+
+test('a stretched or stressed word still matches the plain word it performs', () => {
+  const script = 'Known as the REEED Priiiest, for *thirty* years.'
+  const [s] = spans(timed(script), ['the Red Priest,'])
+  assert.equal(s?.startMs, script.indexOf('the') * 10)
+})
