@@ -270,6 +270,7 @@ export function Host() {
   const block = state.setlist?.blocks[state.setlist.at]
   // Something to read: the block's pack under a setlist, the chosen one without.
   const readable = setlist ? !!block?.pack : !!state.reading?.pack
+  const unpaid = state.packCost[(setlist ? block?.pack : state.reading?.pack) ?? ''] ?? 0
 
   return (
     <main class="host">
@@ -440,6 +441,9 @@ export function Host() {
                   <button class="btn btn--primary" disabled={!readable} onClick={() => fire('read')}>
                     Read
                   </button>
+                )}
+                {!state.readingActive && unpaid > 0 && (
+                  <span class="chip chip--data">~{unpaid.toLocaleString()} credits to read</span>
                 )}
                 <button class="btn btn--ghost" onClick={() => fire('stopRead')} disabled={!state.reading}>
                   Stop

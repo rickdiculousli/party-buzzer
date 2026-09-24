@@ -247,6 +247,7 @@ export class Reader {
           this.rendered = 0
           this.renderTotal = 0
           this.publish({ rendering: undefined })
+          this.priceUp()
         }
       })
     }
@@ -279,6 +280,29 @@ export class Reader {
         this.publish({ rendering: { done: this.rendered, total: this.renderTotal } })
       }
     }
+  }
+
+  /**
+   * What each pack's next read would be billed for, on the host screen before
+   * anyone presses Read. Counted from the same texts `ensure` renders, so the
+   * number is what gets sent. Re-run whenever rendering drains.
+   */
+  priceUp(): void {
+    const cached = this.speech.cached
+    if (!cached) return
+    const cost: Record<string, number> = {}
+    for (const name of this.hub.state.packs) {
+      let questions: Question[]
+      try {
+        questions = loadPack(this.opts.packDir, name).questions
+      } catch {
+        continue
+      }
+      const texts = new Set(questions.flatMap((q) => this.textsFor(q)))
+      cost[name] = [...texts].reduce((n, t) => n + (cached(this.opts.cacheDir, t) ? 0 : t.length), 0)
+    }
+    this.hub.state.packCost = cost
+    this.hub.broadcast()
   }
 
   /** Hold the loop until this question's audio exists. Usually already true. */

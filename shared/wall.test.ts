@@ -24,6 +24,7 @@ function room(): State {
     setlists: [],
     packs: [],
     packSizes: {},
+    packCost: {},
     mirrorFragments: false,
     answerWindowSec: 0,
     choiceSec: 20,

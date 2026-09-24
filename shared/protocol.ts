@@ -496,6 +496,11 @@ export type State = {
   packs: string[]
   /** Questions per pack. A count is not content, and the builder needs it. */
   packSizes: Record<string, number>
+  /**
+   * Characters per pack that a paid voice has not rendered yet — what its next
+   * read will be billed for. 0 is paid for. Empty when the voice is free.
+   */
+  packCost: Record<string, number>
   /** Whether players see round.fragments. Off for quizbowl: reading a whole
    *  sentence at its start beats hearing it word by word. */
   mirrorFragments: boolean

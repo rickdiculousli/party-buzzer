@@ -39,6 +39,7 @@ export function newState(): State {
     setlists: [],
     packs: [],
     packSizes: {},
+    packCost: {},
     mirrorFragments: false,
     // Ten seconds of silence is a stall. Only ever read by the judge, which
     // only runs while the reader drives a pack, so host-read games never feel it.
@@ -563,6 +564,7 @@ export function loadState(path: string): State {
     loaded.duelRules = []
     loaded.packs = []
     loaded.packSizes = {}
+    loaded.packCost = {}
     loaded.setlists = []
     // A reader is never mid-pack on a fresh boot — the Reader instance that
     // would drive it is built fresh too. Without this, a stale `running: true`

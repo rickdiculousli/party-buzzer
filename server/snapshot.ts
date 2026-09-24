@@ -3,7 +3,7 @@ import type { State } from '../shared/protocol.ts'
 
 /** Undo owns game data, not connections, catalogs, or playback. */
 export function gameSnapshot(state: State) {
-  const { reading, readingActive, games, duelRules, packs, packSizes, setlists, ...game } = state
+  const { reading, readingActive, games, duelRules, packs, packSizes, packCost, setlists, ...game } = state
   const snapshot = structuredClone(game)
   delete snapshot.round.judge
   return {
@@ -20,7 +20,7 @@ export function restoreGame(state: State, snapshot: GameSnapshot): void {
   const joined = state.players.filter((p) => !snapshot.players.some((old) => old.id === p.id))
   const scores = Object.fromEntries(joined.map((p) => [p.id, state.scores[p.id] ?? 0]))
   const restored = structuredClone(snapshot)
-  const runtime = new Set(['games', 'duelRules', 'packs', 'packSizes', 'setlists'])
+  const runtime = new Set(['games', 'duelRules', 'packs', 'packSizes', 'packCost', 'setlists'])
   for (const key of Object.keys(state)) {
     if (!runtime.has(key)) Reflect.deleteProperty(state, key)
   }

@@ -1,7 +1,7 @@
 import { useState } from 'preact/hooks'
 import type { SetlistBlock, HostAction, State } from '../shared/protocol.ts'
 import { OptionField, defaultsOf } from './GameSettings.tsx'
-import { REFUSAL_TEXT } from './ui.ts'
+import { REFUSAL_TEXT, packLabel } from './ui.ts'
 import { refuses } from '../shared/legality.ts'
 
 /**
@@ -188,7 +188,7 @@ export function SetlistPanel({
                 >
                   <option value="">You read it</option>
                   {state.packs.map((p) => (
-                    <option key={p} value={p}>{p}</option>
+                    <option key={p} value={p}>{packLabel(state, p)}</option>
                   ))}
                 </select>
               </label>

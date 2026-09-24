@@ -25,6 +25,8 @@ export type Playback = {
 export type Speech = {
   render(cacheDir: string, text: string, voice?: string): Promise<Clip>
   play(path: string, fromMs?: number): Playback
+  /** Only on a paid voice: whether this text is already rendered, and so free. */
+  cached?(cacheDir: string, text: string): boolean
 }
 
 export function clipPath(cacheDir: string, text: string, voice?: string): string {

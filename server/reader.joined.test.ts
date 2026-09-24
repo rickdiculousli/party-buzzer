@@ -193,3 +193,23 @@ test('an interruption picks the clause up again rather than the question', async
   )
   reader.stop()
 })
+
+test('a paid voice prices each pack at the characters it has not rendered yet', () => {
+  const packDir = mkdtempSync(pathJoin(tmpdir(), 'pb-price-'))
+  writeFileSync(pathJoin(packDir, 'one.txt'), PACK)
+  const state = newState()
+  const hub = new Hub(state, { packDir })
+  const paid = new Set<string>()
+  const { speech } = heldSpeech()
+  const reader = new Reader(hub, {
+    packDir,
+    cacheDir: pathJoin(packDir, '.cache'),
+    speech: { ...speech, cached: (_dir, text) => paid.has(text) },
+    align: foldsFor(),
+  })
+  reader.priceUp()
+  assert.deepEqual(state.packCost, { 'one.txt': join(FRAGMENTS).text.length })
+  paid.add(join(FRAGMENTS).text)
+  reader.priceUp()
+  assert.deepEqual(state.packCost, { 'one.txt': 0 })
+})

@@ -142,3 +142,13 @@ export function willSeat(state: State): [ScoreKey, ScoreKey] | null {
   const second = ranked.find((id) => id !== first && teamOf(id) !== teamOf(first))
   return second ? [first, second] : null
 }
+
+/**
+ * A pack as a picker names it: with what its next read costs on a paid voice,
+ * so a bill is never a surprise. A free voice leaves the name bare.
+ */
+export function packLabel(state: State, pack: string): string {
+  const cost = state.packCost[pack]
+  if (cost === undefined) return pack
+  return cost ? `${pack} — ~${cost.toLocaleString()} credits` : `${pack} — paid`
+}

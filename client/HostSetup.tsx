@@ -1,6 +1,6 @@
 import { GameSettings } from './GameSettings.tsx'
 import { SetlistPanel } from './SetlistPanel.tsx'
-import { REFUSAL_TEXT } from './ui.ts'
+import { REFUSAL_TEXT, packLabel } from './ui.ts'
 import { refuses } from '../shared/legality.ts'
 import type { HostAction, State } from '../shared/protocol.ts'
 
@@ -107,7 +107,7 @@ export function HostSetup({
               >
                 <option value="">Choose a pack…</option>
                 {state.packs.map((p) => (
-                  <option key={p} value={p}>{p}</option>
+                  <option key={p} value={p}>{packLabel(state, p)}</option>
                 ))}
               </select>
               {packBlocked && <p class="muted">{REFUSAL_TEXT['not-idle']}</p>}
