@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { createServer as createSecureServer } from 'node:https'
 import { readFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import { join, extname, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
@@ -12,7 +13,8 @@ import { Judge, type Transcribe } from './judge.ts'
 import { transcribePool, sttBinary, transcribe as sttTranscribe } from './stt.ts'
 import { locate } from './align.ts'
 import type { Aligner } from './reader.ts'
-import { render as renderClip } from './speech.ts'
+import { render as renderClip, play as playClip, type Speech } from './speech.ts'
+import { synthesize, timedFor, folds, takePath } from './eleven.ts'
 import { lanAddresses, pickAddress, banner, link, qrFor, qrSvg } from './net.ts'
 import { certHost, ensureCert } from './cert.ts'
 import type { ClientMsg } from '../shared/protocol.ts'
@@ -139,7 +141,7 @@ export async function startServer(opts: {
   // is how it always sounded.
   const sttDir = join(ROOT, 'server/stt')
   const alignBin = realStt ? await sttBinary(sttDir) : null
-  const align: Aligner | undefined = alignBin
+  const sttAlign: Aligner | undefined = alignBin
     ? async (joined, clip) => {
         const pool = transcribePool(alignBin, clip.path)
         try {
@@ -150,8 +152,35 @@ export async function startServer(opts: {
       }
     : undefined
 
-  const reader = new Reader(hub, { packDir, cacheDir: join(packDir, '.cache'), judge, align, nextCardMs: 2000 })
+  // ElevenLabs reads the questions when both are set. The voice is the opt-in,
+  // not the key: every new line is a paid take, so a key in the shell must not
+  // be enough to start spending. A take that fails falls back to `say`, and its
+  // clip, having no character times, falls back to the speech-recognition fold.
+  const elevenKey = process.env.ELEVENLABS_API_KEY
+  const elevenVoice = process.env.ELEVENLABS_VOICE_ID
+  const speech: Speech | undefined =
+    elevenKey && elevenVoice
+      ? {
+          render: (dir, text, voice) =>
+            synthesize(dir, text, elevenVoice, elevenKey).catch((e) => {
+              console.warn(`[speech] elevenlabs failed, falling back to say — ${e}`)
+              return renderClip(dir, text, voice)
+            }),
+          play: playClip,
+          cached: (dir, text) => existsSync(takePath(dir, text, elevenVoice)),
+        }
+      : undefined
+  const align: Aligner | undefined = speech
+    ? async (joined, clip) => {
+        const timed = timedFor(clip.path)
+        if (timed) return folds(joined, timed)
+        return sttAlign ? sttAlign(joined, clip) : []
+      }
+    : sttAlign
+
+  const reader = new Reader(hub, { packDir, cacheDir: join(packDir, '.cache'), speech, judge, align, nextCardMs: 2000 })
   hub.setReader(reader)
+  reader.priceUp()
   // The three subscribers to a state change: the snapshot, the reader's waits,
   // and the judge's window.
   hub.setOnChange((s) => {

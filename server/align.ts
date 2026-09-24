@@ -109,7 +109,7 @@ export function words(text: string): { word: string; at: number }[] {
  * comes back as `Dvořák`, and stripping non-ASCII without decomposing would
  * leave `dvok` against `dvorak`.
  */
-function norm(s: string): string {
+export function norm(s: string): string {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '')
 }
 

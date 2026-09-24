@@ -28,6 +28,7 @@ server/play/play
 .claude/worktrees/
 .claude/settings.local.json
 trace.jsonl
+.envrc
 .review/
 test-results/
 playwright-report/
