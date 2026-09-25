@@ -1,24 +1,22 @@
-import { GameSettings } from './GameSettings.tsx'
+import { useState } from 'preact/hooks'
+import { GameSettings, OptionField } from './GameSettings.tsx'
 import { SetlistPanel } from './SetlistPanel.tsx'
-import { REFUSAL_TEXT, packLabel } from './ui.ts'
+import { REFUSAL_TEXT, colorForPlayer, packLabel, playerName, standings } from './ui.ts'
+import { MINIGAME_INFO } from './minigame-info.ts'
 import { refuses } from '../shared/legality.ts'
-import type { HostAction, State } from '../shared/protocol.ts'
+import { MINIGAME_OPTIONS } from '../shared/protocol.ts'
+import type { HostAction, MinigameId, ScoreKey, State } from '../shared/protocol.ts'
+
+type Act = (a: HostAction) => void
+type Fire = (a: string, data?: unknown) => void
 
 /**
- * Setup, not play. Folded away so the controls on the host's main panel stay
- * the whole screen. How the night runs comes first, because it decides what
- * the rest of this panel is even allowed to show.
+ * The Games tab: every game the night can play, each folded to one line until
+ * the host opens it. The quiz is one entry among the minigames, not the frame
+ * around them. `name` makes the folds an accordion, so one game's settings are
+ * on screen at a time.
  */
-export function HostSetup({
-  state,
-  act,
-  fire,
-}: {
-  state: State
-  act: (a: HostAction) => void
-  fire: (a: string, data?: unknown) => void
-}) {
-  const { round } = state
+export function HostGames({ state, act, fire, play }: { state: State; act: Act; fire: Fire; play: () => void }) {
   const setlist = !!state.setlist
 
   // Both "how the night runs" buttons send `setSetlist`, and its legality does
@@ -28,18 +26,11 @@ export function HostSetup({
 
   // The pack picker's own, because the table cannot hold it — see the comment on
   // the control itself. The identity is restated here; the words are not.
-  const packBlocked = round.phase !== 'IDLE'
+  const packBlocked = state.round.phase !== 'IDLE'
+  const mode = state.games.find((g) => g.id === state.game.id)?.name
 
   return (
-    <details class="host__manage">
-      <summary>
-        Setup · {setlist ? 'Setlist' : 'Direct play'} ·{' '}
-        {setlist
-          ? `${state.setlist!.blocks.length} block${state.setlist!.blocks.length === 1 ? '' : 's'}`
-          : state.games.find((g) => g.id === state.game.id)?.name}{' '}
-        · {state.players.length} joined
-      </summary>
-
+    <>
       <section>
         <p class="eyebrow">How the night runs</p>
         <div class="host__pick">
@@ -73,55 +64,113 @@ export function HostSetup({
         </div>
         <p class="muted">
           {setlist
-            ? 'Each block carries its own game and pack. Switching to direct play discards the setlist.'
-            : 'You pick the game and the pack, and drive the night by hand.'}
+            ? 'Each block carries its own game, quiz or minigame. Switching to direct play discards the setlist.'
+            : 'You pick each game and drive the night by hand.'}
         </p>
         {howRefusal && <p class="muted">{REFUSAL_TEXT[howRefusal]}</p>}
       </section>
 
-      {setlist ? (
-        <SetlistPanel state={state} act={act} fire={fire} />
-      ) : (
-        <>
-          <GameSettings state={state} act={act} />
-          {state.packs.length > 0 && (
-            <section>
-              <p class="eyebrow">Pack</p>
-              {/* The one control on this panel the table cannot speak for.
-                  `selectPack` rides the `act` channel, not the host-action one,
-                  so there is no `HostAction` to hand `refuses` — and borrowing a
-                  neighbour's action to stand in for it would make the picker
-                  follow a rule it does not have. The authority is the hub's own
-                  guard (`server/hub.ts`, "refuse it the way setMode does"), and
-                  this restates it because it must. What it does not restate is
-                  the sentence: the reason is the same reason, so the line under
-                  it comes from the same place as every other one on this desk. */}
-              <select
-                class="input"
-                value={state.reading?.pack ?? ''}
-                disabled={packBlocked}
-                onChange={(e) => {
-                  const name = (e.target as HTMLSelectElement).value
-                  if (name) fire('selectPack', name)
-                }}
-              >
-                <option value="">Choose a pack…</option>
-                {state.packs.map((p) => (
-                  <option key={p} value={p}>{packLabel(state, p)}</option>
-                ))}
-              </select>
-              {packBlocked && <p class="muted">{REFUSAL_TEXT['not-idle']}</p>}
-            </section>
-          )}
-        </>
-      )}
+      {setlist && <SetlistPanel state={state} act={act} fire={fire} />}
 
-      {/* Reading behaviour, not the reading itself — true of whichever way
-          the night is running, so it sits outside the choice above. */}
-      {state.packs.length > 0 && (
-        <section>
-          <p class="eyebrow">Reading</p>
-          <div class="host__toggles">
+      <details name="game" class="host__manage host__game" open={!setlist && !state.minigame}>
+        <summary>
+          Quiz · {setlist ? 'reading' : `${mode} · ${state.reading?.pack ? packLabel(state, state.reading.pack) : 'no pack'}`}
+        </summary>
+        {!setlist && <GameSettings state={state} act={act} />}
+        {!setlist && state.packs.length > 0 && (
+          <section>
+            <p class="eyebrow">Pack</p>
+            {/* The one control on this panel the table cannot speak for.
+                `selectPack` rides the `act` channel, not the host-action one,
+                so there is no `HostAction` to hand `refuses` — and borrowing a
+                neighbour's action to stand in for it would make the picker
+                follow a rule it does not have. The authority is the hub's own
+                guard (`server/hub.ts`, "refuse it the way setMode does"), and
+                this restates it because it must. What it does not restate is
+                the sentence: the reason is the same reason, so the line under
+                it comes from the same place as every other one on this desk. */}
+            <select
+              class="input"
+              value={state.reading?.pack ?? ''}
+              disabled={packBlocked}
+              onChange={(e) => {
+                const name = (e.target as HTMLSelectElement).value
+                if (name) fire('selectPack', name)
+              }}
+            >
+              <option value="">Choose a pack…</option>
+              {state.packs.map((p) => (
+                <option key={p} value={p}>{packLabel(state, p)}</option>
+              ))}
+            </select>
+            {packBlocked && <p class="muted">{REFUSAL_TEXT['not-idle']}</p>}
+          </section>
+        )}
+        <Reading state={state} act={act} />
+      </details>
+
+      {/* Under a setlist the blocks name the minigames; launching one by hand
+          here would step outside the plan the play strip is walking. */}
+      {!setlist && (Object.keys(MINIGAME_INFO) as MinigameId[]).map((id) => (
+        <details key={id} name="game" class="host__manage host__game" open={state.minigame?.id === id}>
+          <summary>{MINIGAME_INFO[id].name}{state.minigame?.id === id && ` · ${state.minigame.phase}`}</summary>
+          <Launcher state={state} id={id} act={act} play={play} />
+        </details>
+      ))}
+    </>
+  )
+}
+
+/** A minigame's options and the button that opens its lobby on every screen. */
+function Launcher({ state, id, act, play }: { state: State; id: MinigameId; act: Act; play: () => void }) {
+  const [options, setOptions] = useState<Record<string, unknown>>({})
+  const refusal = refuses(state, { a: 'prepareMinigame', id, options })
+  return (
+    <section>
+      <div class="host__toggles">
+        {MINIGAME_INFO[id].timed || <p class="muted">No time limit — it ends on its own rules.</p>}
+        {MINIGAME_OPTIONS[id].map((spec) => (
+          <OptionField
+            key={spec.key}
+            spec={spec}
+            value={options[spec.key]}
+            disabled={false}
+            onChange={(v) => setOptions({ ...options, [spec.key]: v })}
+          />
+        ))}
+      </div>
+      <button
+        class="btn btn--primary"
+        disabled={!!refusal}
+        onClick={() => {
+          act({ a: 'prepareMinigame', id, options })
+          play()
+        }}
+      >
+        {state.minigame?.id === id ? 'Restart' : 'Open'} {MINIGAME_INFO[id].name}
+      </button>
+      {refusal && <p class="muted">{REFUSAL_TEXT[refusal]}</p>}
+    </section>
+  )
+}
+
+/** Reading behaviour, not the reading itself — true of whichever way the night runs. */
+function Reading({ state, act }: { state: State; act: Act }) {
+  return (
+    <section>
+      <p class="eyebrow">Reading</p>
+      <div class="host__toggles">
+        <label class="field">
+          Mirror question text to phones
+          <input
+            type="checkbox"
+            checked={state.mirrorFragments}
+            onChange={(e) => act({ a: 'setMirror', on: (e.target as HTMLInputElement).checked })}
+          />
+        </label>
+
+        {state.packs.length > 0 && (
+          <>
             <label class="field">
               Answer window
               <input
@@ -225,61 +274,22 @@ export function HostSetup({
                 </label>
               </>
             )}
-          </div>
-        </section>
-      )}
-
-      <section>
-        <p class="eyebrow">Room</p>
-        {/* The teams grouping and its Add team belong to each other: nothing goes
-            between them. */}
-        <div class="host__toggles">
-          <label class="field">
-            Teams
-            <input
-              type="checkbox"
-              checked={state.grouping === 'teams'}
-              onChange={(e) =>
-                act({
-                  a: 'setGrouping',
-                  grouping: (e.target as HTMLInputElement).checked ? 'teams' : 'solo',
-                })
-              }
-            />
-          </label>
-          <label class="field">
-            Mirror question text to phones
-            <input
-              type="checkbox"
-              checked={state.mirrorFragments}
-              onChange={(e) => act({ a: 'setMirror', on: (e.target as HTMLInputElement).checked })}
-            />
-          </label>
-        </div>
-
-        {state.grouping === 'teams' && (
-          <div class="host__minor">
-            {state.teams.map((t) => (
-              <span key={t.id} class="chip" style={{ borderLeft: `3px solid ${t.color}` }}>
-                {t.name}
-              </span>
-            ))}
-            <button
-              class="btn"
-              onClick={() =>
-                act({
-                  a: 'addTeam',
-                  name: `Team ${state.teams.length + 1}`,
-                  color: `var(--id-${(state.teams.length % 6) + 1})`,
-                })
-              }
-            >
-              Add team
-            </button>
-          </div>
+          </>
         )}
-      </section>
+      </div>
+    </section>
+  )
+}
 
+/**
+ * The Players tab: who is here, what they are called, which side they are on
+ * and what they have. Reachable from every game, because a rename or a score
+ * fix does not wait for the quiz to come back.
+ */
+export function HostPlayers({ state, act }: { state: State; act: Act }) {
+  const step = state.round.value
+  return (
+    <>
       <section>
         <p class="eyebrow">Players</p>
         {state.players.length === 0 ? (
@@ -320,6 +330,119 @@ export function HostSetup({
           ))
         )}
       </section>
-    </details>
+
+      <LobbyTeams state={state} />
+
+      <section>
+        <p class="eyebrow">Teams</p>
+        {/* The teams grouping and its Add team belong to each other: nothing
+            goes between them. */}
+        <div class="host__toggles">
+          <label class="field">
+            Play as teams
+            <input
+              type="checkbox"
+              checked={state.grouping === 'teams'}
+              disabled={!!state.minigame}
+              onChange={(e) =>
+                act({
+                  a: 'setGrouping',
+                  grouping: (e.target as HTMLInputElement).checked ? 'teams' : 'solo',
+                })
+              }
+            />
+          </label>
+        </div>
+        {state.grouping === 'teams' && (
+          <div class="host__minor">
+            {state.teams.map((t) => (
+              <span key={t.id} class="chip" style={{ borderLeft: `3px solid ${t.color}` }}>
+                {t.name}
+              </span>
+            ))}
+            <button
+              class="btn"
+              onClick={() =>
+                act({
+                  a: 'addTeam',
+                  name: `Team ${state.teams.length + 1}`,
+                  color: `var(--id-${(state.teams.length % 6) + 1})`,
+                })
+              }
+            >
+              Add team
+            </button>
+          </div>
+        )}
+      </section>
+
+      <section>
+        <p class="eyebrow">Scores</p>
+        <div class="host__scores">
+          {standings(state, false).map((r) => (
+            <div key={r.key} class="host__score-row" style={{ borderLeftColor: r.color }}>
+              <span class="row__label">{r.label}</span>
+              <span class="stepper">
+                <button class="btn btn--ghost" onClick={() => act({ a: 'setScore', key: r.key, score: r.score - step })}>
+                  −
+                </button>
+                <input
+                  class="input input--num"
+                  type="number"
+                  value={r.score}
+                  onChange={(e) =>
+                    act({
+                      a: 'setScore',
+                      key: r.key as ScoreKey,
+                      score: Number((e.target as HTMLInputElement).value),
+                    })
+                  }
+                />
+                <button class="btn btn--ghost" onClick={() => act({ a: 'setScore', key: r.key, score: r.score + step })}>
+                  +
+                </button>
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+    </>
+  )
+}
+
+/**
+ * The sides a minigame's lobby has picked on the phones, and who has not
+ * picked — the reason Start refuses with `unpicked`. Read-only: the phones own
+ * the pick.
+ */
+export function LobbyTeams({ state }: { state: State }) {
+  const session = state.minigame
+  if (!session?.lobby || session.phase !== 'ready' || !MINIGAME_INFO[session.id].picksTeams) return null
+  const { teams } = session.lobby
+  const connected = state.players.filter((p) => p.connected)
+  const side = (team: string | undefined) => connected.filter((p) => teams[p.id] === team)
+  const rows: [string, typeof connected][] = [
+    ['Sun', side('sun')],
+    ['Moon', side('moon')],
+    ['Not picked', side(undefined)],
+  ]
+  return (
+    <section>
+      <p class="eyebrow">{MINIGAME_INFO[session.id].name} sides</p>
+      {rows.map(([label, people]) => (
+        <div key={label} class="host__minor host__side">
+          <span class="row__label">{label}</span>
+          {people.length === 0 ? (
+            <span class="muted">—</span>
+          ) : (
+            people.map((p) => (
+              <span key={p.id} class="chip" style={{ borderLeft: `3px solid ${colorForPlayer(state, p.id)}` }}>
+                {playerName(state, p.id)}
+              </span>
+            ))
+          )}
+        </div>
+      ))}
+    </section>
   )
 }

@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { advanceSetlist, enterBlock, sanitizeBlocks } from './setlist.ts'
 import { newState } from './state.ts'
-import type { SetlistBlock, HostAction, State } from '../shared/protocol.ts'
+import { isMinigameId, type SetlistBlock, type HostAction, type State } from '../shared/protocol.ts'
 
 const block = (over: Partial<SetlistBlock> = {}): SetlistBlock => ({
   game: 'trivia',
@@ -133,4 +133,16 @@ test('sanitizeBlocks drops what this build cannot run and clamps the rest', () =
 test('sanitizeBlocks on junk is an empty setlist, not a throw', () => {
   assert.deepEqual(sanitizeBlocks(null, () => true, () => true), [])
   assert.deepEqual(sanitizeBlocks({ blocks: [] }, () => true, () => true), [])
+})
+
+test('a minigame block is one visit: no pack, duel or value, and the quiz mode stays', () => {
+  const [b] = sanitizeBlocks(
+    [{ game: 'ink', options: {}, count: 4, pack: 'x.txt', duel: 'volunteer', value: 300 }],
+    isMinigameId, () => true,
+  )
+  assert.deepEqual(b, { game: 'ink', options: {}, count: 1 })
+  const state = stateWithSetlist([b])
+  const { seen, apply } = recorder()
+  enterBlock(state, apply, true)
+  assert.deepEqual(seen, [])
 })

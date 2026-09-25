@@ -394,8 +394,9 @@ treatments. The play strip (`.host__setlist`) says where the room is right now �
 block, mode, question count, a duel flag — and sits above `.host__controls`,
 unfolded, because a host who has to open a disclosure to learn what round it
 is will not do it. The builder (`.setlist`, inside `SetlistPanel`) is setup, not
-play: it lives folded away in the host's manage details beside `GameSettings`,
-one block per row with its own mode, question count, value and duel rule,
+play: it lives on the Games tab, one block per row with its own game — a quiz
+mode, or a minigame, which is one visit and drops the quiz fields — and for a
+quiz block its question count, value, pack and duel rule,
 reordered with `↑`/`↓` rather than drag, because a game night's setlist is short
 enough that two buttons beat a pointer library. The block the room is running
 rails brass (`.setlist__block.is-here`) — the same colour the board uses for a
@@ -650,13 +651,21 @@ Shortcuts never fire while focus is in an input, a select, or a
 wrong player is the mistake a host actually makes, and it was previously
 unrecoverable without hand-editing a score.
 
-Setup lives in a collapsed `<details>` because it is not play — during a game the
-controls own the screen. Inside, four eyebrow-labelled blocks in the order a
-night is actually set up: **Game**, **Setlist**, **Room** (the teams grouping,
-the teams themselves, mirroring), **Players**. Every block carries an eyebrow and
-the panel spaces them itself, so no control inside it sets its own margin. The
-teams grouping and Add team sit together under Room; a control separated from the switch that
-enables it reads as belonging to neither.
+The desk is three tabs (`.host__tabs`, current one railed brass) under one bar
+that always says what is running and holds Undo:
+
+- **Play** — the only page that changes with the room: the quiz desk, the match
+  desk while a minigame is up, or an "Open <minigame>" button when the setlist
+  sits on a minigame block. Keys fire only here, and never under a minigame.
+- **Games** — how the night runs (direct play or setlist), the setlist builder,
+  then one fold per game (`.host__game`, a `<details name="game">` accordion):
+  the quiz (mode, pack, reading) and each minigame (its options and Open).
+- **Players** — roster, the minigame lobby's sides, teams, scores. Reachable
+  during a match, and the roster actions stay legal there.
+
+Every block carries an eyebrow and the page spaces them itself, so no control
+inside it sets its own margin. The teams grouping and Add team sit together; a
+control separated from the switch that enables it reads as belonging to neither.
 
 ### Phone — one object in one hand
 
@@ -769,6 +778,9 @@ disagree, the code is what gets renamed.
 - **match / minigame / field** — a match is one synchronized minigame
   start-to-results cycle; a minigame is the kind of play; its shared 2D space
   is the field. A match is not a question, and the field is not the stage.
+- **game / quiz** — a game is anything on the host's Games tab: the quiz or a
+  minigame. The quiz is the buzzer play, whichever mode it runs; "trivia" is
+  one of those modes, never the whole quiz.
 
 ---
 

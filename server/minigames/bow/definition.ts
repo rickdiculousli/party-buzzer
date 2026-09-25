@@ -1,5 +1,5 @@
 import type { BowInput } from '../../../shared/protocol.ts'
-import { numberOption, type Clock, type MinigameDefinition } from '../definition.ts'
+import { type Clock, type MinigameDefinition } from '../definition.ts'
 import { BOW_FIELD, BOW_STEP_MS, type BowPlayer, type BowWorld } from './types.ts'
 import { bowResults, createBowWorld, releaseBow, sampleBowTrajectory, setBowAim, stepBow } from './world.ts'
 
@@ -12,7 +12,6 @@ const projectPlayer = (player: BowPlayer, clock: Clock) => ({
 
 export const bow: MinigameDefinition<BowWorld> = {
   stepMs: BOW_STEP_MS,
-  options: (raw) => ({ reloadMs: numberOption(raw.reloadMs, 100, 0, 5_000) }),
   create: (seed, participants, options) => ({
     world: createBowWorld({ seed, playerIds: participants, config: { reloadMs: options.reloadMs } }),
   }),

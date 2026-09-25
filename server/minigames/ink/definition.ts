@@ -89,7 +89,6 @@ export function makeInk(load: () => InkCards | string, rand: () => number = Math
   return {
     stepMs: STEP_MS,
     untimed: true,
-    options: () => ({}),
     prepare() {
       const loaded = load()
       if (typeof loaded === 'string') return 'ink-cards'

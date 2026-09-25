@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
-import { ARM_DELAY_MS } from '../shared/protocol.ts'
+import { ARM_DELAY_MS, isMinigameId } from '../shared/protocol.ts'
 import { knownModule, moduleFor, sanitizeOptions } from './modes/index.ts'
 import { executeGrants } from './items.ts'
 import { duelOnArm, duelOnWrong, duelRule, resolveDuel, seatDuel } from './duel.ts'
@@ -17,6 +17,9 @@ import type {
 } from '../shared/protocol.ts'
 
 export { ARM_DELAY_MS }
+
+/** What a setlist block may name: a quiz mode or a minigame. */
+const knownGame = (id: string) => knownModule(id) || isMinigameId(id)
 
 /** A dwell the host typed: tenths of a second, never negative, never a minute. */
 const secs = (n: number, fallback: number): number =>
@@ -420,7 +423,7 @@ function mutateHostAction(state: State, action: HostAction): void {
       return
 
     case 'setSetlist': {
-      const blocks = sanitizeBlocks(action.blocks, knownModule, (id) => !!duelRule(id))
+      const blocks = sanitizeBlocks(action.blocks, knownGame, (id) => !!duelRule(id))
       if (blocks.length === 0) {
         delete state.setlist
         return
@@ -529,7 +532,7 @@ export function loadState(path: string): State {
     // register. Drop what we cannot run rather than booting into a setlist that
     // silently misbehaves at block 3.
     if (loaded.setlist) {
-      loaded.setlist.blocks = sanitizeBlocks(loaded.setlist.blocks, knownModule, (id) => !!duelRule(id))
+      loaded.setlist.blocks = sanitizeBlocks(loaded.setlist.blocks, knownGame, (id) => !!duelRule(id))
       if (loaded.setlist.blocks.length === 0) delete loaded.setlist
       else {
         loaded.setlist.at = Math.min(Math.max(0, loaded.setlist.at | 0), loaded.setlist.blocks.length)

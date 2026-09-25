@@ -61,20 +61,21 @@ read aloud by the host. Saved setlists are JSON files in `setlists/`.
 ### Bow minigame
 
 Bow is available as a freehand mechanics preview. Join every player before the
-match, open `/board`, then press **Prepare Bow** and **Start match** on `/host`.
+match, open `/board`, then open **Bow** on the host's Games tab and press **Start match** on Play.
 On a phone, drag down in the bow control and release. Every phone fires into the
 same server-authoritative field; target points are added to the normal scores
 once the 40-second match and three-second landing grace finish.
 
 Players who join after the host starts spectate until the next match. The host
-can cancel without awarding, replay from results, or return to quiz play. Bow
-setlist blocks and final visual styling are not implemented yet; the current
+can cancel without awarding, replay from results, or close it. A setlist block can name
+Bow (or any minigame); closing it moves the setlist on. Final visual styling is
+not implemented yet; the current
 shapes are placeholders for testing aim, release, flight, collisions, scoring,
 and simultaneous play.
 
 ### Tank minigame
 
-Press **Prepare Tank** and **Start match** on `/host`. Start pairs connected
+Open **Tank battle** on the host's Games tab and press **Start match**. Start pairs connected
 players into random two-person crews; an odd player out drives and guns a tank
 alone. Both players turn their phones sideways and tilt the phone's long edge
 left or right. The driver tilts to turn the hull and holds Forward or Back; the
@@ -95,7 +96,7 @@ Transcribe your own Phantom Ink cards into `packs/phantom-ink.txt` (gitignored):
     W: Apple | Calendar | Snowman | Chili | Fox | Table
 
 `P:` lines are prompts (at least 16); `W:` lines are word cards of six words.
-Press **Prepare Phantom Ink** on `/host`. Every phone picks Sun or Moon, and
+Open **Phantom Ink** on the host's Games tab. Every phone picks Sun or Moon, and
 anyone on a team may volunteer to write; the board shows both teams and turns a
 count red when a team is over half the room. **Start match** needs everyone
 picked and two per team, then draws each team's Writer from its volunteers.

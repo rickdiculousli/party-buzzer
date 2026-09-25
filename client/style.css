@@ -995,6 +995,32 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   padding: var(--s2) 0;
 }
 .host__manage summary:hover { color: var(--chalk); }
+/* The tabs: three pages, the current one railed in brass like the setlist's
+   current block. Labels ride the eyebrow treatment, not the button one — these
+   are where the host is, not something the host does to the room. */
+.host__tabs { display: flex; gap: var(--s4); border-bottom: 1px solid var(--rule); }
+.host__tab {
+  font: inherit;
+  font-size: var(--t-xs);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--dim);
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: var(--s2) 0;
+  cursor: pointer;
+}
+.host__tab:hover { color: var(--chalk); }
+.host__tab[aria-current] { color: var(--chalk); border-bottom-color: var(--brass); }
+
+/* One game per fold on the Games tab, sitting on --panel like a setlist block. */
+.host__game { background: var(--panel); border-left: 3px solid var(--rule); padding: 0 var(--s3); }
+.host__game[open] { border-left-color: var(--brass); padding-bottom: var(--s3); }
+
+.host__side { align-items: center; margin-bottom: var(--s1); }
+.host__side .row__label { min-width: 7rem; }
+
 .host__player { display: flex; align-items: center; gap: var(--s2); padding: var(--s1) 0; }
 .host__player .input { flex: 1; }
 

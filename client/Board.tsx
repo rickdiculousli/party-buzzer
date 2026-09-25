@@ -7,7 +7,7 @@ import { Votes } from './Votes.tsx'
 import { Spoken } from './Spoken.tsx'
 import { lastUp, wallOf, type ChoiceWall, type Wall } from '../shared/wall.ts'
 import { LETTERS } from '../shared/choice.ts'
-import { isPenalty } from '../shared/protocol.ts'
+import { isMinigameId, isPenalty, type MinigameId } from '../shared/protocol.ts'
 import { useReveal } from './useReveal.ts'
 import { COLLECT_MS, type BuzzEntry, type State } from '../shared/protocol.ts'
 import { MINIGAMES } from './minigames.tsx'
@@ -556,8 +556,10 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
               pulls the eye during a buzz has failed at its job. */}
           {state.setlist?.blocks[state.setlist.at] && (
             <span key={state.setlist.at} class="chip fx-flip">
-              {state.setlist.at + 1}/{state.setlist.blocks.length} · Q{state.setlist.done + 1} of{' '}
-              {state.setlist.blocks[state.setlist.at].count}
+              {state.setlist.at + 1}/{state.setlist.blocks.length} ·{' '}
+              {isMinigameId(state.setlist.blocks[state.setlist.at].game)
+                ? MINIGAMES[state.setlist.blocks[state.setlist.at].game as MinigameId].name
+                : `Q${state.setlist.done + 1} of ${state.setlist.blocks[state.setlist.at].count}`}
             </span>
           )}
           {!audible && <span class="chip">Click for sound</span>}

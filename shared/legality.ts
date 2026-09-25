@@ -74,7 +74,8 @@ export function refuses(s: State, a: HostAction): Refusal | null {
   const r = s.round
 
   if (s.minigame && ![
-    'undo', 'setScore', 'rename', 'kick',
+    // The roster stays editable through a match; the Players tab is reachable from every game.
+    'undo', 'setScore', 'rename', 'kick', 'assign', 'addTeam',
     'prepareMinigame', 'startMinigame', 'cancelMinigame', 'closeMinigame',
   ].includes(a.a)) return 'minigame-active'
 

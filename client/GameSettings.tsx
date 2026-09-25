@@ -59,7 +59,7 @@ export function OptionField({
   )
 }
 
-export function defaultsOf(info: GameInfo): Record<string, unknown> {
+export function defaultsOf(info: Pick<GameInfo, 'options'>): Record<string, unknown> {
   return Object.fromEntries(info.options.map((o) => [o.key, o.default]))
 }
 
@@ -95,7 +95,7 @@ export function GameSettings({
 
   return (
     <section>
-      <p class="eyebrow">Game</p>
+      <p class="eyebrow">Mode</p>
       <label class="field">
         Mode
         <select

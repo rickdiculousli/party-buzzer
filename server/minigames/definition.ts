@@ -17,8 +17,7 @@ export type TouchAudience = { players: PlayerId[]; board: boolean }
  */
 export type MinigameDefinition<W> = {
   stepMs: number
-  /** Game-specific numeric options; the runtime sanitizes durationSec and seed. */
-  options(raw: Record<string, unknown>): Record<string, number>
+  /** Options arrive sanitized against `MINIGAME_OPTIONS`, plus durationSec and seed. */
   create(seed: number, participants: string[], options: Record<string, number>, lobby: MinigameLobby): { world: W; crews?: TankCrew[] }
   /** No clock: the match ends when `finished` returns true. */
   untimed?: true

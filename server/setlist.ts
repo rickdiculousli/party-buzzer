@@ -11,6 +11,7 @@
  * testable against a recording fake.
  */
 import type { SetlistBlock, HostAction, State } from '../shared/protocol.ts'
+import { isMinigameId } from '../shared/protocol.ts'
 
 export type Apply = (action: HostAction) => void
 
@@ -29,7 +30,8 @@ export type Apply = (action: HostAction) => void
 export function applySetup(state: State, apply: Apply): void {
   const setlist = state.setlist
   const block = setlist?.blocks[setlist.at]
-  if (!block) return
+  // A minigame block leaves the quiz as it is; the host opens the match.
+  if (!block || isMinigameId(block.game)) return
   apply({ a: 'setMode', id: block.game, options: block.options, keepScores: true })
   if (block.value !== undefined) apply({ a: 'setValue', value: block.value })
 }
@@ -101,6 +103,13 @@ export function sanitizeBlocks(
       game: b.game,
       options: typeof b.options === 'object' && b.options !== null ? b.options : {},
       count: Math.min(99, Math.max(1, Number.isFinite(count) ? Math.round(count) : 1)),
+    }
+    // A minigame block is one visit to that minigame: closing it moves on. It
+    // reads nothing, scores no questions and seats no duel.
+    if (isMinigameId(b.game)) {
+      block.count = 1
+      out.push(block)
+      continue
     }
     // The pack is only a filename here; the reader is what discovers it does
     // not exist, and says so the same way a hand-typed selectPack would.

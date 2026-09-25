@@ -254,6 +254,22 @@ export type ReadingUpdate = { progress: ReadingState; active: boolean }
 export type TankCrew = { id: string; driver: PlayerId; gunner: PlayerId }
 
 export type MinigameId = 'bow' | 'tank' | 'ink'
+
+/**
+ * Each minigame's host-settable options, as the same schema the modes ship.
+ * The runtime sanitizes against it and the host renders its form from it, so a
+ * new option is one line here.
+ */
+export const MINIGAME_OPTIONS: Record<MinigameId, Extract<OptionSpec, { kind: 'int' }>[]> = {
+  bow: [
+    { kind: 'int', key: 'durationSec', label: 'Seconds', default: 40, min: 5, max: 180 },
+    { kind: 'int', key: 'reloadMs', label: 'Reload ms', default: 100, min: 0, max: 5_000 },
+  ],
+  tank: [{ kind: 'int', key: 'durationSec', label: 'Seconds', default: 40, min: 5, max: 180 }],
+  ink: [],
+}
+
+export const isMinigameId = (id: string): id is MinigameId => Object.hasOwn(MINIGAME_OPTIONS, id)
 export type MinigamePhase = 'ready' | 'countdown' | 'playing' | 'results'
 export type MinigameResult = { playerId: PlayerId; points: number; shots: number }
 

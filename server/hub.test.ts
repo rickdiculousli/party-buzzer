@@ -418,3 +418,20 @@ test('a phone may not publish choices', () => {
   hub.handle(ada, { t: 'act', act: 'choices', data: ['x', 'y'] })
   assert.equal(state.round.choices, undefined)
 })
+
+test('closing the minigame a setlist block names moves to the next block in one undo step', () => {
+  const { state, hub, conn } = rig()
+  hub.setMinigameRuntime(new MinigameRuntime(state, {
+    onState: () => {}, onFrame: () => {}, onAck: () => {}, onComplete: () => {},
+  }))
+  const host = conn('host')
+  const act = (action: import('../shared/protocol.ts').HostAction) => hub.handle(host, { t: 'host', action })
+  act({ a: 'setSetlist', blocks: [{ game: 'bow', options: {}, count: 1 }, { game: 'trivia', options: {}, count: 3 }] })
+  act({ a: 'prepareMinigame', id: 'bow', options: {} })
+  act({ a: 'closeMinigame' })
+  assert.equal(state.minigame?.id, undefined)
+  assert.equal(state.setlist!.at, 1)
+  act({ a: 'undo' })
+  assert.equal(state.minigame?.id, 'bow')
+  assert.equal(state.setlist!.at, 0)
+})

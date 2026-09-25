@@ -3,6 +3,7 @@ import type {
   ActionResult, HostAction, LobbyChange, MinigameFrame, MinigameInputAck, MinigameInputMsg, MinigameLobby,
   MinigameResult, Role, State,
 } from '../../shared/protocol.ts'
+import { MINIGAME_OPTIONS } from '../../shared/protocol.ts'
 import { numberOption, type MinigameDefinition, type TouchAudience } from './definition.ts'
 import { applyLobby } from './lobby.ts'
 import { MINIGAMES } from './registry.ts'
@@ -59,8 +60,9 @@ export class MinigameRuntime {
       const refusal = MINIGAMES[action.id].prepare?.()
       if (refusal) return { status: 'refused', reason: refusal }
       const options = {
-        ...MINIGAMES[action.id].options(action.options),
-        durationSec: numberOption(action.options.durationSec, 40, 5, 180),
+        durationSec: 40,
+        ...Object.fromEntries((MINIGAME_OPTIONS[action.id] ?? []).map((spec) =>
+          [spec.key, numberOption(action.options[spec.key], spec.default, spec.min, spec.max)])),
         seed: numberOption(action.options.seed, Math.floor(this.now()), 0, 2_147_483_647),
       }
       this.resetTransient()

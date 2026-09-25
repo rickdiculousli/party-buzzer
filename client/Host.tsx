@@ -1,43 +1,50 @@
-import { useEffect, useRef } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { useOpen, useSocket } from './useSocket.ts'
-import { REFUSAL_TEXT, colorForPlayer, credits, playerName, standings } from './ui.ts'
+import { REFUSAL_TEXT, colorForPlayer, credits, playerName } from './ui.ts'
 import { refuses } from '../shared/legality.ts'
 import { DuelPanel } from './DuelPanel.tsx'
-import { HostSetup } from './HostSetup.tsx'
+import { HostGames, HostPlayers, LobbyTeams } from './HostSetup.tsx'
 import { Spoken } from './Spoken.tsx'
 import { momentOf, type Moment } from '../shared/wall.ts'
-import { isPenalty } from '../shared/protocol.ts'
-import type { HostAction, MinigameId, ScoreKey } from '../shared/protocol.ts'
+import { isMinigameId, isPenalty } from '../shared/protocol.ts'
+import type { HostAction, MinigameId, State } from '../shared/protocol.ts'
 import { MINIGAMES } from './minigames.tsx'
+import { MINIGAME_CATALOG } from './minigame-info.ts'
 
-function BowHost({ state, connected, act, actionMessage, now }: {
-  state: import('../shared/protocol.ts').State
-  connected: boolean
+/**
+ * Three bounded pages rather than one long scroll. Play is the only one that
+ * changes with what the room is doing; Games and Players are setup, and each
+ * holds one kind of it. The tab lives in the hash so a reload keeps it.
+ */
+const TABS = ['play', 'games', 'players'] as const
+type Tab = (typeof TABS)[number]
+const tabFromHash = (): Tab => {
+  const h = location.hash.slice(1)
+  return (TABS as readonly string[]).includes(h) ? (h as Tab) : 'play'
+}
+
+/** The Play tab while a minigame is up: its clock, its lobby and its way out. */
+function MatchDesk({ state, act, now }: {
+  state: State
   act: (action: HostAction) => void
-  actionMessage: string | null
   now: () => number
 }) {
   const session = state.minigame!
+  const game = MINIGAMES[session.id]
   const remaining = session.endsAt ? Math.max(0, Math.ceil((session.endsAt - now()) / 1000)) : session.options.durationSec
-  return <main class="host bow-host">
-    <div class="host__bar">
-      <span class="host__title">{MINIGAMES[session.id].name}</span>
-      <span class="lamp"><span class={connected ? 'lamp-dot is-on' : 'lamp-dot is-off'} />{connected ? 'Connected' : 'Disconnected'}</span>
-      <span class="chip">{session.phase}</span>
-      <span class="host__spacer" />
-      <button class="btn btn--ghost" onClick={() => act({ a: 'undo' })}>Undo</button>
-    </div>
-    {actionMessage && <p class="muted" role="status">{actionMessage}</p>}
+  // Closing is what finishes a setlist block that named this minigame.
+  const close = <button class="btn" onClick={() => act({ a: 'closeMinigame' })}>Close {game.name}</button>
+  return <>
     <section class="bow-host__panel">
       <p class="eyebrow">Match control</p>
-      <p>{!MINIGAMES[session.id].timed
+      <p>{!game.timed
         ? 'No time limit'
         : session.phase === 'playing' ? `${remaining} seconds left` : `${session.options.durationSec} second match`}</p>
-      {session.phase === 'ready' && !MINIGAMES[session.id].timed && <p class="muted">Players pick teams on their phones.</p>}
+      {session.phase === 'ready' && game.picksTeams && <p class="muted">Players pick sides on their phones.</p>}
       <p class="muted">{session.participants.length} players in this match</p>
       {session.phase === 'ready' && <div class="host__minor">
         <button class="btn btn--major btn--primary" onClick={() => act({ a: 'startMinigame' })}>Start match</button>
-        <button class="btn" onClick={() => act({ a: 'closeMinigame' })}>Return to quiz</button>
+        {close}
       </div>}
       {(session.phase === 'countdown' || session.phase === 'playing') && <button class="btn btn--major btn--no" onClick={() => act({ a: 'cancelMinigame' })}>Cancel match</button>}
       {session.phase === 'results' && <>
@@ -49,11 +56,12 @@ function BowHost({ state, connected, act, actionMessage, now }: {
         </ol>
         <div class="host__minor">
           <button class="btn btn--primary" onClick={() => act({ a: 'cancelMinigame' })}>Play again</button>
-          <button class="btn" onClick={() => act({ a: 'closeMinigame' })}>Return to quiz</button>
+          {close}
         </div>
       </>}
     </section>
-  </main>
+    <LobbyTeams state={state} />
+  </>
 }
 
 /**
@@ -157,18 +165,32 @@ export function Host() {
   const act = (action: HostAction) => send({ t: 'host', action })
   const fire = (a: string, data?: unknown) => send({ t: 'act', act: a, data })
   const { open } = useOpen(state?.round, now)
+  const [tab, setTab] = useState<Tab>(tabFromHash)
+  // replaceState, not a hash assignment: switching tabs is not a page the back
+  // button should walk through.
+  const go = (t: Tab) => {
+    setTab(t)
+    history.replaceState(null, '', `#${t}`)
+  }
+
+  // A setlist parked on a minigame block, before the host has opened it. The
+  // quiz desk is not what comes next, so its keys stay quiet too.
+  const block = state?.setlist?.blocks[state.setlist.at]
+  const upNext = !state?.minigame && block && isMinigameId(block.game) ? block.game : null
 
   // The handler is bound once but needs the live round to judge against.
   const value = useRef(0)
   value.current = state?.round.value ?? 0
   const judgeableRef = useRef(false)
   const reopenableRef = useRef(false)
-  const minigameRef = useRef(false)
-  minigameRef.current = !!state?.minigame
+  const keysOffRef = useRef(false)
+  // Keys drive the quiz desk, so they only fire while it is the page in front
+  // of the host: never behind the Games or Players tab, never under a minigame.
+  keysOffRef.current = !!state?.minigame || !!upNext || tab !== 'play'
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (minigameRef.current) return
+      if (keysOffRef.current) return
       const el = e.target as HTMLElement | null
       // Never steal a keystroke from something the host is typing into.
       if (el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.isContentEditable)) return
@@ -206,7 +228,55 @@ export function Host() {
 
   if (!state) return <main class="host"><p class="muted">Connecting…</p></main>
 
-  if (state.minigame) return <BowHost state={state} connected={connected} act={act} actionMessage={actionMessage} now={now} />
+  const nowLabel = state.minigame
+    ? `${MINIGAMES[state.minigame.id].name} · ${state.minigame.phase}`
+    : `${state.games.find((g) => g.id === state.game.id)?.name ?? 'Quiz'} · ${state.round.phase}`
+
+  return (
+    <main class="host">
+      <div class="host__bar">
+        <span class="host__title">Host</span>
+        <span class="lamp">
+          <span class={connected ? 'lamp-dot is-on' : 'lamp-dot is-off'} />
+          {connected ? 'Connected' : 'Disconnected'}
+        </span>
+        <span class="chip">{nowLabel}</span>
+        <span class="host__spacer" />
+        <button class="btn btn--ghost" onClick={() => act({ a: 'undo' })}>
+          Undo<span class="key">Z</span>
+        </button>
+      </div>
+      <nav class="host__tabs">
+        {TABS.map((t) => (
+          <button key={t} class="host__tab" aria-current={tab === t ? 'page' : undefined} onClick={() => go(t)}>
+            {t}
+          </button>
+        ))}
+      </nav>
+      {actionMessage && <p class="muted" role="status">{actionMessage}</p>}
+      {tab === 'games' && <HostGames state={state} act={act} fire={fire} play={() => go('play')} />}
+      {tab === 'players' && <HostPlayers state={state} act={act} />}
+      {tab === 'play' && (state.minigame
+        ? <MatchDesk state={state} act={act} now={now} />
+        : <QuizDesk state={state} act={act} fire={fire} open={open} upNext={upNext}
+            judgeableRef={judgeableRef} reopenableRef={reopenableRef} />)}
+    </main>
+  )
+}
+
+/**
+ * The Play tab while the quiz is up: the value, where the setlist is, the
+ * three keys, the reader's transport and the buzz order. Nothing that is setup.
+ */
+function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef }: {
+  state: State
+  act: (action: HostAction) => void
+  fire: (a: string, data?: unknown) => void
+  open: boolean
+  upNext: MinigameId | null
+  judgeableRef: { current: boolean }
+  reopenableRef: { current: boolean }
+}) {
 
   const { round } = state
   const leader = round.order[0]
@@ -275,23 +345,15 @@ export function Host() {
   const unpaid = state.packCost[(setlist ? block?.pack : state.reading?.pack) ?? ''] ?? 0
 
   return (
-    <main class="host">
-      {actionMessage && <p class="muted" role="status">{actionMessage}</p>}
+    <>
       <div class="host__bar">
-        <span class="host__title">Host</span>
-        <span class="lamp">
-          <span class={connected ? 'lamp-dot is-on' : 'lamp-dot is-off'} />
-          {connected ? 'Connected' : 'Disconnected'}
-        </span>
-        <span class="chip">{round.phase}</span>
-
         {state.game.status && (
           <span class={state.game.status.tone === 'inactive' ? 'chip chip--barred' : 'chip chip--data'}>
             {state.game.status.label}
           </span>
         )}
 
-        <label class="field">
+        {!upNext && <label class="field">
           Value
           <span class="stepper">
             <button
@@ -316,27 +378,14 @@ export function Host() {
               +
             </button>
           </span>
-        </label>
-
-        <span class="host__spacer" />
-
-        <button class="btn btn--ghost" onClick={() => act({ a: 'undo' })}>
-          Undo<span class="key">Z</span>
-        </button>
+        </label>}
       </div>
 
       <section>
-        <div class="host__minor" style={{ marginBottom: 'var(--s4)' }}>
-          {Object.entries(MINIGAMES).map(([id, game]) => (
-            <button key={id} class="btn" onClick={() => act({ a: 'prepareMinigame', id: id as MinigameId, options: {} })}>
-              Prepare {game.name}
-            </button>
-          ))}
-        </div>
         {state.setlist && (() => {
           const at = state.setlist.at
           const block = state.setlist.blocks[at]
-          const name = state.games.find((g) => g.id === block?.game)?.name
+          const name = [...state.games, ...MINIGAME_CATALOG].find((g) => g.id === block?.game)?.name
           // The table answers "may the host jump at all" — mid-question, or with
           // no setlist to jump within. It does not answer "is there a block
           // after this one", because that is a fact about this particular `at`
@@ -350,7 +399,7 @@ export function Host() {
                 <>
                   <span class="chip chip--data">Block {at + 1} of {state.setlist.blocks.length}</span>
                   <span class="row__label">{name}</span>
-                  <span class="chip">Q{state.setlist.done + 1} of {block.count}</span>
+                  {!upNext && <span class="chip">Q{state.setlist.done + 1} of {block.count}</span>}
                   {block.duel && <span class="chip chip--armed">duel</span>}
                 </>
               ) : (
@@ -372,6 +421,16 @@ export function Host() {
             </div>
           )
         })()}
+        {upNext ? (
+          <div class="host__controls">
+            <button
+              class="btn btn--major btn--primary"
+              onClick={() => act({ a: 'prepareMinigame', id: upNext, options: block?.options ?? {} })}
+            >
+              Open {MINIGAMES[upNext].name}
+            </button>
+          </div>
+        ) : <>
         <div class="host__controls">
           <button class="btn btn--major btn--primary" onClick={() => act({ a: 'arm' })} disabled={open}>
             {open ? 'Buzzers open' : 'Arm'}<span class="key">Space</span>
@@ -471,8 +530,10 @@ export function Host() {
             )}
           </div>
         )}
+        </>}
       </section>
 
+      {!upNext && <>
       <section>
         <p class="eyebrow">Buzz order</p>
         {round.order.length === 0 ? (
@@ -504,45 +565,8 @@ export function Host() {
       </section>
 
       <DuelPanel state={state} act={act} />
-
-      <section>
-        <p class="eyebrow">Scores</p>
-        <div class="host__scores">
-          {standings(state, false).map((r) => (
-            <div key={r.key} class="host__score-row" style={{ borderLeftColor: r.color }}>
-              <span class="row__label">{r.label}</span>
-              <span class="stepper">
-                <button
-                  class="btn btn--ghost"
-                  onClick={() => act({ a: 'setScore', key: r.key, score: r.score - round.value })}
-                >
-                  −
-                </button>
-                <input
-                  class="input input--num"
-                  type="number"
-                  value={r.score}
-                  onChange={(e) =>
-                    act({
-                      a: 'setScore',
-                      key: r.key as ScoreKey,
-                      score: Number((e.target as HTMLInputElement).value),
-                    })
-                  }
-                />
-                <button
-                  class="btn btn--ghost"
-                  onClick={() => act({ a: 'setScore', key: r.key, score: r.score + round.value })}
-                >
-                  +
-                </button>
-              </span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <HostSetup state={state} act={act} fire={fire} />
-    </main>
+      </>}
+    </>
   )
 }
+

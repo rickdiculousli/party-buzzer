@@ -206,6 +206,12 @@ export class Hub {
       const reason = refuses(this.state, action)
       result = reason ? { status: 'refused', reason } : this.minigame?.host(action) ?? { status: 'unchanged' }
       if (result.status === 'applied') {
+        // Closing the minigame a setlist block named is what finishes that
+        // block, in the same undo step as the close.
+        const setlist = this.state.setlist
+        if (action.a === 'closeMinigame' && setlist && setlist.blocks[setlist.at]?.game === before.minigame?.id) {
+          applyHostAction(this.state, { a: 'setlistJump', at: setlist.at + 1 })
+        }
         if (action.a === 'prepareMinigame') {
           this.restoring = true
           try {

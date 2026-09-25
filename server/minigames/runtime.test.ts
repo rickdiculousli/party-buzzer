@@ -194,7 +194,6 @@ function withToy(run: (toy: MinigameDefinition<Toy>) => void, refusal: 'ink-card
   const toy: MinigameDefinition<Toy> = {
     stepMs: 50,
     untimed: true,
-    options: () => ({}),
     prepare: () => refusal,
     startable: (lobby, connected) => connected.every((id) => lobby.teams[id]) ? null : 'unpicked',
     create: (_seed, _participants, _options, lobby) => ({ world: { tick: 0, done: false, lobby } }),

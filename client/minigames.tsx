@@ -25,6 +25,8 @@ export type MinigameEntry = {
   name: string
   /** Timed games run the runtime clock; an untimed one ends on its own rules. */
   timed: boolean
+  /** Players pick sides in the lobby before the match can start. */
+  picksTeams: boolean
   player: ComponentType<MinigamePlayerProps>
   board: ComponentType<MinigameBoardProps>
 }

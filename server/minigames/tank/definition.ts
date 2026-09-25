@@ -21,7 +21,6 @@ const projectWeapon = (world: TankWorld, tank: Tank, weapon: Weapon, clock: Cloc
 
 export const tank: MinigameDefinition<TankWorld> = {
   stepMs: TANK_STEP_MS,
-  options: () => ({}),
   create(seed, participants, options) {
     // Crews reshuffle on every start, while the seeded map stays the same for a replay.
     const crews = formCrews(Math.random, participants)

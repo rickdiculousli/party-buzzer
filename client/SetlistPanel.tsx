@@ -1,5 +1,6 @@
 import { useState } from 'preact/hooks'
-import type { SetlistBlock, HostAction, State } from '../shared/protocol.ts'
+import { isMinigameId, type SetlistBlock, type HostAction, type State } from '../shared/protocol.ts'
+import { MINIGAME_CATALOG } from './minigame-info.ts'
 import { OptionField, defaultsOf } from './GameSettings.tsx'
 import { REFUSAL_TEXT, packLabel } from './ui.ts'
 import { refuses } from '../shared/legality.ts'
@@ -24,6 +25,8 @@ export function SetlistPanel({
 }) {
   const [saveAs, setSaveAs] = useState('')
   const blocks = state.setlist?.blocks ?? []
+  // A block names a quiz mode or a minigame, from one picker.
+  const catalog = [...state.games, ...MINIGAME_CATALOG]
 
   // Every edit on this panel is one `setSetlist`, so one refusal answers for all
   // of them; the legality of that action does not read the blocks, which is why
@@ -121,31 +124,41 @@ export function SetlistPanel({
         <p class="muted">No setlist. The host drives freehand — add a block to plan the night.</p>
       ) : (
         blocks.map((b, i) => {
-          const info = state.games.find((g) => g.id === b.game)
+          const info = catalog.find((g) => g.id === b.game)
+          const quiz = !isMinigameId(b.game)
           return (
             <div key={i} class={i === state.setlist?.at ? 'setlist__block is-here' : 'setlist__block'}>
               <span class="setlist__n">{i + 1}</span>
               <label class="field">
-                Mode
+                Game
                 <select
                   class="input"
                   value={b.game}
                   disabled={!!edits}
                   onChange={(e) => {
                     const id = (e.target as HTMLSelectElement).value
-                    const next = state.games.find((g) => g.id === id)
+                    const next = catalog.find((g) => g.id === id)
                     if (!next) return
-                    edit(i, {
-                      game: id,
-                      options: defaultsOf(next),
-                    })
+                    // A minigame block is one visit; the server drops what it cannot use.
+                    edit(i, isMinigameId(id)
+                      ? { game: id, options: defaultsOf(next), count: 1, pack: undefined, value: undefined, duel: undefined }
+                      : { game: id, options: defaultsOf(next) })
                   }}
                 >
-                  {state.games.map((g) => (
-                    <option key={g.id} value={g.id}>{g.name}</option>
-                  ))}
+                  <optgroup label="Quiz">
+                    {state.games.map((g) => (
+                      <option key={g.id} value={g.id}>{g.name}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Minigames">
+                    {MINIGAME_CATALOG.map((g) => (
+                      <option key={g.id} value={g.id}>{g.name}</option>
+                    ))}
+                  </optgroup>
                 </select>
               </label>
+
+              {quiz && <>
 
               <label class="field">
                 Questions
@@ -210,8 +223,10 @@ export function SetlistPanel({
                 </select>
               </label>
 
-              {/* The mode's own options, rendered from the schema in the state
-                  payload — the same property that lets GameSettings exist. */}
+              </>}
+
+              {/* The game's own options, rendered from its schema — the same
+                  property that lets GameSettings exist. */}
               {info?.options.map((spec) => (
                 <OptionField
                   key={spec.key}
