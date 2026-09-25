@@ -256,7 +256,7 @@ test('a wrong answer rebounds and the interrupted fragment is re-read', async ()
 function autoplay(hub: Hub, nextSec: number, reboundSec: number): void {
   hub.handle({ id: 'h', role: 'host', send: () => {} }, {
     t: 'host',
-    action: { a: 'setAutoplay', on: true, nextSec, reboundSec },
+    action: { a: 'setAutoplay', on: true, nextSec, buzzSec: nextSec, reboundSec },
   })
 }
 
@@ -290,6 +290,10 @@ test('autoplay passes a question nobody buzzed rather than waiting forever', asy
   autoplay(hub, 0.1, 0)
   await reader.select('one.txt')
   reader.start()
+  while (!hub.state.round.closesAt) await new Promise((r) => setTimeout(r, 5))
+  while (hub.state.round.phase !== 'IDLE') await new Promise((r) => setTimeout(r, 5))
+  assert.equal(hub.state.round.answer, 'gold', 'the answer goes up as the buzzers shut')
+  assert.ok(hub.state.round.questionId, 'the question stays up for it')
   while (speech.spoken.length < 2) await new Promise((r) => setTimeout(r, 5))
   reader.stop()
   await reader.settled()
@@ -594,7 +598,7 @@ test('the host closes picking early', async () => {
 test('autoplay moves on from a settled choice question', async () => {
   const { hub, state, reader, speech } = rig(CHOICE + '\nV: 100\nNext.\nA: x\n')
   const [ada] = withPhones(hub, ['ada'])
-  hub.dispatch({ a: 'setAutoplay', on: true, nextSec: 0.01, reboundSec: 0.01 })
+  hub.dispatch({ a: 'setAutoplay', on: true, nextSec: 0.01, buzzSec: 0.01, reboundSec: 0.01 })
   await reader.select('one.txt')
   reader.start()
   while (!state.round.choices) await tick()

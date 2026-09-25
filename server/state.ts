@@ -51,7 +51,7 @@ export function newState(): State {
     // transcript types out, holds, the penalty stamps and dwells, and only then
     // does the clue pick up. At two seconds the voice came back while the −400
     // was still landing, which is two things happening at once.
-    autoplay: { on: false, nextSec: 5, reboundSec: 4 },
+    autoplay: { on: false, nextSec: 5, buzzSec: 10, reboundSec: 4 },
     round: {
       questionId: '',
       attemptId: '',
@@ -224,6 +224,13 @@ function mutateHostAction(state: State, action: HostAction): void {
       return
     }
 
+    case 'timeUp':
+      // The question stays — its answer is what the room reads next — but
+      // nobody may buzz on it any more.
+      round.phase = 'IDLE'
+      round.lockedOut = []
+      return
+
     case 'rebound':
       // The hold *was* the room's look at the miss. Opening it hands the wall
       // back to the clue, and the clue resumes in the same instant — so the
@@ -351,6 +358,7 @@ function mutateHostAction(state: State, action: HostAction): void {
       state.autoplay = {
         on: action.on,
         nextSec: secs(action.nextSec, 5),
+        buzzSec: secs(action.buzzSec, 10),
         reboundSec: secs(action.reboundSec, 4),
       }
       return
@@ -543,6 +551,7 @@ export function loadState(path: string): State {
     loaded.autoplay = {
       on: auto?.on === true,
       nextSec: secs(Number(auto?.nextSec), 5),
+      buzzSec: secs(Number(auto?.buzzSec), 10),
       reboundSec: secs(Number(auto?.reboundSec), 4),
     }
     loaded.game ??= { id: 'trivia', options: {}, moduleState: {} }

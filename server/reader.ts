@@ -582,7 +582,10 @@ export class Reader {
         // it.
         let deadAir = false
         while (this.running && !resolved(this.hub.state)) {
-          await this.until((s) => resolved(s) || !stillMine(), this.dwellMs(), this.session.signal)
+          // The wall counts the room down to the moment this wait gives up.
+          const dwell = this.dwellMs('buzzSec')
+          this.hub.send(this.conn, { t: 'act', act: 'closesAt', data: dwell === undefined ? undefined : Date.now() + dwell })
+          await this.until((s) => resolved(s) || !stillMine(), dwell, this.session.signal)
           if (!stillMine()) {
             if (this.hub.state.round.questionId) throw new DOMException('Question replaced', 'AbortError')
             break // The host's Next completed this question.
@@ -599,6 +602,9 @@ export class Reader {
         if (stillMine() && (this.hub.state.round.award || deadAir)) {
           this.hub.send(this.conn, { t: 'act', act: 'revealAnswer', data: q.answer })
         }
+        // Silence shuts the buzzers and puts the answer up, after it is in the
+        // round, so the wall never shows the moment without it.
+        if (stillMine() && deadAir) this.hub.dispatch({ a: 'timeUp' })
         const award = this.hub.state.round.award
         const said = stillMine()
           ? this.quip(award && !isPenalty(award) ? 'correct' : deadAir ? 'nobody' : 'wrong', q)
@@ -606,7 +612,7 @@ export class Reader {
         // Let the payoff sit on the wall; the host's N clears it and releases us —
         // under autoplay the reader presses N itself once the dwell is up.
         await this.until(
-          (s) => !stillMine() || (s.round.phase === 'IDLE' && !s.round.award),
+          (s) => !stillMine() || (!deadAir && s.round.phase === 'IDLE' && !s.round.award),
           this.dwellMs(),
           this.session.signal,
         )
@@ -942,9 +948,9 @@ export class Reader {
    * the toggle is a live setting, so turning autoplay on mid-question takes
    * effect on the next beat rather than the next pack.
    */
-  private dwellMs(): number | undefined {
+  private dwellMs(beat: 'nextSec' | 'buzzSec' = 'nextSec'): number | undefined {
     const auto = this.hub.state.autoplay
-    return auto.on ? auto.nextSec * 1000 : undefined
+    return auto.on ? auto[beat] * 1000 : undefined
   }
 
   /**

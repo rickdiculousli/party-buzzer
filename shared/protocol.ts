@@ -131,7 +131,11 @@ export type Round = {
   kind?: 'shown' | 'choice'
   /** A choice question's options, published once the question has been read. Every role sees them. */
   choices?: string[]
-  /** Server-time end of picking, set when the voice finishes reading the options. */
+  /**
+   * Server-time end of the room's window: picking on a choice question, set
+   * when the voice finishes the options; or, under autoplay, the buzz window
+   * after the voice finishes a spoken question.
+   */
   closesAt?: number
   /** Each player's pick, by index. Host and board see all; a phone sees its own. */
   picks?: Record<PlayerId, number>
@@ -468,6 +472,8 @@ export type Autoplay = {
   on: boolean
   /** Seconds the answer sits on the wall before the next question is armed. */
   nextSec: number
+  /** Seconds the buzzers stay open after the read before nobody has it. */
+  buzzSec: number
   /** Seconds of silence after a wrong answer before the clue picks back up. */
   reboundSec: number
 }
@@ -523,6 +529,8 @@ export type HostAction =
   | { a: 'setChoiceTime'; sec: number }
   | { a: 'correct' }
   | { a: 'wrong'; neg: number }
+  /** The buzzers were open and nobody took the question: shut them and keep it up for its answer. */
+  | { a: 'timeUp' }
   /** Opens a rebound the miss is still holding. No-op if none is held. */
   | { a: 'rebound' }
   | { a: 'next' }
@@ -540,7 +548,7 @@ export type HostAction =
   | { a: 'setMode'; id: string; options: Record<string, unknown>; keepScores?: boolean }
   | { a: 'setMirror'; on: boolean }
   /** The whole triple every time: one edit, one undo step, no partial merge. */
-  | { a: 'setAutoplay'; on: boolean; nextSec: number; reboundSec: number }
+  | { a: 'setAutoplay'; on: boolean; nextSec: number; buzzSec: number; reboundSec: number }
   | { a: 'openDuel'; rule: string }
   /** ids = host override (and the only path for resolve:'host' rules); absent = resolve by rule. */
   | { a: 'closeDuel'; playerIds?: [PlayerId, PlayerId] }

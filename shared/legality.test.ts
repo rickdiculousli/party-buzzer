@@ -33,7 +33,7 @@ function room(): State {
     mirrorFragments: false,
     answerWindowSec: 0,
     choiceSec: 20,
-    autoplay: { on: false, nextSec: 4, reboundSec: 3 },
+    autoplay: { on: false, nextSec: 4, buzzSec: 4, reboundSec: 3 },
   }
 }
 
@@ -63,6 +63,11 @@ const LEGAL: Record<HostAction['a'], [State, HostAction]> = {
     s.round.held = true
     return s
   })(), { a: 'rebound' }],
+  timeUp: [(() => {
+    const s = room()
+    s.round.phase = 'ARMED'
+    return s
+  })(), { a: 'timeUp' }],
   next: [locked(room()), { a: 'next' }],
   resetRound: [locked(room()), { a: 'resetRound' }],
   undo: [locked(room()), { a: 'undo' }],
@@ -84,7 +89,7 @@ const LEGAL: Record<HostAction['a'], [State, HostAction]> = {
   assign: [locked(room()), { a: 'assign', playerId: 'a', teamId: 't' }],
   setMode: [room(), { a: 'setMode', id: 'quizbowl', options: {} }],
   setMirror: [locked(room()), { a: 'setMirror', on: true }],
-  setAutoplay: [locked(room()), { a: 'setAutoplay', on: true, nextSec: 5, reboundSec: 4 }],
+  setAutoplay: [locked(room()), { a: 'setAutoplay', on: true, nextSec: 5, buzzSec: 5, reboundSec: 4 }],
   openDuel: [room(), { a: 'openDuel', rule: 'vote' }],
   closeDuel: [(() => {
     const s = room()
@@ -118,6 +123,7 @@ test('every action kind has a shape it is legal in', () => {
 /** One case per code, each driving a room into the shape that refuses. */
 const REFUSED: [Refusal, State, HostAction][] = [
   ['no-choice', locked(room()), { a: 'settleChoice', correct: 0 }],
+  ['not-open', locked(room()), { a: 'timeUp' }],
   // Setup is refused mid-question, which is six actions and one code. Every one
   // of them listed: `not-idle` covering only the case somebody remembered is
   // exactly the drift this module exists to stop.

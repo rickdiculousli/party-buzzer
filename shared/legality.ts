@@ -68,6 +68,7 @@ export type Refusal =
   | 'team-too-small'
   | 'ink-cards'
   | 'no-choice'
+  | 'not-open'
 
 export function refuses(s: State, a: HostAction): Refusal | null {
   const r = s.round
@@ -102,6 +103,10 @@ export function refuses(s: State, a: HostAction): Refusal | null {
     case 'wrong':
       if (r.phase !== 'LOCKED' || !r.order[0]) return 'no-leader'
       return r.award && !isPenalty(r.award) ? 'already-scored' : null
+
+    // Only while the buzzers are open and nobody has pressed.
+    case 'timeUp':
+      return r.phase === 'ARMED' && r.kind !== 'choice' && r.order.length === 0 ? null : 'not-open'
 
     // Only while a choice question's options are up and nothing has been revealed.
     case 'settleChoice':

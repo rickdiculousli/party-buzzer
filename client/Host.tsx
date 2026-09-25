@@ -124,6 +124,8 @@ function notesFor(
 
     case 'verdict:award':
       return { judge: REFUSAL_TEXT['already-scored'], arm: played }
+    case 'verdict:unanswered':
+      return { judge: null, arm: played }
 
     // A penalty survives into the rebound it caused: the question is still live
     // and the retake is what the buttons are waiting for.

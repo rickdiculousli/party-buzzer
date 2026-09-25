@@ -34,6 +34,7 @@ export const REFUSAL_TEXT: Record<Refusal, string> = {
   'team-too-small': 'Each team needs at least two players.',
   'ink-cards': 'Phantom Ink needs packs/phantom-ink.txt with at least 16 P: prompts and one W: word card.',
   'no-choice': 'No choice question is taking picks.',
+  'not-open': 'The buzzers are not open with nobody in.',
 }
 
 /** Accepted changes already explain themselves through the state update. */

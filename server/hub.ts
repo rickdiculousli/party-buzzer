@@ -296,8 +296,9 @@ export class Hub {
       round.image = data
     } else if (name === 'choices' && Array.isArray(data)) {
       round.choices = data.filter((c): c is string => typeof c === 'string')
-    } else if (name === 'closesAt' && typeof data === 'number') {
-      round.closesAt = data
+    } else if (name === 'closesAt') {
+      if (typeof data === 'number') round.closesAt = data
+      else delete round.closesAt
     } else if (name === 'closeChoice') {
       this.reader?.closeChoice()
     } else if (name === 'revealAnswer' && typeof data === 'string') {

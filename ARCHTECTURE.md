@@ -205,7 +205,7 @@ remain private in Reader/Judge memory; the display answer enters State when
 revealed. Keep those separate when adding content or projections.
 
 `shared/wall.ts` chooses a semantic moment from public gameplay facts plus local
-presentation inputs (`open`, `settled`, `retired`). Its 17 moments belong to six
+presentation inputs (`open`, `settled`, `retired`). Its 18 moments belong to six
 families; the `choice` family ranks first while a choice question is up.
 A choice question keeps the clue in the middle band and puts `Wall.choices`, a
 grid, in the band below, so no hero appears. Wall and phone projections use this shared decision; the wall selects

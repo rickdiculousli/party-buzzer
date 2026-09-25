@@ -186,6 +186,25 @@ export function HostSetup({
                   <span class="muted">sec, then the next question arms</span>
                 </label>
                 <label class="field">
+                  Buzzers stay open
+                  <input
+                    class="input input--num"
+                    type="number"
+                    min={0}
+                    max={60}
+                    step={0.5}
+                    value={state.autoplay.buzzSec}
+                    onInput={(e) =>
+                      act({
+                        ...state.autoplay,
+                        a: 'setAutoplay',
+                        buzzSec: Number((e.target as HTMLInputElement).value),
+                      })
+                    }
+                  />
+                  <span class="muted">sec after the read, then the answer shows</span>
+                </label>
+                <label class="field">
                   Rebound pause
                   <input
                     class="input input--num"

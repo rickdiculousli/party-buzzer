@@ -80,7 +80,7 @@ test('a miss is a wrong at full value, and the rebound re-arms', async () => {
 test('with the box driving, a miss holds the rebound shut until it is opened', async () => {
   const { state, hub, judge, ada } = rig()
   // The two halves of "the reader is in the loop and will open it".
-  state.autoplay = { on: true, nextSec: 5, reboundSec: 4 }
+  state.autoplay = { on: true, nextSec: 5, buzzSec: 5, reboundSec: 4 }
   state.readingActive = true
   state.reading = {
     pack: 'p.txt', qIndex: 0, qTotal: 1, fragIndex: 0, fragTotal: 1,

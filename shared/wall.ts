@@ -28,7 +28,7 @@ import { pickers } from './choice.ts'
 import type { Award, State } from './protocol.ts'
 
 /**
- * The seventeen states, in priority order — `momentOf` returns the first that
+ * The eighteen states, in priority order — `momentOf` returns the first that
  * matches, and that ordering is the load-bearing part. The three `choice`
  * states come first because a choice question never reaches any of the others.
  *
@@ -51,6 +51,7 @@ export type Moment =
   | 'answer:locked'
   | 'verdict:penalty'
   | 'verdict:award'
+  | 'verdict:unanswered'
   | 'duel:nominating'
   | 'duel:dead'
   | 'duel:faceoff'
@@ -126,6 +127,9 @@ export function momentOf(state: State, local: Local): Moment {
   if (r.award && r.phase !== 'COLLECTING' && !handedBack && (!local.retired || rebounding)) {
     return isPenalty(r.award) ? 'verdict:penalty' : 'verdict:award'
   }
+  // Shut with the question still up and nothing scored: the only way there is
+  // `timeUp`, since every verdict stamps an award and `next` drops the question.
+  if (r.phase === 'IDLE' && r.questionId && !r.award) return 'verdict:unanswered'
 
   if (state.duel && !state.duel.seated) return 'duel:nominating'
   // `[]`, not absent: both seated players missed, and nobody at all may buzz.
@@ -182,6 +186,8 @@ export type Wall = {
   finale: string[] | null
   /** Between questions: what the next one is worth. */
   next: number | null
+  /** Nobody took the question; the answer they missed, when the pack has one. */
+  unanswered: { answer?: string } | null
 
   transcript: { name: string; text: string; hit: boolean } | null
   award: (Award & { answer?: string }) | null
@@ -316,6 +322,8 @@ function middleOf(state: State, m: Moment): Middle {
     // aloud there are no fragments and this is the name either way.
     case 'verdict:award':
       return or(scorer, clue)
+    case 'verdict:unanswered':
+      return or(clue)
     case 'answer:locked':
     case 'buzz:collecting':
       // The pair is who *may* answer; the leader is who *is*. Before the order
@@ -403,6 +411,7 @@ export function wallOf(state: State, local: Local): Wall {
       : null,
     award:
       showAward && r.award ? { ...r.award, answer: r.answer } : null,
+    unanswered: m === 'verdict:unanswered' ? { answer: r.answer } : null,
     timeline: !!leader && r.order.length > 1,
     // The stakes, as a dim chip in the corner, from the arm until the next
     // question's card replaces them: through the read, the buzz, the answer
@@ -502,6 +511,9 @@ export function phoneOf(m: Moment, f: Mine): Phone {
       mood: 'barred',
       talk: false,
     }
+  }
+  if (m === 'verdict:unanswered') {
+    return { label: 'Nobody', sub: 'The answer is on the board', mood: 'waiting', talk: false }
   }
   if (m === 'choice:listening') {
     return { label: 'Listen', sub: 'The choices come after the question', mood: 'waiting', talk: false }

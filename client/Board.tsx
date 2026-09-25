@@ -299,8 +299,9 @@ function NomList({
 }
 
 /**
- * The picking countdown: the seconds left, huge and faded behind the whole
- * wall, so it is felt rather than read and takes no room from the grid.
+ * The room's window closing — picking, or an autoplay buzz window: the seconds
+ * left, huge and faded behind the whole wall, so it is felt rather than read
+ * and takes no room from the stage.
  */
 function Countdown({ until, now }: { until: number; now: () => number }) {
   const left = useSecondsLeft(until, now)
@@ -542,8 +543,8 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
   return (
     <main class="board" data-review-id="board:root">
       <section class={w.moment.startsWith('choice:') ? 'board__wall is-choice' : 'board__wall'}>
-        {w.choices?.closesAt !== undefined && w.choices.correct === undefined && (
-          <Countdown until={w.choices.closesAt} now={now} />
+        {round.closesAt !== undefined && (w.moment === 'choice:picking' || w.moment === 'buzz:open') && (
+          <Countdown until={round.closesAt} now={now} />
         )}
         <div class="board__status" data-review-id="board:status">
           {open && <span class="chip chip--open">Open</span>}
@@ -606,6 +607,16 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
               )}
               {w.award?.answer ? (
                 <p class="board__answer fx-rise" data-review-id="board:answer">{w.award.answer}</p>
+              ) : (
+                <Held class="board__answer" />
+              )}
+            </>
+          ) : w.unanswered ? (
+            // Nobody took it: the same stamp a choice reveal uses, then the answer.
+            <>
+              <p data-review-id="board:award" class="board__award fx-anchor">Nobody</p>
+              {w.unanswered.answer ? (
+                <p class="board__answer fx-rise" data-review-id="board:answer">{w.unanswered.answer}</p>
               ) : (
                 <Held class="board__answer" />
               )}
