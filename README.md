@@ -118,6 +118,27 @@ or Undo during play returns it to ready and the game is lost.
 
 `npm run sim-ink` plays a bot game against the running server (join a phone as Ivy, Jax, Kai, Tia (Sun) or Lux, Mo, Rex, Sol (Moon) first to watch that bot's view; Ivy and Lux write, and the Guessers tap the options they vote on, split votes and Force; a guessing bot spells half the word, misses its team's first guess and wins on the second). A team with a borrowed phone types its own guesses: the bots play everything else but never send a letter, so the row stays open for you; `npm run sim-ink -- 2500` slows the bots to one round of actions every 2.5 s (default 700 ms).
 
+### Sketch minigame
+
+Open **Sketch** on the host's Games tab and press **Start match**; it needs two
+connected players. Each turn one player draws: their phone offers three words
+(the first is taken after 10 seconds), and they draw with Undo, Clear, and Pass
+(hold). The drawing appears live on the board. Everyone else types guesses:
+wrong ones go up on the board, a guess one letter off shows **Close!** on that
+phone only, and a right one shows its place and time. A letter is revealed at
+half time and another at three quarters. The turn ends when everyone has it,
+when time runs out, or on Pass, and the board shows the word.
+
+A right guess scores 50 plus up to 50 more for time left; the drawer scores up
+to 100 for how many got it. **Draw seconds** (default 80) sets the draw time and
+**Drawers** limits the turns (0 = everyone once, so a short setlist block can
+set 4). Words come from `packs/sketch-words.txt`, one per line; a match needs
+three per connected player and never offers a word twice. Every moment has a
+sound cue, placeholders for now.
+
+`npm run sim-sketch` plays a match with eight bots against the running server;
+`npm run sim-sketch -- 300` speeds them up.
+
 ## Question packs and spoken play
 
 Put `.txt` files in `packs/`, select one, and press **Read**. For example:

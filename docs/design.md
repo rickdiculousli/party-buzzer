@@ -778,6 +778,9 @@ disagree, the code is what gets renamed.
 - **match / minigame / field** — a match is one synchronized minigame
   start-to-results cycle; a minigame is the kind of play; its shared 2D space
   is the field. A match is not a question, and the field is not the stage.
+- **guess / drawer** — a guess is a typed answer in Sketch or Phantom Ink,
+  never a pick or a buzz; the drawer is the player drawing this Sketch turn.
+  A Sketch turn is not a round.
 - **game / quiz** — a game is anything on the host's Games tab: the quiz or a
   minigame. The quiz is the buzzer play, whichever mode it runs; "trivia" is
   one of those modes, never the whole quiz.
