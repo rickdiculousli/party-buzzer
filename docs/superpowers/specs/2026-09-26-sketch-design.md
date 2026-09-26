@@ -134,6 +134,48 @@ A new folder `server/minigames/sketch/`, built like Ink. No runtime changes.
   `client/ink.ts`. Use design tokens and existing components; the guess feed is
   drama (warm), the guess times are measurement (cyan).
 
+## Audio
+
+Every moment and transition has a cue. They ship as placeholders; final sounds
+are generated later and swapped in through the cue workbench.
+
+**Who plays what.** Room moments play on the board only; private moments play on
+the phone they belong to only. A dozen phones playing the same room cue out of
+sync would smear it.
+
+| Cue | Surface | Moment |
+| --- | --- | --- |
+| `sketch-turn` | board | A new drawer is up (choose starts) |
+| `sketch-yours` | drawer's phone | It's your turn to choose |
+| `sketch-go` | board | Word chosen, drawing starts |
+| `sketch-miss` | board | A wrong guess lands in the feed |
+| `sketch-close` | guesser's phone | Your guess was close |
+| `sketch-got` | board, drawer's phone | Someone guessed right; `rateScale` rises with their place |
+| `sketch-right` | guesser's phone | You guessed right |
+| `sketch-hint` | board | A hint letter is revealed |
+| `sketch-tick` | board | Each of the last five seconds of the draw |
+| `sketch-all` | board | Everyone got it (turn ends early) |
+| `sketch-timeup` | board | Draw time ran out |
+| `sketch-pass` | board | The drawer passed |
+| `sketch-over` | board | The match's last reveal ends |
+
+`sketch-miss` is throttled to one per 120 ms so a burst of guesses stays a
+patter rather than a wall.
+
+**How cues fire.** A pure function in `client/sketch.ts`,
+`sketchCues(prev, next, role)`, compares two frames of the same match and
+returns the cues for that surface: a new drawer index, a step change, a longer
+wrong-guess feed, a longer correct list, more revealed hints, a whole second
+crossed in the last five, and the step's end reason. A frame from another match
+or the first frame of a match only establishes the baseline; it plays nothing.
+To support this, the board frame carries the turn's end reason (`all`, `timeup`,
+`pass`) during `reveal`, and the guess feed and correct list carry a stable
+sequence number so a trimmed feed is not mistaken for no new guess.
+
+**Placeholders.** Each cue joins the `Cue` union and gets a short synth recipe
+in the `RECIPES` block of `client/cues.ts`, each at a different pitch or shape so
+they can be told apart in a playtest. No sample files are added.
+
 ## Testing
 
 `world.test.ts` covers:
@@ -146,7 +188,10 @@ A new folder `server/minigames/sketch/`, built like Ink. No runtime changes.
   one, is refused;
 - the hint schedule and the no-hint floor;
 - choose timeout taking the first word; no word offered twice in a match;
-- the match finishing after the Drawers limit.
+- the match finishing after the Drawers limit;
+- in `client/sketch.test.ts`, `sketchCues`: each moment yields its cue on the
+  right surface only, a first or foreign-match frame yields none, and a trimmed
+  guess feed still yields `sketch-miss` for a new guess.
 
 `npm run sim-sketch` plays bot drawers (scribbles) and guessers (wrong, close,
 and correct guesses at uneven speeds) against the running server, like
