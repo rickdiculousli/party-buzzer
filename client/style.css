@@ -2572,3 +2572,35 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 @media (max-width: 700px) {
   .ink-pad { grid-template-columns: 1fr; }
 }
+
+/* Sketch */
+.sketch-board, .sketch-phone { min-height: 100dvh; background: var(--stage); color: var(--chalk); padding: var(--s4); display: grid; gap: var(--s3); align-content: start; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+.sketch-board { height: 100dvh; overflow: hidden; grid-template-columns: minmax(0, 1fr) minmax(16rem, 26rem); grid-template-rows: auto auto minmax(0, 1fr); }
+.sketch-board--idle { grid-template-columns: 1fr; place-content: center; text-align: center; }
+.sketch-board__title { font: 700 var(--t-mega)/1 var(--display); margin: 0; }
+.sketch-board__bar, .sketch-phone__bar { grid-column: 1 / -1; display: flex; gap: var(--s3); align-items: center; font: 600 var(--t-lg)/1.2 var(--mono); }
+.sketch-phone__bar { font-size: var(--t-md); }
+.sketch-board__clock, .sketch-phone__clock { margin-left: auto; color: var(--cyan); font-variant-numeric: tabular-nums; }
+.sketch-board__blanks, .sketch-phone__blanks { margin: 0; font: 700 var(--t-xl)/1 var(--mono); letter-spacing: .3em; white-space: pre-wrap; }
+.sketch-board__blanks { grid-column: 1; }
+.sketch-board__blanks.is-word { font-family: var(--display); letter-spacing: 0; color: var(--brass); }
+.sketch-ink { width: 100%; aspect-ratio: 4 / 3; background: var(--raise); border: 1px solid var(--rule); border-radius: var(--r-md); display: block; }
+.sketch-board__ink { grid-column: 1; height: 100%; width: auto; max-width: 100%; min-height: 0; justify-self: center; }
+.sketch-board__side { grid-column: 2; grid-row: 2 / 4; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--s4); min-height: 0; overflow: hidden; }
+.sketch-got, .sketch-feed, .sketch-choices { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); align-content: start; }
+.sketch-got li { display: flex; justify-content: space-between; gap: var(--s3); font: 700 var(--t-lg)/1 var(--display); color: var(--brass); }
+.sketch-got__ms { font: 600 var(--t-md)/1 var(--mono); color: var(--cyan); }
+.sketch-feed { align-content: end; }
+.sketch-feed li { font: 700 var(--t-xl)/1.1 var(--display); overflow-wrap: anywhere; }
+.sketch-feed__name { color: var(--dim); font: 600 var(--t-md)/1 var(--mono); margin-right: var(--s2); }
+.sketch-phone__word, .sketch-phone__got { margin: 0; font: 700 var(--t-xl)/1 var(--display); color: var(--brass); }
+.sketch-phone__score { margin: 0; font: 700 var(--t-mega)/1 var(--display); }
+.sketch-canvas-area { touch-action: none; }
+.sketch-canvas { width: 100%; aspect-ratio: 4 / 3; background: var(--raise); border: 1px solid var(--tungsten); border-radius: var(--r-md); touch-action: none; display: block; }
+.sketch-canvas__buttons, .sketch-guess { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.sketch-guess__field { flex: 1; min-width: 0; font: 600 var(--t-lg)/1 var(--mono); padding: var(--s2) var(--s3); background: var(--raise); color: var(--chalk); border: 1px solid var(--rule); border-radius: var(--r-md); }
+.sketch-guess__close { flex-basis: 100%; margin: 0; color: var(--tungsten); font-weight: 700; }
+.sketch-guess__close.is-hidden { visibility: hidden; }
+.sketch-results { min-height: 100vh; background: var(--stage); color: var(--chalk); display: grid; place-content: center; padding: var(--s6); }
+.sketch-results__list { min-width: min(80vw, 50rem); display: grid; gap: var(--s3); padding: 0; list-style: none; }
+.sketch-results__list li { display: flex; justify-content: space-between; gap: var(--s6); font: 600 var(--t-xl)/1 var(--display); }

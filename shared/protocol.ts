@@ -253,7 +253,7 @@ export type ReadingUpdate = { progress: ReadingState; active: boolean }
 /** A solo crew uses the same player for both roles. */
 export type TankCrew = { id: string; driver: PlayerId; gunner: PlayerId }
 
-export type MinigameId = 'bow' | 'tank' | 'ink'
+export type MinigameId = 'bow' | 'tank' | 'ink' | 'sketch'
 
 /**
  * Each minigame's host-settable options, as the same schema the modes ship.
@@ -267,6 +267,10 @@ export const MINIGAME_OPTIONS: Record<MinigameId, Extract<OptionSpec, { kind: 'i
   ],
   tank: [{ kind: 'int', key: 'durationSec', label: 'Seconds', default: 40, min: 5, max: 180 }],
   ink: [],
+  sketch: [
+    { kind: 'int', key: 'drawSec', label: 'Draw seconds', default: 80, min: 30, max: 180 },
+    { kind: 'int', key: 'drawers', label: 'Drawers (0 = everyone)', default: 0, min: 0, max: 30 },
+  ],
 }
 
 export const isMinigameId = (id: string): id is MinigameId => Object.hasOwn(MINIGAME_OPTIONS, id)
@@ -476,6 +480,8 @@ export type MinigameFrame =
     })
   | (FrameBase<'ink'> & { role: 'board' } & InkShared)
   | (FrameBase<'ink'> & { role: 'player' } & InkShared & InkPrivate)
+  | (FrameBase<'sketch'> & { role: 'board' } & SketchShared)
+  | (FrameBase<'sketch'> & { role: 'player' } & SketchShared & SketchPrivate)
   | (FrameBase<MinigameId> & { role: 'spectator' })
 
 export type InkStrokeView = { points: InkPoint[]; author: PlayerId; peek?: true }

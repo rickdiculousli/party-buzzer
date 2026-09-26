@@ -73,7 +73,7 @@ export const DRAFT_MS = 5_000
  * and undo it sent. `sent` counts those inputs; the server reports how many it
  * has processed, and the draft stands until that count catches up.
  */
-export type InkDraft = { sent: number; strokes: InkStrokeView[]; lastOp: 'stroke' | 'undo'; at: number }
+export type InkDraft = { sent: number; strokes: InkStrokeView[]; lastOp: 'stroke' | 'undo' | 'clear'; at: number }
 
 export function liveDraft(draft: InkDraft | null, processed: number, now: number): InkDraft | null {
   return draft && processed < draft.sent && now - draft.at < DRAFT_MS ? draft : null
@@ -87,6 +87,11 @@ export function draftStroke(draft: InkDraft | null, server: { processed: number;
 export function draftUndo(draft: InkDraft | null, server: { processed: number; strokes: InkStrokeView[] }, now: number): InkDraft {
   const base = draft ?? { sent: server.processed, strokes: server.strokes }
   return { sent: base.sent + 1, strokes: base.strokes.slice(0, -1), lastOp: 'undo', at: now }
+}
+
+export function draftClear(draft: InkDraft | null, server: { processed: number; strokes: InkStrokeView[] }, now: number): InkDraft {
+  const base = draft ?? { sent: server.processed, strokes: server.strokes }
+  return { sent: base.sent + 1, strokes: [], lastOp: 'clear', at: now }
 }
 
 /** A draft allows undo only right after its own stroke; otherwise the server decides. */
