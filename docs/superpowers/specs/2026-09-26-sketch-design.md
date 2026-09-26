@@ -42,9 +42,9 @@ The match ends after the last drawer's reveal.
 
 ### Guess matching
 
-Normalize both the guess and the word: lowercase, strip everything but letters,
-digits, and spaces, collapse runs of spaces, trim. Correct is equality after
-normalizing. Close is a Levenshtein distance of exactly 1 on the normalized
+Normalize both the guess and the word: lowercase, strip accents, and drop
+everything but letters and digits, spaces included, so "ice cream", "Ice-Cream"
+and "icecream" all match. Correct is equality after normalizing. Close is a Levenshtein distance of exactly 1 on the normalized
 strings, and only for words of four or more normalized characters.
 
 Guesses are discrete inputs, so they carry the runtime's clamped server-domain
@@ -80,7 +80,9 @@ Late joiners spectate until the next match (existing runtime behaviour).
 `packs/sketch-words.txt`, committed: one word or short phrase per line, blank
 lines and `#` lines ignored, duplicates dropped. A starter list of a few hundred
 party-safe drawable words ships with it. `prepare()` refuses when the file is
-missing or has fewer than 3 × the number of turns words. Words already offered
+missing or has fewer than three words; `startable` refuses when it has fewer
+than three per connected player (it never sees the Drawers option, which only
+lowers the need). Words already offered
 this match are not offered again.
 
 ### Not in scope
