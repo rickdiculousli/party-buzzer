@@ -20,6 +20,8 @@ import { recipeFor } from './cues.ts'
 import { onset, render, schedule, type Recipe } from './synth.ts'
 
 export type Cue = 'stamp' | 'leader' | 'welcome' | 'type' | 'award' | 'penalty'
+  | 'sketch-turn' | 'sketch-yours' | 'sketch-go' | 'sketch-miss' | 'sketch-close' | 'sketch-got'
+  | 'sketch-right' | 'sketch-hint' | 'sketch-tick' | 'sketch-all' | 'sketch-timeup' | 'sketch-pass' | 'sketch-over'
 
 /**
  * The sample path's files. A cue that is a recipe names its files in its

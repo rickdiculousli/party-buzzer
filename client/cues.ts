@@ -229,7 +229,20 @@ export const RECIPES = {
       "sustain": 3040,
       "release": 40
     }
-  ]
+  ],
+  "sketch-turn": [{ "source": "triangle", "freq": 440, "freqTo": 660, "glide": "exp", "attack": 5, "decay": 220, "level": 0, "sustain": 0, "release": 40, "gain": 0.25 }],
+  "sketch-yours": [{ "source": "triangle", "freq": 660, "freqTo": 990, "glide": "exp", "attack": 5, "decay": 260, "level": 0, "sustain": 0, "release": 40, "gain": 0.3 }],
+  "sketch-go": [{ "source": "square", "freq": 523, "attack": 2, "decay": 140, "level": 0, "sustain": 0, "release": 30, "gain": 0.12 }],
+  "sketch-miss": [{ "source": "sine", "freq": 220, "attack": 1, "decay": 60, "level": 0, "sustain": 0, "release": 15, "gain": 0.15 }],
+  "sketch-close": [{ "source": "sine", "freq": 740, "freqTo": 700, "glide": "exp", "attack": 2, "decay": 120, "level": 0, "sustain": 0, "release": 20, "gain": 0.25 }],
+  "sketch-got": [{ "source": "sine", "freq": 880, "freqTo": 1320, "glide": "exp", "attack": 2, "decay": 180, "level": 0, "sustain": 0, "release": 30, "gain": 0.25 }],
+  "sketch-right": [{ "source": "triangle", "freq": 988, "freqTo": 1480, "glide": "exp", "attack": 2, "decay": 300, "level": 0, "sustain": 0, "release": 40, "gain": 0.3 }],
+  "sketch-hint": [{ "source": "sine", "freq": 1175, "attack": 2, "decay": 90, "level": 0, "sustain": 0, "release": 20, "gain": 0.2 }],
+  "sketch-tick": [{ "source": "square", "freq": 1600, "attack": 1, "decay": 25, "level": 0, "sustain": 0, "release": 10, "gain": 0.06 }],
+  "sketch-all": [{ "source": "sawtooth", "freq": 523, "freqTo": 1046, "glide": "exp", "attack": 5, "decay": 400, "level": 0, "sustain": 0, "release": 60, "gain": 0.12 }],
+  "sketch-timeup": [{ "source": "sawtooth", "freq": 330, "freqTo": 165, "glide": "exp", "attack": 5, "decay": 400, "level": 0, "sustain": 0, "release": 60, "gain": 0.12 }],
+  "sketch-pass": [{ "source": "square", "freq": 262, "freqTo": 196, "glide": "exp", "attack": 3, "decay": 250, "level": 0, "sustain": 0, "release": 40, "gain": 0.1 }],
+  "sketch-over": [{ "source": "triangle", "freq": 392, "freqTo": 784, "glide": "exp", "attack": 10, "decay": 700, "level": 0, "sustain": 0, "release": 80, "gain": 0.3 }]
 } satisfies Partial<Record<Cue, Recipe>>
 /* /cue:recipes */
 
