@@ -67,6 +67,8 @@ export type Refusal =
   | 'unpicked'
   | 'team-too-small'
   | 'ink-cards'
+  | 'too-few-players'
+  | 'sketch-words'
   | 'no-choice'
   | 'not-open'
 

@@ -1,4 +1,4 @@
-import { INK_REACH, quantizePoint, type InkInput, type InkPoint, type InkTeamName, type MinigameLobby, type MinigameResult, type PlayerId } from '../../../shared/protocol.ts'
+import { quantizePoint, validPoints, type InkInput, type InkPoint, type InkTeamName, type MinigameLobby, type MinigameResult, type PlayerId } from '../../../shared/protocol.ts'
 import { shuffle } from '../shuffle.ts'
 import type { InkCards } from './cards.ts'
 import {
@@ -8,7 +8,6 @@ import {
 
 const OK: Outcome = { status: 'accepted' }
 const NO: Outcome = { status: 'refused', reason: 'not-allowed' }
-const MAX_POINTS = 500
 
 export const otherTeam = (team: InkTeamName): InkTeamName => team === 'sun' ? 'moon' : 'sun'
 
@@ -162,11 +161,6 @@ function resolve(w: InkWorld, choice: string): void {
     const row = Number(index)
     w.step = { at: 'peekWrite', team: rowTeam, row, from: w.pad[rowTeam][row].strokes.length }
   }
-}
-
-export function validPoints(points: unknown): points is InkPoint[] {
-  return Array.isArray(points) && points.length > 0 && points.length <= MAX_POINTS && points.every((p) =>
-    Array.isArray(p) && p.length === 2 && p.every((n) => typeof n === 'number' && n >= INK_REACH.min && n <= INK_REACH.max))
 }
 
 export function inkTarget(w: InkWorld, playerId: PlayerId): { team: InkTeamName; row: number; peek: boolean } | null {

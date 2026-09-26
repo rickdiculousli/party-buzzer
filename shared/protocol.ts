@@ -286,6 +286,14 @@ export function quantizePoint(x: number, y: number): InkPoint {
   return [q(x), q(y)]
 }
 
+/** Ink and Sketch strokes both arrive as at most this many points. */
+export const MAX_STROKE_POINTS = 500
+
+export function validPoints(points: unknown): points is InkPoint[] {
+  return Array.isArray(points) && points.length > 0 && points.length <= MAX_STROKE_POINTS && points.every((p) =>
+    Array.isArray(p) && p.length === 2 && p.every((n) => typeof n === 'number' && n >= INK_REACH.min && n <= INK_REACH.max))
+}
+
 export type MinigameLobby = { teams: Record<PlayerId, InkTeamName>; volunteers: PlayerId[] }
 
 export type LobbyChange =
@@ -340,11 +348,61 @@ export type InkInput =
   /** One letter of the guess, checked against the secret word the moment it arrives. */
   | { kind: 'letter'; value: string; at: number }
 
+export type SketchStep = 'choosing' | 'drawing' | 'reveal' | 'over'
+/** How a turn ended: everyone guessed it, the draw time ran out, or the drawer passed. */
+export type SketchEnd = 'all' | 'timeup' | 'pass'
+/** A wrong guess. `seq` rises across the match, so a trimmed feed still shows what is new. */
+export type SketchMiss = { seq: number; player: PlayerId; text: string }
+/** A correct guess and its time since the drawing started. */
+export type SketchCorrect = { seq: number; player: PlayerId; ms: number }
+
+/** What the board sees, and every phone underneath its private fields. */
+export type SketchShared = {
+  step: SketchStep
+  drawer: PlayerId
+  /** 0-based. */
+  turn: number
+  turns: number
+  /** The word with each hidden letter or digit as `_`; empty while choosing. */
+  blanks: string
+  /** Present when they changed and once a second. */
+  strokes?: InkStrokeView[]
+  live: InkPoint[] | null
+  /** Server time the current step ends. */
+  endsAt: number
+  /** The latest wrong guesses, oldest first. */
+  misses: SketchMiss[]
+  /** Fastest first. */
+  correct: SketchCorrect[]
+  end: SketchEnd | null
+  /** At the reveal for everyone; sooner for the drawer and for anyone who guessed it. */
+  word: string | null
+}
+
+export type SketchPrivate = {
+  /** The drawer's three words while choosing. */
+  choices: string[]
+  /** Close guesses this turn; the phone flashes Close! when it rises. */
+  close: number
+  /** Stroke, undo and clear inputs processed from this phone. */
+  inkOps: number
+}
+
+export type SketchInput =
+  | { kind: 'pickWord'; index: number; at: number }
+  /** The stroke in progress, repeated while drawing. */
+  | { kind: 'ink'; points: InkPoint[] }
+  | { kind: 'stroke'; points: InkPoint[]; at: number }
+  | { kind: 'undo'; at: number }
+  | { kind: 'clear'; at: number }
+  | { kind: 'pass'; at: number }
+  | { kind: 'guess'; text: string; at: number }
+
 export type MinigameInputMsg = {
   t: 'minigameInput'
   matchId: string
   seq: number
-  input: BowInput | TankInput | InkInput
+  input: BowInput | TankInput | InkInput | SketchInput
 }
 
 export type MinigameInputAck = {

@@ -1,10 +1,11 @@
 import type { InkPrivate, InkShared, InkStepView, PlayerId } from '../../../shared/protocol.ts'
 import type { MinigameDefinition } from '../definition.ts'
+import { validPoints } from '../../../shared/protocol.ts'
 import { lobbyStartable } from '../lobby.ts'
 import { INK_CARDS_PATH, loadInkCards, type InkCards } from './cards.ts'
 import type { InkWorld } from './types.ts'
 import {
-  applyInk, createInkWorld, inkFinished, inkResults, inkTarget, peekTargets, roleOf, validPoints,
+  applyInk, createInkWorld, inkFinished, inkResults, inkTarget, peekTargets, roleOf,
 } from './world.ts'
 
 const STEP_MS = 50
