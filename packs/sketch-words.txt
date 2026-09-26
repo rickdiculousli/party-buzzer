@@ -1,0 +1,352 @@
+# Sketch words: one word or short phrase per line. Blank and # lines are skipped.
+# Keep them drawable in 80 seconds and fine for any room.
+
+# Food
+apple
+banana
+cherry
+grapes
+pineapple
+watermelon
+carrot
+broccoli
+mushroom
+pizza
+hamburger
+hot dog
+taco
+sushi
+ice cream
+cupcake
+birthday cake
+donut
+cookie
+popcorn
+sandwich
+pancake
+spaghetti
+egg
+cheese
+bread
+coffee
+teapot
+milkshake
+lollipop
+
+# Animals
+cat
+dog
+horse
+cow
+pig
+sheep
+chicken
+duck
+rabbit
+mouse
+elephant
+giraffe
+lion
+tiger
+zebra
+monkey
+gorilla
+kangaroo
+koala
+panda
+penguin
+owl
+eagle
+parrot
+flamingo
+peacock
+snake
+turtle
+frog
+crocodile
+shark
+whale
+dolphin
+octopus
+jellyfish
+crab
+lobster
+snail
+butterfly
+bee
+spider
+ant
+ladybug
+dinosaur
+dragon
+unicorn
+bat
+camel
+hedgehog
+squirrel
+fox
+wolf
+bear
+deer
+goldfish
+seahorse
+starfish
+worm
+
+# Places
+house
+castle
+igloo
+tent
+lighthouse
+windmill
+bridge
+skyscraper
+pyramid
+barn
+church
+tree house
+fence
+ladder
+door
+window
+chimney
+staircase
+elevator
+swimming pool
+
+# Vehicles
+car
+bus
+train
+airplane
+helicopter
+rocket
+bicycle
+motorcycle
+skateboard
+sailboat
+submarine
+tractor
+fire truck
+ambulance
+taxi
+hot air balloon
+scooter
+canoe
+traffic light
+parachute
+
+# Nature
+sun
+moon
+star
+cloud
+rainbow
+lightning
+snowman
+snowflake
+volcano
+mountain
+island
+beach
+waterfall
+river
+desert
+cactus
+palm tree
+flower
+sunflower
+rose
+leaf
+tornado
+wave
+cave
+planet
+comet
+
+# Gadgets
+guitar
+piano
+drum
+trumpet
+violin
+microphone
+headphones
+television
+computer
+phone
+camera
+clock
+alarm clock
+lamp
+light bulb
+battery
+magnet
+robot
+remote control
+calculator
+
+# Things
+chair
+table
+bed
+sofa
+bathtub
+toilet
+toothbrush
+umbrella
+glasses
+hat
+crown
+shoe
+sock
+glove
+scarf
+backpack
+wallet
+key
+lock
+envelope
+book
+pencil
+scissors
+paintbrush
+candle
+mirror
+pillow
+broom
+bucket
+hammer
+saw
+screwdriver
+shovel
+wheelbarrow
+anchor
+compass
+map
+flag
+balloon
+kite
+gift
+trophy
+medal
+coin
+diamond
+ring
+necklace
+sword
+shield
+bow and arrow
+cannon
+treasure chest
+telescope
+microscope
+hourglass
+basket
+bottle
+cup
+fork
+spoon
+knife
+frying pan
+fridge
+oven
+washing machine
+
+# Sports and fun
+football
+basketball
+baseball bat
+tennis racket
+bowling
+golf
+skiing
+surfing
+fishing
+boxing
+karate
+yoga
+trampoline
+swing
+slide
+seesaw
+roller coaster
+ferris wheel
+carousel
+fireworks
+
+# People
+ghost
+vampire
+zombie
+mummy
+witch
+wizard
+pirate
+ninja
+astronaut
+alien
+superhero
+mermaid
+knight
+princess
+clown
+cowboy
+chef
+doctor
+firefighter
+police officer
+farmer
+magician
+scientist
+
+# Doing things
+sleeping
+dancing
+running
+swimming
+singing
+crying
+laughing
+sneezing
+juggling
+painting
+reading
+cooking
+jumping
+flying
+climbing
+yawning
+hugging
+waving
+whistling
+snoring
+
+# Everything else
+birthday party
+wedding
+campfire
+picnic
+haircut
+traffic jam
+sunburn
+homework
+nightmare
+selfie
+hiccups
+time machine
+black hole
+spider web
+footprint
+fingerprint
+skeleton
+brain
+heart
+tooth
+eye
+nose
+ear
+mustache
+beard
+tattoo
