@@ -69,11 +69,41 @@ export function makeReviewScenarios(): ReviewScenario[] {
   welcome.scores = { ada: 0, bo: 0, cy: 0 }
 
   const waiting = base()
+  const setlistBlocks = [
+    { game: 'trivia', options: {}, count: 3 },
+    { game: 'quizbowl', options: { powerAfterFragment: 2 }, count: 2 },
+  ]
+  const setlistTrivia = structuredClone(waiting)
+  setlistTrivia.setlist = { blocks: setlistBlocks, at: 0, done: 1 }
 
   const delay = question()
   delay.round.armedAt = NOW + 200
 
   const open = question()
+
+  const shownReading = question()
+  shownReading.round.kind = 'shown'
+  shownReading.round.value = 200
+  shownReading.round.fragments = ['What country is home to the city of Timbuktu?']
+  shownReading.round.whole = shownReading.round.fragments[0]
+
+  const quizbowlReading = question()
+  quizbowlReading.game = {
+    id: 'quizbowl',
+    options: { powerAfterFragment: 2, powerBonus: 50, neg: 0, bouncebacks: true, itemsEnabled: false },
+    moduleState: {},
+  }
+  quizbowlReading.round.value = 100
+  quizbowlReading.round.fragments = [
+    'This thing has a version supposedly named for Queen Margherita on a visit to Naples.',
+  ]
+  quizbowlReading.round.whole = [
+    quizbowlReading.round.fragments[0],
+    'Chicago and New York still argue over how thick it should be.',
+    'Name this dish of baked dough, tomato sauce and cheese, often sold by the slice.',
+  ].join(' ')
+  const setlistQuizbowl = structuredClone(quizbowlReading)
+  setlistQuizbowl.setlist = { blocks: setlistBlocks, at: 1, done: 0 }
 
   const collecting = question('COLLECTING')
   collecting.round.order = [
@@ -92,6 +122,7 @@ export function makeReviewScenarios(): ReviewScenario[] {
   correct.round.spoken = { name: 'Ada', transcript: 'the Pacific Ocean', hit: true }
   correct.round.award = { name: 'Ada', points: 400 }
   correct.round.answer = 'Pacific Ocean'
+  correct.scores.ada += 400
   // The server scores to IDLE and keeps the order up.
   correct.round.phase = 'IDLE'
 
@@ -104,6 +135,7 @@ export function makeReviewScenarios(): ReviewScenario[] {
   wrong.round.spoken = { name: 'Ada', transcript: 'the Atlantic Ocean', hit: false }
   wrong.round.award = { name: 'Ada', points: -100, penalty: true }
   wrong.round.answer = 'Pacific Ocean'
+  wrong.scores.ada -= 100
 
   const rebound = structuredClone(wrong)
   rebound.round.phase = 'ARMED'
@@ -222,8 +254,12 @@ export function makeReviewScenarios(): ReviewScenario[] {
   return [
     build('welcome', 'Welcome', welcome, at()),
     build('waiting', 'Waiting between questions', waiting, at()),
+    build('setlist-trivia', 'Setlist: Trivia, question 2 of 3', setlistTrivia, at()),
     build('delay', 'Arm delay', delay, at()),
     build('open', 'Question open', open, at({ open: true })),
+    build('shown-reading', 'Shown question, reading', shownReading, at({ open: true })),
+    build('quizbowl-reading', 'Quizbowl-lite, first fragment', quizbowlReading, at({ open: true })),
+    build('setlist-quizbowl', 'Setlist: Quizbowl-lite, question 1 of 2', setlistQuizbowl, at({ open: true })),
     build('collecting', 'Collecting buzzes', collecting, at({ open: true })),
     build('leader-answering', 'Leader answering', answering, at()),
     build('correct', 'Correct award', correct, at()),

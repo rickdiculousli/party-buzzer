@@ -142,6 +142,25 @@ test('the mirror never widens the buzz-order redaction', () => {
   assert.equal(hub.viewFor(a).round.order.length, 1, 'still only your own buzz')
 })
 
+test('a phone knows whether its buzz leads even when displayed margins tie', () => {
+  const { state, hub, conn } = rig()
+  const a = conn('player')
+  const b = conn('player')
+  joinAs(hub, a, 'Ada')
+  joinAs(hub, b, 'Bo')
+  state.round.order = [
+    { playerId: a.playerId!, name: 'Ada', at: 1, deltaMs: 0 },
+    { playerId: b.playerId!, name: 'Bo', at: 1.4, deltaMs: 0 },
+  ]
+  const first = hub.viewFor(a).round.order
+  const second = hub.viewFor(b).round.order
+  assert.equal(first.length, 1)
+  assert.equal(second.length, 1)
+  assert.equal(first[0].leader, true)
+  assert.equal(second[0].leader, false)
+  assert.equal(state.round.order[0].leader, undefined, 'projection does not change live order')
+})
+
 test('reading progress is host/board only, never sent to a player view', () => {
   const { state, hub, conn } = rig()
   state.readingActive = true

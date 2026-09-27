@@ -466,6 +466,8 @@ export type Mine = {
   correct?: number
   /** The round value, for the reveal's "+200". */
   value?: number
+  /** Actual award for a buzz answer; modes may add a power bonus. */
+  awardPoints?: number
 }
 
 /**
@@ -529,6 +531,12 @@ export function phoneOf(m: Moment, f: Mine): Phone {
     }
     const answer = f.correct === undefined ? '' : f.choices?.[f.correct] ?? ''
     return { label: f.pick === undefined ? 'No pick' : 'Wrong', sub: `It was ${answer}`, mood: 'barred', talk: false }
+  }
+  // Phones have no award-stamp dwell, so their local moment may already be
+  // idle:ready while the scored round is still up. The answerer keeps the
+  // actual result until the next arm clears its award and order.
+  if ((m === 'verdict:award' || m === 'idle:ready') && f.won && f.awardPoints !== undefined) {
+    return { label: 'Right', sub: `+${f.awardPoints}`, mood: 'first', talk: false }
   }
   // The buzzers being shut is what "somebody is answering" means to a phone.
   // A transcript typing itself out over an *open* rebound is not that: the

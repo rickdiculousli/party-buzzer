@@ -10,6 +10,7 @@ import { createBatch, validBatchId } from './batches.ts'
 import { capturePreviews } from './capture.ts'
 import { QueueDeliveryError, queueBatch } from './codex.ts'
 import { makeReviewScenarios } from './fixtures.ts'
+import { qrSvg } from '../../server/net.ts'
 
 const run = promisify(execFile)
 const REPO = fileURLToPath(new URL('../../', import.meta.url))
@@ -123,6 +124,16 @@ export function reviewPlugin(): Plugin {
     name: 'review-workbench',
     apply: 'serve',
     configureServer(server) {
+      // The frozen board still needs the production QR's shape. This address
+      // cannot join a room; the review workbench has no game server.
+      server.middlewares.use('/qr.svg', (req, res) => {
+        if (req.method !== 'GET') return reply(res, 405, { error: 'GET only' })
+        qrSvg('https://review.invalid/join').then(
+          (svg) => res.writeHead(200, { 'content-type': 'image/svg+xml' }).end(svg),
+          () => res.writeHead(500).end('qr failed'),
+        )
+      })
+
       server.middlewares.use('/__review/scenarios', (req, res) => {
         if (req.method !== 'GET') return reply(res, 405, { error: 'GET only' })
         reply(res, 200, { scenarios: makeReviewScenarios() })

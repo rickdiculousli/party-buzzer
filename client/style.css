@@ -514,6 +514,14 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   left: var(--s6);
   display: flex;
   gap: var(--s2);
+  flex-wrap: wrap;
+  max-width: calc(100% - 10rem);
+}
+.board__setlist {
+  font-size: clamp(1rem, 1.3vw, 1.125rem);
+  line-height: 1.15;
+  letter-spacing: 0.06em;
+  color: var(--chalk);
 }
 .board__hero {
   font-family: var(--display);
@@ -980,6 +988,17 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 
 .host__order { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s1); }
+.host__standings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--s1);
+  max-height: 12rem;
+  overflow-y: auto;
+}
+.host__standings .rank { width: 3ch; font-size: var(--t-xs); }
 .host__scores { display: grid; gap: var(--s1); }
 .host__score-row { display: flex; align-items: center; gap: var(--s3); padding: var(--s2) var(--s3); background: var(--panel); border-left: 3px solid var(--rule); }
 
@@ -1129,6 +1148,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .buzzer.is-first { background: var(--brass); border-color: var(--brass); color: #201a03; }
 .buzzer.is-placed { background: var(--raise); border-color: var(--tungsten); color: var(--tungsten); }
 .buzzer.is-barred { background: #1c1210; border-color: #3a221e; color: #9c6a5c; }
+.buzzer:is(.is-waiting, .is-barred) .buzzer__sub { opacity: 1; }
+.buzzer.is-barred .buzzer__sub { color: var(--dim); }
 
 /* The push-to-talk zone: the buzzer, re-purposed while the judge listens.
    `.buzzer` already carries the 2px --rule border, so the swap never shifts.

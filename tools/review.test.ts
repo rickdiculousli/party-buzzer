@@ -119,13 +119,60 @@ test('review scenarios use Hub projections for board and phone state', async () 
   }
 })
 
+test('review verdicts carry the awarded score into the board and phones', async () => {
+  const { makeReviewScenarios } = await import('./review/fixtures.ts')
+  const scenarios = makeReviewScenarios()
+  for (const [id, score] of [['correct', 1000], ['wrong-hold', 500], ['rebound', 500]] as const) {
+    const scenario = scenarios.find((item) => item.id === id)
+    assert.ok(scenario, id)
+    assert.equal(scenario.board.scores.ada, score, `${id} board`)
+    assert.equal(scenario.phones.find((phone) => phone.playerId === 'ada')?.state.scores.ada, score, `${id} phone`)
+  }
+})
+
+test('shown and quizbowl review states keep their different phone text rules', async () => {
+  const { makeReviewScenarios } = await import('./review/fixtures.ts')
+  const scenarios = makeReviewScenarios()
+  const shown = scenarios.find((item) => item.id === 'shown-reading')
+  const quizbowl = scenarios.find((item) => item.id === 'quizbowl-reading')
+  assert.ok(shown)
+  assert.ok(quizbowl)
+  assert.equal(shown.board.round.kind, 'shown')
+  assert.ok(shown.phones[0].state.round.fragments?.length)
+  assert.equal(shown.phones[0].state.round.whole, undefined)
+  assert.equal(quizbowl.board.game.id, 'quizbowl')
+  assert.ok(quizbowl.board.round.fragments?.length)
+  assert.equal(quizbowl.phones[0].state.round.fragments, undefined)
+  assert.equal(quizbowl.phones[0].state.round.whole, undefined)
+})
+
+test('review scenarios include active trivia and quizbowl-lite setlist positions', async () => {
+  const { makeReviewScenarios } = await import('./review/fixtures.ts')
+  const scenarios = makeReviewScenarios()
+  for (const [id, game, at] of [
+    ['setlist-trivia', 'trivia', 0],
+    ['setlist-quizbowl', 'quizbowl', 1],
+  ] as const) {
+    const scenario = scenarios.find((item) => item.id === id)
+    assert.ok(scenario, id)
+    assert.equal(scenario.board.setlist?.at, at)
+    assert.equal(scenario.board.setlist?.blocks[at].game, game)
+    assert.equal(scenario.board.game.id, game)
+    assert.ok(scenario.board.games.some((entry) => entry.id === game && entry.name.length > 0))
+  }
+})
+
 test('review scenarios cover the main board and phone moments', async () => {
   const { makeReviewScenarios } = await import('./review/fixtures.ts')
   assert.deepEqual(makeReviewScenarios().map((scenario) => scenario.id), [
     'welcome',
     'waiting',
+    'setlist-trivia',
     'delay',
     'open',
+    'shown-reading',
+    'quizbowl-reading',
+    'setlist-quizbowl',
     'collecting',
     'leader-answering',
     'correct',

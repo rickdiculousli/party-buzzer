@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { createPortal } from 'preact/compat'
 import { useOpen, useSecondsLeft, useSocket, type SocketFixture } from './useSocket.ts'
-import { colorForPlayer, lockedNames, standings, willSeat } from './ui.ts'
+import { colorForPlayer, lockedNames, setlistPosition, standings, willSeat } from './ui.ts'
 import { markGap, play, playSpaced, prime, startBed, stopBed, unlock } from './sound.ts'
 import { Votes } from './Votes.tsx'
 import { Spoken } from './Spoken.tsx'
 import { lastUp, wallOf, type ChoiceWall, type Wall } from '../shared/wall.ts'
 import { LETTERS } from '../shared/choice.ts'
-import { isMinigameId, isPenalty, type MinigameId } from '../shared/protocol.ts'
+import { isPenalty } from '../shared/protocol.ts'
 import { useReveal } from './useReveal.ts'
 import { COLLECT_MS, type BuzzEntry, type State } from '../shared/protocol.ts'
 import { MINIGAMES } from './minigames.tsx'
@@ -540,6 +540,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
   // carries the board across that gap; once the arm stamps buzzable, that is the
   // truer source, because a wrong answer narrows it.
   const seating = willSeat(state)
+  const setlistLabel = setlistPosition(state)
 
   return (
     <main class="board" data-review-id="board:root">
@@ -555,12 +556,9 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
           </span>
           {/* Position, not drama. The stage belongs to the question; a setlist that
               pulls the eye during a buzz has failed at its job. */}
-          {state.setlist?.blocks[state.setlist.at] && (
-            <span key={state.setlist.at} class="chip fx-flip">
-              {state.setlist.at + 1}/{state.setlist.blocks.length} ·{' '}
-              {isMinigameId(state.setlist.blocks[state.setlist.at].game)
-                ? MINIGAMES[state.setlist.blocks[state.setlist.at].game as MinigameId].name
-                : `Q${state.setlist.done + 1} of ${state.setlist.blocks[state.setlist.at].count}`}
+          {setlistLabel && (
+            <span key={state.setlist?.at} class="chip board__setlist fx-flip" data-review-id="board:setlist">
+              {setlistLabel}
             </span>
           )}
           {!audible && <span class="chip">Click for sound</span>}

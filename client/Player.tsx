@@ -238,8 +238,9 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
   }
 
 
-  // deltaMs is computed before redaction, so 0 means first across the whole field.
-  const won = !!mine && mine.deltaMs === 0
+  // The rounded displayed margin can be zero for a later buzz too. The hub
+  // projects this player's actual place without exposing anyone else's order.
+  const won = mine?.leader === true
 
   // `settled` and `retired` are both already true here: the phone renders no
   // transcript and no award stamp, so it has no reveal to wait on — neither
@@ -269,6 +270,7 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     choices: round?.choices,
     correct: round?.correct,
     value: round?.value,
+    awardPoints: round?.award && !round.award.penalty ? round.award.points : undefined,
   })
 
   const me = state?.players.find((p) => p.id === playerId)

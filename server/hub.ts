@@ -563,7 +563,9 @@ export class Hub {
       game,
       round: {
         ...round,
-        order: round.order.filter((b) => b.playerId === conn.playerId),
+        order: round.order
+          .filter((b) => b.playerId === conn.playerId)
+          .map((b) => ({ ...b, leader: round.order[0]?.playerId === b.playerId })),
         fragments: mirror ? round.fragments : undefined,
         // Unconditional, mirror or not: this is the unspoken remainder.
         whole: undefined,

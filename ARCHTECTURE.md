@@ -196,6 +196,8 @@ catalogs. It is not sent unchanged to every role and is not saved wholesale.
 - Host and board receive the full buzz order and reader progress. Only the host
   receives computed `game.status` from the current mode's `hostStatus` hook.
 - Phones receive only their own order entries, plus the total buzz count.
+  Their own entry marks whether it leads; a rounded `0 ms` margin can also
+  belong to a later buzz.
   Reader progress and `round.whole` are always omitted.
 - Phones receive revealed fragments and the revealed answer only when text
   mirroring is enabled. Mode memory is hidden by default; `viewModuleState`

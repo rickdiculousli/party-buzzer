@@ -275,6 +275,18 @@ test('the phone: a question from second place, and the rebound', () => {
   assert.equal(phoneOf('answer:locked', { ...mine, won: true, barred: true }).label, 'Out')
 })
 
+test('a correct answerer sees the actual award before the next question', () => {
+  const mine = {
+    frozen: false, barred: false, spectator: false, dead: false,
+    won: true, pressed: true, armed: false, open: false, judging: false,
+    value: 400, awardPoints: 450,
+  }
+  const right = phoneOf('verdict:award', mine)
+  assert.deepEqual([right.label, right.sub, right.mood], ['Right', '+450', 'first'])
+  assert.equal(phoneOf('idle:ready', mine).label, 'Right')
+  assert.equal(phoneOf('verdict:award', { ...mine, won: false }).label, 'Wait')
+})
+
 test('a penalty comes down when someone takes the question over', () => {
   // `wrong` re-stamps the award negative and leaves it standing through the
   // rebound (server/state.ts), so an award can genuinely be up at LOCKED.

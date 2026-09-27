@@ -1,5 +1,7 @@
 import type { ActionResult, HostAction, ScoreKey, State } from '../shared/protocol.ts'
+import { isMinigameId } from '../shared/protocol.ts'
 import type { Refusal } from '../shared/legality.ts'
+import { MINIGAME_INFO } from './minigame-info.ts'
 
 /**
  * A refusal, in words the host can act on.
@@ -84,6 +86,17 @@ export function standings(state: State, sorted = true): Standing[] {
       : state.players.map((p) => ({ key: p.id, label: p.name, color: colorFor(p.id), score: 0 }))
   const withScores = rows.map((r) => ({ ...r, score: state.scores[r.key] ?? 0 }))
   return sorted ? withScores.sort((a, b) => b.score - a.score) : withScores
+}
+
+/** The board's setlist label: mode and position, without calling a question a round. */
+export function setlistPosition(state: Pick<State, 'setlist' | 'games'>): string | null {
+  const list = state.setlist
+  const block = list?.blocks[list.at]
+  if (!block) return null
+  const position = `Block ${list.at + 1}/${list.blocks.length}`
+  if (isMinigameId(block.game)) return `${MINIGAME_INFO[block.game].name} · ${position}`
+  const mode = state.games.find((game) => game.id === block.game)?.name ?? block.game
+  return `${mode} · ${position} · Question ${list.done + 1}/${block.count}`
 }
 
 /** A player's name, or '?' for an id no longer in the room. */

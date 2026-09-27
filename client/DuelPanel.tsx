@@ -70,12 +70,11 @@ export function DuelPanel({ state, act }: { state: State; act: (a: HostAction) =
 
   if (!duel) {
     const teams = state.grouping === 'teams' ? new Set(eligible.map((p) => p.teamId)) : null
-    // `openDuel`'s legality does not read the rule — seating happens before the
-    // question opens, and that is a fact about the round — so one call answers
-    // for every button in the row below and for the line under it. The empty
-    // rule is not a payload and never becomes one; it is there because the
-    // parameter exists, and naming a real rule would only suggest otherwise.
-    const openRefusal = refuses(state, { a: 'openDuel', rule: '' })
+    // Every displayed rule is in this catalog. Use one real id for the shared
+    // round-level refusal; an empty id is itself refused as an unknown rule.
+    const openRefusal = state.duelRules[0]
+      ? refuses(state, { a: 'openDuel', rule: state.duelRules[0].id })
+      : null
     return (
       <section>
         <p class="eyebrow">Heads-up</p>

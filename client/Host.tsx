@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { useOpen, useSocket } from './useSocket.ts'
-import { REFUSAL_TEXT, colorForPlayer, credits, playerName } from './ui.ts'
+import { REFUSAL_TEXT, colorForPlayer, credits, playerName, standings } from './ui.ts'
 import { refuses } from '../shared/legality.ts'
 import { DuelPanel } from './DuelPanel.tsx'
 import { HostGames, HostPlayers, LobbyTeams } from './HostSetup.tsx'
@@ -441,7 +441,7 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
             </button>
           ) : (
             <button class="btn btn--major btn--go" onClick={() => act({ a: 'correct' })} disabled={!judgeable}>
-              Correct +{round.value}<span class="key">C</span>
+              Correct<span class="key">C</span>
             </button>
           )}
           <button
@@ -449,7 +449,7 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
             onClick={() => act({ a: 'wrong', neg: round.value })}
             disabled={!judgeable}
           >
-            Wrong −{round.value}<span class="key">W</span>
+            Wrong<span class="key">W</span>
           </button>
         </div>
         <div class="host__minor" style={{ marginTop: 'var(--s3)' }}>
@@ -564,9 +564,27 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
         )}
       </section>
 
+      <section>
+        <p class="eyebrow">Standings</p>
+        {state.players.length === 0 ? (
+          <p class="muted">No players yet.</p>
+        ) : (
+          <ol class="host__standings">
+            {standings(state).map((r, i) => (
+              <li key={r.key} class="row" style={{ borderLeftColor: r.color }}>
+                <span class={i < 3 ? `rank rank--${i + 1}` : 'rank'}>
+                  {i < 3 ? ['1st', '2nd', '3rd'][i] : ''}
+                </span>
+                <span class="row__label">{r.label}</span>
+                <span class="readout">{r.score}</span>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
+
       <DuelPanel state={state} act={act} />
       </>}
     </>
   )
 }
-

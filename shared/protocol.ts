@@ -37,6 +37,8 @@ export type BuzzEntry = {
   name: string
   at: number
   deltaMs: number
+  /** Only on a phone's own projected entry; rounded margins can tie. */
+  leader?: boolean
 }
 
 /**

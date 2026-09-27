@@ -127,7 +127,12 @@ function Workbench() {
 
   /** After the next render puts it on screen. */
   const focusNote = (id: string) => requestAnimationFrame(() => {
-    document.getElementById(`note-${id}`)?.focus()
+    const note = document.getElementById(`note-${id}`)
+    const active = document.activeElement
+    // A delayed frame must not take focus back after someone starts typing in
+    // another field, such as the Codex conversation input.
+    if (active !== note && active?.matches('input, textarea, [contenteditable="true"]')) return
+    note?.focus()
   })
 
   const changeDraft = (change: (current: typeof draft) => typeof draft) => {

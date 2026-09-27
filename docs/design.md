@@ -402,10 +402,11 @@ enough that two buttons beat a pointer library. The block the room is running
 rails brass (`.setlist__block.is-here`) — the same colour the board uses for a
 leader — so scrolling the builder mid-game still shows which row is running.
 
-The board gets one chip, not the strip. The stage belongs to the question; a
-setlist that pulls the eye during a buzz has failed at its job, so the board's
-share of it is `N/total · QM of count`, sized and coloured like every other
-status chip, competing for no more attention than "3 players" does.
+The board gets one chip, not the strip. It names the mode and the actual
+positions: `Quizbowl-lite · Block 2/3 · Question 1/2`. A minigame block names
+the minigame and block without a question count. This chip is larger and more
+legible than the other status chips, but stays at the top-left edge so it does
+not compete with the question in the middle of the stage.
 
 ### Button — `.btn`
 
@@ -656,7 +657,9 @@ that always says what is running and holds Undo:
 
 - **Play** — the only page that changes with the room: the quiz desk, the match
   desk while a minigame is up, or an "Open <minigame>" button when the setlist
-  sits on a minigame block. Keys fire only here, and never under a minigame.
+  sits on a minigame block. The quiz desk keeps compact live standings beneath
+  the buzz order; Players has score editing. Keys fire only here, and never
+  under a minigame.
 - **Games** — how the night runs (direct play or setlist), the setlist builder,
   then one fold per game (`.host__game`, a `<details name="game">` accordion):
   the quiz (mode, pack, reading) and each minigame (its options and Open).
@@ -688,6 +691,7 @@ explanation is the worst thing this app can do:
 | Won | You're up | Answer it |
 | Placed | +20 ms | Someone beat you to it |
 | Locked out | Out | Wrong answer — you sit out the rest of this question |
+| Correct answer | Right | The points actually awarded, including a mode bonus |
 
 "In" is the phone knowing something the room does not. It is purely local — the
 room sees nothing for the first 150 ms, and a buzzer that looks unchanged after

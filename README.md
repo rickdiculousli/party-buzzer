@@ -271,6 +271,7 @@ press enter.
 
 These static views are for visual review; use the manual checklist for timing,
 audio, microphone, and multi-device behavior.
+The QR in a frozen board preview is a visual placeholder and cannot join a live room.
 
 Coding agents can explicitly invoke the repository skill as
 `$review-workbench` in Codex or `/review-workbench` in Claude Code. They may
