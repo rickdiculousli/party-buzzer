@@ -45,7 +45,7 @@ function blip(ctx: AudioContext | null, hz = 660, ms = 150) {
  * of the field a scroll away under frosted edges. Rows tilt around a shared
  * cylinder axis by their distance from the middle, like the old time pickers.
  */
-function StandingsDial({ state }: { state: State }) {
+export function StandingsDial({ state }: { state: State }) {
   const rows = standings(state)
   const list = useRef<HTMLOListElement>(null)
   useFlip(list)
@@ -216,7 +216,7 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
 
   if (state?.minigame) {
     const Surface = MINIGAMES[state.minigame.id].player
-    return <Surface state={state} playerId={playerId} frame={minigameFrame} now={now} send={send} ack={minigameAck} touches={minigameTouches} />
+    return <Surface state={state} playerId={playerId} connected={connected} frame={minigameFrame} now={now} send={send} ack={minigameAck} touches={minigameTouches} />
   }
 
   const choice = round?.kind === 'choice'

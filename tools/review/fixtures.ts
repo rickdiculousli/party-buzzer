@@ -220,7 +220,10 @@ export function makeReviewScenarios(): ReviewScenario[] {
   const sketchState = (session: ReturnType<typeof sketchSession>) => {
     const state = base()
     state.players = structuredClone(SKETCH_PLAYERS)
-    state.scores = Object.fromEntries(SKETCH_PLAYERS.map((player) => [player.id, 0]))
+    // A finished match has already been added to the night, as the hub does.
+    state.scores = Object.fromEntries(SKETCH_PLAYERS.map((player) => [
+      player.id, session.results?.find((result) => result.playerId === player.id)?.points ?? 0,
+    ]))
     state.minigame = session
     return state
   }

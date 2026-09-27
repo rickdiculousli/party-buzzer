@@ -14,6 +14,7 @@ import { SketchPlayer } from './SketchPlayer.tsx'
 export type MinigamePlayerProps = {
   state: State
   playerId: string | null
+  connected?: boolean
   frame: MinigameFrame | null
   now: () => number
   send: (message: ClientMsg) => void

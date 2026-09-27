@@ -122,12 +122,16 @@ or Undo during play returns it to ready and the game is lost.
 
 Open **Sketch** on the host's Games tab and press **Start match**; it needs two
 connected players. Each turn one player draws: their phone offers three words
-(the first is taken after 10 seconds), and they draw with Undo, Clear, and Pass
-(hold). The drawing appears live on the board. Everyone else types guesses:
-wrong ones go up on the board, a guess one letter off shows **Close!** on that
-phone only, and a right one shows its place and time. A letter is revealed at
-half time and another at three quarters. The turn ends when everyone has it,
-when time runs out, or on Pass, and the board shows the word.
+(the first is taken after 10 seconds), and they draw sideways, holding the
+phone with its left edge down as Ink's writers do, with Undo, plus Clear and
+Pass, which both take a hold. The drawing appears live on the board, beside the
+match's standings. Everyone else types guesses: they join the feed under the
+drawing, a guesser's own last misses stay on their phone, a guess one letter off
+shows **Close** on that phone only, and a right one shows its place and time. A
+letter is revealed at half time and another at three quarters. The turn ends
+when everyone has it, when time runs out, or on Pass, and the board stamps how
+many got it and shows the word. The match's points join the night's standings
+when it ends.
 
 A right guess scores 50 plus up to 50 more for time left; the drawer scores up
 to 100 for how many got it. **Draw seconds** (default 80) sets the draw time and

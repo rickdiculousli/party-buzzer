@@ -8,7 +8,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { BURST_COUNT, countAt, flashTimes, flipDeltas, glitchCut, particles, words, type Aim, type BurstKind, type Particle } from './fx.ts'
 import { parseTune } from './sound.ts'
 
-const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches
+export const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 
 /**
  * Text split into letters for the per-letter classes (`fx-wave`, `fx-rainbow`,

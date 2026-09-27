@@ -45,6 +45,7 @@ at a party. Keeping both, and keeping them visually separate, is the design.
 | `--panel` | `#16130f` | A lit surface sitting on the stage. Sidebars, rows, sections. |
 | `--raise` | `#211c16` | A row or control on a panel. One step only — never stack three. |
 | `--rule` | `#2c2620` | Hairlines, borders, an unlit lamp. |
+| `--stone` | `#2e2d2b` | A true grey for what floats over the set, such as the backing behind Sketch's chat lines. Used translucent, so it reads over both the stage and a lit surface. |
 
 ### Ink
 
@@ -524,6 +525,72 @@ line arriving or leaving never moves it. And it outlives a rebound the way
 the award does — a wrong answer hands the question to the next in the order, the
 collection window is gone, but what the first player said is still the story
 the room is reacting to, so it stays up until the next question arms.
+
+### Chat — `.sketch-chat`
+
+A stream of what the room is typing, the way a stream's chat overlay runs:
+Sketch's guesses on the board. `SketchChat` in `client/SketchParts.tsx`; the
+rules it runs on are pure functions in `client/sketch.ts`.
+
+**How it looks.** A column centred on the drawing's right border, half over the
+drawing and half beside it, so it reads as laid over the work without hiding
+it. Each line is one line tall (a long guess ends in an ellipsis): the name in
+its identity colour, bold display caps, then the text. Every line sits on its
+own backing of `--stone` at 55%, a true grey that shows over the lit drawing
+and the black stage alike. A right guess is brass, "got it" and its time as a
+cyan `.readout`. The type steps down on a short stage so ten lines still fit.
+
+```html
+<div class="sketch-chat">
+  <ol class="sketch-chat__list">
+    <li class="sketch-chat__line is-got"><span class="sketch-name" style="--id: …">Ada</span> got it <span class="readout readout--ms">+1.02s</span></li>
+    <li class="sketch-chat__line"><span class="sketch-name" style="--id: …">Bo</span> barn</li>
+  </ol>
+</div>
+```
+
+**How it moves.** One list, bottom-anchored, and it moves like a train of
+carriages:
+
+- **Deque.** `pushChat` adds new lines to the back; past ten it drops the
+  oldest wrong guess. Order never changes, so wrong guesses always leave from
+  the slot under the right ones, and a right guess that reaches that slot stays.
+  Right guesses ride in with everything else and lock in on arrival: there is
+  no second list, and nothing fades mid-column.
+- **Train.** A new line pushes every line above it up one slot together. Each
+  line slides from wherever it is drawn right now (`chatStarts`), so a line
+  arriving mid-slide continues the motion instead of restarting it. A new
+  line joins exactly one gap behind the line it follows, even while that line
+  is still moving.
+- **Wipe, not fade.** A dropped line leaves the flow but stays in the list
+  where it was, finishing its slide. Each frame it is cut off at the top edge
+  of the line rising into its slot (`wipeCut`), so the two never overlap and
+  nothing lingers. It is removed when the slide ends: a line is gone when it
+  has slid out, not when the deque lets go of it.
+- **Timing.** A slide is 260 ms on `--ease`. One that starts mid-slide ends
+  about when the current one would, plus a quarter slide, never longer than
+  260 ms and never shorter than 90 ms (`chatSlideMs`). A burst moves faster
+  and still settles on time.
+- **Measure against what does not move.** Positions are read against the chat
+  column, never the list: a bottom-anchored list moves as a whole while it
+  fills, and a line's place in it does not, so measuring against the list sees
+  no motion and snaps. Start a transition's first value before the forced
+  reflow, or the browser has nothing to animate from. Frames arrive many times
+  a second; only a change to the lines may start a slide, or every frame
+  restarts it.
+
+**How to test it.** The rules are pure, so they are unit-tested by simulation:
+`client/sketch.test.ts` models bottom-anchored slots on the real `--ease`
+curve, runs seeded random bursts through `pushChat`, `chatStarts`,
+`chatSlideMs` and `wipeCut`, and checks every 5 ms of simulated time. Lines
+never come within the gap of each other, a new line starts one gap behind the
+line it follows, a dropped line never reaches its neighbours, and everything
+comes to rest. When changing the rules, break one on purpose and see the test
+fail. The simulation cannot see the DOM layer (what is measured against what,
+transition start values, frame ordering); a change there still wants one live
+look under `npm run sim-sketch`.
+
+Reuse it for any list the room watches fill in real time.
 
 ---
 

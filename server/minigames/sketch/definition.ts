@@ -38,6 +38,7 @@ function shared(w: SketchWorld, clock: Clock): SketchShared {
     misses: w.misses,
     correct: correctView(w, clock),
     end: w.end,
+    scores: { ...w.scores },
     word: shown ? w.word : null,
   }
 }

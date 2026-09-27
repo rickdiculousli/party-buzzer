@@ -1,10 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { feedOf, fmtSeconds, ordinal, sketchCues, type SketchView } from './sketch.ts'
+import { CHAT_SLIDE_MS, chatSlideMs, chatStarts, fmtSeconds, pushChat, wipeCut, type ChatLine, ordinal, sketchCues, type SketchView } from './sketch.ts'
 
 const view = (over: Partial<SketchView> = {}): SketchView => ({
   matchId: 'm', tick: 10, serverTime: 10_000, step: 'drawing', drawer: 'd', turn: 0, turns: 3,
-  blanks: '______', live: null, endsAt: 60_000, misses: [], correct: [], end: null, word: null, ...over,
+  blanks: '______', live: null, endsAt: 60_000, misses: [], correct: [], end: null, scores: {}, word: null, ...over,
 })
 const cues = (prev: SketchView | null, next: SketchView, who = 'board') => sketchCues(prev, next, who).map((c) => c.cue)
 
@@ -72,10 +72,111 @@ test('places and times read the way the board shows them', () => {
   assert.equal(fmtSeconds(410), '+0.41s')
 })
 
-test('the feed interleaves right guesses with wrong ones in the order they landed, keeping the latest eight', () => {
-  const misses = [2, 3, 4, 6, 7, 8, 9, 10].map((seq) => ({ seq, player: 'g', text: `w${seq}` }))
-  const correct = [{ seq: 5, player: 'h', ms: 900 }, { seq: 1, player: 'k', ms: 100 }]
-  const feed = feedOf({ misses, correct })
-  assert.deepEqual(feed.map((e) => e.seq), [3, 4, 5, 6, 7, 8, 9, 10])
-  assert.deepEqual(feed.find((e) => e.seq === 5), { seq: 5, player: 'h', text: null })
+test('the chat drops its oldest wrong guess past the cap and keeps every right one in place', () => {
+  const miss = (seq: number) => ({ seq, player: 'g', text: `w${seq}` })
+  const got = (seq: number) => ({ seq, player: 'h', text: null, ms: seq })
+  let chat = pushChat([], [miss(1), got(2), miss(3)], 3)
+  assert.deepEqual(chat.lines.map((l) => l.seq), [1, 2, 3])
+  chat = pushChat(chat.lines, [miss(4)], 3)
+  assert.deepEqual(chat.lines.map((l) => l.seq), [2, 3, 4])
+  assert.deepEqual(chat.evicted.map((l) => l.seq), [1])
+  // 5 arrives: 3 is the oldest miss, so it goes and the right guess at 2 stays on top.
+  chat = pushChat(chat.lines, [miss(5), got(6)], 3)
+  assert.deepEqual(chat.lines.map((l) => l.seq), [2, 5, 6])
+  assert.deepEqual(chat.evicted.map((l) => l.seq), [3, 4])
+  chat = pushChat(chat.lines, [got(7)], 3)
+  assert.deepEqual(chat.lines.map((l) => l.seq), [2, 6, 7])
+  // All right guesses: the oldest finally goes.
+  chat = pushChat(chat.lines, [got(8)], 3)
+  assert.deepEqual(chat.lines.map((l) => l.seq), [6, 7, 8])
+})
+
+test('a chat slide started mid-slide ends about when the last one would, and never runs long', () => {
+  assert.equal(chatSlideMs(1000, 1000), 90)
+  assert.equal(chatSlideMs(1000, 1100), 165)
+  assert.equal(chatSlideMs(1000, 1250), 260)
+  assert.ok([0, 50, 150, 250, 400].every((left) => chatSlideMs(0, left) <= 260))
+})
+
+/** The stylesheet's --ease, cubic-bezier(0.2, 0.8, 0.3, 1), solved for y at time x. */
+function ease(x: number): number {
+  const [x1, y1, x2, y2] = [0.2, 0.8, 0.3, 1]
+  const at = (t: number, a: number, b: number) => 3 * a * t * (1 - t) ** 2 + 3 * b * t * t * (1 - t) + t ** 3
+  let lo = 0, hi = 1
+  for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; if (at(mid, x1, x2) < x) lo = mid; else hi = mid }
+  return at((lo + hi) / 2, y1, y2)
+}
+
+test('the chat moves like a train through random bursts: lines never touch, new ones join right behind, dropped ones are wiped before the next arrives', () => {
+  const H = 36, GAP = 4, FOOT = 520, MAX = 10
+  // A slide as the browser runs it: from `start` px off its rest to rest, on --ease.
+  type Slide = { rest: number; start: number; t0: number; ms: number }
+  const offset = (s: Slide, t: number) => s.start * (1 - ease(Math.min(1, Math.max(0, (t - s.t0) / s.ms))))
+  const restOf = (i: number, n: number) => FOOT - (n - i) * H - (n - 1 - i) * GAP
+  let seed = 7
+  const rand = () => (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31
+
+  let lines: ChatLine[] = []
+  const slides = new Map<number, Slide>()
+  const ghosts = new Map<number, Slide & { until: number }>()
+  let settles = 0, seq = 0, t = 0, checks = 0
+
+  const check = (at: number) => {
+    const flow = lines.map((l) => ({ seq: l.seq, top: slides.get(l.seq)!.rest + offset(slides.get(l.seq)!, at) }))
+    for (let i = 1; i < flow.length; i++) {
+      assert.ok(flow[i].top - (flow[i - 1].top + H) >= GAP - 0.5, `lines ${flow[i - 1].seq} and ${flow[i].seq} touch at ${at}ms`)
+    }
+    for (const [g, slide] of ghosts) {
+      if (at >= slide.until) continue
+      const top = slide.rest + offset(slide, at)
+      const next = flow.find((f) => f.seq > g)
+      const shown = top + H - wipeCut(top, top + H, next ? next.top : null, GAP)
+      if (next && shown > top) assert.ok(next.top - shown >= GAP - 0.5, `dropped ${g} overlaps ${next.seq} at ${at}ms`)
+      const above = flow.findLast((f) => f.seq < g)
+      if (above && shown > top) assert.ok(top - (above.top + H) >= GAP - 0.5, `dropped ${g} overlaps ${above.seq} at ${at}ms`)
+    }
+    checks++
+  }
+
+  for (let event = 0; event < 400; event++) {
+    const wait = rand() < 0.3 ? 10 + rand() * 60 : 80 + rand() * 300
+    for (let at = t; at < t + wait; at += 5) check(at)
+    t += wait
+    const burst = rand() < 0.2 ? 2 + Math.floor(rand() * 2) : 1
+    const incoming: ChatLine[] = Array.from({ length: burst }, () => (++seq, rand() < 0.15
+      ? { seq, player: 'p', text: null, ms: seq }
+      : { seq, player: 'p', text: `w${seq}` }))
+    const { lines: next, evicted } = pushChat(lines, incoming, MAX)
+    const ms = settles > t ? chatSlideMs(t, settles) : CHAT_SLIDE_MS
+    settles = t + ms
+    for (const gone of evicted) {
+      const was = slides.get(gone.seq)
+      if (!was) continue
+      ghosts.set(gone.seq, { rest: was.rest, start: offset(was, t), t0: t, ms, until: t + ms })
+      slides.delete(gone.seq)
+    }
+    const starts = chatStarts(next.map((l, i) => {
+      const was = slides.get(l.seq)
+      return { key: String(l.seq), before: was?.rest, now: restOf(i, next.length), carried: was ? offset(was, t) : 0, height: H }
+    }), GAP)
+    next.forEach((l, i) => {
+      const start = starts.get(String(l.seq))!
+      const was = slides.get(l.seq)
+      // A line with nothing to cover keeps the slide it is in, as the component leaves it.
+      if (start === 0 && was) slides.set(l.seq, { ...was, rest: restOf(i, next.length) })
+      else slides.set(l.seq, { rest: restOf(i, next.length), start, t0: t, ms })
+    })
+    lines = next
+    assert.ok(lines.length <= MAX)
+    // Carriages, not stragglers: a new line starts right behind the one it follows.
+    lines.forEach((l, i) => {
+      if (i === 0 || !incoming.some((c) => c.seq === l.seq)) return
+      const ahead = slides.get(lines[i - 1].seq)!, mine = slides.get(l.seq)!
+      const gap = mine.rest + offset(mine, t) - (ahead.rest + offset(ahead, t) + H)
+      assert.ok(Math.abs(gap - GAP) < 0.5, `line ${l.seq} starts ${gap}px behind ${lines[i - 1].seq}`)
+    })
+  }
+  for (let at = t; at < t + 400; at += 5) check(at)
+  for (const l of lines) assert.ok(Math.abs(offset(slides.get(l.seq)!, t + 400)) < 0.01, 'every line comes to rest')
+  assert.ok(checks > 10_000)
 })

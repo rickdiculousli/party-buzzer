@@ -381,6 +381,8 @@ export type SketchShared = {
   /** Fastest first. */
   correct: SketchCorrect[]
   end: SketchEnd | null
+  /** This match's points so far, one entry per participant. */
+  scores: Record<PlayerId, number>
   /** At the reveal for everyone; sooner for the drawer and for anyone who guessed it. */
   word: string | null
 }

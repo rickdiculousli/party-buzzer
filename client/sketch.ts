@@ -9,9 +9,10 @@ export const MISS_GAP_MS = 120
 /** The draw's last seconds tick. */
 const TICK_FROM = 5
 const PLACE_RATE = 0.06
-/** Lines the board's guess feed shows; the server keeps as many wrong guesses. */
-const FEED = 8
 const END_CUE: Record<SketchEnd, Cue> = { all: 'sketch-all', timeup: 'sketch-timeup', pass: 'sketch-pass' }
+
+/** The lobby's one-line explanation, on the board and every phone. */
+export const SKETCH_RULES = 'One player draws and everyone else types guesses. Faster guesses score more, and the drawer scores for everyone who gets it.'
 
 export const secondsLeft = (endsAt: number, now: number) => Math.max(0, Math.ceil((endsAt - now) / 1000))
 const hidden = (blanks: string) => blanks.split('_').length - 1
@@ -64,17 +65,74 @@ export function stepLine(v: Pick<SketchShared, 'step' | 'drawer' | 'end'>, nameO
   switch (v.step) {
     case 'choosing': return `${nameOf(v.drawer)} is choosing a word`
     case 'drawing': return `${nameOf(v.drawer)} is drawing`
-    case 'reveal': return v.end === 'pass' ? `${nameOf(v.drawer)} passed` : v.end === 'all' ? 'Everyone got it' : 'Time'
+    case 'reveal': return v.end === 'pass' ? `${nameOf(v.drawer)} passed` : v.end === 'all' ? 'Everyone got it' : "Time's up"
     case 'over': return 'Match over'
   }
 }
 
-/** Wrong guesses and right ones (`text: null`) in the order they landed, as many as the feed holds. */
-export function feedOf(v: Pick<SketchShared, 'misses' | 'correct'>): { seq: number; player: string; text: string | null }[] {
-  return [
-    ...v.misses,
-    ...v.correct.map(({ seq, player }) => ({ seq, player, text: null })),
-  ].sort((a, b) => a.seq - b.seq).slice(-FEED)
+/** The reveal's stamp: how many got the word, or why nobody did. */
+export function revealStamp(v: Pick<SketchShared, 'end' | 'correct'>): string {
+  if (v.correct.length) return `${v.correct.length} got it`
+  return v.end === 'pass' ? 'Passed' : 'Nobody'
+}
+
+/** One line of the board's chat: a wrong guess, or a right one (`text: null`). */
+export type ChatLine = { seq: number; player: string; text: string | null; ms?: number }
+
+/**
+ * The chat as a deque. New lines go on the back; once there are more than
+ * `max`, the oldest wrong guess comes off. Order never changes, so wrong
+ * guesses leave from the slot just under the right ones, and a right guess
+ * that reaches that slot stays: it is never the one taken. Only when every
+ * line is a right guess does the oldest of them go.
+ */
+export function pushChat(lines: ChatLine[], incoming: ChatLine[], max: number): { lines: ChatLine[]; evicted: ChatLine[] } {
+  const next = [...lines]
+  const evicted: ChatLine[] = []
+  for (const line of [...incoming].sort((a, b) => a.seq - b.seq)) {
+    next.push(line)
+    while (next.length > max) {
+      const miss = next.findIndex((l) => l.text !== null)
+      evicted.push(...next.splice(miss < 0 ? 0 : miss, 1))
+    }
+  }
+  return { lines: next, evicted }
+}
+
+/**
+ * The chat's slide. A line arriving mid-slide does not restart the clock: the
+ * train finishes about when it was going to plus a quarter slide, never longer
+ * than one, so a fast burst moves quicker and still settles on time.
+ */
+export const CHAT_SLIDE_MS = 260
+const CHAT_SLIDE_MIN_MS = 90
+export function chatSlideMs(now: number, endsAt: number): number {
+  const left = Math.max(0, endsAt - now)
+  return Math.round(Math.min(CHAT_SLIDE_MS, Math.max(CHAT_SLIDE_MIN_MS, left + CHAT_SLIDE_MS / 4)))
+}
+
+/** A chat line as the slide sees it: where it rested before this change, where it rests now, and how far off its rest it is drawn right now. */
+export type ChatRow = { key: string; before?: number; now: number; carried: number; height: number }
+
+/**
+ * How far below its new rest each line starts its slide, in px. A line that
+ * was already there starts from where it is drawn now, so a change mid-slide
+ * carries on instead of jumping. New lines join the back of the train at the
+ * offset of the line they follow, which already counts the slot they took;
+ * with nothing to follow, they rise from just under the foot.
+ */
+export function chatStarts(rows: ChatRow[], gap: number): Map<string, number> {
+  const last = rows.findLast((row) => row.before !== undefined)
+  const entry = last
+    ? last.before! + last.carried - last.now
+    : rows.reduce((sum, row) => sum + row.height + gap, 0)
+  return new Map(rows.map((row) => [row.key, row.before === undefined ? entry : row.before + row.carried - row.now]))
+}
+
+/** How much of a dropped line's bottom to cut so it stops `gap` short of the line rising under it. */
+export function wipeCut(top: number, bottom: number, nextTop: number | null, gap: number): number {
+  if (nextTop === null) return 0
+  return Math.min(bottom - top, Math.max(0, bottom - nextTop + gap))
 }
 
 export const fmtSeconds = (ms: number) => `+${(ms / 1000).toFixed(2)}s`

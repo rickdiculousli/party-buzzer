@@ -35,6 +35,7 @@
   --panel: #16130f;   /* a lit surface sitting on the stage */
   --raise: #211c16;   /* a row or input on that surface */
   --rule: #2c2620;    /* hairlines and borders */
+  --stone: #2e2d2b;   /* a true grey, for what floats over the set; used translucent */
 
   /* --- Ink ------------------------------------------------------------ */
   --chalk: #f5f0e6;   /* primary text, warm white so it sits in the set */
