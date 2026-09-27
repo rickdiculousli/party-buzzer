@@ -432,9 +432,9 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
   }, [preview])
 
   /**
-   * The welcome screen: the board is up, nobody has buzzed, and no question has
-   * been scored all night. The bed runs under it and fades out for good when the
-   * host arms the first question.
+   * The welcome screen: the board is up, no minigame is open, nobody has buzzed,
+   * and no question has been scored all night. The bed runs under it and fades
+   * out for good when the host arms the first question or opens a minigame.
    *
    * Deliberately not "the round is idle" — that is also true between every pair
    * of questions, and music swelling back up for four seconds each time the host
@@ -442,6 +442,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
    */
   const welcoming =
     !!state &&
+    !state.minigame &&
     state.round.phase === 'IDLE' &&
     state.round.order.length === 0 &&
     Object.values(state.scores).every((s) => s === 0)
