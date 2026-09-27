@@ -3,7 +3,7 @@ import { newState } from '../../server/state.ts'
 import type { Conn } from '../../server/hub.ts'
 import type { State } from '../../shared/protocol.ts'
 import type { ReviewScenario } from '../../client/review/model.ts'
-import { INK_PLAYERS, InkGame, inkSession } from './ink.ts'
+import { INK_LONG_NAMES, INK_PLAYERS, InkGame, inkSession } from './ink.ts'
 import { SKETCH_PLAYERS, SketchGame, sketchSession } from './sketch.ts'
 
 const NOW = 1_800_000_000_000
@@ -191,17 +191,17 @@ export function makeReviewScenarios(): ReviewScenario[] {
   revealed.round.phase = 'IDLE'
   revealed.scores = { ada: 1000, bo: 400, cy: 600, di: 0 }
 
-  const inkState = (phase: 'ready' | 'playing') => {
+  const inkState = (phase: 'ready' | 'playing', names: Record<string, string> = {}) => {
     const state = base()
-    state.players = structuredClone(INK_PLAYERS)
+    state.players = INK_PLAYERS.map((player) => ({ ...player, name: names[player.id] ?? player.name }))
     state.scores = Object.fromEntries(INK_PLAYERS.map((player) => [player.id, 0]))
     state.minigame = inkSession(phase)
     return state
   }
-  const ink = (id: string, label: string, reach: (game: InkGame) => void): ReviewScenario => {
+  const ink = (id: string, label: string, reach: (game: InkGame) => void, names?: Record<string, string>): ReviewScenario => {
     const game = new InkGame()
     reach(game)
-    const state = inkState('playing')
+    const state = inkState('playing', names)
     return {
       id, label,
       board: project(state, 'board'),
@@ -314,6 +314,16 @@ export function makeReviewScenarios(): ReviewScenario[] {
       game.spell(2)
       game.missLetter()
     }),
+    // Names have no length limit, so the chin, the phone bar and the lobby have to cope.
+    ink('ink-long-names', 'Ink with long names', (game) => {
+      game.chooseWord()
+      game.clueTurn()
+      game.clueTurn()
+      game.leavePeek()
+      game.vote('guess')
+      game.spell(2)
+    }, INK_LONG_NAMES),
+    build('ink-lobby-long-names', 'Ink teams forming, long names', inkState('ready', INK_LONG_NAMES), at()),
     ink('ink-peek', 'Ink peek pick', (game) => {
       game.chooseWord()
       for (let i = 0; i < 6; i++) game.clueTurn()

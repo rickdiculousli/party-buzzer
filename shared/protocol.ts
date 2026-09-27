@@ -521,7 +521,8 @@ export type InkShared = {
   /** Present when the pad changed, and once a second. */
   pad?: Record<InkTeamName, InkRowView[]>
   live: { player: PlayerId; team: InkTeamName; row: number; points: InkPoint[] }[]
-  discard: string[]
+  /** Discarded prompts, by the team that threw them away. */
+  discard: Record<InkTeamName, string[]>
   deck: number
   /** Revealed to everyone once the game is over. */
   secret: string | null

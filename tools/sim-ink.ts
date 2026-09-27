@@ -2,7 +2,8 @@
  * Synthetic self-play for Phantom Ink. Eight bots join, crowd onto Sun until it
  * is over capacity, then two move to Moon, volunteer, and play until a team
  * wins or the pad fills. Each team has three Guessers: they tap the options they
- * are voting on, split their votes, drift toward the leading choice, and Force a stalled vote. Writers scribble random letters,
+ * are voting on, split their votes, drift toward the leading choice, and Force a stalled vote. Writers print a word
+ * per clue in hand-drawn capitals, one letter to a slot, and a peek adds that row's next letter;
  * and a guessing bot spells half the word, misses its team's first guess and wins on the
  * second. A team with a borrowed phone types its own guesses; bots on it leave the keyboard alone.
  * Needs packs/phantom-ink.txt on the server.
@@ -88,10 +89,39 @@ host.send({ t: 'host', action: { a: 'startMinigame' } })
 const state = await host.waitFor((s) => s.minigame?.phase === 'playing', 10_000)
 const matchId = state.minigame!.matchId
 
-const letter = (): [number, number][] => {
-  const x = Math.random() * 0.8 + 0.1
-  return Array.from({ length: 8 }, (_, i) => [Math.min(1, x + i * 0.005), 0.2 + i * 0.08])
+/**
+ * A stroke alphabet for the writer bots: each capital is strokes in a unit cell,
+ * x across and y down, separated by `|`. Only the letters the clue words use.
+ */
+const GLYPHS: Record<string, string> = {
+  A: '0,1 0.5,0 1,1|0.25,0.55 0.75,0.55',
+  C: '1,0.15 0.6,0 0.2,0.1 0,0.5 0.2,0.9 0.6,1 1,0.85',
+  E: '1,0 0,0 0,1 1,1|0,0.5 0.7,0.5',
+  H: '0,0 0,1|1,0 1,1|0,0.5 1,0.5',
+  I: '0.5,0 0.5,1|0.2,0 0.8,0|0.2,1 0.8,1',
+  L: '0,0 0,1 1,1',
+  M: '0,1 0,0 0.5,0.6 1,0 1,1',
+  N: '0,1 0,0 1,1 1,0',
+  O: '0.5,0 0.1,0.2 0,0.5 0.1,0.8 0.5,1 0.9,0.8 1,0.5 0.9,0.2 0.5,0',
+  R: '0,1 0,0 0.7,0 1,0.25 0.7,0.5 0,0.5|0.4,0.5 1,1',
+  S: '1,0.1 0.5,0 0.05,0.2 0.2,0.45 0.8,0.55 0.95,0.8 0.5,1 0,0.9',
+  T: '0,0 1,0|0.5,0 0.5,1',
+  U: '0,0 0,0.7 0.3,1 0.7,1 1,0.7 1,0',
 }
+const CLUE_WORDS = ['RAIN', 'SALT', 'MOON', 'HORSE', 'TENT', 'LEMON', 'STORM', 'CHAIR', 'MUSIC', 'OCEAN', 'TRAIN', 'SMILE']
+/** Letter slots across a row: where slot 0 starts, the step between slots, a letter's width. */
+const SLOT = { left: 0.05, step: 0.085, width: 0.06, top: 0.25, base: 0.72 }
+/** One capital in slot `index`, as strokes in row coordinates, wobbled like a hand. */
+const glyph = (char: string, index: number): [number, number][][] => {
+  const wobble = () => (Math.random() - 0.5) * 0.012
+  const x0 = SLOT.left + index * SLOT.step
+  return GLYPHS[char].split('|').map((stroke) => stroke.split(' ').map((pair) => {
+    const [gx, gy] = pair.split(',').map(Number)
+    return [x0 + gx * SLOT.width + wobble(), SLOT.top + gy * (SLOT.base - SLOT.top) + wobble()] as [number, number]
+  }))
+}
+/** The word each clue row spells and how many letters are on it, keyed `team:row`. */
+const clueWords = new Map<string, { word: string; written: number }>()
 
 const pick = <T>(items: T[]): T => items[Math.floor(Math.random() * items.length)]
 const leading = (votes: { choice: string }[]) => {
@@ -194,6 +224,18 @@ while (host.state()?.minigame?.phase === 'playing') {
     const ours = frame.me.team === frame.turn
     const writer = frame.me.role === 'writer'
     const pad = frame.pad
+    // The next letter of the word on a row, stroke by stroke. False once the word is out.
+    const writeNext = async (key: string): Promise<boolean> => {
+      const clue = clueWords.get(key) ?? { word: pick(CLUE_WORDS), written: 0 }
+      clueWords.set(key, clue)
+      if (clue.written >= clue.word.length) return false
+      for (const points of glyph(clue.word[clue.written], clue.written)) {
+        send({ kind: 'stroke', points })
+        await sleep(60)
+      }
+      clue.written++
+      return true
+    }
 
     // Guessers vote like people: a first opinion, drifting to the leader, and a Force when it stalls.
     const castVote = (options: string[], preferred: string, targetOf: (choice: string) => string[], lookTicks = 0) => {
@@ -228,7 +270,7 @@ while (host.state()?.minigame?.phase === 'playing') {
     else if (s.at === 'peekPick' && ours && !writer) {
       castVote(s.targets, s.targets[0], (choice) => [`row:${choice}`], PEEK_LOOK_TICKS)
     } else if (s.at === 'peekWrite' && frame.roster[s.team].writer === id) {
-      send({ kind: 'stroke', points: letter() })
+      await writeNext(`${s.team}:${s.row}`)
       await sleep(200)
       send({ kind: 'done' })
     } else if (s.at === 'choose' && ours && !writer) {
@@ -242,9 +284,12 @@ while (host.state()?.minigame?.phase === 'playing') {
       const pairs = [[ids[0], ids[1]], [ids[0], ids[2]], [ids[1], ids[2]]].map((pair) => pair.sort((a, b) => a - b).join(','))
       castVote(pairs, pairs[0], (choice) => choice.split(',').map((card) => `card:${card}`))
     } else if (s.at === 'keep' && ours && writer) send({ kind: 'keep', prompt: pick(frame.offered).id })
-    else if (s.at === 'clue' && ours && writer) send(s.stopped ? { kind: 'done' } : { kind: 'stroke', points: letter() })
-    else if (s.at === 'clue' && ours && !writer) {
-      if ((pad?.[frame.turn][frame.row].strokes.length ?? 0) >= 2 && Math.random() < 0.5) send({ kind: 'stop' })
+    else if (s.at === 'clue' && ours && writer) {
+      if (s.stopped) send({ kind: 'done' })
+      else if (!await writeNext(`${frame.turn}:${frame.row}`)) send({ kind: 'endClue' })
+    } else if (s.at === 'clue' && ours && !writer) {
+      // A letter is a few strokes, so a Stop comes after a couple of letters at the earliest.
+      if ((pad?.[frame.turn][frame.row].strokes.length ?? 0) >= 5 && Math.random() < 0.3) send({ kind: 'stop' })
     } else if (s.at === 'guess' && ours && !writer && frame.roster[frame.turn].guessers[0] === id) {
       const key = `${frame.turn}:${frame.row}`
       const secret = secretWord()

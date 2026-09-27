@@ -36,6 +36,9 @@
   --raise: #211c16;   /* a row or input on that surface */
   --rule: #2c2620;    /* hairlines and borders */
   --stone: #2e2d2b;   /* a true grey, for what floats over the set; used translucent */
+  --paper: #bdb3a0;   /* a paper prop on the set, kept dim so it never outshines a screen */
+  --typed: #231e17;   /* typewriter ink on paper */
+  --graphite: #3b3833; /* pencil on paper */
 
   /* --- Ink ------------------------------------------------------------ */
   --chalk: #f5f0e6;   /* primary text, warm white so it sits in the set */
@@ -66,6 +69,11 @@
   --id-4: #d9c15a;
   --id-5: #e86a92;
   --id-6: #8ed081;
+
+  /* Phantom Ink's two teams take identity hues, never signal ones: Sun is not
+     armed and Moon is not a measurement. */
+  --team-sun: var(--id-1);
+  --team-moon: var(--id-3);
 
   /* Effect palette — for multicolour effects (rainbow, confetti, glitch), so
      they never read as belonging to a player. Eight hues around the wheel,

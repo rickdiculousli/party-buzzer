@@ -2459,20 +2459,52 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   padding-block: var(--s2);
 }
 
-/* Phantom Ink */
+/* Phantom Ink: its own table, in the house's parts. Each team's page is a
+   screen; on the board the screen sits in a set angled toward the room. */
 .ink-board, .ink-phone { min-height: 100dvh; background: var(--stage); color: var(--chalk); padding: var(--s4); display: grid; gap: var(--s4); align-content: start; }
-.ink-board__title { font: 700 var(--t-mega)/1 var(--display); margin: 0; }
-.ink-board__bar, .ink-phone__bar { display: flex; gap: var(--s3); align-items: center; font: 600 var(--t-lg)/1.2 var(--mono); }
-.ink-phone__bar { font-size: var(--t-md); flex-wrap: wrap; }
 .ink-phone { gap: var(--s3); }
-.ink-board__secret { margin-left: auto; font: 700 var(--t-xl)/1 var(--display); color: var(--brass); }
-.ink-turn--sun { color: var(--tungsten); }
-.ink-turn--moon { color: var(--id-3); }
+.ink-board { height: 100dvh; grid-template-rows: auto minmax(0, 1fr); align-content: stretch; padding: var(--s4) var(--s5); overflow: hidden; }
+.ink-defs { position: absolute; width: 0; height: 0; }
 
-.ink-lobby { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); }
+.ink-set--sun, .ink-screen--sun, .ink-lobby__team--sun, .ink-team-chip--sun, .ink-board__call--sun, .ink-result__call--sun { --team: var(--team-sun); }
+.ink-set--moon, .ink-screen--moon, .ink-lobby__team--moon, .ink-team-chip--moon, .ink-board__call--moon, .ink-result__call--moon { --team: var(--team-moon); }
+.ink-team-name { font: 800 var(--t-lg)/1 var(--display); text-transform: uppercase; letter-spacing: 0.03em; color: var(--team, var(--chalk)); }
+.ink-team-chip { color: var(--team); border-color: color-mix(in srgb, var(--team) 45%, var(--rule)); }
+.ink-icon { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; vertical-align: -0.125em; }
+
+/* The board's top line: where the setlist is, whose turn, and the call. */
+.ink-board__bar { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
+.ink-board__call { margin: 0 0 0 var(--s3); font: 700 var(--t-xl)/1 var(--display); text-transform: uppercase; color: var(--team, var(--chalk)); }
+/* The word found is the hero, a step down so the sets keep the room. */
+.ink-board__word { margin-left: auto; font-size: var(--t-mega); line-height: 0.9; }
+/* Each team's discarded prompts, stacked on its set's outer side, newest on
+   top. Older ones fade out at the bottom instead of pushing anything. */
+.ink-discard { flex: 0 0 var(--aside); min-width: 0; min-height: 0; display: grid; align-content: start; gap: var(--s3); overflow: hidden; mask-image: linear-gradient(to bottom, black 70%, transparent); }
+.ink-discard--sun, .ink-discard--sun ol { justify-items: end; text-align: right; }
+.ink-discard--moon, .ink-discard--moon ol { justify-items: start; }
+.ink-discard ol { list-style: none; margin: 0; padding: 0.4rem 0.5rem 0; display: grid; gap: var(--s2); }
+/* A discard is a slip torn off a pad, typed, and scribbled out in pencil
+   (DiscardSlip), so a newcomer never reads it as the prompt a team chose.
+   Older slips sit further back in the dark. */
+.ink-slip { max-width: 100%; transform: rotate(var(--tilt)); filter: drop-shadow(0 0.35rem 0.45rem rgb(0 0 0 / 0.65)); }
+.ink-slip:not(:first-child) { filter: drop-shadow(0 0.35rem 0.45rem rgb(0 0 0 / 0.65)) brightness(0.7); }
+.ink-slip__paper {
+  position: relative; padding: 0.8em 0.9em 1.1em; text-align: left;
+  background: linear-gradient(170deg, var(--paper), color-mix(in oklab, var(--paper), black 14%));
+  color: var(--typed);
+}
+.ink-slip__type { display: block; font: 400 clamp(0.95rem, 1.1vw, 1.35rem)/1.35 var(--mono); letter-spacing: 0.02em; text-wrap: balance; text-shadow: 0 0 0.6px currentColor, 0.5px 0.2px 0 rgb(0 0 0 / 0.2); }
+.ink-slip__scribble { position: absolute; inset: 10% 3% 14%; width: 94%; height: 76%; overflow: visible; fill: none; stroke: var(--graphite); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; opacity: 0.9; }
+.ink-slip__scribble path { vector-effect: non-scaling-stroke; }
+.ink-discard__none { margin: 0; color: var(--dim); }
+
+.ink-lobby { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); align-items: start; align-content: start; }
 .ink-lobby__team { background: var(--panel); border: 1px solid var(--rule); border-radius: var(--r-lg); padding: var(--s4); display: grid; gap: var(--s3); align-content: start; }
 .ink-lobby__team header { display: flex; justify-content: space-between; align-items: baseline; }
-.ink-lobby__team ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s1); font-size: var(--t-lg); }
+.ink-lobby__team ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s1); font: 700 var(--t-lg)/1.3 var(--display); text-transform: uppercase; letter-spacing: 0.03em; overflow-wrap: anywhere; }
+.ink-board .ink-lobby__team ul { font-size: var(--t-xl); }
+.ink-board .ink-lobby__team .ink-team-name { font-size: var(--t-xl); }
+.ink-lobby__star { margin-left: var(--s2); font-size: 0.7em; }
 .ink-lobby__seat { border-bottom: 1px dashed var(--rule); opacity: 0.5; }
 /* One set width for Join and Leave, so the pair never resizes with its label or panel. */
 .ink-lobby__team > .btn { justify-self: center; width: min(100%, 8rem); white-space: nowrap; }
@@ -2480,50 +2512,186 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .ink-lobby__team:has(.is-over) { box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--tally) 12%, transparent); border-color: var(--tally); }
 .ink-lobby__volunteer { grid-column: 1 / -1; }
 
+/* anim:tunables — the screen */
+.ink-board, .ink-phone {
+  --scan-alpha: 0.32;   /* scanline darkness */
+  --snow-alpha: 0.09;   /* how loud the snow is where there is no signal yet */
+  --snow-floor: 0.6;    /* what is left of it under rows on air, as a share of that */
+  --phosphor: color-mix(in srgb, var(--chalk) 45%, transparent); /* glow around ink */
+  --screen: radial-gradient(ellipse 90% 80% at 50% 45%, color-mix(in oklab, var(--panel), black 15%), color-mix(in oklab, var(--stage), black 45%));
+  --snow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.96 0 0 0 0 0.94 0 0 0 0 0.9 3 0 0 0 -1.35'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
 .ink-pad { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); }
-.ink-pad__page { display: grid; gap: var(--s2); align-content: start; }
-.ink-row { display: grid; grid-template-columns: 2.5rem 1fr auto; align-items: center; gap: var(--s2); background: var(--panel); border: 1px solid var(--rule); border-radius: var(--r-md); padding: var(--s1) var(--s2); }
-.ink-row.is-current { border-color: var(--tungsten); }
-.ink-row.is-won { border-color: var(--brass); }
-.ink-row__num { font: 600 var(--t-sm)/1 var(--mono); color: var(--dim); }
-.ink-row__eye { color: var(--cyan); margin-left: var(--s1); }
-.ink-row__svg { overflow: hidden; width: 100%; aspect-ratio: 5; display: block; }
+.ink-phone .ink-pad { grid-template-columns: 1fr; }
+/* A phone is one screen that never scrolls: everything else keeps its height,
+   and the page being watched takes what is left, its rows sized to fit it,
+   up to the height its width allows. */
+.ink-phone:not(.ink-phone--write) { height: 100dvh; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.ink-phone:not(.ink-phone--write) > * { flex: none; }
+.ink-phone > .ink-screen {
+  --row-by-width: calc((100vw - 4 * var(--s4) - 2.5rem - 3 * var(--s2)) / 5);
+  flex: 1 1 0; min-height: 0; container-type: size;
+  max-height: calc(8 * (var(--row-by-width) + 2 * var(--s1)) + 2 * var(--s3));
+  grid-template-rows: repeat(8, minmax(0, 1fr)); align-content: stretch;
+}
+.ink-phone > .ink-screen .ink-row { min-height: 0; }
+.ink-phone > .ink-screen .ink-row__svg { width: auto; max-width: 100%; height: min(calc(100cqh / 8 - 2 * var(--s1)), var(--row-by-width)); }
+
+/* The screen: dark curved glass, rows as lines of signal, scanlines and a
+   sheen laid over everything on it. The sheen is an overhead light, centred,
+   so it lifts the whole width evenly. */
+.ink-screen, .ink-phone__row {
+  position: relative; isolation: isolate;
+  background: var(--screen);
+  border-radius: 1.25rem / 1.6rem;
+  box-shadow: inset 0 0 0 1px rgb(255 246 232 / 0.05), inset 0 0 2.5rem rgb(0 0 0 / 0.8), inset 0 0 0.5rem rgb(0 0 0 / 0.9);
+}
+.ink-screen { display: grid; padding: var(--s3) var(--s4); }
+.ink-screen::before, .ink-phone__row::before {
+  content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: inherit;
+  background:
+    radial-gradient(130% 70% at 50% -12%, rgb(255 246 232 / 0.06), transparent 55%),
+    radial-gradient(ellipse at 50% 50%, transparent 62%, rgb(0 0 0 / 0.45)),
+    repeating-linear-gradient(to bottom, rgb(0 0 0 / var(--scan-alpha)) 0 1px, transparent 1px 3px);
+}
+
+.ink-row { display: grid; grid-template-columns: 2.5rem 1fr; align-items: center; gap: var(--s2); padding: var(--s1) var(--s2); }
+.ink-phone__row { grid-template-columns: 4.5rem 1fr; border-radius: var(--r-lg); padding: var(--s2) var(--s3); }
+/* The live row: the tube glows brighter across it and a soft refresh band rolls
+   down through it, while a typed guess blinks a block cursor. The layer covers
+   the row as it reads, which is not its box: from the baseline above down to
+   its own baseline (the rule, 80% down the ink), so the band fades out at the
+   line. Its box is that shifted down by 20% of the ink plus most of the padding.
+   Across, it runs out through the screen's padding to the glass. */
+.ink-row.is-current::after {
+  --pad: var(--s1);
+  --glass: var(--s4);
+  content: ''; position: absolute; pointer-events: none; z-index: 1;
+  left: calc(-1 * var(--glass)); right: calc(-1 * var(--glass));
+  top: calc(-20% - 0.6 * var(--pad)); bottom: calc(20% + 0.6 * var(--pad));
+  mask-image: linear-gradient(to bottom, transparent, black 20%, black 88%, transparent), linear-gradient(to right, transparent, black 4%, black 96%, transparent);
+  mask-composite: intersect;
+  background:
+    linear-gradient(to bottom, transparent, rgb(255 246 232 / 0.03) 22%, rgb(255 246 232 / 0.08) 40%, rgb(255 246 232 / 0.1) 50%, rgb(255 246 232 / 0.08) 60%, rgb(255 246 232 / 0.03) 78%, transparent) 0 -200% / 100% 1.75rem no-repeat,
+    linear-gradient(to bottom, transparent, rgb(255 246 232 / 0.06) 40%, rgb(255 246 232 / 0.07) 60%, transparent);
+  animation: ink-refresh 5.2s linear infinite;
+}
+/* A lone phone row is its own glass, so the layer stops at its edges. */
+.ink-phone__row.is-current::after { --pad: var(--s2); --glass: 0px; }
+@keyframes ink-refresh { to { background-position: 0 300%, 0 0; } }
+.ink-cursor { fill: var(--tungsten); animation: ink-blink 1.06s steps(1) infinite; }
+@keyframes ink-blink { 50% { opacity: 0; } }
+.ink-beam { fill: var(--hot); filter: drop-shadow(0 0 4px var(--hot)) drop-shadow(0 0 10px var(--tungsten)); }
+.ink-row__num { display: inline-flex; align-items: center; gap: var(--s1); font: 600 var(--t-sm)/1 var(--mono); color: var(--dim); }
+.ink-row.is-current .ink-row__num { color: var(--tungsten); }
+.ink-row__eye { color: var(--chalk); }
+.ink-row__svg { overflow: hidden; width: 100%; aspect-ratio: 5; display: block; filter: drop-shadow(0 0 3px var(--phosphor)); }
 .ink-row__rule { stroke: var(--rule); stroke-width: 1; }
 .ink-stroke { fill: none; stroke: var(--chalk); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
-.ink-stroke.is-peek { stroke: var(--cyan); }
+/* A peek letter is written in the page's team colour, so it stands apart from the clue. */
+.ink-stroke.is-peek { stroke: var(--team, var(--chalk)); }
 .ink-stroke.is-live { stroke: var(--tungsten); }
 .ink-stroke.is-struck { opacity: 0.45; }
 .ink-strike { stroke: var(--tally); stroke-width: 4; }
 .ink-period { fill: var(--chalk); }
 /* Monospaced: every letter takes the same width, so a typed guess is evenly spelled.
-   The condensed display face left a hole beside an I and crowded an M. */
+   The condensed display face left a hole beside an I and crowded an M. The
+   screen's pixel grid (#ink-px) renders it as the set's own lettering. */
 .ink-letter { fill: var(--chalk); font: 700 58px/1 var(--mono); letter-spacing: 6px; }
 .ink-letter.is-won { fill: var(--brass); }
 .ink-letter .is-wrong { fill: var(--tally); text-decoration: line-through; }
 
+/* No signal yet: snow, until ink arrives. The current row is tuned in. */
+/* One layer of snow across the whole tube, faint where the page is on air and
+   full below it, fading over half a row. A lone phone row carries its own. */
+.ink-screen::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1; border-radius: inherit;
+  background: var(--snow) 0 0 / 192px; image-rendering: pixelated; opacity: var(--snow-alpha);
+  mask-image: linear-gradient(to bottom, rgb(0 0 0 / var(--snow-floor)) calc(var(--on-air, 0%) - 3%), black calc(var(--on-air, 0%) + 3%));
+  animation: ink-snow 480ms steps(6) infinite;
+}
+.ink-phone__row.is-blank:not(.is-current)::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1; border-radius: inherit;
+  background: var(--snow) 0 0 / 192px; image-rendering: pixelated; opacity: var(--snow-alpha);
+  animation: ink-snow 480ms steps(6) infinite;
+}
+@keyframes ink-snow { to { background-position: 96px -192px; } }
+/* A row's signal arriving: the CRT line opens and settles with a slip. */
+.ink-row:not(.is-blank) .ink-row__svg { animation: ink-tune 420ms var(--ease) both; }
+@keyframes ink-tune {
+  0% { opacity: 0; transform: scaleY(0.06); }
+  35% { opacity: 1; transform: scaleY(1) translateX(-4px) skewX(-6deg); }
+  60% { transform: translateX(3px) skewX(3deg); }
+  100% { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ink-screen::after, .ink-phone__row.is-blank:not(.is-current)::after, .ink-row:not(.is-blank) .ink-row__svg, .ink-cursor { animation: none; }
+  .ink-row.is-current::after { display: none; }
+}
+
+/* The board's sets: rows are sized from the height the table leaves, so all
+   eight fit and the set is as wide as its rows. Angled in toward the room. */
+/* --aside is the discard column beside each set; the sets take what is left. */
+.ink-pad--sets { --aside: clamp(10rem, 17vw, 17rem); display: flex; justify-content: center; gap: var(--s6); perspective: 1600px; container-type: size; min-height: 0; }
+.ink-set {
+  margin: 0; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: var(--s2);
+  padding: var(--s3) var(--s3) var(--s2);
+  background: linear-gradient(180deg, var(--raise), var(--panel) 70%);
+  border-radius: 1.75rem;
+  box-shadow: 0 2rem 3rem -1.5rem rgb(0 0 0 / 0.9), 0 0.5rem 1rem rgb(0 0 0 / 0.5), inset 0 1px 0 rgb(255 246 232 / 0.07), inset 0 -3px 0 rgb(0 0 0 / 0.45);
+}
+.ink-set--sun { transform: rotateY(6deg); }
+.ink-set--moon { transform: rotateY(-6deg); }
+.ink-set .ink-screen { grid-template-rows: repeat(8, minmax(0, 1fr)); }
+.ink-set .ink-row { grid-template-columns: 3rem auto; }
+/* Eight rows down, or two sets and two asides across, whichever runs out first. */
+.ink-set .ink-row__svg { width: auto; height: min(calc((100cqh - 7.5rem) / 8), calc(((100cqw - 2 * var(--aside) - 3 * var(--s6)) / 2 - 7rem) / 5)); }
+.ink-set .ink-row__num { font-size: var(--t-md); }
+/* The set is as wide as its screen; the chin never widens it (contain), so a
+   long name shortens instead. The writer keeps up to half the line, and the
+   guessers take what is left. */
+.ink-set__chin { contain: inline-size; min-width: 0; display: flex; align-items: center; gap: var(--s3); padding: 0 var(--s2); }
+.ink-set__chin .ink-team-name { flex: none; }
+.ink-set__roster { flex: 1; display: flex; align-items: baseline; gap: var(--s3); min-width: 0; font: 600 var(--t-lg)/1 var(--display); text-transform: uppercase; letter-spacing: 0.03em; color: var(--dim); white-space: nowrap; }
+.ink-set__writer { flex: 0 1 auto; max-width: 50%; min-width: 0; display: inline-flex; align-items: baseline; gap: var(--s1); color: var(--chalk); }
+.ink-set__writer .ink-icon { flex: none; width: 0.8em; height: 0.8em; }
+.ink-set__writer > span, .ink-set__names { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ink-set__guessers { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: var(--s2); }
+.ink-set__more { flex: none; color: var(--chalk); }
+.ink-set__pilot { flex: none; width: 0.75rem; height: 0.75rem; border-radius: 50%; background: var(--rule); }
+.ink-set__pilot.is-on { background: var(--tungsten); box-shadow: 0 0 10px var(--tungsten); }
+
 /* Typing the guess: one letter, sent the moment it lands. */
 .ink-letters { display: grid; justify-items: center; gap: var(--s2); }
 .ink-letters__input {
-  width: 4rem; padding: var(--s2); text-align: center; text-transform: uppercase;
-  font: 700 var(--t-xl)/1 var(--display); color: var(--chalk);
+  width: 5rem; min-height: 5rem; padding: var(--s2); text-align: center; text-transform: uppercase;
+  font: 800 var(--t-xl)/1 var(--display); color: var(--chalk);
   background: var(--raise); border: 1px solid var(--tungsten); border-radius: var(--r-md);
 }
 .ink-letters__input:focus-visible { outline: 2px solid var(--brass); }
+.ink-letters__rule { margin: 0; font-size: var(--t-sm); color: var(--chalk); text-align: center; }
 
-.ink-canvas { overflow: visible; width: 100%; aspect-ratio: 5; background: var(--raise); border: 1px solid var(--tungsten); border-radius: var(--r-md); touch-action: none; display: block; }
+.ink-canvas {
+  overflow: visible; width: 100%; aspect-ratio: 5; display: block; touch-action: none;
+  background: repeating-linear-gradient(to bottom, rgb(0 0 0 / var(--scan-alpha)) 0 1px, transparent 1px 3px), var(--screen);
+  border: 1px solid var(--tungsten); border-radius: var(--r-lg);
+}
 .ink-write__buttons, .ink-offer { display: flex; flex-wrap: wrap; gap: var(--s2); }
-.ink-phone__secret { margin-left: auto; font: 700 var(--t-lg)/1 var(--display); color: var(--brass); }
+.ink-phone__role { display: grid; gap: var(--s2); justify-items: start; }
+.ink-phone__role .pending { justify-self: stretch; margin: 0; }
+.ink-phone__secret { margin-left: auto; font: 800 var(--t-lg)/1 var(--display); color: var(--chalk); text-transform: uppercase; letter-spacing: 0.03em; }
 .ink-phone__status { margin: 0; color: var(--dim); }
 .ink-phone__kept { margin: 0; font-size: var(--t-lg); }
 .ink-phone__alert { margin: 0; padding: var(--s2) var(--s3); border-radius: var(--r-md); background: var(--tally); color: var(--stage); font-weight: 700; text-align: center; }
 .ink-phone__alert.is-hidden { visibility: hidden; }
-.ink-phone__reveal { margin: 0; font-size: var(--t-xl); text-align: center; }
-.ink-phone__reveal strong { color: var(--brass); }
-.ink-phone__row { grid-template-columns: 4.5rem 1fr; }
+.ink-result { display: grid; justify-items: center; gap: var(--s2); padding: var(--s5) var(--s4); background: var(--panel); border: 1px solid var(--rule); border-radius: var(--r-lg); text-align: center; }
+.ink-result__call { margin: 0; font: 700 var(--t-lg)/1 var(--display); text-transform: uppercase; letter-spacing: 0.03em; color: var(--team, var(--dim)); }
+.ink-result__word { margin: 0; font: 900 clamp(3rem, 16vw, 5rem)/0.9 var(--display); text-transform: uppercase; color: var(--brass); overflow-wrap: anywhere; }
 .ink-phone__more { display: grid; gap: var(--s2); color: var(--dim); }
 .ink-phone__more summary { cursor: pointer; }
 .ink-phone__more ul { margin: var(--s2) 0 0; padding-left: var(--s4); }
-.ink-phone__more .ink-pad { grid-template-columns: 1fr; margin-top: var(--s2); }
+.ink-phone__more .ink-pad { margin-top: var(--s2); }
 .ink-peek { display: grid; gap: var(--s2); }
 .ink-peek__option { display: grid; grid-template-columns: 1fr auto auto; gap: var(--s2); align-items: center; }
 .ink-stop { width: 100%; min-height: 6rem; font-size: var(--t-xl); }
@@ -2553,6 +2721,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 /* The writing view has to fit the phone's short side without scrolling. */
 .ink-phone--write { gap: var(--s2); padding: var(--s3) var(--s4); }
 .ink-phone--write .ink-phone__kept { font-size: var(--t-md); }
+/* The writer knows who and what they are: the bar keeps the name and the word. */
+.ink-phone--write .ink-phone__role, .ink-phone--write .player__bar .lamp { display: none; }
 .ink-phone--write .ink-write { display: grid; gap: var(--s2); }
 /* The margin around the row where a stroke may start or wander. */
 .ink-canvas-area { padding: var(--s4) var(--s6); touch-action: none; }
@@ -2594,22 +2764,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 /* One column as wide as the longest word, so every choice lines up. */
 .ink-words { list-style: none; padding: 0; display: grid; grid-template-columns: min(100%, max-content); gap: var(--s2); }
 .ink-word { display: flex; align-items: center; gap: var(--s2); }
-.ink-word > .btn { flex: 1; text-align: left; }
-/* The pip lane is held open on every word, so a pick never narrows its button. */
-.ink-word > .ink-pips { min-width: 0.6rem; }
-.ink-discard { margin: 0; padding-left: var(--s4); color: var(--dim); }
-/* The board is one screen: bar, pad and footer, with the pad taking what is
-   left and its eight rows a side sharing it. A row keeps its 5:1 ink field and
-   narrows rather than squashing the strokes. */
-.ink-board { height: 100dvh; min-height: 0; grid-template-rows: auto minmax(0, 1fr) auto; }
-.ink-board .ink-pad { min-height: 0; grid-template-rows: minmax(0, 1fr); }
-.ink-board .ink-pad__page { min-height: 0; grid-template-rows: auto; grid-auto-rows: minmax(0, 1fr); gap: var(--s1); }
-.ink-board .ink-row { min-height: 0; padding: 2px var(--s2); }
-.ink-board .ink-row__svg { height: 100%; width: auto; max-width: 100%; justify-self: start; }
-.ink-board__foot { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s4); }
-.ink-board__foot > p { margin: 0; }
-.ink-board .ink-discard { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); padding: 0; list-style: none; font-size: var(--t-sm); }
-
+.ink-word > .btn { flex: 1; display: flex; justify-content: space-between; align-items: center; gap: var(--s2); text-align: left; }
 @media (max-width: 700px) {
   .ink-pad { grid-template-columns: 1fr; }
 }

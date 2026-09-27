@@ -39,7 +39,7 @@ function shared(w: InkWorld): InkShared {
     step: stepView(w),
     ...(sendsPad(w) ? { pad: w.pad } : {}),
     live,
-    discard: w.discard.map((id) => w.cards.prompts[id]),
+    discard: { sun: w.discard.sun.map((id) => w.cards.prompts[id]), moon: w.discard.moon.map((id) => w.cards.prompts[id]) },
     deck: w.deck.length,
     secret: w.step.at === 'over' ? w.secret : null,
   }

@@ -34,7 +34,8 @@ export type InkWorld = {
   cards: InkCards
   roster: InkRoster
   deck: number[]
-  discard: number[]
+  /** Discarded prompts, by the team that threw them away. */
+  discard: Record<InkTeamName, number[]>
   hands: Record<InkTeamName, number[]>
   asked: Record<InkTeamName, number[]>
   redrawn: Record<InkTeamName, boolean>

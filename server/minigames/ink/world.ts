@@ -31,7 +31,7 @@ export function createInkWorld(input: {
   const w: InkWorld = {
     rand, tick: 0, cards, roster,
     deck: shuffle(rand, cards.prompts.map((_, i) => i)),
-    discard: [],
+    discard: { sun: [], moon: [] },
     hands: { sun: [], moon: [] },
     asked: { sun: [], moon: [] },
     redrawn: { sun: false, moon: false },
@@ -59,8 +59,8 @@ export function roleOf(w: InkWorld, playerId: PlayerId): { team: InkTeamName; ro
 function draw(w: InkWorld, team: InkTeamName, count: number): void {
   for (let i = 0; i < count; i++) {
     if (w.deck.length === 0) {
-      w.deck = shuffle(w.rand, w.discard)
-      w.discard = []
+      w.deck = shuffle(w.rand, [...w.discard.sun, ...w.discard.moon])
+      w.discard = { sun: [], moon: [] }
     }
     const card = w.deck.pop()
     if (card === undefined) return
@@ -147,7 +147,7 @@ function resolve(w: InkWorld, choice: string): void {
       w.step = { at: 'guess', holder: null }
       bump(w)
     } else {
-      w.discard.push(...w.hands[team])
+      w.discard[team].push(...w.hands[team])
       w.hands[team] = []
       draw(w, team, HAND_SIZE)
       w.redrawn[team] = true
@@ -220,7 +220,7 @@ export function applyInk(w: InkWorld, playerId: PlayerId, input: InkInput): Outc
     }
     case 'keep': {
       if (s.at !== 'keep' || !turnWriter || !s.offered.includes(input.prompt)) return NO
-      w.discard.push(s.offered.find((id) => id !== input.prompt)!)
+      w.discard[w.turn].push(s.offered.find((id) => id !== input.prompt)!)
       turnRow(w).kind = 'clue'
       w.step = { at: 'clue', prompt: input.prompt, stopped: false }
       bump(w)

@@ -1,3 +1,4 @@
+import { mulberry32 } from '../../../shared/random.ts'
 import { add, sub, scale, dot, length, normalize, segmentCircleHit, sweptSegmentHit, tipCapsuleHit } from './geometry.ts'
 import { BOW_FIELD, BOW_STEP_MS } from './types.ts'
 import type {
@@ -15,13 +16,7 @@ const DEFAULT_CONFIG: Readonly<BowConfig> = {
   entityCap: 256,
 }
 
-export const mulberry32 = (seed: number) => () => {
-  seed |= 0
-  seed = seed + 0x6d2b79f5 | 0
-  let t = Math.imul(seed ^ seed >>> 15, 1 | seed)
-  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t
-  return ((t ^ t >>> 14) >>> 0) / 4294967296
-}
+export { mulberry32 }
 
 function createTargets(seed: number, players: BowPlayer[]): BowTarget[] {
   const random = mulberry32(seed)

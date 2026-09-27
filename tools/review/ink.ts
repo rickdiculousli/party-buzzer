@@ -30,6 +30,11 @@ export const INK_PLAYERS: Player[] = [
   { id: 'fay', name: 'Fay', connected: true },
 ]
 
+/** The same roster under long names, for the layouts a name can break. */
+export const INK_LONG_NAMES: Record<PlayerId, string> = {
+  ada: 'Maximilian', bo: 'Alexandrina', cy: 'Bartholomew', di: 'Wolfgang Amadeus Mozart', eve: 'Evangelina', fay: 'Fitzgerald',
+}
+
 export const inkSession = (phase: MinigameState['phase']): MinigameState => ({
   id: 'ink',
   matchId: MATCH,

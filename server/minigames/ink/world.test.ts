@@ -122,7 +122,7 @@ test('asking offers two prompts, keeps one and discards the other', () => {
   const w = started()
   const offered = askUntilClue(w, 'sun')
   assert.equal(w.hands.sun.length, 5)
-  assert.deepEqual(w.discard, [offered[1]])
+  assert.deepEqual(w.discard, { sun: [offered[1]], moon: [] })
   assert.deepEqual(w.step, { at: 'clue', prompt: offered[0], stopped: false })
   assert.equal(w.pad.sun[0].kind, 'clue')
 })
@@ -201,7 +201,7 @@ test('the live stroke is kept for the writer and cleared on commit', () => {
 
 test('the prompt deck reshuffles the discard pile when it runs out', () => {
   const w = started()
-  w.discard.push(...w.deck)
+  w.discard.moon.push(...w.deck)
   w.deck = []
   askUntilClue(w, 'sun')
   act(w, 'sw', { kind: 'endClue' })
@@ -313,7 +313,7 @@ test('both teams lose when all sixteen rows fill', () => {
 test('ask is refused with fewer than two prompts in hand; guess still works', () => {
   const w = started()
   w.deck = []
-  w.discard = []
+  w.discard = { sun: [], moon: [] }
   w.hands.sun = [w.hands.sun[0]]
   assert.equal(act(w, 's1', { kind: 'vote', choice: 'ask' }).status, 'refused')
   assert.deepEqual(w.step, { at: 'choose' })

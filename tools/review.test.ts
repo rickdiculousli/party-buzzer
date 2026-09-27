@@ -193,6 +193,8 @@ test('review scenarios cover the main board and phone moments', async () => {
     'ink-clue-stopped',
     'ink-guess',
     'ink-guess-missed',
+    'ink-long-names',
+    'ink-lobby-long-names',
     'ink-peek',
     'ink-over',
     'sketch-lobby',
@@ -206,7 +208,7 @@ test('review scenarios cover the main board and phone moments', async () => {
 
 test('every ink scenario carries the frame its phones need', async () => {
   const { makeReviewScenarios } = await import('./review/fixtures.ts')
-  for (const scenario of makeReviewScenarios().filter((item) => item.id.startsWith('ink-') && item.id !== 'ink-lobby')) {
+  for (const scenario of makeReviewScenarios().filter((item) => item.id.startsWith('ink-') && !item.id.startsWith('ink-lobby'))) {
     assert.equal(scenario.boardFrame?.id, 'ink', scenario.id)
     for (const phone of scenario.phones) {
       assert.equal(phone.frame?.role, 'player', `${scenario.id} ${phone.playerId}`)

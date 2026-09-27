@@ -46,6 +46,7 @@ at a party. Keeping both, and keeping them visually separate, is the design.
 | `--raise` | `#211c16` | A row or control on a panel. One step only — never stack three. |
 | `--rule` | `#2c2620` | Hairlines, borders, an unlit lamp. |
 | `--stone` | `#2e2d2b` | A true grey for what floats over the set, such as the backing behind Sketch's chat lines. Used translucent, so it reads over both the stage and a lit surface. |
+| `--paper`, `--typed`, `--graphite` | `#bdb3a0`, `#231e17`, `#3b3833` | A paper prop on the set, its typewriter ink, and pencil. Paper is kept dim so it never outshines a screen. Phantom Ink's discarded prompts. |
 
 ### Ink
 
@@ -591,6 +592,42 @@ transition start values, frame ordering); a change there still wants one live
 look under `npm run sim-sketch`.
 
 Reuse it for any list the room watches fill in real time.
+
+### Screen and set — `.ink-screen`, `.ink-set`
+
+Phantom Ink's pad. A minigame keeps its own table rather than the quiz's frame;
+what it shares is these parts and the colour rules. `InkScreen` and `InkPad` in
+`client/InkParts.tsx`.
+
+A **screen** is one team's page behind dark curved glass: the rows are lines of
+signal, with scanlines, a sheen and a vignette laid over them (`::before`). Ink
+carries a faint phosphor glow. A row with nothing on it shows snow (`is-blank`)
+until ink arrives, and the signal opens like a CRT line when it does (`ink-tune`);
+the live row glows a little brighter, the CRT's refresh bar rolls down
+through it. A typed guess blinks a tungsten block cursor in its next slot;
+handwriting has no next slot, so a clue shows the beam, a white-hot dot at the
+pen's tip, only while ink is going down. Typed guesses are drawn
+through the screen's pixel grid (`#ink-px`, mounted once by `InkDefs`), so they
+read as the set's own lettering without a third face. A peek letter is written in
+the page's team colour and a peek row carries an eye. Snow and the tune-in hold
+still under reduced motion.
+
+On the board each screen sits in a **set**: a bezel angled a few degrees toward
+the room, and a chin with the team name, the writer (pen) and guessers, and a
+pilot lamp lit tungsten on that team's turn. The chin never widens the set: the
+writer keeps up to half the line, and guessers that don't fit become "+N". The rows are sized from the height
+left over, so all eight fit beside the discard columns: each team's discarded
+prompts stack on its set's outer side, newest on top, fading out at the bottom
+rather than pushing anything. Each is a **slip** (`DiscardSlip`): torn off a pad,
+typed in Plex Mono on `--paper`, and scribbled out in `--graphite` through the
+`#ink-pencil` filter, so a newcomer never reads it as the prompt a team chose.
+Its tear, tilt and scribble are seeded from the text, and older slips sit darker. Phones show the bare screen, and a lone row
+(`.ink-phone__row`) is the same glass.
+
+Sun and Moon are `--team-sun` (`--id-1`) and `--team-moon` (`--id-3`): identity
+hues, never signal ones. Set `--team` from the `--sun`/`--moon` modifiers.
+Screen tunables (`--scan-alpha`, `--snow-alpha`, `--phosphor`) sit together in
+`style.css`.
 
 ---
 

@@ -6,10 +6,10 @@ import type { MinigamePlayerProps } from './minigames.tsx'
 import { matchFrame } from './minigame-info.ts'
 import { TEAM_LABEL, stepLine, waitLine } from './ink.ts'
 import { sidewaysClass, useSideways } from './useSideways.ts'
-import { playerName } from './ui.ts'
-import { HoldButton, InkCanvas, InkLobby, InkPad, InkRowCell, LetterEntry, PendingBar, Touchable, VotePips, useInkPad } from './InkParts.tsx'
+import { colorForPlayer, playerName } from './ui.ts'
+import { HoldButton, InkCanvas, InkDefs, InkLobby, InkPad, InkRowCell, InkScreen, LetterEntry, PendingBar, Touchable, VotePips, useInkPad } from './InkParts.tsx'
 
-export function InkPlayer({ state, playerId, frame, now, send, touches }: MinigamePlayerProps) {
+export function InkPlayer({ state, playerId, connected = true, frame, now, send, touches }: MinigamePlayerProps) {
   const session = state.minigame!
   const ink = matchFrame(frame, 'ink', 'player', session.matchId)
   const pad = useInkPad(ink)
@@ -21,10 +21,20 @@ export function InkPlayer({ state, playerId, frame, now, send, touches }: Miniga
   useEffect(() => { if (stepAt !== 'offer') setPicked([]) }, [stepAt])
   const rotation = useSideways()
 
-  if (session.phase === 'ready') return <main class="ink-phone"><InkLobby state={state} playerId={playerId} send={send} /></main>
-  if (!ink || !pad) return <main class="ink-phone"><p class="muted">{frame?.role === 'spectator' ? 'Watching this game' : 'Starting…'}</p></main>
-
   const nameOf = (id: string) => playerName(state, id)
+  // The quiz phone's identity bar, so you can tell whose phone you picked up.
+  const bar = (extra?: ComponentChildren) => <div class="player__bar">
+    <span class="player__name" style={{ '--id': playerId ? colorForPlayer(state, playerId) : undefined }}>{nameOf(playerId ?? '')}</span>
+    <span class="lamp">
+      <span class={connected ? 'lamp-dot is-on' : 'lamp-dot is-off'} />
+      {connected ? 'Connected' : 'Disconnected'}
+    </span>
+    {extra}
+  </div>
+
+  if (session.phase === 'ready') return <main class="ink-phone">{bar()}<InkLobby state={state} playerId={playerId} send={send} /></main>
+  if (!ink || !pad) return <main class="ink-phone">{bar()}<p class="ink-phone__status">{frame?.role === 'spectator' ? 'Watching this game' : 'Starting…'}</p></main>
+
   const input = (value: { kind: string } & Record<string, unknown>) => send({
     t: 'minigameInput', matchId: session.matchId, seq: seq.current++,
     input: (value.kind === 'ink' ? value : { ...value, at: now() }) as InkInput,
@@ -61,8 +71,10 @@ export function InkPlayer({ state, playerId, frame, now, send, touches }: Miniga
               <button
                 class={ink.picks[ink.me.team] === i ? 'btn btn--major btn--primary' : 'btn btn--major'}
                 onClick={() => input({ kind: 'pickWord', index: i })}
-              >{i + 1}. {word}</button>
-              <VotePips state={state} votes={picks} choice={(choice) => choice === String(i)} />
+              >
+                <span>{i + 1}. {word}</span>
+                <VotePips state={state} votes={picks} choice={(choice) => choice === String(i)} />
+              </button>
             </Touchable>
           </li>
         ))}
@@ -88,7 +100,8 @@ export function InkPlayer({ state, playerId, frame, now, send, touches }: Miniga
         <p class={s.stopped ? 'ink-phone__alert' : 'ink-phone__alert is-hidden'} aria-hidden={!s.stopped}>Stop — finish your letter</p>
         {canvas(ink.turn, ink.row, <>
           <button class="btn" onClick={() => input({ kind: 'endClue' })}>End clue</button>
-          <button class={s.stopped ? 'btn btn--major btn--primary' : 'btn'} disabled={!s.stopped} onClick={() => input({ kind: 'done' })}>Done</button>
+          {/* Done waits on a guesser's Stop, and says so while it waits. */}
+          <button class={s.stopped ? 'btn btn--major btn--primary' : 'btn'} disabled={!s.stopped} onClick={() => input({ kind: 'done' })}>{s.stopped ? 'Done' : 'Done after Stop'}</button>
         </>)}
       </>
     }
@@ -174,13 +187,15 @@ export function InkPlayer({ state, playerId, frame, now, send, touches }: Miniga
   // Nothing to press: say who this phone is waiting on before what the room is doing.
   const idle = !focus && s.at !== 'choosing' && s.at !== 'over'
   const header = <>
-    <header class="ink-phone__bar">
-      <span class={`chip ink-turn ink-turn--${ink.me.team}`}>{TEAM_LABEL[ink.me.team]} · {writer ? 'Writer' : 'Guesser'}</span>
-      {writer && ink.secret && <span class="ink-phone__secret">{ink.secret}</span>}
-    </header>
-    {idle
-      ? <PendingBar label={waitLine(s, ink.turn, ink.me.team)} />
-      : <p class="ink-phone__status">{stepLine(ink, nameOf)}</p>}
+    <InkDefs />
+    {bar(writer && s.at !== 'over' && ink.secret && <span class="ink-phone__secret">{ink.secret}</span>)}
+    <div class="ink-phone__role">
+      <span class={`chip ink-team-chip ink-team-chip--${ink.me.team}`}>{TEAM_LABEL[ink.me.team]} · {writer ? 'Writer' : 'Guesser'}</span>
+      {/* Over, the result card says it. */}
+      {idle
+        ? <PendingBar label={waitLine(s, ink.turn, ink.me.team)} />
+        : s.at !== 'over' && <p class="ink-phone__status">{stepLine(ink, nameOf)}</p>}
+    </div>
   </>
   const writing =
     (writer && ours && s.at === 'clue') ||
@@ -192,16 +207,23 @@ export function InkPlayer({ state, playerId, frame, now, send, touches }: Miniga
       {focus}
     </main>
   }
-  // Onlookers get the row only while ink is actually going onto it; the pad is a
-  // tap away in the footer for anyone who wants to look at a quiet phase.
-  const idleRow = idle && (s.at === 'clue' || s.at === 'guess') ? turnRow : null
+  // A phone with nothing to press watches the page in play, its current row lit.
+  const watching = !focus && s.at !== 'over'
+    ? <InkScreen state={state} frame={ink} pad={pad} touches={touches} peekRows={INK_PEEK_ROWS} team={ink.turn} />
+    : null
+  const winner = s.at === 'over' ? s.winner : null
 
   return <main class={`ink-phone ink-phone--${ink.me.team}`}>
     {header}
 
-    {s.at === 'over' && ink.secret && !writer && <p class="ink-phone__reveal">It was <strong>{ink.secret}</strong></p>}
+    {s.at === 'over' && <section class="ink-result fx-rise">
+      <p class={winner ? `ink-result__call ink-result__call--${winner}` : 'ink-result__call'}>
+        {winner ? (winner === ink.me.team ? 'Your team wins' : `${TEAM_LABEL[winner]} wins`) : 'Both teams lose'}
+      </p>
+      {ink.secret && <p class="ink-result__word">{ink.secret}</p>}
+    </section>}
     {focus}
-    {idleRow}
+    {watching}
 
     <footer class="ink-phone__more">
       {!writer && !(ours && s.at === 'offer') && ink.hand.length > 0 && <details>
