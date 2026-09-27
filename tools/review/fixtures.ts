@@ -4,6 +4,7 @@ import type { Conn } from '../../server/hub.ts'
 import type { State } from '../../shared/protocol.ts'
 import type { ReviewScenario } from '../../client/review/model.ts'
 import { INK_PLAYERS, InkGame, inkSession } from './ink.ts'
+import { SKETCH_PLAYERS, SketchGame, sketchSession } from './sketch.ts'
 
 const NOW = 1_800_000_000_000
 
@@ -184,6 +185,40 @@ export function makeReviewScenarios(): ReviewScenario[] {
     }
   }
 
+  const sketchState = (session: ReturnType<typeof sketchSession>) => {
+    const state = base()
+    state.players = structuredClone(SKETCH_PLAYERS)
+    state.scores = Object.fromEntries(SKETCH_PLAYERS.map((player) => [player.id, 0]))
+    state.minigame = session
+    return state
+  }
+  const sketch = (id: string, label: string, reach: (game: SketchGame) => void): ReviewScenario => {
+    const game = new SketchGame(NOW)
+    reach(game)
+    const state = sketchState(sketchSession('playing'))
+    return {
+      id, label,
+      board: project(state, 'board'),
+      boardFrame: game.board(),
+      phones: state.players.map((player) => ({
+        playerId: player.id,
+        label: player.name,
+        state: project(state, 'player', player.id),
+        pressed: false,
+        frame: game.phone(player.id),
+      })),
+      presentation: at(),
+    }
+  }
+  const sketchResults = sketchState(sketchSession('results', [
+    { playerId: 'cy', points: 612, shots: 0 },
+    { playerId: 'ada', points: 540, shots: 0 },
+    { playerId: 'fay', points: 488, shots: 0 },
+    { playerId: 'bo', points: 301, shots: 0 },
+    { playerId: 'di', points: 220, shots: 0 },
+    { playerId: 'eve', points: 95, shots: 0 },
+  ]))
+
   return [
     build('welcome', 'Welcome', welcome, at()),
     build('waiting', 'Waiting between questions', waiting, at()),
@@ -252,5 +287,20 @@ export function makeReviewScenarios(): ReviewScenario[] {
       game.vote('guess')
       game.spell(Infinity)
     }),
+    build('sketch-lobby', 'Sketch lobby', sketchState(sketchSession('ready')), at()),
+    sketch('sketch-choosing', 'Sketch word choice', () => {}),
+    sketch('sketch-drawing', 'Sketch drawing, guesses flying', (game) => {
+      game.pick().wait(3).draw()
+      game.misses(4).guess(game.guessers[2], game.word).wait(20)
+      game.close(game.guessers[0]).misses(6).guess(game.guessers[4], game.word).wait(24)
+    }),
+    sketch('sketch-reveal-time', 'Sketch time ran out', (game) => {
+      game.pick().draw().misses(9).guess(game.guessers[1], game.word).wait(80)
+    }),
+    sketch('sketch-reveal-all', 'Sketch everyone got it', (game) => {
+      game.pick().draw().misses(3)
+      for (const [i, id] of game.guessers.entries()) game.wait(2 + i).guess(id, game.word)
+    }),
+    build('sketch-results', 'Sketch results', sketchResults, at()),
   ]
 }
