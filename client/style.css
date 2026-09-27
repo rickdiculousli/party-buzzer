@@ -2699,20 +2699,22 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .sketch-card__word { margin: 0; font: 800 var(--t-xl)/1 var(--display); color: var(--brass); text-transform: uppercase; overflow-wrap: anywhere; }
 .sketch-card .sketch-blanks { font-size: var(--t-lg); }
 .sketch-phone__foot { flex: none; display: grid; gap: var(--s2); text-align: center; }
-/* Guessing: the card holds only the drawing and the word, and the field sits
-   right under it, near the phone's middle, so the keyboard opens below it
-   instead of over it. The space under the field is the keyboard's. */
-.sketch-phone--guess .sketch-card { flex: 0 1 auto; padding-block: var(--s3); gap: var(--s3); }
+/* Around the drawing (guessing, got it, the reveal): the card holds only the
+   drawing and the word, and what follows sits right under it, near the
+   phone's middle. The keyboard opens below the field instead of over it, and
+   the result lands in the same place the field was. The space under the
+   foot is the keyboard's. */
+.sketch-phone--tight .sketch-card { flex: 0 1 auto; padding-block: var(--s3); gap: var(--s3); }
 /* A phone that shrinks the page for its keyboard shrinks the drawing, not the field. */
-.sketch-phone--guess .sketch-stage { min-height: 0; }
-.sketch-phone--guess::after { content: ''; flex: 1; }
+.sketch-phone--tight .sketch-stage { min-height: 0; }
+.sketch-phone--tight::after { content: ''; flex: 1; }
 .sketch-phone__foot > .pending { text-align: left; }
 .sketch-phone__step { margin: 0; font: 600 var(--t-lg)/1.2 var(--display); color: var(--dim); }
 .sketch-phone__got { margin: 0; font: 800 var(--t-xl)/1 var(--display); color: var(--brass); }
 .sketch-phone__got .readout { font: 600 var(--t-md)/1 var(--mono); }
 .sketch-choices { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
 .sketch-choices .btn { width: 100%; min-height: 4rem; font-size: var(--t-xl); }
-.sketch-guess { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s2); }
+.sketch-guess { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s2); transition: translate var(--base) var(--ease); }
 .sketch-guess__tried { grid-column: 1 / -1; margin: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s1); min-height: 1.5rem; align-items: center; }
 .sketch-guess__tried .chip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .sketch-guess__field { font-size: var(--t-lg); padding: var(--s3); border-radius: var(--r-md); background: var(--raise); }

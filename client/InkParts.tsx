@@ -104,7 +104,7 @@ export function PendingBar({ label }: { label: string }) {
   </div>
 }
 
-export function HoldButton({ label, onHeld }: { label: string; onHeld: () => void }) {
+export function HoldButton({ label, onHeld, ms = FORCE_MS }: { label: string; onHeld: () => void; ms?: number }) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [holding, setHolding] = useState(false)
   const release = () => {
@@ -114,10 +114,10 @@ export function HoldButton({ label, onHeld }: { label: string; onHeld: () => voi
   }
   return <button
     class={holding ? 'btn ink-force is-holding' : 'btn ink-force'}
-    style={{ '--force-ms': `${FORCE_MS}ms` } as Record<string, string>}
+    style={{ '--force-ms': `${ms}ms` } as Record<string, string>}
     onPointerDown={() => {
       setHolding(true)
-      timer.current = setTimeout(() => { release(); onHeld() }, FORCE_MS)
+      timer.current = setTimeout(() => { release(); onHeld() }, ms)
     }}
     onPointerUp={release}
     onPointerLeave={release}

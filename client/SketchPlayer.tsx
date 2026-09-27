@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import type { ComponentChildren } from 'preact'
 import type { SketchInput } from '../shared/protocol.ts'
 import type { MinigamePlayerProps } from './minigames.tsx'
@@ -6,7 +6,7 @@ import { matchFrame } from './minigame-info.ts'
 import { nextBowSequence } from './bow-control.ts'
 import { PendingBar } from './InkParts.tsx'
 import { StandingsDial } from './Player.tsx'
-import { Blanks, SketchCanvas, SketchInk, useSketchCues, useSketchStrokes } from './SketchParts.tsx'
+import { Blanks, SketchCanvas, SketchInk, focusInPlace, useKeyboardLift, useSketchCues, useSketchStrokes } from './SketchParts.tsx'
 import { ScoreChange } from './fx.tsx'
 import { SKETCH_RULES, fmtSeconds, ordinal, revealStamp, secondsLeft, stepLine } from './sketch.ts'
 import { colorForPlayer, playerName } from './ui.ts'
@@ -22,8 +22,8 @@ const MINE = 3
  * the way the buzzer does, and whatever you act with below it. Everything
  * shares the one gutter and the one centre line.
  */
-function Screen({ bar, line, card, foot, guess }: { bar: ComponentChildren; line?: ComponentChildren; card: ComponentChildren; foot?: ComponentChildren; guess?: boolean }) {
-  return <main class={guess ? 'player sketch-phone sketch-phone--guess' : 'player sketch-phone'}>
+function Screen({ bar, line, card, foot, tight }: { bar: ComponentChildren; line?: ComponentChildren; card: ComponentChildren; foot?: ComponentChildren; tight?: boolean }) {
+  return <main class={tight ? 'player sketch-phone sketch-phone--tight' : 'player sketch-phone'}>
     {bar}
     <div class="sketch-phone__line">{line}</div>
     <section class="sketch-card">{card}</section>
@@ -38,6 +38,9 @@ export function SketchPlayer({ state, playerId, connected = true, frame, now, se
   const [text, setText] = useState('')
   const [flash, setFlash] = useState(false)
   const rotation = useSideways()
+  const form = useRef<HTMLFormElement>(null)
+  const field = useRef<HTMLInputElement>(null)
+  useKeyboardLift(form)
   useSketchCues(sketch, playerId)
   const close = sketch?.close ?? 0
   useEffect(() => {
@@ -139,6 +142,7 @@ export function SketchPlayer({ state, playerId, connected = true, frame, now, se
   const drawing = <div class="sketch-stage"><SketchInk strokes={strokes} live={sketch.step === 'drawing' ? sketch.live : null} /></div>
 
   if (sketch.step === 'reveal' || sketch.step === 'over') return <Screen
+    tight
     bar={bar}
     line={<p class="sketch-phone__step">{stepLine(sketch, nameOf)}</p>}
     card={<>
@@ -150,23 +154,27 @@ export function SketchPlayer({ state, playerId, connected = true, frame, now, se
 
   const mine = sketch.misses.filter((m) => m.player === playerId).slice(-MINE)
   return <Screen
-    guess={!got}
+    tight
     bar={bar}
     line={clock}
     card={<>
       {drawing}
       {sketch.word ? <p class="sketch-card__word">{sketch.word}</p> : <Blanks text={sketch.blanks} />}
     </>}
-    foot={got || <form class="sketch-guess" onSubmit={(event) => {
+    foot={got || <form class="sketch-guess" ref={form} onSubmit={(event) => {
       event.preventDefault()
       if (!text.trim()) return
       input({ kind: 'guess', text })
       setText('')
+      // Guessing is a run of tries: the keyboard stays up between them.
+      field.current?.focus({ preventScroll: true })
     }}>
-      <input class="input sketch-guess__field" value={text} maxLength={40} placeholder="Your guess"
-        aria-label="Your guess" autocomplete="off" autocapitalize="off" enterkeyhint="send"
+      <input ref={field} class="input sketch-guess__field" value={text} maxLength={40} placeholder="Your guess"
+        aria-label="Your guess" autocomplete="off" autocapitalize="off" enterkeyhint="send" onTouchEnd={focusInPlace}
         onInput={(event) => setText((event.currentTarget as HTMLInputElement).value)} />
-      <button class="btn btn--primary sketch-guess__send" type="submit" disabled={!text.trim()}>Send</button>
+      {/* Pressing Send never takes focus from the field, so the keyboard stays open. */}
+      <button class="btn btn--primary sketch-guess__send" type="submit" disabled={!text.trim()}
+        onPointerDown={(event) => event.preventDefault()}>Send</button>
       {/* Your own misses stay in view, so a cleared field never reads as a
           guess that went nowhere; Close takes their place for a moment. */}
       <p class="sketch-guess__tried">

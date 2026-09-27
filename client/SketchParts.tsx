@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { MAX_STROKE_POINTS, quantizePoint, type InkPoint, type InkStrokeView } from '../shared/protocol.ts'
-import { DRAFT_MS, draftClear, draftStroke, draftUndo, liveDraft, strokePath, type InkDraft } from './ink.ts'
+import { DRAFT_MS, FORCE_MS, draftClear, draftStroke, draftUndo, liveDraft, strokePath, type InkDraft } from './ink.ts'
 import { HoldButton } from './InkParts.tsx'
 import { CHAT_SLIDE_MS, MISS_GAP_MS, chatSlideMs, chatStarts, fmtSeconds, pushChat, wipeCut, sketchCues, type ChatLine, type SketchView } from './sketch.ts'
 import { play } from './sound.ts'
@@ -74,6 +74,8 @@ export function SketchStandings({ title, rows }: { title: string; rows: SketchRo
 
 /** Lines the board's chat shows at once. */
 const CHAT_MAX = 10
+/** Sketch's holds, a quarter of Ink's Force: long enough not to slip, short enough mid-drawing. */
+const HOLD_MS = FORCE_MS / 4
 /** The space between chat lines, --s1 in the stylesheet. */
 const CHAT_GAP = 4
 
@@ -213,6 +215,45 @@ export function SketchChat({ turn, misses, correct, nameOf, colorOf }: {
   </div>
 }
 
+/**
+ * Keeps a phone's keyboard from moving the screen. The field is focused
+ * without the browser scrolling the page to it, and only `ref` (the guess
+ * form) lifts, by exactly as much as the keyboard would cover it, so the bar
+ * and the drawing stay where they are.
+ */
+export function useKeyboardLift(ref: { current: HTMLElement | null }) {
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv) return
+    const place = () => {
+      const el = ref.current
+      // A pan that got through anyway goes back; the form does the moving.
+      if (window.scrollY) window.scrollTo(0, 0)
+      if (!el) return
+      // Where the form rests unlifted: its box less the offset it is drawn at
+      // right now, read off the element because the form is a new one each turn.
+      const drawn = parseFloat(getComputedStyle(el).translate.split(' ')[1] ?? '') || 0
+      const bottom = el.getBoundingClientRect().bottom - drawn
+      const lift = Math.max(0, bottom - (vv.offsetTop + vv.height) + 8)
+      el.style.translate = lift ? `0 ${-lift}px` : ''
+    }
+    vv.addEventListener('resize', place)
+    vv.addEventListener('scroll', place)
+    return () => {
+      vv.removeEventListener('resize', place)
+      vv.removeEventListener('scroll', place)
+    }
+  }, [ref])
+}
+
+/** Focus a field on touch without the browser scrolling the page to it. */
+export function focusInPlace(event: TouchEvent) {
+  const field = event.currentTarget as HTMLInputElement
+  if (document.activeElement === field) return
+  event.preventDefault()
+  field.focus({ preventScroll: true })
+}
+
 export function SketchInk({ strokes, live, class: cls = '' }: { strokes: InkStrokeView[]; live: InkPoint[] | null; class?: string }) {
   return <svg class={`sketch-ink ${cls}`} viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
     {strokes.map((stroke, i) => <path key={i} d={strokePath(stroke.points, W, H)} class="ink-stroke" />)}
@@ -289,8 +330,8 @@ export function SketchCanvas({ strokes, author, processed, send, onPass }: {
         or giving up the turn takes a hold. */}
     <div class="sketch-tools">
       <button class="btn" disabled={!shown.length} onClick={() => commit(draftUndo(draft.current, server, performance.now()), { kind: 'undo' })}>Undo</button>
-      <HoldButton label="Hold to clear" onHeld={() => { if (shown.length) commit(draftClear(draft.current, server, performance.now()), { kind: 'clear' }) }} />
-      <HoldButton label="Hold to pass" onHeld={onPass} />
+      <HoldButton label="Hold to clear" ms={HOLD_MS} onHeld={() => { if (shown.length) commit(draftClear(draft.current, server, performance.now()), { kind: 'clear' }) }} />
+      <HoldButton label="Hold to pass" ms={HOLD_MS} onHeld={onPass} />
     </div>
   </>
 }
