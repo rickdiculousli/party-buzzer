@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 import type { SketchInput } from '../shared/protocol.ts'
 import type { MinigamePlayerProps } from './minigames.tsx'
 import { matchFrame } from './minigame-info.ts'
+import { nextBowSequence } from './bow-control.ts'
 import { SketchCanvas, SketchInk, useSketchCues, useSketchStrokes } from './SketchParts.tsx'
 import { fmtSeconds, ordinal, secondsLeft, stepLine } from './sketch.ts'
 import { playerName } from './ui.ts'
@@ -12,7 +13,6 @@ export function SketchPlayer({ state, playerId, frame, now, send }: MinigamePlay
   const session = state.minigame!
   const sketch = matchFrame(frame, 'sketch', 'player', session.matchId)
   const strokes = useSketchStrokes(sketch)
-  const seq = useRef(1)
   const [text, setText] = useState('')
   const [flash, setFlash] = useState(false)
   useSketchCues(sketch, playerId)
@@ -34,7 +34,7 @@ export function SketchPlayer({ state, playerId, frame, now, send }: MinigamePlay
 
   const nameOf = (id: string) => playerName(state, id)
   const input = (value: { kind: string } & Record<string, unknown>) => send({
-    t: 'minigameInput', matchId: session.matchId, seq: seq.current++,
+    t: 'minigameInput', matchId: session.matchId, seq: nextBowSequence(localStorage),
     input: (value.kind === 'ink' ? value : { ...value, at: now() }) as SketchInput,
   })
   const drawer = sketch.drawer === playerId

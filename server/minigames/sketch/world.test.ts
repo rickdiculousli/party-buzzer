@@ -154,3 +154,15 @@ test('the reveal hands over to the next drawer with fresh words, and the match e
   assert.equal(results.length, 3)
   assert.ok(results.every((r, i) => i === 0 || r.points <= results[i - 1].points))
 })
+
+test('a guess that contains the word counts as close, so the feed never shows the answer', () => {
+  const short = drawing({ words: SHORT })
+  const [g1] = guessers(short)
+  act(short, g1, { kind: 'guess', text: `${short.word}s` })
+  act(short, g1, { kind: 'guess', text: `the ${short.word}` })
+  assert.equal(short.close[g1], 2)
+  assert.equal(short.misses.length, 0)
+  const long = drawing()
+  act(long, guessers(long)[0], { kind: 'guess', text: `a big ${long.word}!` })
+  assert.equal(long.misses.length, 0)
+})

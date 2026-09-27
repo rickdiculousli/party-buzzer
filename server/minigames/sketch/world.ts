@@ -4,7 +4,7 @@ import type {
 } from '../../../shared/protocol.ts'
 import type { InputOutcome } from '../definition.ts'
 import { shuffle } from '../shuffle.ts'
-import { isClose, isCorrect, letterIndexes } from './match.ts'
+import { isClose, isCorrect, letterIndexes, normalize } from './match.ts'
 import { CHOICES } from './words.ts'
 
 export const STEP_MS = 50
@@ -149,7 +149,8 @@ function guess(w: SketchWorld, player: PlayerId, raw: string, at: number): Input
     w.scores[player] += 50 + Math.round(50 * Math.max(0, w.stepEnds - w.tick) / w.drawTicks)
     w.correct.push({ seq, player, at, tick: w.tick })
     if (w.correct.length === w.participants.length - 1) endTurn(w, 'all')
-  } else if (isClose(text, w.word!)) {
+  } else if (isClose(text, w.word!) || normalize(text).includes(normalize(w.word!))) {
+    // A guess that contains the word would show the room the answer, so it counts as close.
     w.close[player] = (w.close[player] ?? 0) + 1
   } else {
     w.misses = [...w.misses, { seq, player, text }].slice(-FEED)
