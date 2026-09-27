@@ -16,7 +16,7 @@
     "probe": "node tools/probe.ts",
     "trace": "node tools/trace.ts",
     "motion": "vite --open /anim.html",
-    "review": "vite --config vite.review.config.ts --open /review.html",
+    "review": "BROWSER='Google Chrome.app' vite --config vite.review.config.ts --open /review.html",
     "review:serve": "vite --config vite.review.config.ts --host 127.0.0.1 --port 4174",
     "test:review": "playwright test --config playwright.review.config.ts",
     "anim": "node tools/probe.ts loop join:Ada,Bo,Cy,Dee value:400 arm buzz:Ada@1000,Bo@1250,Cy@1500,Dee@1750 wait:2000 correct wait:2000 next wait:1000",
