@@ -593,41 +593,91 @@ look under `npm run sim-sketch`.
 
 Reuse it for any list the room watches fill in real time.
 
-### Screen and set — `.ink-screen`, `.ink-set`
+### Set dressing — props on the studio floor
 
-Phantom Ink's pad. A minigame keeps its own table rather than the quiz's frame;
-what it shares is these parts and the colour rules. `InkScreen` and `InkPad` in
-`client/InkParts.tsx`.
+The studio has props. A game that needs a world of its own (a minigame keeps its
+own table rather than the quiz's frame) builds it from these, in the house's
+parts and colours, rather than inventing a new look. Each recipe below carries
+the rules that make it read right.
+Phantom Ink is the reference build (`client/InkParts.tsx`, `client/style.css`).
 
-A **screen** is one team's page behind dark curved glass: the rows are lines of
-signal, with scanlines, a sheen and a vignette laid over them (`::before`). Ink
-carries a faint phosphor glow. A row with nothing on it shows snow (`is-blank`)
-until ink arrives, and the signal opens like a CRT line when it does (`ink-tune`);
-the live row glows a little brighter, the CRT's refresh bar rolls down
-through it. A typed guess blinks a tungsten block cursor in its next slot;
-handwriting has no next slot, so a clue shows the beam, a white-hot dot at the
-pen's tip, only while ink is going down. Typed guesses are drawn
-through the screen's pixel grid (`#ink-px`, mounted once by `InkDefs`), so they
-read as the set's own lettering without a third face. A peek letter is written in
-the page's team colour and a peek row carries an eye. Snow and the tune-in hold
-still under reduced motion.
+#### CRT screen — `.ink-screen`, `.ink-set`
 
-On the board each screen sits in a **set**: a bezel angled a few degrees toward
-the room, and a chin with the team name, the writer (pen) and guessers, and a
-pilot lamp lit tungsten on that team's turn. The chin never widens the set: the
-writer keeps up to half the line, and guessers that don't fit become "+N". The rows are sized from the height
-left over, so all eight fit beside the discard columns: each team's discarded
-prompts stack on its set's outer side, newest on top, fading out at the bottom
-rather than pushing anything. Each is a **slip** (`DiscardSlip`): torn off a pad,
-typed in Plex Mono on `--paper`, and scribbled out in `--graphite` through the
-`#ink-pencil` filter, so a newcomer never reads it as the prompt a team chose.
-Its tear, tilt and scribble are seeded from the text, and older slips sit darker. Phones show the bare screen, and a lone row
-(`.ink-phone__row`) is the same glass.
+A television in the studio: content shown as signal on a tube. Layers, bottom to
+top:
 
-Sun and Moon are `--team-sun` (`--id-1`) and `--team-moon` (`--id-3`): identity
-hues, never signal ones. Set `--team` from the `--sun`/`--moon` modifiers.
-Screen tunables (`--scan-alpha`, `--snow-alpha`, `--phosphor`) sit together in
-`style.css`.
+| Layer | What it is |
+|---|---|
+| Tube | `--screen`, a dark radial, inside curved corners and an inset shadow. |
+| Signal | The content. Ink and lettering carry a faint phosphor glow (`--phosphor`). |
+| Snow | One noise layer across the whole tube (`::after`). |
+| Live | The glow and refresh band of whatever is live right now. |
+| Glass | Scanlines, an overhead sheen and a vignette over everything (`::before`). |
+
+- **One tube, one layer.** Whatever belongs to the tube spans the glass edge to
+  edge and is feathered on every side. A glow or band cut to an element's box
+  shows the box, and the eye reads it as an overlay.
+- **Bound to what reads, not to the box.** A row reads from the baseline above
+  to its own baseline; its box sits lower. Place the live layer to match what
+  the eye sees, and let a band fade out at the line.
+- **Light is overhead and centred.** An off-centre sheen makes everything under
+  it look lopsided. Measure brightness left against right when something looks
+  off.
+- **Snow is no signal.** One layer, thick where nothing has been written and a
+  faint grain (`--snow-floor`) under what is on air, the change feathered over
+  half a row. Never snow in separate boxes.
+- **Signal arriving** opens like a CRT line and settles with a slip
+  (`ink-tune`), once.
+- **Live** is a slightly brighter tube and a soft refresh band: thin, one
+  peak, rolling slowly (5.2 s). A block cursor blinks only where slots are
+  fixed, as with typed letters; freehand has no next slot, so it shows the beam,
+  a white-hot dot at the pen's tip, only while ink is going down.
+- **Lettering on the tube** goes through the pixel grid (`#ink-px`), so it
+  reads as the set's own type without a third face.
+- **The set** is a bezel with a chin: a label, a roster, and a pilot lamp lit
+  tungsten when it is that side's turn. Angle sets a few degrees toward the
+  room. The chin never widens the set (`contain: inline-size`): a name
+  shortens, and names that do not fit become "+N".
+- On a phone the screen stands bare and takes the height that is left, its
+  rows sized to fit; a lone row is its own glass.
+- Snow, tune-in, band and blink hold still under reduced motion.
+
+Tunables sit together in `style.css`: `--scan-alpha`, `--snow-alpha`,
+`--snow-floor`, `--phosphor`.
+
+#### Paper and pencil — `DiscardSlip`, `.ink-slip`
+
+Paper props on the set: notes, slips, cards.
+
+- **Paper is a prop, kept dim** (`--paper`) so it never outshines a screen.
+  Type is `--typed`, pencil is `--graphite`.
+- **Torn, not cut.** A `clip-path` edge: small teeth where it was ripped along a
+  perforation, bigger bites where it tore freehand. The shadow goes on a
+  wrapper as `drop-shadow`, because `clip-path` cuts off a `box-shadow`.
+- **Typed** in Plex Mono with a slight bleed: a typewriter without a third face.
+- **Scribbled out** in pencil: a few loose passes back and forth, drifting down
+  the text, through `#ink-pencil` (the line wobbles on the paper's tooth and the
+  grain breaks it up). The text stays just legible under it. A scribble reads as
+  thrown away; a single strike line reads as picked, so never use one for a
+  discard.
+- **Seeded from the content** (`mulberry32` in `shared/random.ts`), so its tear,
+  tilt (±4°) and scribble hold still across renders.
+- **A pile** stacks newest on top at full brightness, older ones darker behind
+  it, fading out at the bottom rather than pushing anything.
+- **Handwriting** is freehand strokes: chalk with phosphor on a tube, graphite
+  on paper. Fake hands (sims, fixtures) print stroke capitals, one letter to a
+  slot, each point wobbled a little (`GLYPHS` in `tools/sim-ink.ts`).
+
+The filters live in `InkDefs`, mounted once per surface. They carry Ink's
+names; when a second game uses them, move them to a shared defs component.
+
+#### Phantom Ink
+
+Each team's page is a CRT set; each team's discarded prompts stack as paper
+slips on its set's outer side. Sun and Moon are `--team-sun` (`--id-1`) and
+`--team-moon` (`--id-3`): identity hues, never signal ones. Set `--team` from
+the `--sun`/`--moon` modifiers. A peek letter is written in the page's team
+colour, and a peek row carries an eye.
 
 ---
 
