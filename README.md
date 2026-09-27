@@ -50,7 +50,11 @@ network-jitter effects; it assumes honest clients. Phones receive their own
 placement and the total buzz count, rather than everyone's timing.
 
 **Trivia** provides ordinary scoring. **Quizbowl-lite** adds configurable powers,
-negs, bouncebacks, and optional item drops. Freeze, shield, and steal live on
+negs, bouncebacks, and optional item drops. **Pure buzzer** is only arm, correct,
+and wrong: no points, no lockouts, and a wrong reopens the question to everyone
+as often as it takes. The host desk drops everything but those keys and the
+buzz order; the board stays blank except for names and a Correct!/Wrong! stamp, and a missed name stays up
+until the next buzz or reset. Freeze, shield, and steal live on
 players' phones. Teams and duels are separate features that compose with modes.
 Changing modes normally resets scores; setlist transitions can preserve them.
 

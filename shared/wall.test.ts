@@ -613,3 +613,25 @@ test('the phone during a choice question', () => {
   assert.deepEqual([wrong.label, wrong.sub], ['Wrong', 'It was Saturn'])
   assert.equal(phoneOf('choice:reveal', { ...base, armed: false, correct: 1, choices: ['Mars', 'Saturn'] }).label, 'No pick')
 })
+
+test('a scoreless mode starts blank, never calls Buzz, and holds a miss until the next buzz', () => {
+  const s = room()
+  s.games = [{ id: 'buzzer', name: 'Pure buzzer', options: [], scoreless: true }]
+  s.game.id = 'buzzer'
+  const open: Local = { open: true, settled: true, retired: true }
+  const blank = (w: Wall) =>
+    [w.hero, w.clue, w.call, w.next, w.award, w.value].every((x) => x === null)
+  assert.ok(blank(wallOf(s, open)), 'idle')
+  s.round = { ...s.round, questionId: 'q', attemptId: 'x', phase: 'ARMED', armedAt: 1 }
+  assert.ok(blank(wallOf(s, open)), 'armed')
+  // Ada missed; the rebound is open to everyone and the dwell has long passed.
+  s.round.award = { name: 'Ada', points: 0, penalty: true }
+  const w = wallOf(s, open)
+  assert.equal(w.moment, 'verdict:penalty')
+  assert.deepEqual(w.hero, { name: 'Ada', tone: 'penalised' })
+  assert.equal(w.award?.scoreless, true, 'stamped as a verdict, not a 0')
+  // Bo buzzes: his name replaces hers.
+  s.round.phase = 'COLLECTING'
+  s.round.order = [{ playerId: 'b', name: 'Bo', at: 2, deltaMs: 0 }]
+  assert.deepEqual(wallOf(s, open).hero, { name: 'Bo', tone: 'answering' })
+})

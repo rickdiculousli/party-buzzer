@@ -233,10 +233,13 @@ options/memory. Its option schema is checked against its typed option fields.
 The heterogeneous registry and wire format necessarily erase some of those
 concrete types; options are sanitized at the registry/state boundary.
 
-`server/modes/index.ts` registers trivia and quizbowl statically. Optional hooks
+`server/modes/index.ts` registers trivia, quizbowl and buzzer statically. Optional hooks
 cover arming, buzz eligibility, scoring, completed fragments, host acts, status,
 viewer memory, and item grants. Trivia uses framework defaults. Quizbowl owns
-power cutoff, neg/bounceback rules, and optional item grants.
+power cutoff, neg/bounceback rules, and optional item grants. Buzzer stamps
+zero-point awards and never locks anyone out; its `scoreless` flag rides the
+catalog so the host desk can hide value, standings, reader and duels without
+naming the mode.
 
 The Reader reports completed fragments for both joined and fragment playback.
 Quizbowl interprets that event to end power; it returns semantic status such as

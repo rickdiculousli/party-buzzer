@@ -904,6 +904,32 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   margin-bottom: var(--s3);
 }
 
+/* Who Correct and Wrong will land on. Dim until judging opens, so a lit name
+   means the keys are live. */
+.host__up {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s4);
+  margin: 0 0 var(--s3);
+  padding: var(--s2) var(--s4);
+  background: var(--panel);
+  border-left: 6px solid var(--rule);
+  color: var(--dim);
+}
+.host__up .eyebrow { margin: 0; min-width: 9rem; }
+.host__up .eyebrow::after { display: none; }
+.host__up-name {
+  font-family: var(--display);
+  font-size: var(--t-xl);
+  font-weight: 800;
+  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.host__up.is-judging { color: var(--chalk); background: #241d0c; }
+.host__note { margin: var(--s2) 0 0; }
+
 .host__controls { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: stretch; }
 .host__controls .btn--major { flex: 1 1 12rem; }
 .host__minor { display: flex; gap: var(--s2); flex-wrap: wrap; }

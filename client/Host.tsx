@@ -70,7 +70,6 @@ function MatchDesk({ state, act, now }: {
  * drag on pace, so each control has a key and each key is shown on the control.
  */
 const KEYS: Record<string, HostAction> = {
-  ' ': { a: 'arm' },
   c: { a: 'correct' },
   n: { a: 'next' },
   z: { a: 'undo' },
@@ -181,6 +180,11 @@ export function Host() {
   // The handler is bound once but needs the live round to judge against.
   const value = useRef(0)
   value.current = state?.round.value ?? 0
+  const idleRef = useRef(false)
+  idleRef.current = state?.round.phase === 'IDLE'
+  // A miss is up and nobody has taken the rebound yet.
+  const missedRef = useRef(false)
+  missedRef.current = !!state && isPenalty(state.round.award) && state.round.order.length === 0
   const judgeableRef = useRef(false)
   const reopenableRef = useRef(false)
   const keysOffRef = useRef(false)
@@ -196,6 +200,22 @@ export function Host() {
       if (el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.isContentEditable)) return
       if (e.metaKey || e.ctrlKey || e.altKey) return
 
+      // The two entry keys. Space is the next thing to do: correct when there
+      // is someone to judge, arm when nothing is armed, and nothing while the
+      // buzzers are up — re-arming there would throw the question away.
+      if (e.key === ' ') {
+        e.preventDefault()
+        if (judgeableRef.current) act({ a: 'correct' })
+        else if (idleRef.current) act({ a: 'arm' })
+        return
+      }
+      // Shift again on an untaken rebound moves on: the same key that called
+      // the miss is the one that gives up on the question.
+      if (e.key === 'Shift') {
+        if (judgeableRef.current) act({ a: 'wrong', neg: value.current })
+        else if (missedRef.current) act({ a: 'arm' })
+        return
+      }
       const key = e.key.toLowerCase()
       if (key === 'w') {
         e.preventDefault()
@@ -322,6 +342,8 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
   // which button is in the slot at all — so a `rebound` the server would refuse
   // would put a live Reopen in front of the host, which is the same dead click
   // wearing a different hat. It is also what the R key fires.
+  // Same fact as the Shift key's: a miss is up and nobody has buzzed on it.
+  const missed = isPenalty(round.award) && round.order.length === 0
   const reopenable = !refuses(state, { a: 'rebound' })
   reopenableRef.current = reopenable
 
@@ -343,6 +365,8 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
   // Something to read: the block's pack under a setlist, the chosen one without.
   const readable = setlist ? !!block?.pack : !!state.reading?.pack
   const unpaid = state.packCost[(setlist ? block?.pack : state.reading?.pack) ?? ''] ?? 0
+  // A mode with no points keeps the three keys and the buzz order, nothing else.
+  const scoreless = !!state.games.find((g) => g.id === state.game.id)?.scoreless
 
   return (
     <>
@@ -353,7 +377,7 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
           </span>
         )}
 
-        {!upNext && <label class="field">
+        {!upNext && !scoreless && <label class="field">
           Value
           <span class="stepper">
             <button
@@ -431,9 +455,20 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
             </button>
           </div>
         ) : <>
+        {/* Who the keys below act on, big enough to read from across the desk.
+            The leader shows as soon as they are in, dimmed until judging opens. */}
+        <p
+          class={judgeable ? 'host__up is-judging' : 'host__up'}
+          style={leader ? { borderLeftColor: colorForPlayer(state, leader.playerId) } : undefined}
+        >
+          <span class="eyebrow">{leader ? 'Answering' : open ? 'Buzzers open' : 'Nobody answering'}</span>
+          <span class="host__up-name">{leader?.name ?? '—'}</span>
+        </p>
         <div class="host__controls">
-          <button class="btn btn--major btn--primary" onClick={() => act({ a: 'arm' })} disabled={open}>
-            {open ? 'Buzzers open' : 'Arm'}<span class="key">Space</span>
+          {/* On an untaken rebound Arm is live again: it is how the host gives
+              up on the question, and Shift is its key there. */}
+          <button class="btn btn--major btn--primary" onClick={() => act({ a: 'arm' })} disabled={open && !missed}>
+            {open && !missed ? 'Buzzers open' : 'Arm'}<span class="key">{missed ? 'Shift' : 'Space'}</span>
           </button>
           {reopenable ? (
             <button class="btn btn--major btn--go" onClick={() => act({ a: 'rebound' })}>
@@ -441,7 +476,7 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
             </button>
           ) : (
             <button class="btn btn--major btn--go" onClick={() => act({ a: 'correct' })} disabled={!judgeable}>
-              Correct<span class="key">C</span>
+              Correct<span class="key">Space</span>
             </button>
           )}
           <button
@@ -449,28 +484,29 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
             onClick={() => act({ a: 'wrong', neg: round.value })}
             disabled={!judgeable}
           >
-            Wrong<span class="key">W</span>
+            Wrong<span class="key">Shift</span>
           </button>
         </div>
+        {/* Notes sit right under the keys they explain: a `title` on a
+            disabled button is never shown — the control suppresses the
+            pointer events that would trigger it. */}
+        {judgeReason && <p class="muted host__note">{judgeReason}</p>}
+        {armNote && !scoreless && <p class="muted host__note">{armNote}</p>}
         <div class="host__minor" style={{ marginTop: 'var(--s3)' }}>
-          <button class="btn" onClick={() => act({ a: 'wrong', neg: 0 })} disabled={!judgeable}>
+          {!scoreless && <button class="btn" onClick={() => act({ a: 'wrong', neg: 0 })} disabled={!judgeable}>
             Wrong, no penalty
-          </button>
-          <button class="btn" onClick={() => act({ a: 'next' })}>
+          </button>}
+          {/* Arm already starts a fresh question; next only matters where it
+              advances something. */}
+          {(!scoreless || setlist) && <button class="btn" onClick={() => act({ a: 'next' })}>
             Next question<span class="key">N</span>
-          </button>
+          </button>}
           {moment === 'choice:picking' && (
             <button class="btn" onClick={() => fire('closeChoice')}>
               Close picking
             </button>
           )}
         </div>
-        {/* Under the row rather than on the buttons: these three are the most
-            pressed controls on the desk, and a `title` on a disabled button is
-            never shown — the control suppresses the pointer events that would
-            trigger it. */}
-        {judgeReason && <p class="muted">{judgeReason}</p>}
-        {armNote && <p class="muted">{armNote}</p>}
 
         {/* What the locked-in player said, as the judge heard it. The verdict
             itself is the award above; this is the evidence for the undo. */}
@@ -486,7 +522,7 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
         {/* The transport only. Which pack, and how the reading behaves, are
             setup and live below with the rest of it — what a host needs during
             a question is play, pause and where we are. */}
-        {state.packs.length > 0 && (
+        {state.packs.length > 0 && !scoreless && (
           <div class="host__reader">
             {state.reading?.rendering ? (
               <span class="chip chip--data">
@@ -564,7 +600,7 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
         )}
       </section>
 
-      <section>
+      {!scoreless && <section>
         <p class="eyebrow">Standings</p>
         {state.players.length === 0 ? (
           <p class="muted">No players yet.</p>
@@ -581,9 +617,9 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
             ))}
           </ol>
         )}
-      </section>
+      </section>}
 
-      <DuelPanel state={state} act={act} />
+      {!scoreless && <DuelPanel state={state} act={act} />}
       </>}
     </>
   )

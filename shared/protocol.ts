@@ -165,7 +165,7 @@ export type OptionSpec =
   | { kind: 'choice'; key: string; label: string; default: string; choices: string[] }
 
 /** One registered mode, for the host's settings form. Ships in the state payload. */
-export type GameInfo = { id: string; name: string; options: OptionSpec[] }
+export type GameInfo = { id: string; name: string; options: OptionSpec[]; scoreless?: boolean }
 
 /** A nomination pool entry. `votes` holds voter ids, not a count — one vote per player falls out of the shape. */
 export type DuelPoolEntry = {

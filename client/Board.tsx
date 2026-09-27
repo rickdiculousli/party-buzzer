@@ -599,8 +599,9 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
                   gates on the award. */}
               {w.award ? (
                 <p data-review-id="board:award" class={isPenalty(w.award) ? 'board__award fx-anchor is-neg' : 'board__award fx-anchor'}>
-                  {w.award.points > 0 ? '+' : ''}
-                  {w.award.points}
+                  {w.award.scoreless
+                    ? (isPenalty(w.award) ? 'Wrong!' : 'Correct!')
+                    : `${w.award.points > 0 ? '+' : ''}${w.award.points}`}
                   <Burst kind="dust" from={['left', 'bottom', 'right']} />
                 </p>
               ) : (

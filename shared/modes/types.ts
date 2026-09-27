@@ -28,6 +28,8 @@ export type ModeOption<Options> = {
 export type GameModule<Options = Record<string, unknown>, Memory = unknown> = {
   id: string
   name: string
+  /** No points anywhere: the host desk drops value, standings and the rest. */
+  scoreless?: boolean
   options: ModeOption<Options>[]
   init(options: Options): Memory
   /** Why this player may not buzz, or null. Runs at buzz time. */

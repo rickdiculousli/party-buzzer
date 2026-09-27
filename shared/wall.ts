@@ -78,6 +78,10 @@ export function isFamily<F extends Family>(m: Moment, f: F): m is Extract<Moment
   return m.startsWith(`${f}:`)
 }
 
+/** The mode keeps no score: the wall shows who buzzed and nothing else. */
+// `?.`: recorded trace frames predate the catalog and carry no `games`.
+const scorelessOf = (state: State) => !!state.games?.find((g) => g.id === state.game.id)?.scoreless
+
 export function momentOf(state: State, local: Local): Moment {
   const r = state.round
 
@@ -112,7 +116,10 @@ export function momentOf(state: State, local: Local): Moment {
   // showing the last person missing it, and the new leader's name arriving up
   // to a second later when the round locked. COLLECTING is the phase that says
   // the room has answered, and it is public, so the phones agree.
-  const rebounding = r.buzzable?.length === 1 && r.phase === 'ARMED'
+  //
+  // A scoreless mode holds every miss the same way: the name is all the wall
+  // has to say, so it stays until someone buzzes or the question is reset.
+  const rebounding = (r.buzzable?.length === 1 || scorelessOf(state)) && r.phase === 'ARMED'
   // While the box is driving, the question resuming is what ends the beat, and
   // it outranks both the dwell and the rebound above. The two clocks are not
   // comparable: the board retires a penalty `--penalty-dwell` after the
@@ -168,7 +175,9 @@ export function momentOf(state: State, local: Local): Moment {
  * What is on the big screen.
  *
  * The invariant, and the point of the whole file: exactly one of `hero`,
- * `clue`, `nominations`, `faceoff`, `call`, `finale` and `next` is non-null. Those seven are the
+ * `clue`, `nominations`, `faceoff`, `call`, `finale` and `next` is non-null —
+ * except under a scoreless mode, which drops `call` and `next` and leaves the
+ * stage blank rather than saying "Buzz" or what the next question is worth. Those seven are the
  * middle band's occupants, and the seven-branch ternary they replace existed
  * only because nothing ever said they were mutually exclusive.
  *
@@ -190,7 +199,8 @@ export type Wall = {
   unanswered: { answer?: string } | null
 
   transcript: { name: string; text: string; hit: boolean } | null
-  award: (Award & { answer?: string }) | null
+  /** `scoreless`: the stamp is the verdict alone, since the points are always 0. */
+  award: (Award & { answer?: string; scoreless?: true }) | null
   timeline: boolean
   value: number | null
   /**
@@ -400,7 +410,9 @@ export function wallOf(state: State, local: Local): Wall {
   // bar. `middleOf` owns who is on the stage.
   const leader = m === 'answer:locked' || m === 'buzz:collecting' ? r.order[0] : undefined
 
-  const middle = middleOf(state, m)
+  const scoreless = scorelessOf(state)
+  const full = middleOf(state, m)
+  const middle = scoreless && ('call' in full || 'next' in full) ? {} : full
 
   return {
     moment: m,
@@ -410,14 +422,14 @@ export function wallOf(state: State, local: Local): Wall {
       ? { name: r.spoken.name, text: r.spoken.transcript, hit: r.spoken.hit }
       : null,
     award:
-      showAward && r.award ? { ...r.award, answer: r.answer } : null,
+      showAward && r.award ? { ...r.award, answer: r.answer, ...(scoreless && { scoreless: true as const }) } : null,
     unanswered: m === 'verdict:unanswered' ? { answer: r.answer } : null,
     timeline: !!leader && r.order.length > 1,
     // The stakes, as a dim chip in the corner, from the arm until the next
     // question's card replaces them: through the read, the buzz, the answer
     // and the verdict. Between questions the card says it instead.
     // Not beside the card, which says the same number large.
-    value: 'next' in middle ? null : r.phase !== 'IDLE' || isFamily(m, 'answer') || isFamily(m, 'verdict') || isFamily(m, 'choice') ? r.value : null,
+    value: 'next' in middle || scoreless ? null : r.phase !== 'IDLE' || isFamily(m, 'answer') || isFamily(m, 'verdict') || isFamily(m, 'choice') ? r.value : null,
     choices: choiceWall(state, m),
   }
 }
