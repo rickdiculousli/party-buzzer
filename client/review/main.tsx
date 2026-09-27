@@ -12,13 +12,13 @@ const DRAWERS_KEY = 'party-buzzer:review:drawers'
  * phone. The preview scales as a whole to fit the window, never reflows.
  */
 const PHONES = {
-  iphone: { label: 'iPhone Pro Max', width: 440, height: 956 },
-  galaxy: { label: 'Galaxy S Ultra', width: 384, height: 832 },
-  pixel: { label: 'Pixel Pro', width: 410, height: 914 },
+  iphone: { label: 'iPhone Pro Max', short: 'iP', width: 440, height: 956 },
+  galaxy: { label: 'Galaxy S Ultra', short: 'GS', width: 384, height: 832 },
+  pixel: { label: 'Pixel Pro', short: 'Px', width: 410, height: 914 },
 }
 type PhoneModel = keyof typeof PHONES
-/** Room around the phone for the drawer's padding and the device picker. */
-const PHONE_MARGIN = { x: 32, y: 80 }
+/** Room around the phone: the drawer's padding, and the picker column beside it. */
+const PHONE_MARGIN = { x: 88, y: 20 }
 
 type Drawers = { notes: boolean; phone: boolean; model: PhoneModel }
 
@@ -341,14 +341,18 @@ function Workbench() {
         <button class="review__handle" aria-expanded={drawers.phone} onClick={() => toggle('phone')}>
           Phone{scenario && ` · ${scenario.phones.find((phone) => phone.playerId === player)?.label ?? ''}`}
         </button>
-        <label class="review__device">
-          <select value={drawers.model} onChange={(event) => changeDrawers({ model: event.currentTarget.value as PhoneModel })}>
-            {Object.entries(PHONES).map(([id, phone]) => (
-              <option key={id} value={id}>{phone.label} · {phone.width}×{phone.height}</option>
-            ))}
-          </select>
+        <div class="review__devices" role="group" aria-label="Phone model">
+          {(Object.entries(PHONES) as [PhoneModel, (typeof PHONES)[PhoneModel]][]).map(([id, phone]) => (
+            <button
+              key={id}
+              class={id === drawers.model ? 'review__device is-on' : 'review__device'}
+              title={`${phone.label} · ${phone.width}×${phone.height}`}
+              aria-pressed={id === drawers.model}
+              onClick={() => changeDrawers({ model: id })}
+            >{phone.short}</button>
+          ))}
           {scale < 1 && <span class="readout">{Math.round(scale * 100)}%</span>}
-        </label>
+        </div>
         {scenario && (
           <div class="review__phone" style={{ width: `${device.width * scale}px`, height: `${device.height * scale}px` }}>
             <iframe

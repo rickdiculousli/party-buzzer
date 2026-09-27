@@ -245,7 +245,7 @@ fills the whole window, so it renders at the proportions `/board` has in that
 window; put the window in full screen for a TV. The **Notes** tab on the left
 edge pulls out the scenario and phone pickers and the notes; the **Phone** tab on
 the right pulls out the phone at a flagship's CSS screen size (iPhone Pro Max,
-Galaxy S Ultra or Pixel Pro, picked above it), scaled down whole if the window is
+Galaxy S Ultra or Pixel Pro, picked from the buttons beside it), scaled down whole if the window is
 shorter; a real phone's browser toolbars take some of that height. Both slide over the board and remember whether they were open. Choose a
 scenario and phone, click an element in either preview (the notes drawer opens),
 and write a suggestion.
