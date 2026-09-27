@@ -6,22 +6,35 @@ import type { Annotation, ReviewScenario, ReviewSelection } from './model.ts'
 const WORKSPACE = 'party-buzzer'
 const THREAD_KEY = 'party-buzzer:review:codex-thread'
 const DRAWERS_KEY = 'party-buzzer:review:drawers'
-/** The phone renders at a real phone's size and scales as a whole to fit the window. */
-const PHONE = { width: 390, height: 844 }
-const PHONE_MARGIN = 32
+/**
+ * Flagship screens in CSS pixels, portrait: the size each phone's browser lays
+ * the page out at. The browser's own toolbars take some of the height on a real
+ * phone. The preview scales as a whole to fit the window, never reflows.
+ */
+const PHONES = {
+  iphone: { label: 'iPhone Pro Max', width: 440, height: 956 },
+  galaxy: { label: 'Galaxy S Ultra', width: 384, height: 832 },
+  pixel: { label: 'Pixel Pro', width: 410, height: 914 },
+}
+type PhoneModel = keyof typeof PHONES
+/** Room around the phone for the drawer's padding and the device picker. */
+const PHONE_MARGIN = { x: 32, y: 80 }
 
-type Drawers = { notes: boolean; phone: boolean }
+type Drawers = { notes: boolean; phone: boolean; model: PhoneModel }
 
 function loadDrawers(): Drawers {
+  const fallback: Drawers = { notes: false, phone: false, model: 'iphone' }
   try {
-    return { notes: false, phone: false, ...JSON.parse(localStorage.getItem(DRAWERS_KEY) ?? '{}') }
+    const saved = { ...fallback, ...JSON.parse(localStorage.getItem(DRAWERS_KEY) ?? '{}') }
+    return Object.hasOwn(PHONES, saved.model) ? saved : { ...saved, model: fallback.model }
   } catch {
-    return { notes: false, phone: false }
+    return fallback
   }
 }
 
-function phoneScale() {
-  return Math.min(1, (innerHeight - PHONE_MARGIN) / PHONE.height, (innerWidth - PHONE_MARGIN) / PHONE.width)
+function phoneScale(model: PhoneModel) {
+  const { width, height } = PHONES[model]
+  return Math.min(1, (innerHeight - PHONE_MARGIN.y) / height, (innerWidth - PHONE_MARGIN.x) / width)
 }
 
 type Session = {
@@ -53,15 +66,18 @@ function Workbench() {
   const [delivery, setDelivery] = useState<Delivery | null>(null)
   const [refresh, setRefresh] = useState(0)
   const [drawers, setDrawers] = useState(loadDrawers)
-  const [scale, setScale] = useState(phoneScale)
-  const toggle = (which: keyof Drawers, open = !drawers[which]) => setDrawers((current) => {
-    const next = { ...current, [which]: open }
+  const [, setWindowSize] = useState(0)
+  const changeDrawers = (change: Partial<Drawers>) => setDrawers((current) => {
+    const next = { ...current, ...change }
     try { localStorage.setItem(DRAWERS_KEY, JSON.stringify(next)) } catch {}
     return next
   })
+  const toggle = (which: 'notes' | 'phone', open = !drawers[which]) => changeDrawers({ [which]: open })
+  const device = PHONES[drawers.model]
+  const scale = phoneScale(drawers.model)
 
   useEffect(() => {
-    const resize = () => setScale(phoneScale())
+    const resize = () => setWindowSize((n) => n + 1)
     addEventListener('resize', resize)
     return () => removeEventListener('resize', resize)
   }, [])
@@ -325,13 +341,21 @@ function Workbench() {
         <button class="review__handle" aria-expanded={drawers.phone} onClick={() => toggle('phone')}>
           Phone{scenario && ` · ${scenario.phones.find((phone) => phone.playerId === player)?.label ?? ''}`}
         </button>
+        <label class="review__device">
+          <select value={drawers.model} onChange={(event) => changeDrawers({ model: event.currentTarget.value as PhoneModel })}>
+            {Object.entries(PHONES).map(([id, phone]) => (
+              <option key={id} value={id}>{phone.label} · {phone.width}×{phone.height}</option>
+            ))}
+          </select>
+          {scale < 1 && <span class="readout">{Math.round(scale * 100)}%</span>}
+        </label>
         {scenario && (
-          <div class="review__phone" style={{ width: `${PHONE.width * scale}px`, height: `${PHONE.height * scale}px` }}>
+          <div class="review__phone" style={{ width: `${device.width * scale}px`, height: `${device.height * scale}px` }}>
             <iframe
               key={`phone:${player}:${refresh}`}
               title="Phone preview"
               src={frameUrl(scenario.id, 'phone', player, refresh)}
-              style={{ width: `${PHONE.width}px`, height: `${PHONE.height}px`, transform: `scale(${scale})` }}
+              style={{ width: `${device.width}px`, height: `${device.height}px`, transform: `scale(${scale})` }}
             />
           </div>
         )}
