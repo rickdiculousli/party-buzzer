@@ -240,8 +240,14 @@ includes a local HTTP backend recipe for HMR work.
 
 The review workbench is a development-only way to comment on frozen board and
 phone states and hand those comments to a coding agent. Install its browser once
-with `npx playwright install chromium`, then run `npm run review`. Choose a
-scenario and phone, click an element in either preview, and write a suggestion.
+with `npx playwright install chromium`, then run `npm run review`. The board
+fills the whole window, so it renders at the proportions `/board` has in that
+window; put the window in full screen for a TV. The **Notes** tab on the left
+edge pulls out the scenario and phone pickers and the notes; the **Phone** tab on
+the right pulls out the phone at 390×844, scaled down whole if the window is
+shorter. Both slide over the board and remember whether they were open. Choose a
+scenario and phone, click an element in either preview (the notes drawer opens),
+and write a suggestion.
 **Send** saves an immutable local bundle under ignored `.review/batches/` and
 captures the referenced previews. The status changes as the agent acknowledges
 the batch and marks it ready or blocked. Clicking an element that already

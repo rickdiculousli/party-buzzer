@@ -5,6 +5,24 @@ import type { Annotation, ReviewScenario, ReviewSelection } from './model.ts'
 
 const WORKSPACE = 'party-buzzer'
 const THREAD_KEY = 'party-buzzer:review:codex-thread'
+const DRAWERS_KEY = 'party-buzzer:review:drawers'
+/** The phone renders at a real phone's size and scales as a whole to fit the window. */
+const PHONE = { width: 390, height: 844 }
+const PHONE_MARGIN = 32
+
+type Drawers = { notes: boolean; phone: boolean }
+
+function loadDrawers(): Drawers {
+  try {
+    return { notes: false, phone: false, ...JSON.parse(localStorage.getItem(DRAWERS_KEY) ?? '{}') }
+  } catch {
+    return { notes: false, phone: false }
+  }
+}
+
+function phoneScale() {
+  return Math.min(1, (innerHeight - PHONE_MARGIN) / PHONE.height, (innerWidth - PHONE_MARGIN) / PHONE.width)
+}
 
 type Session = {
   delivery: 'codex' | 'clipboard'
@@ -34,6 +52,19 @@ function Workbench() {
   const [handoff, setHandoff] = useState('')
   const [delivery, setDelivery] = useState<Delivery | null>(null)
   const [refresh, setRefresh] = useState(0)
+  const [drawers, setDrawers] = useState(loadDrawers)
+  const [scale, setScale] = useState(phoneScale)
+  const toggle = (which: keyof Drawers, open = !drawers[which]) => setDrawers((current) => {
+    const next = { ...current, [which]: open }
+    try { localStorage.setItem(DRAWERS_KEY, JSON.stringify(next)) } catch {}
+    return next
+  })
+
+  useEffect(() => {
+    const resize = () => setScale(phoneScale())
+    addEventListener('resize', resize)
+    return () => removeEventListener('resize', resize)
+  }, [])
 
   useEffect(() => {
     void fetch('/__review/scenarios')
@@ -103,6 +134,7 @@ function Workbench() {
         && note.playerId === pick.playerId
         && (note.targetId ?? note.targetText) === (pick.targetId ?? pick.targetText)
       const annotation: Annotation = { ...pick, id: crypto.randomUUID(), text: '', status: 'open' }
+      toggle('notes', true)
       changeDraft((current) => {
         const existing = current.annotations.find(same)
         focusNote(existing?.id ?? annotation.id)
@@ -179,7 +211,14 @@ function Workbench() {
 
   return (
     <main class="review">
-      <aside class="review__panel">
+      {scenario
+        ? <iframe class="review__board" key={`board:${refresh}`} title="Board preview" src={frameUrl(scenario.id, 'board', undefined, refresh)} />
+        : <p class="review__loading">Loading scenarios</p>}
+      <aside class={`review__drawer review__drawer--notes${drawers.notes ? ' is-open' : ''}`}>
+        <button class="review__handle" aria-expanded={drawers.notes} onClick={() => toggle('notes')}>
+          Notes{open.length > 0 && ` · ${open.length}`}
+        </button>
+        <div class="review__panel">
         <p class="eyebrow">Review workbench</p>
         <h1>Frozen views</h1>
         <label class="review__field">
@@ -280,19 +319,23 @@ function Workbench() {
             }))}>Clear done</button>
           </details>
         )}
+        </div>
       </aside>
-      {scenario ? (
-        <section class="review__previews">
-          <article class="review__preview review__preview--board">
-            <p class="eyebrow">Board</p>
-            <iframe key={`board:${refresh}`} title="Board preview" src={frameUrl(scenario.id, 'board', undefined, refresh)} />
-          </article>
-          <article class="review__preview review__preview--phone">
-            <p class="eyebrow">Phone</p>
-            <iframe key={`phone:${player}:${refresh}`} title="Phone preview" src={frameUrl(scenario.id, 'phone', player, refresh)} />
-          </article>
-        </section>
-      ) : <p class="review__loading">Loading scenarios</p>}
+      <aside class={`review__drawer review__drawer--phone${drawers.phone ? ' is-open' : ''}`}>
+        <button class="review__handle" aria-expanded={drawers.phone} onClick={() => toggle('phone')}>
+          Phone{scenario && ` · ${scenario.phones.find((phone) => phone.playerId === player)?.label ?? ''}`}
+        </button>
+        {scenario && (
+          <div class="review__phone" style={{ width: `${PHONE.width * scale}px`, height: `${PHONE.height * scale}px` }}>
+            <iframe
+              key={`phone:${player}:${refresh}`}
+              title="Phone preview"
+              src={frameUrl(scenario.id, 'phone', player, refresh)}
+              style={{ width: `${PHONE.width}px`, height: `${PHONE.height}px`, transform: `scale(${scale})` }}
+            />
+          </div>
+        )}
+      </aside>
     </main>
   )
 }

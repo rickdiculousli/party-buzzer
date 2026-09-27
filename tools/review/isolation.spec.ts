@@ -1,8 +1,15 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { capturePreviews } from './capture.ts'
+
+
+/** The phone is a drawer; open it and wait for it to stop sliding before measuring. */
+async function openPhone(page: Page) {
+  await page.getByRole('button', { name: /^Phone/ }).click()
+  await page.waitForFunction(() => getComputedStyle(document.querySelector('.review__drawer--phone')!).transform === 'none')
+}
 
 test('a frozen phone preview opens no socket, microphone, audio, or spoken request', async ({ page }) => {
   const sockets: string[] = []
@@ -43,6 +50,7 @@ test('a frozen phone preview opens no socket, microphone, audio, or spoken reque
 
 test('a disabled buzzer can be annotated and the note survives reload', async ({ page }) => {
   await page.goto('/review.html?scenario=rebound')
+  await openPhone(page)
   const phone = page.frameLocator('iframe[title="Phone preview"]')
   const buzzer = phone.locator('.buzzer')
   await expect(buzzer).toBeVisible()
@@ -87,6 +95,7 @@ test('Send copies the batch handoff line when no agent queue is configured', asy
   })
   await page.goto('/review.html?scenario=rebound')
   await expect(page.getByLabel('Codex conversation')).toHaveCount(0)
+  await openPhone(page)
   const phone = page.frameLocator('iframe[title="Phone preview"]')
   const buzzer = phone.locator('.buzzer')
   await expect(buzzer).toBeVisible()
@@ -123,6 +132,7 @@ test('Send posts the saved note to the exact conversation and Refresh remounts p
     })
   })
   await page.goto('/review.html?scenario=rebound')
+  await openPhone(page)
   const phone = page.frameLocator('iframe[title="Phone preview"]')
   const buzzer = phone.locator('.buzzer')
   await expect(buzzer).toBeVisible()

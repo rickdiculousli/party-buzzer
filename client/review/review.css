@@ -1,17 +1,61 @@
 .review {
-  min-height: 100dvh;
-  display: grid;
-  grid-template-columns: 18rem minmax(0, 1fr);
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
   background: var(--stage);
   color: var(--ink);
 }
 
+/* The board is the whole window, so it renders exactly as /board would here. */
+.review__board {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #0b0a08;
+}
+
+/* Drawers slide over the board and never resize it. */
+.review__drawer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  transition: transform var(--fast) var(--ease);
+}
+.review__drawer--notes { left: 0; width: 20rem; transform: translateX(-100%); }
+.review__drawer--phone { right: 0; display: grid; place-items: center; padding: calc(var(--s4) - 1px); transform: translateX(100%); }
+.review__drawer.is-open { transform: none; }
+
+.review__handle {
+  position: absolute;
+  top: 50%;
+  padding: var(--s3) var(--s2);
+  writing-mode: vertical-rl;
+  font: 600 var(--t-xs)/1 var(--mono);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  cursor: pointer;
+  translate: 0 -50%;
+}
+.review__drawer--notes .review__handle { left: 100%; border-left: 0; border-radius: 0 var(--r-md) var(--r-md) 0; }
+.review__drawer--phone .review__handle { right: 100%; border-right: 0; border-radius: var(--r-md) 0 0 var(--r-md); transform: rotate(180deg); }
+
+.review__phone { position: relative; overflow: hidden; border: 1px solid var(--rule); box-shadow: 0 0 2rem #000; }
+.review__phone iframe { position: absolute; top: 0; left: 0; border: 0; transform-origin: 0 0; background: #0b0a08; }
+
+
 .review__panel {
   padding: var(--s4);
+  height: 100%;
   background: var(--panel);
   border-right: 1px solid var(--rule);
-  max-height: 100dvh;
   overflow-y: auto;
+  box-shadow: 0 0 2rem #000;
 }
 
 .review__panel h1 {
@@ -134,31 +178,3 @@
 
 .review__done summary { cursor: pointer; }
 .review__done p { margin: 0; }
-
-.review__previews {
-  min-width: 0;
-  padding: var(--s3);
-  display: grid;
-  grid-template-columns: minmax(0, 16fr) minmax(20rem, 5fr);
-  gap: var(--s3);
-  align-items: start;
-}
-
-.review__preview {
-  min-width: 0;
-}
-
-.review__preview iframe {
-  display: block;
-  width: 100%;
-  border: 1px solid var(--rule);
-  background: #0b0a08;
-}
-
-.review__preview--board iframe { aspect-ratio: 16 / 9; }
-.review__preview--phone iframe { height: min(78dvh, 52rem); }
-
-@media (max-width: 900px) {
-  .review { grid-template-columns: 1fr; }
-  .review__previews { grid-template-columns: 1fr; }
-}
