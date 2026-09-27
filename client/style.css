@@ -517,12 +517,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   flex-wrap: wrap;
   max-width: calc(100% - 10rem);
 }
-.board__setlist {
-  font-size: clamp(1rem, 1.3vw, 1.125rem);
-  line-height: 1.15;
-  letter-spacing: 0.06em;
-  color: var(--chalk);
-}
 .board__hero {
   font-family: var(--display);
   font-size: var(--t-hero);

@@ -557,7 +557,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
           {/* Position, not drama. The stage belongs to the question; a setlist that
               pulls the eye during a buzz has failed at its job. */}
           {setlistLabel && (
-            <span key={state.setlist?.at} class="chip board__setlist fx-flip" data-review-id="board:setlist">
+            <span key={state.setlist?.at} class="chip fx-flip" data-review-id="board:setlist">
               {setlistLabel}
             </span>
           )}
