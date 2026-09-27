@@ -9,6 +9,8 @@ export const MISS_GAP_MS = 120
 /** The draw's last seconds tick. */
 const TICK_FROM = 5
 const PLACE_RATE = 0.06
+/** Lines the board's guess feed shows; the server keeps as many wrong guesses. */
+const FEED = 8
 const END_CUE: Record<SketchEnd, Cue> = { all: 'sketch-all', timeup: 'sketch-timeup', pass: 'sketch-pass' }
 
 export const secondsLeft = (endsAt: number, now: number) => Math.max(0, Math.ceil((endsAt - now) / 1000))
@@ -65,6 +67,14 @@ export function stepLine(v: Pick<SketchShared, 'step' | 'drawer' | 'end'>, nameO
     case 'reveal': return v.end === 'pass' ? `${nameOf(v.drawer)} passed` : v.end === 'all' ? 'Everyone got it' : 'Time'
     case 'over': return 'Match over'
   }
+}
+
+/** Wrong guesses and right ones (`text: null`) in the order they landed, as many as the feed holds. */
+export function feedOf(v: Pick<SketchShared, 'misses' | 'correct'>): { seq: number; player: string; text: string | null }[] {
+  return [
+    ...v.misses,
+    ...v.correct.map(({ seq, player }) => ({ seq, player, text: null })),
+  ].sort((a, b) => a.seq - b.seq).slice(-FEED)
 }
 
 export const fmtSeconds = (ms: number) => `+${(ms / 1000).toFixed(2)}s`

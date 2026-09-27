@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fmtSeconds, ordinal, sketchCues, type SketchView } from './sketch.ts'
+import { feedOf, fmtSeconds, ordinal, sketchCues, type SketchView } from './sketch.ts'
 
 const view = (over: Partial<SketchView> = {}): SketchView => ({
   matchId: 'm', tick: 10, serverTime: 10_000, step: 'drawing', drawer: 'd', turn: 0, turns: 3,
@@ -70,4 +70,12 @@ test('a close guess cues only the phone that made it', () => {
 test('places and times read the way the board shows them', () => {
   assert.deepEqual([1, 2, 3, 4, 11, 12, 13, 21, 22].map(ordinal), ['1st', '2nd', '3rd', '4th', '11th', '12th', '13th', '21st', '22nd'])
   assert.equal(fmtSeconds(410), '+0.41s')
+})
+
+test('the feed interleaves right guesses with wrong ones in the order they landed, keeping the latest eight', () => {
+  const misses = [2, 3, 4, 6, 7, 8, 9, 10].map((seq) => ({ seq, player: 'g', text: `w${seq}` }))
+  const correct = [{ seq: 5, player: 'h', ms: 900 }, { seq: 1, player: 'k', ms: 100 }]
+  const feed = feedOf({ misses, correct })
+  assert.deepEqual(feed.map((e) => e.seq), [3, 4, 5, 6, 7, 8, 9, 10])
+  assert.deepEqual(feed.find((e) => e.seq === 5), { seq: 5, player: 'h', text: null })
 })

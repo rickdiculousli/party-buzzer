@@ -1,7 +1,7 @@
 import type { MinigameBoardProps } from './minigames.tsx'
 import { matchFrame } from './minigame-info.ts'
 import { SketchInk, useSketchCues, useSketchStrokes } from './SketchParts.tsx'
-import { fmtSeconds, secondsLeft, stepLine } from './sketch.ts'
+import { feedOf, fmtSeconds, secondsLeft, stepLine } from './sketch.ts'
 import { playerName } from './ui.ts'
 
 export function SketchBoard({ state, frame, now }: MinigameBoardProps) {
@@ -35,7 +35,9 @@ export function SketchBoard({ state, frame, now }: MinigameBoardProps) {
         {sketch.correct.map((c) => <li key={c.seq} class="fx-drop"><span>{nameOf(c.player)}</span><span class="sketch-got__ms">{fmtSeconds(c.ms)}</span></li>)}
       </ol>
       <ul class="sketch-feed">
-        {sketch.misses.map((m) => <li key={m.seq} class="fx-pop"><span class="sketch-feed__name">{nameOf(m.player)}</span>{m.text}</li>)}
+        {feedOf(sketch).map((e) => e.text === null
+          ? <li key={e.seq} class="fx-pop is-got"><span class="sketch-feed__name">{nameOf(e.player)}</span>guessed it!</li>
+          : <li key={e.seq} class="fx-pop"><span class="sketch-feed__name">{nameOf(e.player)}</span>{e.text}</li>)}
       </ul>
     </aside>
   </main>

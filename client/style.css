@@ -2575,6 +2575,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 
 /* Sketch */
 .sketch-board, .sketch-phone { min-height: 100dvh; background: var(--stage); color: var(--chalk); padding: var(--s4); display: grid; gap: var(--s3); align-content: start; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+.sketch-phone { grid-template-columns: minmax(0, 1fr); }
 .sketch-board { height: 100dvh; overflow: hidden; grid-template-columns: minmax(0, 1fr) minmax(16rem, 26rem); grid-template-rows: auto auto minmax(0, 1fr); }
 .sketch-board--idle { grid-template-columns: 1fr; place-content: center; text-align: center; }
 .sketch-board__title { font: 700 var(--t-mega)/1 var(--display); margin: 0; }
@@ -2592,6 +2593,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .sketch-got__ms { font: 600 var(--t-md)/1 var(--mono); color: var(--cyan); }
 .sketch-feed { align-content: end; }
 .sketch-feed li { font: 700 var(--t-xl)/1.1 var(--display); overflow-wrap: anywhere; }
+.sketch-feed li.is-got { color: var(--brass); }
 .sketch-feed__name { color: var(--dim); font: 600 var(--t-md)/1 var(--mono); margin-right: var(--s2); }
 .sketch-phone__word, .sketch-phone__got { margin: 0; font: 700 var(--t-xl)/1 var(--display); color: var(--brass); }
 .sketch-phone__score { margin: 0; font: 700 var(--t-mega)/1 var(--display); }

@@ -148,6 +148,12 @@ test('review scenarios cover the main board and phone moments', async () => {
     'ink-guess-missed',
     'ink-peek',
     'ink-over',
+    'sketch-lobby',
+    'sketch-choosing',
+    'sketch-drawing',
+    'sketch-reveal-time',
+    'sketch-reveal-all',
+    'sketch-results',
   ])
 })
 
