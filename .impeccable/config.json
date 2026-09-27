@@ -1,0 +1,49 @@
+{
+  "buildPath": "comp",
+  "hook": {
+    "enabled": true,
+    "limits": {
+      "maxFindings": 5,
+      "maxChars": 8000
+    }
+  },
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "gradient-text",
+        "value": "*",
+        "files": [
+          "client/style.css"
+        ],
+        "createdAt": "2026-09-27T01:19:16.597Z",
+        "reason": "Existing fx-shine interest-kit motion in docs/design.md section 4; this gradient is a brief animated glint, not a heading or metric treatment."
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "client/style.css"
+        ],
+        "createdAt": "2026-09-27T01:41:58.210Z",
+        "reason": "Agent: existing studio identity, setlist, nomination, and score rails are documented in docs/design.md; all six flagged rules predate this review."
+      },
+      {
+        "rule": "bounce-easing",
+        "value": "fx-wobble",
+        "createdAt": "2026-09-27T01:41:58.280Z",
+        "reason": "Agent: docs/design.md section 4 assigns fx-wobble to a comic miss; the motion conveys that game event."
+      },
+      {
+        "rule": "layout-transition",
+        "value": "*",
+        "files": [
+          "client/style.css"
+        ],
+        "createdAt": "2026-09-27T01:42:03.511Z",
+        "reason": "Agent: existing board QR changes width once when the first player joins, as specified by docs/design.md section 7; no layout animation was added in this review."
+      }
+    ]
+  }
+}

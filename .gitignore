@@ -33,5 +33,12 @@ trace.jsonl
 test-results/
 playwright-report/
 
+# Shared Impeccable settings stay in git; consent, cache, and live sessions are local.
+.impeccable/config.local.json
+.impeccable/hook.cache.json
+.impeccable/live/*
+!.impeccable/live/config.json
+.impeccable/critique/
+
 # Transcribed from owned Phantom Ink cards; personal use only.
 packs/phantom-ink.txt
