@@ -26,13 +26,13 @@ as a 15-minute main event with one design.
 3. **Guess.** Each guesser's phone shows the blanks (letters as `_`, spaces and
    punctuation shown as-is) and one text field with Send.
    - A wrong guess goes up on the board's guess feed under the guesser's name.
-   - A close guess (edit distance 1 after normalizing) is not shown on the
-     board; only that guesser's phone shows "Close!".
+   - A close guess (edit distance 1 after normalizing, or any guess that
+     contains the word) is not shown on the board; only that guesser's phone shows "Close!".
    - A correct guess is never shown on the board. That phone switches to its
      place and time ("Got it · 2nd · +0.41s") and shows the word; it sends no
      more guesses this turn.
    - Hints: one unrevealed letter at half the draw time and another at three
-     quarters, chosen by the world's seeded random. Words of three letters or
+     quarters, chosen at random. Words of three letters or
      fewer get no hints.
 4. **Reveal (5 s).** The turn ends when every guesser has it, when the draw
    time runs out, or when the drawer passes. The board shows the word and who
@@ -64,7 +64,7 @@ is refused.
 
 ### Drawers
 
-Draw order is the participants shuffled with the match seed. The **Drawers**
+Draw order is the participants shuffled at random (not the match seed, so a replay draws new words). The **Drawers**
 option limits the number of turns; 0 means everyone once. The match needs at
 least two connected players.
 
