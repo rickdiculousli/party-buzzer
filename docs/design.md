@@ -690,11 +690,11 @@ feels bigger than the screen. The felt is layered, not flat: `--felt-grain`
 gradient. A warm lamp pool sits over the middle; on the board a second pool
 follows the player to act, and on the phone the lamp brightens on your turn.
 
-Marks on the cloth are the cloth itself, sheared shorter, never gold ink or
-UI type: `FeltMark` and `FeltArc` fill the letters with a pale, fine
-`--felt-shear` fleck at low `--felt-ink` strength, and a blurred
-`--felt-press` shadow sits along their upper edge where the long pile stands
-over them. The phone carries its two instructions on arcs, the way a table
+Marks on the cloth are paint soaked into the pile, never UI type or a flat
+film: `FeltMark`, `FeltArc` and the betting line take `--felt-ink` casino
+gold through the `--paint-fibre` mask, so the paint takes on most fibres and
+misses some and the green shows through, as paint does on turf. A soft
+`--felt-press` shadow of the surrounding pile seats it in the cloth. The phone carries its two instructions on arcs, the way a table
 carries "insurance pays 2 to 1". The board has a sheared betting line and the
 Party Buzzer mark in the middle, where the board cards and the pot lie on top
 of it as they would on a real table; no printed mark ever crosses another.

@@ -2950,22 +2950,25 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 /* Printed into the cloth: an impression, and thin ink over it with the grain showing through. */
 .felt-mark { display: inline-grid; font-family: var(--display); text-transform: uppercase; letter-spacing: 0.14em; line-height: 1; }
 .felt-mark > * { grid-area: 1 / 1; }
-.felt-mark__press { color: var(--felt-press); translate: 0 -1.5px; filter: blur(0.6px); }
+/* Painted onto the pile: gold that took on most fibres and missed some, seated by the pile around it. */
+.felt-mark__press { color: var(--felt-press); translate: 0 1px; filter: blur(1px); }
 .felt-mark__ink {
-  background: var(--felt-shear) 0 0 / 100px 100px, linear-gradient(var(--felt-ink), var(--felt-ink));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--felt-ink);
+  opacity: 0.82;
+  -webkit-mask: var(--paint-fibre) 0 0 / 64px 64px;
+  mask: var(--paint-fibre) 0 0 / 64px 64px;
 }
 .felt-arc { display: block; width: 100%; max-width: 26rem; height: auto; margin-inline: auto; overflow: visible; }
 .felt-arc text { font-family: var(--display); font-size: 30px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; }
-.felt-arc__press { fill: var(--felt-press); transform: translateY(-1.6px); filter: blur(0.5px); }
-.felt-arc__ink { fill: rgb(178 222 190 / 0.3); }
+.felt-arc { -webkit-mask: var(--paint-fibre) 0 0 / 48px 48px; mask: var(--paint-fibre) 0 0 / 48px 48px; }
+.felt-arc__press { fill: var(--felt-press); transform: translateY(1.2px); filter: blur(0.8px); }
+.felt-arc__ink { fill: var(--felt-ink); opacity: 0.85; }
 .felt-arc--dim { opacity: 0.42; }
 .felt-line { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .felt-line ellipse { fill: none; }
-.felt-line__shade { stroke: var(--felt-press); stroke-width: 3; filter: blur(0.8px); }
-.felt-line__sheen { stroke: var(--felt-ink); stroke-width: 5; }
+.felt-line { -webkit-mask: var(--paint-fibre) 0 0 / 64px 64px; mask: var(--paint-fibre) 0 0 / 64px 64px; }
+.felt-line__shade { stroke: var(--felt-press); stroke-width: 4; filter: blur(1px); }
+.felt-line__sheen { stroke: var(--felt-ink); stroke-width: 4; opacity: 0.7; }
 
 /* A poker-size card, 63 × 88 mm, with a face and a back to turn between. */
 .poker-card { --w: var(--card-w, 72px); position: relative; display: inline-block; width: var(--w); aspect-ratio: 63 / 88; perspective: calc(var(--w) * 8); vertical-align: middle; }
