@@ -50,7 +50,7 @@ function view(over: Partial<PokerView> = {}, feed: Omit<PokerFeedEntry, 'id'>[] 
     matchId: 'm', serverTime: 10_000,
     phase: 'bet', street: 'preflop', seats: [seat('a'), seat('b')], board: [], pots: [], actor: 'a', actBy: 40_000,
     handNo: 1, sb: 10, bb: 20, nextLevelAt: 600_000, equity: null, runout: false, showdown: null,
-    feed: feed.map((entry, i) => ({ id: i + 1, ...entry })), reactions: [], discard: 0,
+    feed: feed.map((entry, i) => ({ id: i + 1, ...entry })), reactions: [],
     ...over,
   }
 }

@@ -29,7 +29,7 @@ import { Spoken } from '../Spoken.tsx'
 import { Burst, CountUp, Glitch, Letters } from '../fx.tsx'
 import { FaceOff, Finale } from '../Board.tsx'
 import { Piece, PlayingCard } from '../PokerParts.tsx'
-import { chain, pitch, receive, scatter, sweep, toss } from '../toss.ts'
+import { chain, pitch, receive, scatter, toss } from '../toss.ts'
 import { mulberry32 } from '../../shared/random.ts'
 import type { BurstFrom } from '../fx.ts'
 import type { Recipe } from '../synth.ts'
@@ -432,21 +432,20 @@ const pokerStage = (children: preact.ComponentChildren) => (
   </div>
 )
 
-/** A fold thrown into the middle, left to lie, then swept to the muck. Physics tunables are `TOSS` in client/toss.ts. */
+/** A fold thrown into the middle, left to lie for a beat, then popped away. Physics tunables are `TOSS` in client/toss.ts. */
 function foldScenario(id: string, label: string, flick: { dx: number; dy: number; speed: number } | null): Scenario {
   const from = { x: PATCH.w / 2, y: PATCH.h * 0.86, rot: -4 }
   const aim = { x: PATCH.w / 2, y: PATCH.h * 0.45 }
-  const muck = { x: PATCH.w * 0.8, y: PATCH.h * 0.4, rot: 14 }
   return {
     id,
     label,
     family: 'Poker',
-    note: `${label}: thrown with friction and spin, left to lie, swept to the muck. Tune TOSS in client/toss.ts.`,
+    note: `${label}: thrown with friction and spin, left to lie for a beat, then popped away. Tune TOSS in client/toss.ts.`,
     subject: '.poker-piece',
     dials: [],
     render: (lead) => pokerStage(([0, 1] as const).map((k) => {
       const thrown = toss({ ...from, x: from.x + (k ? 16 : -16) }, aim, flick, mulberry32(k + 3))
-      return <Piece key={k} pose={lead ? from : muck} frames={lead ? null : chain(thrown.frames, 700 + k * 90, sweep(thrown.rest, muck))}>
+      return <Piece key={k} pose={lead ? from : thrown.rest} frames={lead ? null : chain(thrown.frames, 800 + k * 60, [thrown.frames[thrown.frames.length - 1]])}>
         <PlayingCard card={null} up={false} />
       </Piece>
     })),

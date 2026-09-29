@@ -354,8 +354,6 @@ export type PokerShared = {
   showdown: PokerPotResult[] | null
   feed: PokerFeedEntry[]
   reactions: { id: number; player: PlayerId; kind: ReactKind }[]
-  /** Cards folded this hand. */
-  discard: number
 }
 
 export type PokerPrivate = {

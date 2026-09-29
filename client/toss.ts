@@ -238,7 +238,7 @@ export function toss(from: Pose, aim: { x: number; y: number }, flick: PokerFlic
   return { frames, rest: { x: last.x, y: last.y, rot: last.rot } }
 }
 
-/** The dealer drawing folded cards into the muck: a hand pulling them flat along the cloth. */
+/** The dealer drawing something in along the cloth, such as bets into the pot: flat, straight, unhurried. */
 export function sweep(from: Pose, pile: Pose): Frame[] {
   return slide(from, pile, () => 0.5, { hand: 0.5, lift: 0, wobble: 0, skidTau: 110 })
 }

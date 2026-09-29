@@ -3076,6 +3076,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .felt--board { position: absolute; inset: 0; }
 .poker-layer { position: absolute; inset: 0; }
 .poker-piece { position: absolute; left: 0; top: 0; }
+.poker-fold { display: block; }
 .poker-piece--glide { transition: transform 640ms cubic-bezier(0.16, 1, 0.3, 1); }
 .poker-logo { position: absolute; left: 0; top: 0; display: grid; justify-items: center; gap: var(--s2); pointer-events: none; }
 .poker-logo__name { font-size: clamp(2.2rem, 4.6vw, 5.4rem); letter-spacing: 0.24em; }

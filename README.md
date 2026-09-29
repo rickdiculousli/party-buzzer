@@ -158,7 +158,7 @@ and a feed of every action. Each phone is a small felt table holding that
 player's two cards, face down until pressed:
 
 - **Fold:** flick the cards up off the top of the phone. On the board they fly
-  to the middle, linger, and float to the discard pile.
+  toward the middle, lie where they stop for a beat, and pop away.
 - **Check or call:** double tap the felt. The line at the bottom says which,
   and how much.
 - **Peek:** press and hold the cards.

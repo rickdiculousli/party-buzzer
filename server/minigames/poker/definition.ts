@@ -56,7 +56,6 @@ function shared(w: PokerWorld, clock: Clock): PokerShared {
     showdown: w.showdown,
     feed: w.feed,
     reactions: w.reactions,
-    discard: w.seats.filter((seat) => seat.hole && seat.folded).length * 2,
   }
 }
 

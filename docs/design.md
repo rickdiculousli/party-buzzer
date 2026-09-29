@@ -733,8 +733,9 @@ fingertip, pressing it into the cloth, square halfway then square (`receive`,
 tuned by `RECEIVE`); no two players tap with quite the same depth or rhythm.
 The dealer keeps no metronome either: `dealSchedule` varies the gap before
 each card, and every pitch leaves the fingers at its own speed and spin. Cards come to rest a few degrees off square,
-fixed per card. The flop lands face down and turns together; folds lie in the
-middle and the dealer pulls them to the muck. Bets slide to the line and are
+fixed per card. The flop lands face down and turns together; a fold lies
+where it stopped for a beat, then pops away (`fx-poof`); there is no discard
+pile on the table. Bets slide to the line and are
 swept into the pot as a street closes; the pot slides to the winner. A level
 change prints over a dark oval so it reads over the play.
 
