@@ -1,5 +1,6 @@
-import type { PlayerId, PokerFlick, PokerShared } from '../shared/protocol.ts'
+import type { PlayerId, PokerFeedEntry, PokerFlick, PokerShared } from '../shared/protocol.ts'
 import type { Cue } from './sound.ts'
+import { ordinal } from './ui.ts'
 
 /** A board or phone frame, as far as cues and wording need one. */
 export type PokerView = PokerShared & { matchId: string; serverTime: number }
@@ -47,7 +48,7 @@ export function classifyGesture(trace: TracePoint[], prevTapEnd: number | null, 
 }
 
 /** The table's oval in board-normalized units. */
-export const ELLIPSE = { cx: 0.5, cy: 0.5, rx: 0.42, ry: 0.38 }
+export const ELLIPSE = { cx: 0.5, cy: 0.5, rx: 0.4, ry: 0.36 }
 
 /** Seat centres around the oval: the first at bottom centre, then clockwise, which is the table's "left". */
 export function seatPositions(n: number): { x: number; y: number }[] {
@@ -127,4 +128,25 @@ export function pokerCues(prev: PokerView | null, next: PokerView, who: 'board' 
   }
   if (fresh.some((entry) => entry.player === who && entry.auto)) add('poker-auto')
   return out.map((cue) => ({ cue }))
+}
+
+/** The lobby's one-line explanation, on the board. */
+export const POKER_RULES = "No-limit Hold'em to the last stack. Flick your cards up to fold, double tap to check or call. Blinds rise on the clock."
+
+/** One feed entry as the room reads it. `nameOf` may return '' for a line without the name. */
+export function feedLine(entry: PokerFeedEntry, nameOf: (id: PlayerId) => string): string {
+  const who = entry.player ? nameOf(entry.player) : ''
+  switch (entry.kind) {
+    case 'fold': return `${who} ${entry.auto ? 'timed out' : 'folds'}`
+    case 'check': return `${who} checks`
+    case 'call': return `${who} calls ${entry.amount}`
+    case 'bet': return `${who} bets ${entry.amount}`
+    case 'raise': return `${who} raises to ${entry.amount}`
+    case 'allIn': return `${who} is all in for ${entry.amount}`
+    case 'blind': return `${who} posts ${entry.amount}`
+    case 'show': return `${who} shows`
+    case 'win': return `${who} wins ${entry.amount}${entry.hand ? ` with ${entry.hand.toLowerCase()}` : ''}`
+    case 'bust': return `${who} is out in ${ordinal(entry.amount ?? 0)}`
+    case 'level': return `Blinds up to ${Math.floor((entry.amount ?? 0) / 2)} / ${entry.amount}`
+  }
 }

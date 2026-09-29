@@ -97,6 +97,7 @@ test('uncalled bet returns: all in for 500 against a 200 all in pays 300 back be
   until(w, 'showdown')
   assert.equal(seatOf(w, 'a').stack, 300)
   assert.equal(seatOf(w, 'b').stack, 400)
+  assert.equal(w.feed.some((entry) => entry.kind === 'win' && entry.player === 'a'), false, 'a refund is not a win')
 })
 
 test('showdown awards side pots to different winners', () => {

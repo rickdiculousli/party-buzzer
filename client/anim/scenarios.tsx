@@ -28,6 +28,8 @@ import { Votes } from '../Votes.tsx'
 import { Spoken } from '../Spoken.tsx'
 import { Burst, CountUp, Glitch, Letters } from '../fx.tsx'
 import { FaceOff, Finale } from '../Board.tsx'
+import { Flight, PlayingCard } from '../PokerParts.tsx'
+import { foldPath } from '../poker.ts'
 import type { BurstFrom } from '../fx.ts'
 import type { Recipe } from '../synth.ts'
 
@@ -418,6 +420,29 @@ const FX: Scenario[] = [
   burst('confetti', 'Confetti (top)', '<Burst kind="confetti" from="top"> — off the whole top edge of a wide word.', { from: 'top' }),
 ]
 
+/** A fold crossing a felt: a hard flick, a soft one, and a timeout's slide. Leg timings are `FOLD` in client/poker.ts. */
+function foldScenario(id: string, label: string, flick: { dx: number; dy: number; speed: number } | null): Scenario {
+  return {
+    id,
+    label,
+    family: 'Poker',
+    note: `${label}: flies to the centre, lingers, floats to the pile. Tune FOLD in client/poker.ts.`,
+    subject: '.poker-flight',
+    dials: [],
+    sound: 'poker-check',
+    render: (lead) => (
+      <div class="fx-stage">
+        <div class="poker-table" style={{ width: '36rem', height: '20rem' }}>
+          <div class="poker-oval" />
+          {!lead && <Flight from={{ x: 0.5, y: 0.85 }} legs={foldPath({ x: 0.5, y: 0.5 }, { x: 0.66, y: 0.5 }, flick)} easing={flick ? 'ease-out' : 'ease-in-out'} done={() => {}}>
+            <span class="poker-flight__pair"><PlayingCard card={null} /><PlayingCard card={null} /></span>
+          </Flight>}
+        </div>
+      </div>
+    ),
+  }
+}
+
 export const SCENARIOS: Scenario[] = [
   {
     id: 'mark',
@@ -623,4 +648,7 @@ export const SCENARIOS: Scenario[] = [
     dials: [ms('--faceoff-slide-dur', 1500, 'Charge'), amount('--faceoff-dust-amp', 0, 20, 0.5, 'em', 'Dust')],
     render: (lead) => <Stage mid={lead ? <div class="harness__ghost" /> : <FaceOff pair={['Ada', 'Bo']} />} />,
   },
+  foldScenario('poker-fold-hard', 'Fold, hard flick', { dx: 0.2, dy: -0.98, speed: 1 }),
+  foldScenario('poker-fold-soft', 'Fold, soft flick', { dx: -0.3, dy: -0.95, speed: 0.2 }),
+  foldScenario('poker-fold-timeout', 'Fold, timed out', null),
 ]

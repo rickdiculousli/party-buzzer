@@ -292,7 +292,10 @@ function showdown(w: PokerWorld): void {
     const winners = pot.eligible.filter((id) => compare(scores[id], scores[top]) === 0)
     return { winners, name: scored[top].name, five: scored[top].five, amount: pot.amount }
   })
-  award(w, awardPots(w.pots, scores, leftOfButton(w)), Object.fromEntries(Object.entries(scored).map(([id, s]) => [id, s.name])))
+  // An uncalled bet goes back to its owner quietly; only contested pots are won.
+  for (const pot of w.pots) if (pot.eligible.length === 1) w.seats.find((seat) => seat.player === pot.eligible[0])!.stack += pot.amount
+  const contested = w.pots.filter((pot) => pot.eligible.length > 1)
+  award(w, awardPots(contested, scores, leftOfButton(w)), Object.fromEntries(Object.entries(scored).map(([id, s]) => [id, s.name])))
   w.equity = null
   w.phase = { at: 'showdown', until: w.tick + ticks(PACE.showdownMs) }
 }

@@ -42,7 +42,7 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
 
   const myTurn = !!poker?.legal
   const hand = poker?.handNo ?? 0
-  useEffect(() => { setFlying(false); setSheet(false) }, [hand])
+  useEffect(() => { setFlying(false); setSheet(false); setNote(null) }, [hand])
   useEffect(() => { if (myTurn) navigator.vibrate?.(60) }, [myTurn, hand, poker?.street])
   useEffect(() => { if (!myTurn) setSheet(false) }, [myTurn])
   useEffect(() => {
@@ -80,7 +80,7 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
   const legal = poker.legal
   const actorName = poker.actor ? playerName(state, poker.actor) : null
   const reactions = <div class={`poker-reacts ${reactRefused ? 'fx-shake' : ''}`} key={reactRefused}>
-    {REACTS.map((kind) => <button key={kind} class="chip poker-react" onClick={() => { reactSeq.current = input({ kind: 'react', react: kind }) }}>{REACT_LABEL[kind]}</button>)}
+    {REACTS.map((kind) => <button key={kind} class="btn poker-react" onClick={() => { reactSeq.current = input({ kind: 'react', react: kind }) }}>{REACT_LABEL[kind]}</button>)}
   </div>
 
   if (poker.place !== null) {
@@ -96,7 +96,8 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
   const inHand = !!poker.hole && !!mine && !mine.folded
   const point = (e: PointerEvent): TracePoint => ({ x: e.clientX, y: e.clientY, t: e.timeStamp })
   const down = (e: PointerEvent) => {
-    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    // Capture keeps a flick's trace when the finger leaves the felt; a browser may refuse it.
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) } catch { /* the trace still works inside the felt */ }
     trace.current = [point(e)]
     onCards.current = !!(e.target as HTMLElement).closest('.poker-hole')
     clearTimeout(peekTimer.current)

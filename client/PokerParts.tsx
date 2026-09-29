@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'preact/hooks'
+import type { ComponentChildren } from 'preact'
+import { useEffect, useLayoutEffect, useRef } from 'preact/hooks'
 import type { Card } from '../shared/protocol.ts'
-import { pokerCues, type PokerView } from './poker.ts'
+import { pokerCues, type Leg, type PokerView } from './poker.ts'
 import { play } from './sound.ts'
 
 const SUIT: Record<string, string> = { s: '♠', h: '♥', d: '♦', c: '♣' }
@@ -37,4 +38,34 @@ export function ShotRing({ until, total, now, class: cls = '' }: { until: number
     <circle class="poker-ring__track" cx="50" cy="50" r={r} />
     <circle class="poker-ring__left" cx="50" cy="50" r={r} style={{ strokeDasharray: around, strokeDashoffset: around * (1 - share) }} />
   </svg>
+}
+
+/**
+ * Something crossing the felt: it starts at `from` and runs `legs` in turn,
+ * moving by transform only, then calls `done`. Coordinates are 0–1 of the table.
+ */
+export function Flight({ from, legs, easing, children, done }: {
+  from: { x: number; y: number }; legs: Leg[]; easing: string; children: ComponentChildren; done: () => void
+}) {
+  const el = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const node = el.current
+    const table = node?.parentElement?.getBoundingClientRect()
+    if (!node || !table) return done()
+    const total = legs.reduce((sum, leg) => sum + leg.ms, 0)
+    let at = 0
+    const frames: Keyframe[] = [{ transform: 'translate(0px, 0px) rotate(0deg)', offset: 0, easing }]
+    for (const leg of legs) {
+      at += leg.ms
+      frames.push({
+        transform: `translate(${(leg.at.x - from.x) * table.width}px, ${(leg.at.y - from.y) * table.height}px) rotate(${leg.at.rotate}deg)`,
+        offset: at / total,
+        easing,
+      })
+    }
+    const run = node.animate(frames, { duration: total, fill: 'forwards' })
+    run.onfinish = done
+    return () => run.cancel()
+  }, [])
+  return <div ref={el} class="poker-flight" style={{ left: `${from.x * 100}%`, top: `${from.y * 100}%` }}>{children}</div>
 }
