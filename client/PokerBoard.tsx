@@ -18,7 +18,7 @@ const DEAL_GAP_MS = 150
 const DEAL_WINDOW_MS = 1_300
 const FLOP_GAP_MS = 110
 /** A pitched community card takes about this long to come to rest. */
-const PITCH_MS = 520
+const PITCH_MS = 950
 const BANNER_MS = 2_600
 const REACTION_MS = 1_800
 const LOG_LINES = 7

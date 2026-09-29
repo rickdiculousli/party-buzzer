@@ -16,15 +16,15 @@ export type Frame = Pose & { t: number; lift: number }
 
 export const TOSS = {
   /** Share of a throw's distance covered in the air, before touchdown. 0 keeps it on the cloth. */
-  airShare: 0.7,
+  airShare: 0.55,
   /** Share of its speed a card loses to the air before touchdown. */
   airDrag: 0.12,
   /** Extra scale at release, falling to nothing at touchdown. */
   lift: 0.05,
   /** Time constant of the cloth's drag on a sliding card, ms. */
-  skidTau: 150,
+  skidTau: 260,
   /** Constant friction that finally stops the slide, px/ms². */
-  skidFriction: 0.0012,
+  skidFriction: 0.0005,
   /** Share of a card's spin that survives touchdown. */
   impactSpin: 0.55,
   /** Time constant of the cloth's drag on spin, ms. Shorter than the slide's, so spin dies first. */
@@ -115,7 +115,8 @@ export function slide(from: Pose, to: Pose, rand: () => number, options: Options
       along = lead + skidAt(u, v1, o.skidTau, o.skidFriction)
       turned = spinLead(leadMs) + spinSkid(t - leadMs)
     }
-    const share = d ? Math.min(1, along / d) : 1
+    // The last frame is the full distance, whatever rounding the speed solve left.
+    const share = !d || t === total ? 1 : Math.min(1, along / d)
     const side = bow * Math.sin(Math.PI * share)
     frames.push({
       t,
