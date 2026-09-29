@@ -88,3 +88,20 @@ test('versioned saves retain durable data and independently flush multiple files
   writeFileSync(first, JSON.stringify(state))
   assert.deepEqual(loadState(first).round, newState().round)
 })
+
+test('a playing minigame saves as ready but keeps its checkpoint', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'buzzer-snapshot-'))
+  t.after(() => rmSync(dir, { recursive: true, force: true }))
+  const state = newState()
+  const checkpoint = { version: 12, label: 'hand 12', data: { seed: 1 } }
+  state.minigame = {
+    id: 'bow', matchId: 'm', phase: 'playing', options: { durationSec: 40, seed: 1 }, participants: ['a'],
+    startsAt: 1, checkpoint,
+  }
+  const file = join(dir, 'state.json')
+  saveState(file, state)
+  flushSave()
+  const loaded = loadState(file)
+  assert.equal(loaded.minigame?.phase, 'ready')
+  assert.deepEqual(loaded.minigame?.checkpoint, checkpoint)
+})

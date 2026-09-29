@@ -91,9 +91,11 @@ export class MinigameRuntime {
       session.startsAt = startsAt
       session.endsAt = definition.untimed ? undefined : startsAt + session.options.durationSec * 1_000
       delete session.results
-      const created = definition.create(session.options.seed, participants, session.options, lobby)
+      const resumed = session.checkpoint && definition.resume ? definition.resume(session.checkpoint.data, session.options) : null
+      const created = resumed ?? definition.create(session.options.seed, participants, session.options, lobby)
+      if (resumed) session.participants = resumed.participants
       this.world = created.world
-      if (created.crews) session.crews = created.crews
+      if ('crews' in created && created.crews) session.crews = created.crews
       else delete session.crews
       this.lastPump = startsAt
       this.lastFrame = 0
@@ -107,7 +109,7 @@ export class MinigameRuntime {
       this.resetTransient()
       this.state.minigame = {
         ...session, matchId: randomUUID(), phase: 'ready', participants: [],
-        startsAt: undefined, endsAt: undefined, results: undefined, crews: undefined,
+        startsAt: undefined, endsAt: undefined, results: undefined, crews: undefined, status: undefined,
       }
       return { status: 'applied' }
     }
@@ -171,6 +173,7 @@ export class MinigameRuntime {
     }
     if (session.phase !== 'playing') return
 
+    definition.presence?.(this.world, this.state.players.filter((player) => player.connected).map((player) => player.id))
     const until = definition.untimed ? now : Math.min(now, session.endsAt! + LANDING_GRACE_MS)
     this.accumulator += Math.max(0, until - this.lastPump)
     this.lastPump = until
@@ -194,6 +197,7 @@ export class MinigameRuntime {
       this.skippedMs += this.accumulator - remainder
       this.accumulator = remainder
     }
+    this.saveProgress(definition)
     this.broadcast(definition)
     const over = definition.untimed ? definition.finished?.(this.world) === true : now >= session.endsAt! + LANDING_GRACE_MS
     if (!this.completed && over) {
@@ -208,7 +212,7 @@ export class MinigameRuntime {
     const world = this.world
     if (!session || !definition || !world) return null
     const base = { id: session.id, matchId: session.matchId, tick: definition.tick(world), serverTime: this.now() }
-    const clock = (worldMs: number) => session.startsAt! + this.skippedMs + worldMs
+    const clock = this.clock(session)
     if (role === 'board') return { ...base, role: 'board', ...definition.boardFrame(world, clock) } as MinigameFrame
     const player = playerId ? definition.playerFrame(world, playerId, clock) : null
     if (!player) return { ...base, role: 'spectator' } as MinigameFrame
@@ -220,6 +224,8 @@ export class MinigameRuntime {
     if (!session || session.matchId !== matchId || session.phase !== 'playing') return false
     session.phase = 'results'
     session.results = results
+    delete session.checkpoint
+    delete session.status
     this.resetTransient(false)
     return true
   }
@@ -245,6 +251,26 @@ export class MinigameRuntime {
   }
 
   stop(): void { this.resetTransient() }
+
+  /** Stores a new checkpoint or changed host lines, which persists them. */
+  private saveProgress(definition: MinigameDefinition<unknown>): void {
+    const session = this.state.minigame!
+    const saved = definition.checkpoint?.(this.world)
+    if (saved && saved.version !== session.checkpoint?.version) {
+      session.checkpoint = saved
+      this.hooks.onState('minigame:checkpoint')
+    }
+    if (!definition.hostStatus) return
+    const status = definition.hostStatus(this.world, this.clock(session))
+    if (JSON.stringify(status) !== JSON.stringify(session.status)) {
+      session.status = status
+      this.hooks.onState('minigame:status')
+    }
+  }
+
+  private clock(session: NonNullable<State['minigame']>) {
+    return (worldMs: number) => session.startsAt! + this.skippedMs + worldMs
+  }
 
   private broadcast(definition: MinigameDefinition<unknown>): void {
     this.hooks.onFrame()

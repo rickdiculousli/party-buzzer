@@ -6,7 +6,7 @@ import { handDeck } from './cards.ts'
 import { equity } from './equity.ts'
 import { best, compare } from './evaluate.ts'
 import { awardPots, buildPots } from './pots.ts'
-import type { Legal, PokerAction, PokerOptions, PokerWorld, Seat } from './types.ts'
+import type { Legal, PokerAction, PokerCheckpoint, PokerOptions, PokerWorld, Seat } from './types.ts'
 
 export const STEP_MS = 50
 /** How long each beat of a hand lasts, in ms. */
@@ -21,22 +21,42 @@ const INVALID: InputOutcome = { status: 'refused', reason: 'invalid' }
 const inHand = (seat: Seat) => !seat.out && !!seat.hole && !seat.folded
 const canBet = (seat: Seat) => inHand(seat) && seat.stack > 0
 
-export function createTable(seed: number, participants: PlayerId[], opts: PokerOptions): PokerWorld {
-  const rand = mulberry32(seed)
-  const order = shuffle(rand, participants)
-  const w: PokerWorld = {
+function table(seed: number, opts: PokerOptions, seats: PokerCheckpoint['seats'], button: number): PokerWorld {
+  return {
     tick: 0, seed, opts,
-    seats: order.map((player) => ({
-      player, stack: opts.stack, startStack: opts.stack, hole: null, bet: 0, contributed: 0,
-      folded: false, acted: false, mayRaise: true, connected: true, faceUp: false, out: false,
+    seats: seats.map(({ player, stack, out }) => ({
+      player, stack, startStack: stack, hole: null, bet: 0, contributed: 0,
+      folded: false, acted: false, mayRaise: true, connected: true, faceUp: false, out,
     })),
-    busted: [], button: Math.floor(rand() * order.length), bbSeat: 0, handNo: 0, elapsedBase: 0,
+    busted: [], button, bbSeat: 0, handNo: 0, elapsedBase: 0,
     bb: opts.bigBlind, sb: Math.floor(opts.bigBlind / 2), street: 'preflop', board: [], deck: [],
     actor: null, actBy: null, highBet: 0, raiseSize: opts.bigBlind, pots: [], showdown: null,
     runout: false, equity: null, feed: [], nextFeedId: 1, reactions: [], lastReact: {}, phase: { at: 'deal', until: 0 },
+    saved: null,
   }
-  // The first hand moves the button one seat on, so step it back first.
-  w.button = (w.button - 1 + order.length) % order.length
+}
+
+export function createTable(seed: number, participants: PlayerId[], opts: PokerOptions): PokerWorld {
+  const rand = mulberry32(seed)
+  const order = shuffle(rand, participants)
+  // The first hand moves the button one seat on, onto a seeded seat.
+  const button = (Math.floor(rand() * order.length) + order.length - 1) % order.length
+  const w = table(seed, opts, order.map((player) => ({ player, stack: opts.stack, out: false })), button)
+  startHand(w)
+  return w
+}
+
+export function tableCheckpoint(w: PokerWorld): { version: number; label: string; data: PokerCheckpoint } | null {
+  return w.saved && { version: w.saved.handNo, label: `hand ${w.saved.handNo}`, data: w.saved }
+}
+
+/** Deals the checkpoint's hand again, from the same stacks, button and deck. */
+export function resumeTable(data: PokerCheckpoint, opts: PokerOptions): PokerWorld {
+  const w = table(data.seed, opts, data.seats, data.button)
+  w.busted = data.busted.map((row) => ({ ...row }))
+  w.handNo = data.handNo - 1
+  w.elapsedBase = data.elapsed
+  w.bb = levelOf(w).bb
   startHand(w)
   return w
 }
@@ -76,6 +96,14 @@ export function startHand(w: PokerWorld): void {
     w.actor = null
     w.actBy = null
     return
+  }
+  w.saved = {
+    seed: w.seed,
+    seats: w.seats.map(({ player, stack, out }) => ({ player, stack, out })),
+    busted: w.busted.map((row) => ({ ...row })),
+    button: w.button,
+    handNo: w.handNo + 1,
+    elapsed: w.elapsedBase + w.tick,
   }
   const level = levelOf(w)
   if (level.bb !== w.bb) feed(w, { player: null, kind: 'level', amount: level.bb })

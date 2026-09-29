@@ -1,4 +1,4 @@
-import type { MinigameInputAck, MinigameLobby, MinigameResult, PlayerId, TankCrew } from '../../shared/protocol.ts'
+import type { MinigameCheckpoint, MinigameInputAck, MinigameLobby, MinigameResult, PlayerId, TankCrew } from '../../shared/protocol.ts'
 import type { Refusal } from '../../shared/legality.ts'
 
 export type InputOutcome =
@@ -42,6 +42,14 @@ export type MinigameDefinition<W> = {
   /** Null for a spectator. */
   playerFrame(world: W, playerId: string, clock: Clock): object | null
   results(world: W): MinigameResult[]
+  /** A durable summary to resume from; a new `version` is saved. */
+  checkpoint?(world: W): MinigameCheckpoint | null
+  /** Rebuilds a world from a saved checkpoint in place of `create`. */
+  resume?(data: unknown, options: Record<string, number>): { world: W; participants: PlayerId[] }
+  /** Who is connected, before each pump's steps. */
+  presence?(world: W, connected: PlayerId[]): void
+  /** Lines for the host desk; `until` is a world time in ms, which the runtime maps to server time. */
+  hostStatus?(world: W, clock: Clock): { text: string; until?: number }[]
 }
 
 export function numberOption(value: unknown, fallback: number, min: number, max: number): number {

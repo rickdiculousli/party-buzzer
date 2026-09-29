@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mulberry32 } from '../../../shared/random.ts'
-import { act, createTable, finished, legal, places, setPresence, startHand, stepTable, STEP_MS, PACE } from './table.ts'
+import { act, createTable, finished, legal, places, resumeTable, setPresence, startHand, stepTable, tableCheckpoint, STEP_MS, PACE } from './table.ts'
 import type { PokerWorld, Seat } from './types.ts'
 
 const OPTS = { stack: 1500, bigBlind: 20, levelMin: 10, shotSec: 30 }
@@ -238,4 +238,28 @@ test('the match ends with one stack', () => {
   assert.equal(winner.stack, 6 * OPTS.stack)
   assert.equal(result.find((row) => row.place === 1)?.playerId, winner.player)
   assert.equal(result.length, 6)
+})
+
+test('resume after a mid-hand stop restores hand-start stacks', () => {
+  const deep = { ...OPTS, stack: 100_000 }
+  const w = createTable(15, ['a', 'b', 'c'], deep)
+  for (let i = 0; i < 500_000 && w.handNo < 12; i++) {
+    if (w.phase.at === 'bet') act(w, actorId(w), { kind: legal(w, actorId(w))!.canCheck ? 'check' : 'call' })
+    else stepTable(w)
+  }
+  assert.equal(w.phase.at, 'deal')
+  const saved = tableCheckpoint(w)!
+  assert.equal(saved.version, 12)
+  assert.equal(saved.label, 'hand 12')
+  const startStacks = Object.fromEntries(w.seats.map((seat) => [seat.player, seat.startStack]))
+  const holes = Object.fromEntries(w.seats.map((seat) => [seat.player, seat.hole]))
+  const button = w.button
+  untilBet(w)
+  act(w, actorId(w), { kind: 'raise', to: legal(w, actorId(w))!.minTo })
+  const back = resumeTable(JSON.parse(JSON.stringify(saved.data)), deep)
+  assert.equal(back.handNo, 12)
+  assert.equal(back.button, button)
+  assert.deepEqual(Object.fromEntries(back.seats.map((seat) => [seat.player, seat.startStack])), startStacks)
+  assert.deepEqual(Object.fromEntries(back.seats.map((seat) => [seat.player, seat.hole])), holes)
+  assert.equal(back.feed.some((entry) => entry.kind === 'level'), false)
 })

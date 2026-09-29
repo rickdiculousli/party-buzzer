@@ -346,7 +346,13 @@ export type MinigameState = {
   crews?: TankCrew[]
   /** Team picks made during ready. Kept across cancel. */
   lobby?: MinigameLobby
+  /** Where a long minigame picks up after a stop or a restart. Kept across cancel; dropped by results. */
+  checkpoint?: MinigameCheckpoint
+  /** The definition's lines for the host desk; `until` is a server time to count down to. */
+  status?: { text: string; until?: number }[]
 }
+
+export type MinigameCheckpoint = { version: number; label: string; data: unknown }
 
 export type BowInput =
   | { kind: 'aim'; angle: number; tension: number }

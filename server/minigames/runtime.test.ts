@@ -299,3 +299,55 @@ const _actions: HostAction[] = [
   { a: 'closeMinigame' },
 ]
 void _actions
+
+test('a checkpointing minigame is saved as it plays, kept by cancel, resumed by start and dropped by results', () => {
+  withToy((toy) => {
+    const resumed: unknown[] = []
+    const seen: string[][] = []
+    delete toy.startable
+    Object.assign(toy, {
+      checkpoint: (world: Toy) => ({ version: Math.floor(world.tick / 10), label: `tick ${world.tick}`, data: world.tick }),
+      resume: (data: unknown) => {
+        resumed.push(data)
+        return { world: { tick: data as number, done: false, lobby: null }, participants: ['ada', 'bo', 'cy'] }
+      },
+      presence: (_world: Toy, connected: string[]) => { seen.push(connected) },
+    })
+    const r = rig()
+    r.state.players[1].connected = false
+    prepareToy(r)
+    r.runtime.host({ a: 'startMinigame' })
+    r.advance(3_000)
+    for (let i = 0; i < 4; i++) r.advance(150)
+    assert.equal(r.state.minigame?.checkpoint?.version, 1)
+    assert.ok(r.changes.includes('minigame:checkpoint'))
+    assert.deepEqual(seen.at(-1), ['ada'])
+    const saved = r.state.minigame!.checkpoint!
+    r.runtime.host({ a: 'cancelMinigame' })
+    assert.deepEqual(r.state.minigame?.checkpoint, saved)
+    r.runtime.host({ a: 'startMinigame' })
+    assert.deepEqual(resumed, [saved.data])
+    assert.deepEqual(r.state.minigame?.participants, ['ada', 'bo', 'cy'])
+    r.advance(3_000)
+    r.runtime.input('ada', { t: 'minigameInput', matchId: r.state.minigame!.matchId, seq: 1, input: { kind: 'finish', at: 0 } as never })
+    r.advance(100)
+    const done = r.completions[0] as { matchId: string; results: [] }
+    r.runtime.finish(done.matchId, done.results)
+    assert.equal(r.state.minigame?.checkpoint, undefined)
+  })
+})
+
+test('prepare starts fresh, without an earlier checkpoint', () => {
+  withToy((toy) => {
+    delete toy.startable
+    Object.assign(toy, { checkpoint: (world: Toy) => ({ version: world.tick, label: 'x', data: 1 }) })
+    const r = rig()
+    prepareToy(r)
+    r.runtime.host({ a: 'startMinigame' })
+    r.advance(3_100)
+    r.runtime.host({ a: 'cancelMinigame' })
+    assert.ok(r.state.minigame?.checkpoint)
+    prepareToy(r)
+    assert.equal(r.state.minigame?.checkpoint, undefined)
+  })
+})

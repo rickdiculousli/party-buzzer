@@ -65,6 +65,20 @@ export type PokerWorld = {
   reactions: { id: number; player: PlayerId; kind: ReactKind }[]
   lastReact: Record<PlayerId, number>
   phase: Phase
+  /** Taken as the current hand began, before its blinds. */
+  saved: PokerCheckpoint | null
+}
+
+/** Enough to deal a hand again: its deck follows from seed and hand number. */
+export type PokerCheckpoint = {
+  seed: number
+  seats: { player: PlayerId; stack: number; out: boolean }[]
+  busted: { player: PlayerId; place: number }[]
+  /** The button before this hand moved it. */
+  button: number
+  handNo: number
+  /** Level ticks played before this hand. */
+  elapsed: number
 }
 
 export type PokerAction =
