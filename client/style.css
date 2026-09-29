@@ -2913,3 +2913,64 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .sketch-canvas-area { touch-action: none; }
 .sketch-tools { grid-area: tools; display: grid; gap: var(--s2); }
 .sketch-tools .btn { min-height: 3rem; padding-inline: var(--s2); }
+
+/* Poker: a felt table on the phone and on the board. Cards are paper props. */
+.poker-card {
+  display: inline-grid;
+  place-items: center;
+  align-content: center;
+  width: var(--card-w, 4.5rem);
+  aspect-ratio: 5 / 7;
+  border-radius: var(--r-md);
+  background: var(--paper);
+  color: var(--typed);
+  font-family: var(--display);
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.5);
+}
+.poker-card--red { color: var(--suit-red); }
+.poker-card__rank { font-size: calc(var(--card-w, 4.5rem) * 0.42); }
+.poker-card__suit { font-size: calc(var(--card-w, 4.5rem) * 0.36); }
+.poker-card--down {
+  background:
+    repeating-linear-gradient(45deg, transparent 0 6px, rgb(0 0 0 / 0.18) 6px 7px),
+    var(--raise);
+  border: 3px solid var(--paper);
+}
+.poker-card--lift { transform: translateY(-14%); box-shadow: 0 0 0 2px var(--brass), 0 8px 18px rgb(0 0 0 / 0.6); }
+.poker-card--dim { opacity: 0.35; }
+
+.poker-ring { width: 2.25rem; height: 2.25rem; transform: rotate(-90deg); }
+.poker-ring__track { fill: none; stroke: var(--rule); stroke-width: 10; }
+.poker-ring__left { fill: none; stroke: var(--tungsten); stroke-width: 10; stroke-linecap: round; }
+
+.poker-phone { overflow: hidden; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+.poker-phone__status { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); color: var(--dim); font-size: var(--t-sm); }
+.poker-felt {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  place-items: center;
+  padding: var(--s4);
+  border-radius: var(--r-lg);
+  background: radial-gradient(ellipse at 50% 40%, var(--felt), var(--felt-rim));
+  box-shadow: inset 0 0 0 2px var(--felt-rim), inset 0 0 40px rgb(0 0 0 / 0.5);
+  touch-action: none;
+}
+.poker-felt--turn { box-shadow: inset 0 0 0 2px var(--tungsten), inset 0 0 40px rgb(0 0 0 / 0.5); }
+.poker-felt--still { grid-template-rows: 1fr auto; }
+.poker-felt__zone { font-family: var(--display); font-size: var(--t-lg); text-transform: uppercase; letter-spacing: 0.04em; color: var(--chalk); text-align: center; }
+.poker-felt__zone--dim { color: var(--dim); }
+.poker-felt__big { font-family: var(--display); font-size: var(--t-mega); text-transform: uppercase; color: var(--chalk); text-align: center; }
+.poker-felt__note { color: var(--tally); font-family: var(--display); font-size: var(--t-lg); text-transform: uppercase; }
+.poker-hole { --card-w: min(32vw, 8.5rem); display: flex; gap: var(--s3); transition: transform var(--base) var(--ease), opacity var(--base) var(--ease); }
+.poker-hole--fly { transform: translateY(-120vh) rotate(-8deg); opacity: 0; transition: transform 260ms cubic-bezier(0.3, 0, 0.9, 0.4), opacity 260ms linear; }
+.poker-actions, .poker-sheet__presets { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: var(--s2); }
+.poker-actions .btn, .poker-sheet .btn { min-height: 3.25rem; }
+.poker-sheet { display: grid; gap: var(--s3); padding: var(--s3); border-radius: var(--r-lg); background: var(--panel); }
+.poker-sheet__amount { font-family: var(--display); font-size: var(--t-lg); text-transform: uppercase; text-align: center; }
+.poker-sheet__slider { width: 100%; accent-color: var(--tungsten); }
+.poker-reacts { display: flex; gap: var(--s2); justify-content: center; flex-wrap: wrap; }
+.poker-react { min-height: 2.5rem; }

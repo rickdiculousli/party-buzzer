@@ -39,6 +39,9 @@
   --paper: #bdb3a0;   /* a paper prop on the set, kept dim so it never outshines a screen */
   --typed: #231e17;   /* typewriter ink on paper */
   --graphite: #3b3833; /* pencil on paper */
+  --felt: #16291f;     /* a card table's baize, deep and matte, well clear of cyan */
+  --felt-rim: #0f1c15; /* the felt's shadowed edge */
+  --suit-red: #a8322a; /* red suits printed on a card, a prop's ink rather than a signal */
 
   /* --- Ink ------------------------------------------------------------ */
   --chalk: #f5f0e6;   /* primary text, warm white so it sits in the set */
