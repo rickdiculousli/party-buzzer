@@ -242,7 +242,24 @@ export const RECIPES = {
   "sketch-all": [{ "source": "sawtooth", "freq": 523, "freqTo": 1046, "glide": "exp", "attack": 5, "decay": 400, "level": 0, "sustain": 0, "release": 60, "gain": 0.12 }],
   "sketch-timeup": [{ "source": "sawtooth", "freq": 330, "freqTo": 165, "glide": "exp", "attack": 5, "decay": 400, "level": 0, "sustain": 0, "release": 60, "gain": 0.12 }],
   "sketch-pass": [{ "source": "square", "freq": 262, "freqTo": 196, "glide": "exp", "attack": 3, "decay": 250, "level": 0, "sustain": 0, "release": 40, "gain": 0.1 }],
-  "sketch-over": [{ "source": "triangle", "freq": 392, "freqTo": 784, "glide": "exp", "attack": 10, "decay": 700, "level": 0, "sustain": 0, "release": 80, "gain": 0.3 }]
+  "sketch-over": [{ "source": "triangle", "freq": 392, "freqTo": 784, "glide": "exp", "attack": 10, "decay": 700, "level": 0, "sustain": 0, "release": 80, "gain": 0.3 }],
+  "poker-deal": [{ "source": "noise", "attack": 1, "decay": 40, "level": 0, "sustain": 0, "release": 10, "gain": 0.12, "filter": { "type": "highpass", "freq": 3000 } }],
+  "poker-flop": [{ "source": "noise", "attack": 1, "decay": 60, "level": 0, "sustain": 0, "release": 10, "gain": 0.15, "filter": { "type": "bandpass", "freq": 2000 } }],
+  "poker-turn": [{ "source": "noise", "attack": 1, "decay": 70, "level": 0, "sustain": 0, "release": 10, "gain": 0.15, "filter": { "type": "bandpass", "freq": 1600 } }],
+  "poker-river": [{ "source": "noise", "attack": 1, "decay": 80, "level": 0, "sustain": 0, "release": 10, "gain": 0.15, "filter": { "type": "bandpass", "freq": 1200 } }],
+  "poker-check": [
+    { "source": "sine", "freq": 180, "attack": 1, "decay": 50, "level": 0, "sustain": 0, "release": 10, "gain": 0.4 },
+    { "source": "sine", "freq": 180, "attack": 1, "decay": 50, "level": 0, "sustain": 0, "release": 10, "gain": 0.4, "delay": 120 }
+  ],
+  "poker-chips": [{ "source": "square", "freq": 2400, "freqTo": 1800, "glide": "exp", "attack": 1, "decay": 45, "level": 0, "sustain": 0, "release": 10, "gain": 0.06 }],
+  "poker-allin": [{ "source": "sawtooth", "freq": 110, "freqTo": 220, "glide": "exp", "attack": 5, "decay": 500, "level": 0, "sustain": 0, "release": 60, "gain": 0.15 }],
+  "poker-drumroll": [{ "source": "noise", "attack": 200, "decay": 1600, "level": 0, "sustain": 0, "release": 80, "gain": 0.1, "filter": { "type": "lowpass", "freq": 500 } }],
+  "poker-win": [{ "source": "triangle", "freq": 523, "freqTo": 1046, "glide": "exp", "attack": 5, "decay": 600, "level": 0, "sustain": 0, "release": 80, "gain": 0.3 }],
+  "poker-bust": [{ "source": "sine", "freq": 294, "freqTo": 147, "glide": "exp", "attack": 5, "decay": 500, "level": 0, "sustain": 0, "release": 60, "gain": 0.25 }],
+  "poker-level": [{ "source": "square", "freq": 659, "freqTo": 880, "glide": "exp", "attack": 3, "decay": 300, "level": 0, "sustain": 0, "release": 40, "gain": 0.1 }],
+  "poker-yours": [{ "source": "triangle", "freq": 587, "freqTo": 880, "glide": "exp", "attack": 5, "decay": 240, "level": 0, "sustain": 0, "release": 40, "gain": 0.3 }],
+  "poker-tick": [{ "source": "square", "freq": 1400, "attack": 1, "decay": 25, "level": 0, "sustain": 0, "release": 10, "gain": 0.06 }],
+  "poker-auto": [{ "source": "sine", "freq": 247, "freqTo": 196, "glide": "exp", "attack": 2, "decay": 200, "level": 0, "sustain": 0, "release": 30, "gain": 0.2 }]
 } satisfies Partial<Record<Cue, Recipe>>
 /* /cue:recipes */
 
