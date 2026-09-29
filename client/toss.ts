@@ -230,7 +230,8 @@ const PUSH_BELOW = 0.35
 export function toss(from: Pose, aim: { x: number; y: number }, flick: PokerFlick | null, rand: () => number, keepClear = 0, wild = false): { frames: Frame[]; rest: Pose } {
   const thrown = !!flick && flick.speed >= PUSH_BELOW
   const reach = Math.hypot(aim.x - from.x, aim.y - from.y)
-  const angle = ((flick ? flick.dx * 20 : 0) + between(rand, -5, 5)) * (Math.PI / 180)
+  // Each card leaves the fingertips on its own line and with its own push, so a pair parts ways a little.
+  const angle = ((flick ? flick.dx * 20 : 0) + between(rand, -12, 12)) * (Math.PI / 180)
   const ux = reach ? (aim.x - from.x) / reach : 0
   const uy = reach ? (aim.y - from.y) / reach : -1
   const dirX = ux * Math.cos(angle) - uy * Math.sin(angle)
@@ -238,12 +239,12 @@ export function toss(from: Pose, aim: { x: number; y: number }, flick: PokerFlic
   const wobble = thrown ? 0.02 : 0.01
   // Along any heading within a right angle of the aim, stopping `keepClear` short of it stays `keepClear` away; the bow gets its own margin.
   const room = Math.max(0, (reach - keepClear) / (1 + wobble))
-  const dist = Math.min(room, reach * (thrown ? 0.2 + 0.25 * flick!.speed : flick ? 0.18 : 0.12) * between(rand, 0.9, 1.1))
+  const dist = Math.min(room, reach * (thrown ? 0.18 + 0.22 * flick!.speed : flick ? 0.16 : 0.11) * between(rand, 0.75, 1.25))
   const way = flick?.dx ? Math.sign(flick.dx) : sign(rand)
   const turn = wild
     ? way * between(rand, 1.3, 2.1) * (thrown ? 1 : 0.6)
     : thrown
-      ? way * (0.01 + 0.42 * flick!.speed * rand() ** 2)
+      ? way * (0.01 + 0.55 * flick!.speed * rand() ** 2)
       : way * 0.04 * rand() ** 2
   const target = { x: from.x + dirX * dist, y: from.y + dirY * dist, rot: from.rot }
   const frames = slide(from, target, rand, thrown

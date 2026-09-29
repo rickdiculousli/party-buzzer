@@ -226,3 +226,19 @@ test('a fold with no room to slide stays where it is and stays a number', () => 
   assert.equal(Math.round(thrown.rest.x), 500)
   assert.equal(Math.round(thrown.rest.y), 450)
 })
+
+test('the two cards of a fold part ways a little, not stuck together', () => {
+  const from = { x: 500, y: 700, rot: 0 }
+  const aim = { x: 500, y: 300 }
+  const heading = (r: { rest: { x: number; y: number } }) => Math.atan2(r.rest.x - from.x, from.y - r.rest.y) * (180 / Math.PI)
+  const spread = Array.from({ length: 40 }, (_, seed) => {
+    const flick = { dx: 0.2, dy: -1, speed: 0.8 }
+    const a = toss(from, aim, flick, mulberry32(seed * 2 + 1))
+    const b = toss(from, aim, flick, mulberry32(seed * 2 + 2))
+    return { angle: Math.abs(heading(a) - heading(b)), reach: Math.abs(Math.hypot(a.rest.x - from.x, a.rest.y - from.y) - Math.hypot(b.rest.x - from.x, b.rest.y - from.y)) }
+  })
+  const mean = (xs: number[]) => xs.reduce((s, x) => s + x, 0) / xs.length
+  assert.ok(mean(spread.map((s) => s.angle)) > 6, 'the pair heads the same way every time')
+  assert.ok(Math.max(...spread.map((s) => s.angle)) <= 30, 'the pair splits apart')
+  assert.ok(mean(spread.map((s) => s.reach)) > 12, 'the pair travels the same distance every time')
+})
