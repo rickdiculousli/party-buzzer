@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto'
 import type { PlayerId, PokerFlick, PokerPrivate, PokerShared, ReactKind } from '../../../shared/protocol.ts'
 import { REACT_LABEL } from '../../../shared/protocol.ts'
 import type { Clock, InputOutcome, MinigameDefinition } from '../definition.ts'
@@ -74,7 +75,7 @@ export const poker: MinigameDefinition<PokerWorld> = {
   stepMs: STEP_MS,
   untimed: true,
   startable: (_lobby, connected) => connected.length < 2 ? 'too-few-players' : null,
-  create: (seed, participants, options) => ({ world: createTable(seed, participants, optionsOf(options)) }),
+  create: (seed, participants, options) => ({ world: createTable(seed, participants, optionsOf(options), randomInt(2 ** 31)) }),
   finished,
   classify(input) {
     const i = input as { kind?: unknown; at?: unknown; to?: unknown } | null

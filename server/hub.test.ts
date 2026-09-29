@@ -454,3 +454,15 @@ test('closing the minigame a setlist block names moves to the next block in one 
   assert.equal(state.minigame?.id, 'bow')
   assert.equal(state.setlist!.at, 0)
 })
+
+test('no view carries a minigame checkpoint beyond its label', () => {
+  const { state, hub, conn } = rig()
+  state.minigame = {
+    id: 'poker', matchId: 'm', phase: 'ready', options: { durationSec: 40, seed: 1 }, participants: [],
+    checkpoint: { version: 3, label: 'hand 3', data: { deckSeed: 99 } },
+  }
+  for (const role of ['player', 'board', 'host'] as const) {
+    assert.deepEqual(hub.viewFor(conn(role, role === 'player' ? 'a' : undefined)).minigame?.checkpoint, { version: 3, label: 'hand 3' })
+  }
+  assert.deepEqual(state.minigame.checkpoint?.data, { deckSeed: 99 })
+})

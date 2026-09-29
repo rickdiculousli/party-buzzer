@@ -105,3 +105,17 @@ test('a playing minigame saves as ready but keeps its checkpoint', (t) => {
   assert.equal(loaded.minigame?.phase, 'ready')
   assert.deepEqual(loaded.minigame?.checkpoint, checkpoint)
 })
+
+test('a restart drops a playing minigame\'s host lines', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'buzzer-snapshot-'))
+  t.after(() => rmSync(dir, { recursive: true, force: true }))
+  const state = newState()
+  state.minigame = {
+    id: 'poker', matchId: 'm', phase: 'playing', options: { durationSec: 40, seed: 1 }, participants: ['a'],
+    startsAt: 1, status: [{ text: 'Hand 4' }],
+  }
+  const file = join(dir, 'state.json')
+  saveState(file, state)
+  flushSave()
+  assert.equal(loadState(file).minigame?.status, undefined)
+})

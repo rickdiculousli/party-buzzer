@@ -552,7 +552,12 @@ export class Hub {
     } else if (conn.role === 'player') {
       game = { ...game, moduleState: undefined }
     }
-    if (conn.role !== 'player') return { ...this.state, game }
+    // The checkpoint's data can hold secrets, such as Poker's deck seed; views get its label.
+    const session = this.state.minigame
+    const minigame = session?.checkpoint
+      ? { ...session, checkpoint: { version: session.checkpoint.version, label: session.checkpoint.label } }
+      : session
+    if (conn.role !== 'player') return { ...this.state, game, minigame }
     const round = this.state.round
     // Shown and choice questions are on the board whole from the arm, so the
     // phone may have the same text; the mirror only governs read questions.
@@ -574,6 +579,7 @@ export class Hub {
         picks: mine === undefined ? undefined : { [conn.playerId!]: mine },
       },
       reading: undefined,
+      minigame,
     }
   }
 

@@ -308,7 +308,8 @@ export type PokerFeedEntry = {
 }
 /** One pot's result at a showdown. */
 export type PokerPotResult = { winners: PlayerId[]; name: string; five: Card[]; amount: number }
-export type PokerLegal = { canCheck: boolean; call: number; canRaise: boolean; minTo: number; maxTo: number }
+/** `canAllIn` is false when going all in would be a raise this player may not make. */
+export type PokerLegal = { canCheck: boolean; call: number; canRaise: boolean; canAllIn: boolean; minTo: number; maxTo: number }
 export type PokerPhase = 'deal' | 'bet' | 'reveal' | 'runout' | 'showdown' | 'muck' | 'over'
 
 export type PokerInput =
@@ -416,7 +417,8 @@ export type MinigameState = {
   status?: { text: string; until?: number }[]
 }
 
-export type MinigameCheckpoint = { version: number; label: string; data: unknown }
+/** `data` stays on the server: views carry only the version and label. */
+export type MinigameCheckpoint = { version: number; label: string; data?: unknown }
 
 export type BowInput =
   | { kind: 'aim'; angle: number; tension: number }

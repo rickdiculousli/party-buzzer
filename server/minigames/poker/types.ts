@@ -38,6 +38,8 @@ export type Seat = {
 export type PokerWorld = {
   tick: number
   seed: number
+  /** Shuffles every hand. Drawn secretly, so the match seed that clients see cannot reveal cards. */
+  deckSeed: number
   opts: PokerOptions
   seats: Seat[]
   busted: { player: PlayerId; place: number }[]
@@ -53,6 +55,8 @@ export type PokerWorld = {
   board: Card[]
   deck: Card[]
   actor: number | null
+  /** The tick the actor's turn began. */
+  actFrom: number
   actBy: number | null
   highBet: number
   /** The smallest raise increment allowed on this street. */
@@ -73,6 +77,7 @@ export type PokerWorld = {
 /** Enough to deal a hand again: its deck follows from seed and hand number. */
 export type PokerCheckpoint = {
   seed: number
+  deckSeed: number
   seats: { player: PlayerId; stack: number; out: boolean }[]
   busted: { player: PlayerId; place: number }[]
   /** The button before this hand moved it. */

@@ -80,3 +80,13 @@ test('host lines name the hand, the blinds with the next level, and the seats le
   assert.deepEqual(lines.map((line) => line.text), ['Hand 1', 'Blinds 10 / 20', '3 seats left'])
   assert.equal(lines[1].until, clock(10 * 60_000))
 })
+
+test('the deck is secret: the match seed alone does not decide the cards', () => {
+  const holes = (w: PokerWorld) => w.seats.map((seat) => seat.hole!.join()).join('|')
+  const deals = new Set(Array.from({ length: 4 }, () => holes(start())))
+  assert.ok(deals.size > 1, 'same seed dealt the same cards every time')
+  const w = start()
+  const saved = poker.checkpoint!(w)!.data as { deckSeed: number }
+  const back = poker.resume!(saved, OPTS).world as PokerWorld
+  assert.equal(holes(back), holes(w))
+})

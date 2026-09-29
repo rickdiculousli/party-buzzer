@@ -21,27 +21,28 @@ const INVALID: InputOutcome = { status: 'refused', reason: 'invalid' }
 const inHand = (seat: Seat) => !seat.out && !!seat.hole && !seat.folded
 const canBet = (seat: Seat) => inHand(seat) && seat.stack > 0
 
-function table(seed: number, opts: PokerOptions, seats: PokerCheckpoint['seats'], button: number): PokerWorld {
+function table(seed: number, deckSeed: number, opts: PokerOptions, seats: PokerCheckpoint['seats'], button: number): PokerWorld {
   return {
-    tick: 0, seed, opts,
+    tick: 0, seed, deckSeed, opts,
     seats: seats.map(({ player, stack, out }) => ({
       player, stack, startStack: stack, hole: null, bet: 0, contributed: 0,
       folded: false, acted: false, mayRaise: true, connected: true, faceUp: false, out,
     })),
     busted: [], button, sbSeat: 0, bbSeat: 0, handNo: 0, elapsedBase: 0,
     bb: opts.bigBlind, sb: Math.floor(opts.bigBlind / 2), street: 'preflop', board: [], deck: [],
-    actor: null, actBy: null, highBet: 0, raiseSize: opts.bigBlind, pots: [], showdown: null,
+    actor: null, actFrom: 0, actBy: null, highBet: 0, raiseSize: opts.bigBlind, pots: [], showdown: null,
     runout: false, equity: null, feed: [], nextFeedId: 1, reactions: [], lastReact: {}, phase: { at: 'deal', until: 0 },
     saved: null,
   }
 }
 
-export function createTable(seed: number, participants: PlayerId[], opts: PokerOptions): PokerWorld {
+/** `deckSeed` shuffles the cards; a live match draws it secretly, tests pass one to replay a deal. */
+export function createTable(seed: number, participants: PlayerId[], opts: PokerOptions, deckSeed = seed): PokerWorld {
   const rand = mulberry32(seed)
   const order = shuffle(rand, participants)
   // The first hand moves the button one seat on, onto a seeded seat.
   const button = (Math.floor(rand() * order.length) + order.length - 1) % order.length
-  const w = table(seed, opts, order.map((player) => ({ player, stack: opts.stack, out: false })), button)
+  const w = table(seed, deckSeed, opts, order.map((player) => ({ player, stack: opts.stack, out: false })), button)
   startHand(w)
   return w
 }
@@ -52,7 +53,7 @@ export function tableCheckpoint(w: PokerWorld): { version: number; label: string
 
 /** Deals the checkpoint's hand again, from the same stacks, button and deck. */
 export function resumeTable(data: PokerCheckpoint, opts: PokerOptions): PokerWorld {
-  const w = table(data.seed, opts, data.seats, data.button)
+  const w = table(data.seed, data.deckSeed, opts, data.seats, data.button)
   w.busted = data.busted.map((row) => ({ ...row }))
   w.handNo = data.handNo - 1
   w.elapsedBase = data.elapsed
@@ -99,6 +100,7 @@ export function startHand(w: PokerWorld): void {
   }
   w.saved = {
     seed: w.seed,
+    deckSeed: w.deckSeed,
     seats: w.seats.map(({ player, stack, out }) => ({ player, stack, out })),
     busted: w.busted.map((row) => ({ ...row })),
     button: w.button,
@@ -119,7 +121,7 @@ export function startHand(w: PokerWorld): void {
   w.sbSeat = sbSeat
   w.bbSeat = next(w, sbSeat, (seat) => !seat.out)
   w.board = []
-  w.deck = handDeck(w.seed, w.handNo)
+  w.deck = handDeck(w.deckSeed, w.handNo)
   for (const seat of live) seat.hole = [w.deck.shift()!, w.deck.shift()!]
   w.street = 'preflop'
   w.pots = []
@@ -148,6 +150,7 @@ function setActor(w: PokerWorld, from: number): void {
   const i = nextActor(w, from)
   if (i < 0) return closeStreet(w)
   w.actor = i
+  w.actFrom = w.tick
   w.actBy = w.tick + ticks(w.seats[i].connected ? w.opts.shotSec * 1000 : PACE.awayShotMs)
   w.phase = { at: 'bet' }
 }
@@ -157,10 +160,12 @@ export function legal(w: PokerWorld, player: PlayerId): Legal | null {
   const seat = w.seats[w.actor]
   const owe = w.highBet - seat.bet
   const maxTo = seat.bet + seat.stack
+  const canRaise = seat.mayRaise && maxTo > w.highBet
   return {
     canCheck: owe <= 0,
     call: Math.min(Math.max(0, owe), seat.stack),
-    canRaise: seat.mayRaise && maxTo > w.highBet,
+    canRaise,
+    canAllIn: canRaise || maxTo <= w.highBet,
     minTo: Math.min(w.highBet + w.raiseSize, maxTo),
     maxTo,
   }
@@ -302,8 +307,13 @@ function showdown(w: PokerWorld): void {
 
 function endByFold(w: PokerWorld, winner: Seat): void {
   gather(w)
-  const total = w.pots.reduce((sum, pot) => sum + pot.amount, 0)
-  award(w, { [winner.player]: total })
+  // A pot only a folder reached is their unmatched bet coming back; the rest is the winner's.
+  const won: Record<PlayerId, number> = {}
+  for (const pot of w.pots) {
+    const to = pot.eligible.length === 1 ? pot.eligible[0] : winner.player
+    won[to] = (won[to] ?? 0) + pot.amount
+  }
+  award(w, won)
   w.phase = { at: 'muck', until: w.tick + ticks(PACE.muckMs), winner: winner.player, shown: false }
 }
 
@@ -331,11 +341,13 @@ export function levelOf(w: PokerWorld): { level: number; bb: number; nextAtTick:
 }
 
 export function setPresence(w: PokerWorld, connected: PlayerId[]): void {
+  const actor = w.actor === null ? null : w.seats[w.actor]
+  const wasAway = actor ? !actor.connected : false
   for (const seat of w.seats) seat.connected = connected.includes(seat.player)
-  // Someone who drops on their turn gets the short clock from now.
-  if (w.actor !== null && !w.seats[w.actor].connected && w.actBy !== null) {
-    w.actBy = Math.min(w.actBy, w.tick + ticks(PACE.awayShotMs))
-  }
+  if (!actor || w.actBy === null) return
+  // Someone who drops on their turn gets the short clock from now; coming back restores their own.
+  if (!actor.connected) w.actBy = Math.min(w.actBy, w.tick + ticks(PACE.awayShotMs))
+  else if (wasAway) w.actBy = Math.max(w.actBy, w.actFrom + ticks(w.opts.shotSec * 1000))
 }
 
 export const finished = (w: PokerWorld) => w.phase.at === 'over'

@@ -57,6 +57,7 @@ test('a short all-in does not reopen betting', () => {
   const options = legal(w, raiser)!
   assert.equal(options.canRaise, false)
   assert.equal(options.call, 50)
+  assert.equal(options.canAllIn, false, 'all in would be a raise it may not make')
 })
 
 test('street closes when all have acted and matched; the next street starts left of the button', () => {
@@ -263,4 +264,28 @@ test('resume after a mid-hand stop restores hand-start stacks', () => {
   assert.deepEqual(Object.fromEntries(back.seats.map((seat) => [seat.player, seat.startStack])), startStacks)
   assert.deepEqual(Object.fromEntries(back.seats.map((seat) => [seat.player, seat.hole])), holes)
   assert.equal(back.feed.some((entry) => entry.kind === 'level'), false)
+})
+
+test('a short all-in big blind wins only what it matched when everyone folds', () => {
+  const w = createTable(16, ['a', 'b', 'c'], OPTS)
+  const bbSeat = w.seats[w.bbSeat]
+  const sbSeat = w.seats[w.sbSeat]
+  // Rebuild the blinds: the big blind posted all in for 5.
+  sbSeat.stack = 990; sbSeat.bet = 10
+  bbSeat.stack = 0; bbSeat.bet = 5
+  untilBet(w)
+  while (w.phase.at === 'bet') act(w, actorId(w), { kind: 'fold' })
+  assert.equal(bbSeat.stack, 10, 'wins its own 5 and the 5 it matched')
+  assert.equal(sbSeat.stack, 995, 'gets back the 5 nobody matched')
+})
+
+test('a player who comes back on their turn gets the full clock again', () => {
+  const w = createTable(17, ['a', 'b', 'c'], OPTS)
+  untilBet(w)
+  const id = actorId(w)
+  setPresence(w, ['a', 'b', 'c'].filter((p) => p !== id))
+  run(w, 500)
+  setPresence(w, ['a', 'b', 'c'])
+  run(w, PACE.awayShotMs)
+  assert.equal(actorId(w), id, 'still their turn')
 })

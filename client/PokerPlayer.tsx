@@ -184,7 +184,7 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
         </div>
       : <div class="poker-actions">
           <button class="btn" disabled={!legal?.canRaise} onClick={openSheet}>{highBet > 0 ? 'Raise' : 'Bet'}</button>
-          <button class="btn" disabled={!legal} onClick={() => input({ kind: 'allIn' })}>All in</button>
+          <button class="btn" disabled={!legal?.canAllIn} onClick={() => input({ kind: "allIn" })}>All in</button>
           {poker.canShow && <button class="btn btn--primary fx-pop" onClick={() => input({ kind: 'show' })}>Show</button>}
         </div>}
     {reactions}

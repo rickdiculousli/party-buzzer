@@ -21,9 +21,16 @@ export function buildPots(contributed: Record<PlayerId, number>, folded: PlayerI
     if (amount > 0) pots.push({ amount, eligible })
     floor = level
   }
-  // Chips folded above every live level (a folder who outbet everyone left) join the last pot.
-  const rest = players.reduce((sum, id) => sum + Math.max(0, contributed[id] - floor), 0)
-  if (rest > 0 && pots.length) pots[pots.length - 1].amount += rest
+  // Folded chips above every live level: a layer two folders both reached is dead money for
+  // the last pot; a layer only one folder reached nobody matched, so it is theirs again.
+  const above = [...new Set(players.map((id) => contributed[id]).filter((level) => level > floor))].sort((a, b) => a - b)
+  for (const level of above) {
+    const reached = players.filter((id) => contributed[id] >= level)
+    const amount = (level - floor) * reached.length
+    if (reached.length === 1 || !pots.length) pots.push({ amount, eligible: reached })
+    else pots[pots.length - 1].amount += amount
+    floor = level
+  }
   return pots
 }
 
