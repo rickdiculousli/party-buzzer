@@ -40,6 +40,7 @@ function shared(w: PokerWorld, clock: Clock): PokerShared {
       folded: seat.folded,
       allIn: !!seat.hole && !seat.folded && !seat.out && seat.stack === 0,
       busted: seat.out,
+      place: w.busted.find((row) => row.player === seat.player)?.place ?? null,
       away: !seat.connected,
       cards: seat.faceUp ? seat.hole : null,
     })),

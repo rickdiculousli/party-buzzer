@@ -7,7 +7,7 @@ import { matchFrame } from './minigame-info.ts'
 import { Burst, Letters } from './fx.tsx'
 import { ChipStack, DealerPuck, FeltMark, PaintPile, Piece, PlayingCard, ShotRing, reducedMotion, usePokerCues, useSize } from './PokerParts.tsx'
 import { ELLIPSE, feedLine, seatPositions, POKER_RULES } from './poker.ts'
-import { chain, dealSchedule, pitch, receive, scatter, slide, sweep, toss, RECEIVE, type Frame, type Pose } from './toss.ts'
+import { chain, dealSchedule, pitch, receive, scatter, slide, sweep, toss, wildCard, RECEIVE, type Frame, type Pose } from './toss.ts'
 import { colorForPlayer, ordinal, playerName, setlistPosition } from './ui.ts'
 
 type Point = { x: number; y: number }
@@ -22,9 +22,15 @@ const PITCH_MS = 950
 const BANNER_MS = 2_600
 const REACTION_MS = 1_800
 const LOG_LINES = 7
-/** Where things sit, as shares of the way from a seat to the middle. */
-const HOLE_IN = 0.36
-const BET_IN = 0.57
+/**
+ * Where things sit in from a seat, in card widths: the pair clears the seat's
+ * name and notes (which run deeper above and below a seat than beside it),
+ * and the bet sits past the pair toward the middle.
+ */
+const HOLE_IN = { across: 1.7, along: 2.1 }
+const BET_BEYOND = 1.6
+/** How far from the middle a fold always stops, in card widths: wide to the sides where the board cards and pot lie, short above and below. */
+const KEEP_CLEAR = { across: 4, along: 1.6 }
 
 const toward = (p: Point, c: Point, by: number): Point => ({ x: p.x + (c.x - p.x) * by, y: p.y + (c.y - p.y) * by })
 /** A stable seed for one card's throw, so a re-render never re-rolls its path. */
@@ -81,15 +87,33 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
   const centre = { x: ELLIPSE.cx * w, y: ELLIPSE.cy * h }
   const spots = seatPositions(seats.length).map((p) => ({ x: p.x * w, y: p.y * h }))
   const dealer = { x: centre.x, y: -cardW * 1.6 }
-  const board = (i: number): Pose => ({ x: centre.x + (i - 2) * cardW * 1.14, y: centre.y - h * 0.035, rot: lie(2, poker?.handNo ?? 0, 'b', i) })
-  const potAt = { x: centre.x, y: centre.y + h * 0.085 }
+  const board = (i: number): Pose => ({ x: centre.x + (i - 2) * cardW * 1.14, y: centre.y, rot: lie(2, poker?.handNo ?? 0, 'b', i) })
+  // The pot sits beside the board cards, so the lanes above and below them stay clear for the seats there.
+  const potAt = { x: centre.x + cardW * 3.8, y: centre.y }
+  /** The unit direction from a seat toward the middle, and how much of it runs across the table (1) rather than along it (0). */
+  const inward = (i: number) => {
+    const dx = centre.x - spots[i].x
+    const dy = centre.y - spots[i].y
+    const len = Math.hypot(dx, dy) || 1
+    return { x: dx / len, y: dy / len, across: Math.abs(dx / len) }
+  }
+  const into = (i: number, cards: { across: number; along: number }) => {
+    const u = inward(i)
+    return cardW * (cards.along + (cards.across - cards.along) * u.across)
+  }
   const holeOf = (i: number, k: 0 | 1): Pose => {
-    const at = toward(spots[i], centre, HOLE_IN)
+    const u = inward(i)
+    const reach = into(i, HOLE_IN)
+    const at = { x: spots[i].x + u.x * reach, y: spots[i].y + u.y * reach }
     const tilt = ((spots[i].x - centre.x) / w) * -18
     // A collected pair: squared up, the second card just offset over the first.
     return { x: at.x + (k ? 0.14 : -0.14) * cardW, y: at.y + (k ? 2 : 0), rot: tilt + (k ? 3 : -2) + lie(2, poker?.handNo ?? 0, i, k) }
   }
-  const betOf = (i: number) => toward(spots[i], centre, BET_IN)
+  const betOf = (i: number) => {
+    const u = inward(i)
+    const reach = into(i, HOLE_IN) + cardW * BET_BEYOND
+    return { x: spots[i].x + u.x * reach, y: spots[i].y + u.y * reach }
+  }
   const seatIndex = (id: PlayerId | null) => seats.findIndex((seat) => seat.player === id)
 
   useEffect(() => {
@@ -102,8 +126,10 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
       const i = seatIndex(entry.player)
       if (entry.kind === 'fold' && i >= 0 && motion) {
         // The two cards leave together but fly apart, each on its own throw; they lie where they stop for a beat, then pop away.
+        // Usually both turn a little; now and then one of them gets away and spins, never both.
+        const wild = wildCard(mulberry32(seedOf(entry.id, 'wild')))
         for (const k of [0, 1] as const) {
-          const thrown = toss(holeOf(i, k), centre, entry.flick ?? null, mulberry32(seedOf(entry.id, k)))
+          const thrown = toss(holeOf(i, k), centre, entry.flick ?? null, mulberry32(seedOf(entry.id, k)), into(i, KEEP_CLEAR), k === wild)
           const end = thrown.frames[thrown.frames.length - 1]
           add.push({ key: `f${entry.id}-${k}`, kind: 'fold', pose: thrown.rest, frames: chain(thrown.frames, LINGER_MS + k * 60, [end]) })
         }
@@ -117,7 +143,7 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
         }
       }
       if (entry.kind === 'win' && i >= 0 && motion) {
-        const to = { ...toward(spots[i], centre, 0.3), rot: 0 }
+        const to = { ...betOf(i), rot: 0 }
         add.push({ key: `w${entry.id}`, kind: 'chips', amount: entry.amount, pose: to, frames: slide({ ...potAt, rot: 0 }, to, mulberry32(entry.id), { hand: 0.35, lift: 0, wobble: 0.03, skidTau: 200 }) })
       }
       if (entry.kind === 'level') {
@@ -219,6 +245,9 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
   const incomingBet = new Set(ghosts.filter((g) => g.kind === 'bet').map((g) => g.seat))
   const pushing = poker.phase === 'showdown' || poker.phase === 'muck'
   const puck = buttonAt >= 0 ? spots[buttonAt] : null
+  // The betting line is a generous oval inside the seats, the shape of the table; bets are pushed over it.
+  const lineRx = ELLIPSE.rx * w * 0.66
+  const lineRy = ELLIPSE.ry * h * 0.6
 
   return <main class="board poker-room">
     <div class="felt felt--board" ref={tableRef}>
@@ -226,9 +255,9 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
       {actor >= 0 && <div class="felt__lamp felt__lamp--seat" style={{ transform: `translate(${spots[actor].x}px, ${spots[actor].y}px) translate(-50%, -50%)` }} />}
       <svg class="felt-line" viewBox={`0 0 ${w || 1} ${h || 1}`} aria-hidden="true">
         {/* The betting line is sheared into the pile: a shadowed upper edge over a lighter, shorter-napped band. */}
-        <ellipse class="felt-line__shade" cx={centre.x} cy={centre.y - 1} rx={ELLIPSE.rx * w * (1 - BET_IN) + cardW * 0.84} ry={ELLIPSE.ry * h * (1 - BET_IN) + cardW * 0.64} />
+        <ellipse class="felt-line__shade" cx={centre.x} cy={centre.y - 1} rx={lineRx} ry={lineRy} />
         <PaintPile id="line-pile" />
-        <ellipse class="felt-line__sheen" filter="url(#line-pile)" cx={centre.x} cy={centre.y} rx={ELLIPSE.rx * w * (1 - BET_IN) + cardW * 0.84} ry={ELLIPSE.ry * h * (1 - BET_IN) + cardW * 0.64} />
+        <ellipse class="felt-line__sheen" filter="url(#line-pile)" cx={centre.x} cy={centre.y} rx={lineRx} ry={lineRy} />
       </svg>
       <div class="poker-logo" style={{ transform: `translate(${centre.x}px, ${centre.y + h * 0.01}px) translate(-50%, -50%)` }}>
         <FeltMark text="Party Buzzer" class="poker-logo__name" />
@@ -304,11 +333,11 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
           {last && !seat.busted && (last.kind === 'allIn'
             ? <span key={last.id} class="poker-allin fx-zoom">All in</span>
             : <span key={last.id} class="poker-seat__said fx-fade">{capital(feedLine(last, () => '').trim())}</span>)}
-          {seat.busted && <span class="poker-seat__out fx-fade">{bustLine(poker.feed, seat.player)}</span>}
+          {seat.busted && <span class="poker-seat__out fx-fade">{seat.place ? `Out in ${ordinal(seat.place)}` : 'Out'}</span>}
         </div>
       })}
 
-      {handName && <div class="poker-handname" style={{ transform: `translate(${centre.x}px, ${centre.y + h * 0.075}px) translate(-50%, -50%)` }}>
+      {handName && <div class="poker-handname" style={{ transform: `translate(${centre.x}px, ${centre.y + cardW * 1.25}px) translate(-50%, -50%)` }}>
         <Letters key={`${poker.handNo}-${handName}`} text={handName} />
       </div>}
       {floats.map((f) => {
@@ -335,8 +364,3 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
 }
 
 const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
-
-function bustLine(feed: PokerFeedEntry[], player: PlayerId): string {
-  const entry = [...feed].reverse().find((e) => e.kind === 'bust' && e.player === player)
-  return entry?.amount ? `Out in ${ordinal(entry.amount)}` : 'Out'
-}

@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mulberry32 } from '../shared/random.ts'
-import { chipStack, dealSchedule, pitch, receive, scatter, slide, sweep, toss, RECEIVE, TOSS, type Frame } from './toss.ts'
+import { chipStack, dealSchedule, pitch, receive, scatter, slide, sweep, toss, wildCard, RECEIVE, TOSS, type Frame } from './toss.ts'
 
 const along = (frames: Frame[], dx: number, dy: number) => {
   const len = Math.hypot(dx, dy)
@@ -173,4 +173,56 @@ test('the dealer keeps no metronome: gaps vary but the deal fits its window', ()
 test('each pitch leaves the fingers at its own speed', () => {
   const time = (seed: number) => { const f = pitch({ x: 0, y: -80 }, { x: 0, y: 600, rot: 0 }, mulberry32(seed)); return Math.round(f[f.length - 1].t) }
   assert.ok(new Set([1, 2, 3, 4, 5, 6].map(time)).size >= 4, 'every pitch takes the same time')
+})
+
+test('a fold is a light toss: short, low and barely turning', () => {
+  const from = { x: 500, y: 700, rot: 0 }
+  const aim = { x: 500, y: 300 }
+  for (let seed = 1; seed < 40; seed++) {
+    const hard = toss(from, aim, { dx: 0.4, dy: -1, speed: 1 }, mulberry32(seed))
+    assert.ok(Math.hypot(hard.rest.x - from.x, hard.rest.y - from.y) <= 400 * 0.5, 'thrown too far')
+    assert.ok(Math.abs(hard.rest.rot) <= 60, `turned ${hard.rest.rot}`)
+    assert.ok(Math.max(...hard.frames.map((f) => f.lift)) <= 0.03, 'thrown too high')
+  }
+})
+
+test('a fold never slides into the middle of the table', () => {
+  const aim = { x: 500, y: 300 }
+  for (let seed = 1; seed < 40; seed++) {
+    const from = { x: 500 + Math.cos(seed) * 260, y: 300 + Math.sin(seed) * 260, rot: 0 }
+    const thrown = toss(from, aim, { dx: 0, dy: -1, speed: 1 }, mulberry32(seed), 180)
+    for (const f of thrown.frames) assert.ok(Math.hypot(f.x - aim.x, f.y - aim.y) >= 180 - 1, `into the middle at seed ${seed}`)
+  }
+})
+
+test('a quiet fold card spins anywhere from barely to a little', () => {
+  const from = { x: 500, y: 700, rot: 0 }
+  const turns = Array.from({ length: 60 }, (_, seed) =>
+    Math.abs(toss(from, { x: 500, y: 300 }, { dx: 0.3, dy: -1, speed: 0.8 }, mulberry32(seed)).rest.rot))
+  assert.ok(Math.min(...turns) < 8, 'never barely turns')
+  assert.ok(Math.max(...turns) > 25, 'never turns much')
+})
+
+test('a wild fold card spins hard', () => {
+  const from = { x: 500, y: 700, rot: 0 }
+  for (let seed = 1; seed < 20; seed++) {
+    const wild = toss(from, { x: 500, y: 300 }, { dx: 0.3, dy: -1, speed: 0.8 }, mulberry32(seed), 0, true)
+    assert.ok(Math.abs(wild.rest.rot) >= 90, `wild card turned only ${wild.rest.rot}`)
+  }
+})
+
+test('at most one card of a fold spins wild, and usually neither', () => {
+  const picks = Array.from({ length: 400 }, (_, seed) => wildCard(mulberry32(seed)))
+  assert.ok(picks.every((p) => p === -1 || p === 0 || p === 1))
+  const none = picks.filter((p) => p === -1).length
+  assert.ok(none > 400 * 0.5 && none < 400 * 0.8, `${none} of 400 folds had no wild card`)
+  assert.ok(picks.includes(0) && picks.includes(1))
+})
+
+test('a fold with no room to slide stays where it is and stays a number', () => {
+  const from = { x: 500, y: 450, rot: 2 }
+  const thrown = toss(from, { x: 500, y: 300 }, { dx: 0, dy: -1, speed: 1 }, mulberry32(1), 400)
+  assert.ok(thrown.frames.every((f) => [f.x, f.y, f.rot, f.lift].every(Number.isFinite)), 'a frame is not a number')
+  assert.equal(Math.round(thrown.rest.x), 500)
+  assert.equal(Math.round(thrown.rest.y), 450)
 })

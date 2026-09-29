@@ -328,6 +328,8 @@ export type PokerSeatView = {
   folded: boolean
   allIn: boolean
   busted: boolean
+  /** The finishing place once out, else null. */
+  place: number | null
   away: boolean
   /** Only once the cards are face up. */
   cards: [Card, Card] | null

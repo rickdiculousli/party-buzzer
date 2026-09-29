@@ -88,7 +88,8 @@ export function slide(from: Pose, to: Pose, rand: () => number, options: Options
   // Spin: steady in the air (losing what the air takes), bitten at touchdown, then dragged off by the cloth.
   const w0 = o.spin
   const wLand = w0 * (pushed ? 1 : (1 - o.airDrag) * o.impactSpin)
-  const spinLead = (t: number) => pushed ? w0 * t : w0 * t - (w0 * o.airDrag * t * t) / (2 * leadMs)
+  // With no lead phase (a zero-length move) there is nothing to spin through yet.
+  const spinLead = (t: number) => pushed || leadMs <= 0 ? w0 * t : w0 * t - (w0 * o.airDrag * t * t) / (2 * leadMs)
   const spinSkid = (t: number) => {
     const w = Math.abs(wLand)
     const k = o.spinFriction * o.spinTau
@@ -218,24 +219,44 @@ export function dealSchedule(count: number, window: number, maxGap: number, rand
 const PUSH_BELOW = 0.35
 
 /**
- * A fold toward `aim`. A firm flick throws the cards from between the fingers,
- * spinning harder the harder the flick, bent the way it went; a soft flick or
- * a timeout pushes them forward along the cloth with barely any turn.
+ * A fold toward `aim`: a light toss off the fingertips, low and short with a
+ * little turn, a firmer flick going a bit further and bending the way it
+ * went. Spin varies widely, mostly low: squared, it leans hard toward barely
+ * turning. A `wild` card is the one that got away and spins hard. A soft flick
+ * or a timeout just pushes the cards forward. Whatever the
+ * flick, the cards stop at least `keepClear` short of `aim`, so the middle of
+ * the table stays clear.
  */
-export function toss(from: Pose, aim: { x: number; y: number }, flick: PokerFlick | null, rand: () => number): { frames: Frame[]; rest: Pose } {
+export function toss(from: Pose, aim: { x: number; y: number }, flick: PokerFlick | null, rand: () => number, keepClear = 0, wild = false): { frames: Frame[]; rest: Pose } {
   const thrown = !!flick && flick.speed >= PUSH_BELOW
   const reach = Math.hypot(aim.x - from.x, aim.y - from.y)
-  const angle = ((flick ? flick.dx * 30 : 0) + between(rand, -5, 5)) * (Math.PI / 180)
+  const angle = ((flick ? flick.dx * 20 : 0) + between(rand, -5, 5)) * (Math.PI / 180)
   const ux = reach ? (aim.x - from.x) / reach : 0
   const uy = reach ? (aim.y - from.y) / reach : -1
   const dirX = ux * Math.cos(angle) - uy * Math.sin(angle)
   const dirY = ux * Math.sin(angle) + uy * Math.cos(angle)
-  const dist = reach * (thrown ? 0.55 + 0.45 * flick!.speed : flick ? 0.5 : 0.32) * between(rand, 0.9, 1.1)
-  const turn = thrown ? (flick!.dx ? Math.sign(flick!.dx) : sign(rand)) * (0.25 + 0.8 * flick!.speed) * between(rand, 0.8, 1.2) : between(rand, -0.04, 0.04)
+  const wobble = thrown ? 0.02 : 0.01
+  // Along any heading within a right angle of the aim, stopping `keepClear` short of it stays `keepClear` away; the bow gets its own margin.
+  const room = Math.max(0, (reach - keepClear) / (1 + wobble))
+  const dist = Math.min(room, reach * (thrown ? 0.2 + 0.25 * flick!.speed : flick ? 0.18 : 0.12) * between(rand, 0.9, 1.1))
+  const way = flick?.dx ? Math.sign(flick.dx) : sign(rand)
+  const turn = wild
+    ? way * between(rand, 1.3, 2.1) * (thrown ? 1 : 0.6)
+    : thrown
+      ? way * (0.01 + 0.42 * flick!.speed * rand() ** 2)
+      : way * 0.04 * rand() ** 2
   const target = { x: from.x + dirX * dist, y: from.y + dirY * dist, rot: from.rot }
-  const frames = slide(from, target, rand, thrown ? { spin: turn } : { hand: 0.35, lift: 0, wobble: 0.01, spin: turn })
+  const frames = slide(from, target, rand, thrown
+    ? { spin: turn, airShare: 0.3, lift: 0.025, wobble }
+    : { hand: 0.35, lift: 0, wobble, spin: turn })
   const last = frames[frames.length - 1]
   return { frames, rest: { x: last.x, y: last.y, rot: last.rot } }
+}
+
+/** Which card of a folded pair spins away, if either: -1 for neither (most folds), else 0 or 1. */
+export function wildCard(rand: () => number): -1 | 0 | 1 {
+  if (rand() >= 0.35) return -1
+  return rand() < 0.5 ? 0 : 1
 }
 
 /** The dealer drawing something in along the cloth, such as bets into the pot: flat, straight, unhurried. */

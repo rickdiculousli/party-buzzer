@@ -44,7 +44,7 @@ test('seats sit on the ellipse, the first at bottom centre', () => {
   assert.ok(seatPositions(4)[1].x < seatPositions(4)[0].x)
 })
 
-const seat = (player: string) => ({ player, stack: 1000, bet: 0, button: false, sb: false, bb: false, folded: false, allIn: false, busted: false, away: false, cards: null })
+const seat = (player: string) => ({ player, stack: 1000, bet: 0, button: false, sb: false, bb: false, folded: false, allIn: false, busted: false, place: null, away: false, cards: null })
 function view(over: Partial<PokerView> = {}, feed: Omit<PokerFeedEntry, 'id'>[] = []): PokerView {
   return {
     matchId: 'm', serverTime: 10_000,

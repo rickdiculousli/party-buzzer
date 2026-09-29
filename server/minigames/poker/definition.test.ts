@@ -90,3 +90,13 @@ test('the deck is secret: the match seed alone does not decide the cards', () =>
   const back = poker.resume!(saved, OPTS).world as PokerWorld
   assert.equal(holes(back), holes(w))
 })
+
+test('a busted seat carries its place, however long ago it went out', () => {
+  const w = start(['a', 'b', 'c'])
+  w.seats[0].out = true
+  w.busted.push({ player: w.seats[0].player, place: 3 })
+  w.feed = []
+  const seats = (poker.boardFrame(w, clock) as { seats: { player: string; place: number | null }[] }).seats
+  assert.equal(seats.find((seat) => seat.player === w.seats[0].player)?.place, 3)
+  assert.equal(seats.find((seat) => seat.player === w.seats[1].player)?.place, null)
+})

@@ -48,7 +48,7 @@ export function classifyGesture(trace: TracePoint[], prevTapEnd: number | null, 
 }
 
 /** The table's oval in board-normalized units. */
-export const ELLIPSE = { cx: 0.44, cy: 0.5, rx: 0.34, ry: 0.35 }
+export const ELLIPSE = { cx: 0.44, cy: 0.5, rx: 0.37, ry: 0.38 }
 
 /** Seat centres around the oval: the first at bottom centre, then clockwise, which is the table's "left". */
 export function seatPositions(n: number): { x: number; y: number }[] {

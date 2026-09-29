@@ -433,7 +433,7 @@ const pokerStage = (children: preact.ComponentChildren) => (
 )
 
 /** A fold thrown into the middle, left to lie for a beat, then popped away. Physics tunables are `TOSS` in client/toss.ts. */
-function foldScenario(id: string, label: string, flick: { dx: number; dy: number; speed: number } | null): Scenario {
+function foldScenario(id: string, label: string, flick: { dx: number; dy: number; speed: number } | null, wild: -1 | 0 | 1 = -1): Scenario {
   const from = { x: PATCH.w / 2, y: PATCH.h * 0.86, rot: -4 }
   const aim = { x: PATCH.w / 2, y: PATCH.h * 0.45 }
   return {
@@ -444,7 +444,7 @@ function foldScenario(id: string, label: string, flick: { dx: number; dy: number
     subject: '.poker-piece',
     dials: [],
     render: (lead) => pokerStage(([0, 1] as const).map((k) => {
-      const thrown = toss({ ...from, x: from.x + (k ? 16 : -16) }, aim, flick, mulberry32(k + 3))
+      const thrown = toss({ ...from, x: from.x + (k ? 16 : -16) }, aim, flick, mulberry32(k + 3), 0, k === wild)
       return <Piece key={k} pose={lead ? from : thrown.rest} frames={lead ? null : chain(thrown.frames, 800 + k * 60, [thrown.frames[thrown.frames.length - 1]])}>
         <PlayingCard card={null} up={false} />
       </Piece>
@@ -677,7 +677,7 @@ export const SCENARIOS: Scenario[] = [
     render: (lead) => <Stage mid={lead ? <div class="harness__ghost" /> : <FaceOff pair={['Ada', 'Bo']} />} />,
   },
   dealScenario,
-  foldScenario('poker-fold-hard', 'Fold, hard flick', { dx: 0.2, dy: -0.98, speed: 1 }),
+  foldScenario('poker-fold-hard', 'Fold, hard flick, one card gets away', { dx: 0.2, dy: -0.98, speed: 1 }, 1),
   foldScenario('poker-fold-soft', 'Fold, soft flick', { dx: -0.3, dy: -0.95, speed: 0.2 }),
   foldScenario('poker-fold-timeout', 'Fold, timed out', null),
 ]
