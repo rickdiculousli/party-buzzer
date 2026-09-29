@@ -10,6 +10,8 @@ import { InkBoard } from './InkBoard.tsx'
 import { InkPlayer } from './InkPlayer.tsx'
 import { SketchBoard } from './SketchBoard.tsx'
 import { SketchPlayer } from './SketchPlayer.tsx'
+import { PokerBoard } from './PokerBoard.tsx'
+import { PokerPlayer } from './PokerPlayer.tsx'
 
 export type MinigamePlayerProps = {
   state: State
@@ -40,4 +42,5 @@ export const MINIGAMES: Record<MinigameId, MinigameEntry> = {
   tank: { ...MINIGAME_INFO.tank, player: TankPlayer, board: TankBoard },
   ink: { ...MINIGAME_INFO.ink, player: InkPlayer, board: InkBoard },
   sketch: { ...MINIGAME_INFO.sketch, player: SketchPlayer, board: SketchBoard },
+  poker: { ...MINIGAME_INFO.poker, player: PokerPlayer, board: PokerBoard },
 }

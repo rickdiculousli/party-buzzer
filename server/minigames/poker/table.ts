@@ -28,7 +28,7 @@ function table(seed: number, opts: PokerOptions, seats: PokerCheckpoint['seats']
       player, stack, startStack: stack, hole: null, bet: 0, contributed: 0,
       folded: false, acted: false, mayRaise: true, connected: true, faceUp: false, out,
     })),
-    busted: [], button, bbSeat: 0, handNo: 0, elapsedBase: 0,
+    busted: [], button, sbSeat: 0, bbSeat: 0, handNo: 0, elapsedBase: 0,
     bb: opts.bigBlind, sb: Math.floor(opts.bigBlind / 2), street: 'preflop', board: [], deck: [],
     actor: null, actBy: null, highBet: 0, raiseSize: opts.bigBlind, pots: [], showdown: null,
     runout: false, equity: null, feed: [], nextFeedId: 1, reactions: [], lastReact: {}, phase: { at: 'deal', until: 0 },
@@ -116,6 +116,7 @@ export function startHand(w: PokerWorld): void {
   // ponytail: the button simply moves to the next seat with chips, no dead-button rule; add one if a regular table asks.
   w.button = next(w, w.button, (seat) => !seat.out)
   const sbSeat = live.length === 2 ? w.button : next(w, w.button, (seat) => !seat.out)
+  w.sbSeat = sbSeat
   w.bbSeat = next(w, sbSeat, (seat) => !seat.out)
   w.board = []
   w.deck = handDeck(w.seed, w.handNo)

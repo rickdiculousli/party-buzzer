@@ -257,7 +257,7 @@ export type ReadingUpdate = { progress: ReadingState; active: boolean }
 /** A solo crew uses the same player for both roles. */
 export type TankCrew = { id: string; driver: PlayerId; gunner: PlayerId }
 
-export type MinigameId = 'bow' | 'tank' | 'ink' | 'sketch'
+export type MinigameId = 'bow' | 'tank' | 'ink' | 'sketch' | 'poker'
 
 /**
  * Each minigame's host-settable options, as the same schema the modes ship.
@@ -275,11 +275,18 @@ export const MINIGAME_OPTIONS: Record<MinigameId, Extract<OptionSpec, { kind: 'i
     { kind: 'int', key: 'drawSec', label: 'Draw seconds', default: 80, min: 30, max: 180 },
     { kind: 'int', key: 'drawers', label: 'Drawers (0 = everyone)', default: 0, min: 0, max: 30 },
   ],
+  poker: [
+    { kind: 'int', key: 'stack', label: 'Starting stack', default: 1500, min: 100, max: 100_000 },
+    { kind: 'int', key: 'bigBlind', label: 'Starting big blind', default: 20, min: 2, max: 10_000 },
+    { kind: 'int', key: 'levelMin', label: 'Minutes per level', default: 10, min: 1, max: 60 },
+    { kind: 'int', key: 'shotSec', label: 'Shot clock seconds', default: 30, min: 5, max: 120 },
+  ],
 }
 
 export const isMinigameId = (id: string): id is MinigameId => Object.hasOwn(MINIGAME_OPTIONS, id)
 export type MinigamePhase = 'ready' | 'countdown' | 'playing' | 'results'
-export type MinigameResult = { playerId: PlayerId; points: number; shots: number }
+/** `place` is a finishing place, for a minigame that ranks rather than scores. */
+export type MinigameResult = { playerId: PlayerId; points: number; shots: number; place?: number }
 
 /** One betting round of a poker hand. */
 export type PokerStreet = 'preflop' | 'flop' | 'turn' | 'river'
@@ -301,6 +308,63 @@ export type PokerFeedEntry = {
 }
 /** One pot's result at a showdown. */
 export type PokerPotResult = { winners: PlayerId[]; name: string; five: Card[]; amount: number }
+export type PokerLegal = { canCheck: boolean; call: number; canRaise: boolean; minTo: number; maxTo: number }
+export type PokerPhase = 'deal' | 'bet' | 'reveal' | 'runout' | 'showdown' | 'muck' | 'over'
+
+export type PokerInput =
+  | { kind: 'fold'; flick?: PokerFlick; at: number }
+  | { kind: 'check' | 'call' | 'allIn' | 'show'; at: number }
+  | { kind: 'raise'; to: number; at: number }
+  | { kind: 'react'; react: ReactKind; at: number }
+
+export type PokerSeatView = {
+  player: PlayerId
+  stack: number
+  bet: number
+  button: boolean
+  sb: boolean
+  bb: boolean
+  folded: boolean
+  allIn: boolean
+  busted: boolean
+  away: boolean
+  /** Only once the cards are face up. */
+  cards: [Card, Card] | null
+}
+
+/** What the board sees, and every phone underneath its private fields. */
+export type PokerShared = {
+  phase: PokerPhase
+  street: PokerStreet
+  seats: PokerSeatView[]
+  board: Card[]
+  pots: number[]
+  actor: PlayerId | null
+  /** Server time the actor's shot clock runs out. */
+  actBy: number | null
+  handNo: number
+  sb: number
+  bb: number
+  /** Server time the blinds next rise. */
+  nextLevelAt: number
+  /** Win share per hand while a runout deals. */
+  equity: Record<PlayerId, number> | null
+  runout: boolean
+  showdown: PokerPotResult[] | null
+  feed: PokerFeedEntry[]
+  reactions: { id: number; player: PlayerId; kind: ReactKind }[]
+  /** Cards folded this hand. */
+  discard: number
+}
+
+export type PokerPrivate = {
+  hole: [Card, Card] | null
+  /** Null when it is not this player's turn. */
+  legal: PokerLegal | null
+  canShow: boolean
+  /** Set once this player is out. */
+  place: number | null
+}
 
 export type InkTeamName = 'sun' | 'moon'
 
@@ -440,14 +504,14 @@ export type MinigameInputMsg = {
   t: 'minigameInput'
   matchId: string
   seq: number
-  input: BowInput | TankInput | InkInput | SketchInput
+  input: BowInput | TankInput | InkInput | SketchInput | PokerInput
 }
 
 export type MinigameInputAck = {
   matchId: string
   seq: number
   status: 'accepted' | 'refused'
-  reason?: 'stale-match' | 'not-playing' | 'not-participant' | 'invalid' | 'reloading' | 'capacity' | 'destroyed' | 'not-allowed'
+  reason?: 'stale-match' | 'not-playing' | 'not-participant' | 'invalid' | 'reloading' | 'capacity' | 'destroyed' | 'not-allowed' | 'too-soon'
 }
 
 export type BowFramePlayer = {
@@ -518,6 +582,8 @@ export type MinigameFrame =
   | (FrameBase<'ink'> & { role: 'player' } & InkShared & InkPrivate)
   | (FrameBase<'sketch'> & { role: 'board' } & SketchShared)
   | (FrameBase<'sketch'> & { role: 'player' } & SketchShared & SketchPrivate)
+  | (FrameBase<'poker'> & { role: 'board' } & PokerShared)
+  | (FrameBase<'poker'> & { role: 'player' } & PokerShared & PokerPrivate)
   | (FrameBase<MinigameId> & { role: 'spectator' })
 
 export type InkStrokeView = { points: InkPoint[]; author: PlayerId; peek?: true }

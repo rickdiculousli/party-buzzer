@@ -1,5 +1,5 @@
 import type {
-  Card, PlayerId, PokerFeedEntry, PokerFlick, PokerPotResult, PokerStreet, ReactKind,
+  Card, PlayerId, PokerFeedEntry, PokerFlick, PokerLegal, PokerPotResult, PokerStreet, ReactKind,
 } from '../../../shared/protocol.ts'
 import type { Pot } from './pots.ts'
 
@@ -42,6 +42,7 @@ export type PokerWorld = {
   seats: Seat[]
   busted: { player: PlayerId; place: number }[]
   button: number
+  sbSeat: number
   bbSeat: number
   handNo: number
   /** Level ticks played before this world began, from a checkpoint. */
@@ -86,4 +87,4 @@ export type PokerAction =
   | { kind: 'check' | 'call' | 'allIn' | 'show' }
   | { kind: 'raise'; to: number }
 
-export type Legal = { canCheck: boolean; call: number; canRaise: boolean; minTo: number; maxTo: number }
+export type Legal = PokerLegal
