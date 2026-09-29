@@ -1,5 +1,8 @@
 import type { SketchEnd, SketchShared } from '../shared/protocol.ts'
 import type { Cue } from './sound.ts'
+import { ordinal } from './ui.ts'
+
+export { ordinal }
 
 /** A board or phone frame, as far as cues and wording need one. */
 export type SketchView = SketchShared & { matchId: string; tick: number; serverTime: number; close?: number }
@@ -137,8 +140,3 @@ export function wipeCut(top: number, bottom: number, nextTop: number | null, gap
 
 export const fmtSeconds = (ms: number) => `+${(ms / 1000).toFixed(2)}s`
 
-export function ordinal(n: number): string {
-  const teen = n % 100 >= 11 && n % 100 <= 13
-  const suffix = teen ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th'
-  return `${n}${suffix}`
-}

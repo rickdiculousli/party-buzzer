@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { useOpen, useSocket } from './useSocket.ts'
-import { REFUSAL_TEXT, colorForPlayer, credits, playerName, standings } from './ui.ts'
+import { REFUSAL_TEXT, colorForPlayer, credits, ordinal, playerName, standings } from './ui.ts'
 import { refuses } from '../shared/legality.ts'
 import { DuelPanel } from './DuelPanel.tsx'
 import { HostGames, HostPlayers, LobbyTeams } from './HostSetup.tsx'
@@ -23,6 +23,12 @@ const tabFromHash = (): Tab => {
   return (TABS as readonly string[]).includes(h) ? (h as Tab) : 'play'
 }
 
+/** Minutes and seconds left, never negative. */
+const clockLeft = (ms: number) => {
+  const sec = Math.max(0, Math.ceil(ms / 1000))
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`
+}
+
 /** The Play tab while a minigame is up: its clock, its lobby and its way out. */
 function MatchDesk({ state, act, now }: {
   state: State
@@ -42,16 +48,21 @@ function MatchDesk({ state, act, now }: {
         : session.phase === 'playing' ? `${remaining} seconds left` : `${session.options.durationSec} second match`}</p>
       {session.phase === 'ready' && game.picksTeams && <p class="muted">Players pick sides on their phones.</p>}
       <p class="muted">{session.participants.length} players in this match</p>
+      {session.status?.map((line) => <p key={line.text}>
+        {line.text}{line.until !== undefined && <> · <span class="readout">{clockLeft(line.until - now())}</span></>}
+      </p>)}
       {session.phase === 'ready' && <div class="host__minor">
-        <button class="btn btn--major btn--primary" onClick={() => act({ a: 'startMinigame' })}>Start match</button>
+        <button class="btn btn--major btn--primary" onClick={() => act({ a: 'startMinigame' })}>
+          {session.checkpoint ? `Resume from ${session.checkpoint.label}` : 'Start match'}
+        </button>
         {close}
       </div>}
       {(session.phase === 'countdown' || session.phase === 'playing') && <button class="btn btn--major btn--no" onClick={() => act({ a: 'cancelMinigame' })}>Cancel match</button>}
       {session.phase === 'results' && <>
         <ol class="host__order">
-          {session.results?.map((result) => <li key={result.playerId} class="row">
+          {[...session.results ?? []].sort((a, b) => (a.place ?? 0) - (b.place ?? 0)).map((result) => <li key={result.playerId} class="row">
             <span class="row__label">{playerName(state, result.playerId)}</span>
-            <span class="readout">+{result.points}</span>
+            <span class="readout">{result.place ? ordinal(result.place) : `+${result.points}`}</span>
           </li>)}
         </ol>
         <div class="host__minor">

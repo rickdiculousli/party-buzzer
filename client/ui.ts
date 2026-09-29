@@ -176,3 +176,9 @@ export function packLabel(state: State, pack: string): string {
 export function credits(chars: number): string {
   return Math.round(chars * 0.55).toLocaleString()
 }
+
+export function ordinal(n: number): string {
+  const teen = n % 100 >= 11 && n % 100 <= 13
+  const suffix = teen ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th'
+  return `${n}${suffix}`
+}
