@@ -81,12 +81,13 @@ and simultaneous play.
 
 Open **Tank battle** on the host's Games tab and press **Start match**. Start pairs connected
 players into random two-person crews; an odd player out drives and guns a tank
-alone. Both players turn their phones sideways and tilt the phone's long edge
-left or right. The driver tilts to turn the hull and holds Forward or Back; the
-gunner points the on-screen dial where they want to fire, holds Gun, and taps Cannon. On iPhones, tap
-**Enable tilt** when prompted. Hold the phone with its speaker/top end on the
+alone. Both players turn their phones sideways. The driver points a dial where
+the tank should head and holds Forward or Back; the hull swings toward that
+heading at a steady pace, and faint rails beside the tank on the board show the
+heading it is turning to. The gunner points their own dial where they want to
+fire, holds Gun, and taps Cannon. Hold the phone with its speaker/top end on the
 left and charging-port end on the right; the play view compensates when screen
-rotation is locked. A solo crew's tilt turns only the hull and its turret stays
+rotation is locked. A solo crew's dial steers only the hull and its turret stays
 pointed straight forward. The turret turns with the hull, so crews have to
 coordinate their aim. Shots carve the cover, destroyed tanks respawn after
 three seconds, and each crew's damage and kill points are added to both members'

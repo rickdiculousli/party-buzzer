@@ -17,7 +17,7 @@ export function TankBoard({ state, frame, now }: MinigameBoardProps) {
   const path = useRef('')
   const blasts = useRef<{ x: number; y: number; radius: number; at: number }[]>([])
   const seen = useRef<TankBoardFrame | null>(null)
-  const angles = useRef(new Map<string, { hull: number; turret: number }>())
+  const angles = useRef(new Map<string, { hull: number; turret: number; heading?: number }>())
   const angleMatch = useRef('')
 
   if (angleMatch.current !== session.matchId) {
@@ -69,12 +69,19 @@ export function TankBoard({ state, frame, now }: MinigameBoardProps) {
           const prior = angles.current.get(tank.id)
           const hull = nearestAngleDegrees(prior?.hull, tank.hull)
           const turret = nearestAngleDegrees(prior?.turret, tank.turret)
-          angles.current.set(tank.id, { hull, turret })
+          const heading = tank.hullTarget === null ? undefined : nearestAngleDegrees(prior?.heading, tank.hullTarget)
+          angles.current.set(tank.id, { hull, turret, heading })
           const names = tank.crew.driver === tank.crew.gunner
             ? nameOf(tank.crew.driver)
             : `${nameOf(tank.crew.driver)} & ${nameOf(tank.crew.gunner)}`
           return (
             <g key={tank.id} class="tank-field__position" transform={`translate(${x} ${y})`} style={{ color: colorForPlayer(state, tank.crew.driver) }} opacity={tank.dead ? 0.25 : tank.invulnerable ? 0.6 : 1}>
+              {!tank.dead && heading !== undefined && (
+                <g class="tank-field__rotation" transform={`rotate(${heading})`}>
+                  <line x1="-25" x2="25" y1="-26" y2="-26" class="tank-field__heading" />
+                  <line x1="-25" x2="25" y1="26" y2="26" class="tank-field__heading" />
+                </g>
+              )}
               <g class="tank-field__rotation" transform={`rotate(${hull})`}>
                 <rect x="-25" y="-17" width="50" height="34" rx="4" class="tank-field__hull" />
                 <g class="tank-field__rotation" transform={`rotate(${turret})`}>

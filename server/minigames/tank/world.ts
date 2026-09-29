@@ -26,6 +26,8 @@ const reached = (world: TankWorld, ms: number) => world.nowMs + 1e-6 >= ms
 const wrap = (radians: number) => Math.atan2(Math.sin(radians), Math.cos(radians))
 const TURN_INPUT_TTL_MS = 200
 const TURRET_AIM_RADIANS_PER_SEC = Math.PI * 4
+// Tunable: the hull swings slowly so a dial flick reads as steering, not a snap.
+const HULL_AIM_RADIANS_PER_SEC = Math.PI * 0.75
 
 export function formCrews(random: () => number, participants: string[]): TankCrew[] {
   const order = shuffle(random, [...participants].sort())
@@ -55,7 +57,7 @@ export function createTankWorld(input: {
   const tanks: Tank[] = input.crews.map((crew, index) => {
     const position = spawnPoint(SPAWNS, index)
     return {
-      id: crew.id, crew, position, hull: facingCenter(position), turret: 0, turretTarget: null,
+      id: crew.id, crew, position, hull: facingCenter(position), hullTarget: null, turret: 0, turretTarget: null,
       hullTurnRate: 0, turretTurnRate: 0, hullTurnUntilMs: 0, turretTurnUntilMs: 0,
       hp: config.hp,
       drive: 0, gunHeld: false,
@@ -103,6 +105,11 @@ export function applyTankInput(world: TankWorld, playerId: string, input: TankIn
       tank.turretTurnRate = rate
       tank.turretTurnUntilMs = rate === 0 ? world.nowMs : world.nowMs + TURN_INPUT_TTL_MS
     }
+    return { status: 'accepted' }
+  }
+  if (input.kind === 'hullAim') {
+    if (!driver) return { status: 'refused', reason: 'invalid' }
+    tank.hullTarget = wrap(input.angle)
     return { status: 'accepted' }
   }
   if (input.kind === 'turretAim') {
@@ -311,7 +318,7 @@ function respawn(world: TankWorld, tank: Tank): void {
   const spot = world.spawns.reduce((best, spawn) => clearance(spawn) > clearance(best) ? spawn : best)
   const { config } = world
   Object.assign(tank, {
-    position: { ...spot }, hull: facingCenter(spot), turret: 0, turretTarget: null, hp: config.hp,
+    position: { ...spot }, hull: facingCenter(spot), hullTarget: null, turret: 0, turretTarget: null, hp: config.hp,
     hullTurnRate: 0, turretTurnRate: 0, hullTurnUntilMs: 0, turretTurnUntilMs: 0,
     gunClip: config.gun.clip, gunNextShotMs: 0, gunReloadUntilMs: 0,
     cannonClip: config.cannon.clip, cannonReloadUntilMs: 0,
@@ -322,17 +329,18 @@ function respawn(world: TankWorld, tank: Tank): void {
 function turn(world: TankWorld, tank: Tank, dt: number): void {
   if (reached(world, tank.hullTurnUntilMs)) tank.hullTurnRate = 0
   if (reached(world, tank.turretTurnUntilMs)) tank.turretTurnRate = 0
-  tank.hull = wrap(tank.hull + tank.hullTurnRate * world.config.radiansPerTurn * dt)
-  if (tank.turretTarget === null) {
-    tank.turret = wrap(tank.turret + tank.turretTurnRate * world.config.radiansPerTurn * dt)
-    return
-  }
-  const targetRelativeToHull = wrap(tank.turretTarget - tank.hull)
-  const remaining = wrap(targetRelativeToHull - tank.turret)
-  const step = TURRET_AIM_RADIANS_PER_SEC * dt
-  tank.turret = Math.abs(remaining) <= step
-    ? targetRelativeToHull
-    : wrap(tank.turret + Math.sign(remaining) * step)
+  tank.hull = tank.hullTarget === null
+    ? wrap(tank.hull + tank.hullTurnRate * world.config.radiansPerTurn * dt)
+    : approach(tank.hull, tank.hullTarget, HULL_AIM_RADIANS_PER_SEC * dt)
+  tank.turret = tank.turretTarget === null
+    ? wrap(tank.turret + tank.turretTurnRate * world.config.radiansPerTurn * dt)
+    : approach(tank.turret, wrap(tank.turretTarget - tank.hull), TURRET_AIM_RADIANS_PER_SEC * dt)
+}
+
+/** Step an angle toward a target by at most `step` radians, the short way round. */
+function approach(angle: number, target: number, step: number): number {
+  const remaining = wrap(target - angle)
+  return Math.abs(remaining) <= step ? target : wrap(angle + Math.sign(remaining) * step)
 }
 
 export function tankResults(world: TankWorld): MinigameResult[] {

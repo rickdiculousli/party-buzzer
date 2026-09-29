@@ -61,6 +61,18 @@ test('a turn rate rotates on every fixed simulation step', () => {
   close(world.tanks[0].hull - first, Math.PI / 120)
 })
 
+test('the driver dial swings the hull gradually toward its heading, then holds it', () => {
+  const world = open([DG])
+  const start = world.tanks[0].hull
+  const target = Math.atan2(Math.sin(start + Math.PI / 2), Math.cos(start + Math.PI / 2))
+  assert.deepEqual(applyTankInput(world, 'g', { kind: 'hullAim', angle: target }), { status: 'refused', reason: 'invalid' })
+  assert.deepEqual(applyTankInput(world, 'd', { kind: 'hullAim', angle: target }), { status: 'accepted' })
+  steps(world, 30)
+  close(world.tanks[0].hull, start + Math.PI * 0.75 / 2)
+  steps(world, 60)
+  close(world.tanks[0].hull, target)
+})
+
 test('a stale turn rate expires when its phone stops refreshing it', () => {
   const world = open([DG])
   const turn = { kind: 'turn', rate: 1 } as const

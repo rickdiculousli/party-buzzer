@@ -333,6 +333,7 @@ export type TankInput =
   | { kind: 'wheel'; turns: number; part?: 'hull' | 'turret' }
   | { kind: 'turn'; rate: number; part?: 'hull' | 'turret' }
   | { kind: 'turretAim'; angle: number }
+  | { kind: 'hullAim'; angle: number }
   | { kind: 'drive'; dir: -1 | 0 | 1 }
   | { kind: 'trigger'; weapon: 'gun' | 'cannon'; down: boolean; at: number }
 
@@ -447,6 +448,8 @@ export type TankFrameTank = {
   hull: number
   /** Radians relative to the hull. */
   turret: number
+  /** Absolute heading the driver is steering toward. */
+  hullTarget: number | null
   hp: number
   dead: boolean
   invulnerable: boolean

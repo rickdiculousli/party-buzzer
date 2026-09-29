@@ -1,39 +1,14 @@
 import type { ComponentChildren } from 'preact'
-import { useEffect, useRef, useState } from 'preact/hooks'
+import { useRef, useState } from 'preact/hooks'
 import type { TankFrameWeapon, TankInput } from '../shared/protocol.ts'
 import { nextBowSequence } from './bow-control.ts'
 import type { MinigamePlayerProps } from './minigames.tsx'
 import { useSideways } from './useSideways.ts'
-import {
-  lengthwiseTilt, reloadProgress, tiltIndicatorFeedback, tiltTurnRate,
-  wheelTurns, type TankViewRotation,
-} from './tank-control.ts'
+import { reloadProgress, wheelTurns, type TankViewRotation } from './tank-control.ts'
 
-type MotionState = 'checking' | 'needs-permission' | 'ready' | 'denied' | 'unavailable'
 const CRANK_SPOKES = [0, 60, 120, 180, 240, 300]
 
-function TiltMeter({ tilt }: { tilt: number | null }) {
-  const feedback = tiltIndicatorFeedback(tilt)
-  return (
-    <div
-      class={feedback.maxed ? 'tank-tilt is-maxed' : 'tank-tilt'}
-      aria-label={tilt === null ? 'Waiting for phone tilt' : `${Math.round(feedback.angle)} degrees tilt`}
-    >
-      <svg viewBox="-110 -45 220 90" aria-hidden="true">
-        <path d="M-95 0H95" class="tank-tilt__level" />
-        <path d="M0-32V32" class="tank-tilt__center" />
-        <g transform={`rotate(${feedback.angle})`}>
-          <path d="M-88 0H88" class="tank-tilt__phone" />
-          <circle cx="-88" r="7" class="tank-tilt__end" />
-          <circle cx="88" r="7" class="tank-tilt__end" />
-        </g>
-      </svg>
-      <span>{tilt === null ? 'Hold level' : `${Math.round(Math.abs(feedback.angle))}° ${feedback.angle < 0 ? 'left' : feedback.angle > 0 ? 'right' : 'center'}`}</span>
-    </div>
-  )
-}
-
-function Crank({ viewRotation, onAim }: { viewRotation: TankViewRotation; onAim: (angle: number) => void }) {
+function Crank({ label, viewRotation, onAim }: { label: string; viewRotation: TankViewRotation; onAim: (angle: number) => void }) {
   const last = useRef<number | null>(null)
   const unwrapped = useRef(0)
   const [shown, setShown] = useState(0)
@@ -45,7 +20,7 @@ function Crank({ viewRotation, onAim }: { viewRotation: TankViewRotation; onAim:
   return (
     <div
       class="tank-wheel"
-      aria-label="Turret crank"
+      aria-label={label}
       onPointerDown={(event) => {
         ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
         const angle = angleOf(event)
@@ -78,7 +53,7 @@ function Crank({ viewRotation, onAim }: { viewRotation: TankViewRotation; onAim:
           <circle cx="80" r="15" class="tank-wheel__knob" />
         </g>
       </svg>
-      <span>Point where you want to fire</span>
+      <span>{label}</span>
     </div>
   )
 }
@@ -135,65 +110,8 @@ export function TankPlayer({ state, playerId, frame, now, send }: MinigamePlayer
   const input = (value: TankInput) =>
     sendRef.current({ t: 'minigameInput', matchId: session.matchId, seq: nextBowSequence(localStorage), input: value })
 
-  const [motion, setMotion] = useState<MotionState>('checking')
-  const [shownTilt, setShownTilt] = useState<number | null>(null)
   const viewRotation = useSideways()
-  const tilt = useRef<number | null>(null)
-  const shownDegrees = useRef<number | null>(null)
-  useEffect(() => {
-    if (!driver) return
-    if (typeof DeviceOrientationEvent === 'undefined') {
-      setMotion('unavailable')
-      return
-    }
-    const sensor = DeviceOrientationEvent as typeof DeviceOrientationEvent & {
-      requestPermission?: () => Promise<'granted' | 'denied'>
-    }
-    setMotion(sensor.requestPermission ? 'needs-permission' : 'ready')
-  }, [driver])
-
-  const enableMotion = async () => {
-    const sensor = DeviceOrientationEvent as typeof DeviceOrientationEvent & {
-      requestPermission?: () => Promise<'granted' | 'denied'>
-    }
-    try {
-      setMotion(!sensor.requestPermission || await sensor.requestPermission() === 'granted' ? 'ready' : 'denied')
-    } catch {
-      setMotion('denied')
-    }
-  }
-
-  useEffect(() => {
-    if (!driver || motion !== 'ready') return
-    const orient = (event: DeviceOrientationEvent) => {
-      if (event.beta === null) return
-      const next = lengthwiseTilt(event.beta)
-      tilt.current = next
-      const rounded = Math.round(next)
-      if (shownDegrees.current !== rounded) {
-        shownDegrees.current = rounded
-        setShownTilt(next)
-      }
-    }
-    window.addEventListener('deviceorientation', orient)
-    return () => {
-      window.removeEventListener('deviceorientation', orient)
-      tilt.current = null
-      shownDegrees.current = null
-      setShownTilt(null)
-    }
-  }, [driver, motion])
-
   const held = useRef({ forward: false, back: false })
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (!driver || session.phase !== 'playing' || tilt.current === null) return
-      const rate = tiltTurnRate(tilt.current, 'driver')
-      input(solo ? { kind: 'turn', rate, part: 'hull' } : { kind: 'turn', rate })
-    }, 33)
-    return () => clearInterval(id)
-  }, [session.matchId, session.phase, driver, solo])
-
   const drive = (key: 'forward' | 'back', down: boolean) => {
     held.current[key] = down
     input({ kind: 'drive', dir: held.current.forward ? 1 : held.current.back ? -1 : 0 })
@@ -208,12 +126,8 @@ export function TankPlayer({ state, playerId, frame, now, send }: MinigamePlayer
     : session.phase === 'ready' ? 'Waiting for host'
     : respawn !== null ? `Respawning in ${respawn}`
     : role
-  const controlMessage = !driver ? gunner ? 'Point the dial where you want to fire' : 'Watching this match'
-    : motion === 'needs-permission' ? 'Enable tilt controls'
-    : motion === 'denied' ? 'Tilt access denied — allow Motion & Orientation in browser settings'
-    : motion === 'unavailable' ? 'This browser does not provide tilt controls'
-    : shownTilt === null ? 'Turn sideways and hold the phone level'
-    : 'Tilt to steer · hold Forward or Back to drive'
+  const controlMessage = driver ? 'Point the dial where you want to go · hold Forward or Back to drive'
+    : gunner ? 'Point the dial where you want to fire' : 'Watching this match'
   const rotationClass = viewRotation === 90 ? ' tank-phone--rotate-cw'
     : viewRotation === -90 ? ' tank-phone--rotate-ccw'
     : viewRotation === 180 ? ' tank-phone--rotate-half'
@@ -226,15 +140,14 @@ export function TankPlayer({ state, playerId, frame, now, send }: MinigamePlayer
         <span>{crew ? `${role}${partner && !solo ? ` with ${partner}` : ''} · ${mine?.tank.hp ?? 100} HP · ${mine?.tank.score ?? 0} pts` : 'Spectating until the next match'}</span>
         <span>{controlMessage}</span>
         {viewRotation !== 0 && <span class="tank-orientation-hint">Turn sideways · speaker end left</span>}
-        {driver && (motion === 'needs-permission' || motion === 'denied') && <button class="tank-motion" onClick={enableMotion}>Enable tilt</button>}
       </header>
       <div class={mine && session.phase === 'playing' ? 'tank-phone__roles is-active' : 'tank-phone__roles'}>
         {driver && (
-          <section class="tank-role">
-            <TiltMeter tilt={shownTilt} />
+          <section class="tank-role tank-role--driver">
+            <Crank label="Point where you want to go" viewRotation={viewRotation} onAim={(angle) => input({ kind: 'hullAim', angle })} />
             <div class="tank-buttons">
-              <HoldButton class="tank-btn" onHold={(down) => drive('back', down)}><span class="tank-btn__text">Back</span></HoldButton>
               <HoldButton class="tank-btn" onHold={(down) => drive('forward', down)}><span class="tank-btn__text">Forward</span></HoldButton>
+              <HoldButton class="tank-btn" onHold={(down) => drive('back', down)}><span class="tank-btn__text">Back</span></HoldButton>
             </div>
           </section>
         )}
@@ -242,7 +155,7 @@ export function TankPlayer({ state, playerId, frame, now, send }: MinigamePlayer
           <section class="tank-role tank-role--gunner">
             {solo
               ? <div class="tank-turret-lock"><strong>Turret forward</strong><span>Aim by steering the hull</span></div>
-              : <Crank viewRotation={viewRotation} onAim={(angle) => input({ kind: 'turretAim', angle })} />}
+              : <Crank label="Point where you want to fire" viewRotation={viewRotation} onAim={(angle) => input({ kind: 'turretAim', angle })} />}
             <div class="tank-buttons">
               <WeaponButton name="Gun" weapon={mine?.tank.gun} now={now()} onHold={(down) => trigger('gun', down)} />
               <WeaponButton name="Cannon" weapon={mine?.tank.cannon} now={now()} onHold={(down) => trigger('cannon', down)} />

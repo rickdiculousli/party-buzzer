@@ -8,7 +8,7 @@ const FULL_COVER_EVERY_TICKS = 60
 const finite = (n: unknown) => typeof n === 'number' && Number.isFinite(n)
 
 const projectTank = (world: TankWorld, tank: Tank) => ({
-  id: tank.id, crew: tank.crew, position: { ...tank.position }, hull: tank.hull, turret: tank.turret,
+  id: tank.id, crew: tank.crew, position: { ...tank.position }, hull: tank.hull, turret: tank.turret, hullTarget: tank.hullTarget,
   hp: tank.hp, dead: tank.deadUntilMs !== null, invulnerable: world.nowMs < tank.invulnerableUntilMs, score: tank.score,
 })
 
@@ -30,7 +30,7 @@ export const tank: MinigameDefinition<TankWorld> = {
     const i = input as { kind?: unknown; turns?: unknown; rate?: unknown; angle?: unknown; part?: unknown; dir?: unknown; weapon?: unknown; down?: unknown; at?: unknown } | null
     if (i?.kind === 'wheel') return finite(i.turns) && (i.part === undefined || i.part === 'hull' || i.part === 'turret') ? 'continuous' : null
     if (i?.kind === 'turn') return finite(i.rate) && (i.part === undefined || i.part === 'hull' || i.part === 'turret') ? 'continuous' : null
-    if (i?.kind === 'turretAim') return finite(i.angle) ? 'continuous' : null
+    if (i?.kind === 'turretAim' || i?.kind === 'hullAim') return finite(i.angle) ? 'continuous' : null
     if (i?.kind === 'drive') return i.dir === -1 || i.dir === 0 || i.dir === 1 ? 'continuous' : null
     if (i?.kind === 'trigger') {
       return (i.weapon === 'gun' || i.weapon === 'cannon') && typeof i.down === 'boolean' && finite(i.at) ? 'discrete' : null
