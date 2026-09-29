@@ -690,11 +690,16 @@ feels bigger than the screen. The felt is layered, not flat: `--felt-grain`
 gradient. A warm lamp pool sits over the middle; on the board a second pool
 follows the player to act, and on the phone the lamp brightens on your turn.
 
-Words on the cloth are printed, never set as UI: `FeltMark` and `FeltArc`
-lay thin `--felt-ink` over a `--felt-press` impression a pixel above it, so
-the letters look pressed into the nap. The phone prints its two instructions
-on arcs, the way a table prints "insurance pays 2 to 1". The board prints a
-betting line and the Party Buzzer mark.
+Marks on the cloth are the cloth itself, sheared shorter, never gold ink or
+UI type: `FeltMark` and `FeltArc` fill the letters with a pale, fine
+`--felt-shear` fleck at low `--felt-ink` strength, and a blurred
+`--felt-press` shadow sits along their upper edge where the long pile stands
+over them. The phone carries its two instructions on arcs, the way a table
+carries "insurance pays 2 to 1". The board has a sheared betting line and the
+Party Buzzer mark in the middle, where the board cards and the pot lie on top
+of it as they would on a real table; no printed mark ever crosses another.
+Every noise tile's frequency times its size is whole, so tiles meet without a
+seam, and the slow mottle is one untiled sheet.
 
 Cards are poker size (63 × 88 mm), radius 5.6% of the width, with ivory
 `--card-face` stock, a hairline and a `--card-edge` cut edge, and a shadow
@@ -708,14 +713,18 @@ actions sit on a stitched leather rail (`--leather`) as plaques; reactions
 are printed tokens on the cloth. Win % and the shot clock stay cyan readouts
 without effects.
 
-Motion is physics, not keyframes: `client/toss.ts` slides everything under
-constant friction. The dealer sits off the top edge and pitches every card
-one at a time, clockwise from the small blind, spinning in and settling; the
-second hole card catches the first and nudges it. The flop lands face down
-and turns together. A fold is thrown along the flick with spin and bowed
-flutter, lies in the middle, and is swept to the muck; a timeout is a limp
-push. Bets slide to the line and are swept into the pot as a street closes;
-the pot slides to the winner. Tunables live in `TOSS`; the harness's Poker
+Motion follows hands, not keyframes: `client/toss.ts` models three. A
+dealer's pitch leaves the fingers low and flat, turning 8–45°, and slides to
+rest under friction; the second hole card catches the first and nudges it. A
+firm flick throws a fold from between the fingers, bent the way the flick
+went; a soft flick or a timeout pushes the cards, which ride the hand, speed
+up, and are let go. No card turns more than a quarter turn, and spin bleeds
+off more slowly than speed, so a card is still easing round as it stops
+rather than squaring up early. Cards come to rest a few degrees off square,
+fixed per card. The flop lands face down and turns together; folds lie in the
+middle and the dealer pulls them to the muck. Bets slide to the line and are
+swept into the pot as a street closes; the pot slides to the winner. A level
+change prints over a dark oval so it reads over the play. Tunables live in `TOSS`; the harness's Poker
 scenarios preview the deal and the three kinds of fold.
 
 ---

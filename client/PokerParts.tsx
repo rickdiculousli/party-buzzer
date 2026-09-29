@@ -69,14 +69,26 @@ export function FeltMark({ text, class: cls = '' }: { text: string; class?: stri
   </span>
 }
 
-/** Printed felt words along an arc, the way a table prints "insurance pays 2 to 1". `bow` up is a frown, down a smile. */
+/**
+ * Sheared words along an arc, the way a table carries "insurance pays 2 to 1".
+ * The letters get a short-pile fleck from noise composited into them. `bow` up
+ * is a frown, down a smile.
+ */
 export function FeltArc({ text, bow, class: cls = '' }: { text: string; bow: 'up' | 'down'; class?: string }) {
   const id = useRef(`arc-${Math.random().toString(36).slice(2)}`).current
   const d = bow === 'up' ? 'M24 78 Q200 -2 376 78' : 'M24 10 Q200 90 376 10'
   return <svg class={`felt-arc ${cls}`} viewBox="0 0 400 88" role="img" aria-label={text}>
+    <defs>
+      <filter id={`${id}-pile`} x="0" y="0" width="100%" height="100%">
+        <feTurbulence type="fractalNoise" baseFrequency="1.2" numOctaves="2" seed="3" result="fleck" />
+        <feColorMatrix in="fleck" values="0 0 0 0 .8  0 0 0 0 .95  0 0 0 0 .85  0 0 0 .6 0" result="pale" />
+        <feComposite in="pale" in2="SourceGraphic" operator="in" result="short" />
+        <feMerge><feMergeNode in="SourceGraphic" /><feMergeNode in="short" /></feMerge>
+      </filter>
+    </defs>
     <path id={id} d={d} fill="none" />
     <text class="felt-arc__press"><textPath href={`#${id}`} startOffset="50%" text-anchor="middle">{text}</textPath></text>
-    <text class="felt-arc__ink"><textPath href={`#${id}`} startOffset="50%" text-anchor="middle">{text}</textPath></text>
+    <text class="felt-arc__ink" filter={`url(#${id}-pile)`}><textPath href={`#${id}`} startOffset="50%" text-anchor="middle">{text}</textPath></text>
   </svg>
 }
 

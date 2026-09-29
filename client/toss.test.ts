@@ -53,11 +53,39 @@ test('the same seed throws the same card', () => {
   assert.deepEqual(a, b)
 })
 
-test('a dealer pitch spins in from the dealer and settles square on the spot', () => {
-  const frames = pitch({ x: 500, y: -60 }, { x: 200, y: 600, rot: -4 }, mulberry32(7))
-  assert.deepEqual({ x: frames[0].x, y: frames[0].y }, { x: 500, y: -60 })
-  assert.ok(Math.abs(frames[0].rot - -4) >= 30, 'no spin')
-  assert.equal(frames[frames.length - 1].rot, -4)
+test('a dealer pitch turns a little in from the dealer and settles on its spot', () => {
+  for (let seed = 1; seed < 40; seed++) {
+    const frames = pitch({ x: 500, y: -60 }, { x: 200, y: 600, rot: -4 }, mulberry32(seed))
+    const spin = frames[0].rot - -4
+    assert.ok(Math.abs(spin) >= 8 && Math.abs(spin) <= 45, `spin ${spin}`)
+    assert.equal(frames[frames.length - 1].rot, -4)
+  }
+})
+
+test('a card is still turning as it slows, not snapped square early', () => {
+  const frames = pitch({ x: 500, y: -60 }, { x: 200, y: 600, rot: 0 }, mulberry32(7))
+  const spin = Math.abs(frames[0].rot)
+  const late = frames[Math.floor(frames.length * 0.8)]
+  assert.ok(Math.abs(late.rot) >= spin * 0.08, `only ${late.rot} of ${spin} left at 80%`)
+})
+
+test('no throw turns a card more than a quarter turn', () => {
+  const from = { x: 500, y: 700, rot: 0 }
+  for (let seed = 1; seed < 60; seed++) {
+    for (const flick of [{ dx: 0.9, dy: -0.4, speed: 1 }, { dx: 0, dy: -1, speed: 0.5 }, null]) {
+      const thrown = toss(from, { x: 500, y: 300 }, flick, mulberry32(seed))
+      assert.ok(Math.abs(thrown.rest.rot) <= 90, `turned ${thrown.rest.rot}`)
+    }
+  }
+})
+
+test('a pushed card rides the hand before it is let go, then slows', () => {
+  const frames = slide({ x: 0, y: 0, rot: 0 }, { x: 400, y: 0, rot: 0 }, mulberry32(12), { hand: 0.35, lift: 0 })
+  const steps = frames.slice(1).map((f, i) => f.x - frames[i].x)
+  const peak = steps.indexOf(Math.max(...steps))
+  assert.ok(peak > 1 && peak < steps.length - 2, 'no hand phase')
+  for (let i = 1; i <= peak; i++) assert.ok(steps[i] >= steps[i - 1] - 1e-6, 'the hand slowed')
+  for (let i = peak + 1; i < steps.length - 1; i++) assert.ok(steps[i] <= steps[i - 1] + 1e-6, 'sped up after release')
 })
 
 test('a harder flick throws further and spins more; a timeout only nudges the cards', () => {
@@ -69,8 +97,9 @@ test('a harder flick throws further and spins more; a timeout only nudges the ca
   const dist = (r: { rest: { x: number; y: number } }) => Math.hypot(r.rest.x - from.x, r.rest.y - from.y)
   assert.ok(dist(hard) > dist(soft))
   assert.ok(dist(soft) > dist(limp))
-  assert.ok(Math.abs(hard.rest.rot) > Math.abs(soft.rest.rot))
+  assert.ok(Math.abs(hard.rest.rot) > Math.abs(limp.rest.rot))
   assert.ok(limp.frames.every((f) => f.lift === 0), 'a timeout slides, it is not thrown')
+  assert.ok(soft.frames.every((f) => f.lift === 0), 'a soft flick is a push along the cloth')
   assert.ok(hard.rest.y < from.y, 'goes toward the middle')
 })
 

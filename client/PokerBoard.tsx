@@ -33,6 +33,8 @@ const seedOf = (...parts: (string | number)[]) => {
   for (const ch of parts.join('|')) h = Math.imul(h ^ ch.charCodeAt(0), 16777619)
   return h >>> 0
 }
+/** How far off square a card comes to rest, in degrees, fixed for that card so it never moves after landing. */
+const lie = (spread: number, ...parts: (string | number)[]) => (mulberry32(seedOf('lie', ...parts))() * 2 - 1) * spread
 
 /** Entries newer than the last frame's. The first frame only sets the baseline, so a reload replays nothing. */
 function useFresh<T extends { id: number }>(list: T[] | undefined, matchId: string): T[] {
@@ -79,13 +81,13 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
   const centre = { x: ELLIPSE.cx * w, y: ELLIPSE.cy * h }
   const spots = seatPositions(seats.length).map((p) => ({ x: p.x * w, y: p.y * h }))
   const dealer = { x: centre.x, y: -cardW * 1.6 }
-  const board = (i: number): Pose => ({ x: centre.x + (i - 2) * cardW * 1.14, y: centre.y - h * 0.035, rot: 0 })
+  const board = (i: number): Pose => ({ x: centre.x + (i - 2) * cardW * 1.14, y: centre.y - h * 0.035, rot: lie(2, poker?.handNo ?? 0, 'b', i) })
   const potAt = { x: centre.x, y: centre.y + h * 0.085 }
   const muck: Pose = { x: centre.x + cardW * 3.9, y: centre.y - h * 0.035, rot: 14 }
   const holeOf = (i: number, k: 0 | 1): Pose => {
     const at = toward(spots[i], centre, HOLE_IN)
     const tilt = ((spots[i].x - centre.x) / w) * -18
-    return { x: at.x + (k ? 0.3 : -0.3) * cardW, y: at.y + (k ? 1 : 0), rot: tilt + (k ? 5 : -4) }
+    return { x: at.x + (k ? 0.3 : -0.3) * cardW, y: at.y + (k ? 1 : 0), rot: tilt + (k ? 5 : -4) + lie(3, poker?.handNo ?? 0, i, k) }
   }
   const betOf = (i: number) => toward(spots[i], centre, BET_IN)
   const seatIndex = (id: PlayerId | null) => seats.findIndex((seat) => seat.player === id)
@@ -178,8 +180,11 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
     </div>
   </main>
 
+  // Each seat's last word this hand. A hand's log starts at its two blinds.
   const lastBy = new Map<PlayerId, PokerFeedEntry>()
-  for (const entry of poker.feed) if (entry.player && entry.kind !== 'win' && entry.kind !== 'bust') lastBy.set(entry.player, entry)
+  const blindAt = poker.feed.findLastIndex((entry) => entry.kind === 'blind')
+  const handStart = blindAt > 0 && poker.feed[blindAt - 1].kind === 'blind' ? blindAt - 1 : Math.max(0, blindAt)
+  for (const entry of poker.feed.slice(handStart)) if (entry.player && entry.kind !== 'win' && entry.kind !== 'bust') lastBy.set(entry.player, entry)
   const winners = new Set(poker.showdown?.flatMap((pot) => pot.winners) ?? [])
   const five = new Set(poker.showdown?.[0]?.five ?? [])
   const handName = poker.showdown?.[0]?.name
@@ -206,10 +211,11 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
       <div class="felt__lamp felt__lamp--centre" />
       {actor >= 0 && <div class="felt__lamp felt__lamp--seat" style={{ transform: `translate(${spots[actor].x}px, ${spots[actor].y}px) translate(-50%, -50%)` }} />}
       <svg class="felt-line" viewBox={`0 0 ${w || 1} ${h || 1}`} aria-hidden="true">
-        <ellipse cx={centre.x} cy={centre.y} rx={ELLIPSE.rx * w * (1 - BET_IN) + cardW * 0.9} ry={ELLIPSE.ry * h * (1 - BET_IN) + cardW * 0.7} />
-        <ellipse cx={centre.x} cy={centre.y} rx={ELLIPSE.rx * w * (1 - BET_IN) + cardW * 0.78} ry={ELLIPSE.ry * h * (1 - BET_IN) + cardW * 0.58} />
+        {/* The betting line is sheared into the pile: a shadowed upper edge over a lighter, shorter-napped band. */}
+        <ellipse class="felt-line__shade" cx={centre.x} cy={centre.y - 1} rx={ELLIPSE.rx * w * (1 - BET_IN) + cardW * 0.84} ry={ELLIPSE.ry * h * (1 - BET_IN) + cardW * 0.64} />
+        <ellipse class="felt-line__sheen" cx={centre.x} cy={centre.y} rx={ELLIPSE.rx * w * (1 - BET_IN) + cardW * 0.84} ry={ELLIPSE.ry * h * (1 - BET_IN) + cardW * 0.64} />
       </svg>
-      <div class="poker-logo" style={{ transform: `translate(${centre.x}px, ${centre.y + h * 0.215}px) translate(-50%, -50%)` }}>
+      <div class="poker-logo" style={{ transform: `translate(${centre.x}px, ${centre.y + h * 0.01}px) translate(-50%, -50%)` }}>
         <FeltMark text="Party Buzzer" class="poker-logo__name" />
         <FeltMark text="No-limit Hold'em" class="poker-logo__game" />
       </div>
@@ -291,7 +297,7 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
         if (i < 0 || !spots[i]) return null
         return <p key={f.key} class="poker-float fx-rise" style={{ left: `${spots[i].x}px`, top: `${spots[i].y - cardW}px`, '--id': colorForPlayer(state, f.player) }}>{f.text}</p>
       })}
-      {banners.map((b) => <p key={b.key} class="poker-banner fx-zoom">{b.text}</p>)}
+      {banners.map((b) => <div key={b.key} class="poker-banner"><p class="poker-banner__text fx-zoom">{b.text}</p></div>)}
     </div>
 
     <header class="poker-hud">
