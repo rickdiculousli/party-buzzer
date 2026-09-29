@@ -112,12 +112,12 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
         const moved = (entry.amount ?? 0) - (before?.seats.find((seat) => seat.player === entry.player)?.bet ?? 0)
         if (moved > 0) {
           const to = { ...betOf(i), rot: 0 }
-          add.push({ key: `c${entry.id}`, kind: 'bet', seat: i, amount: moved, pose: to, frames: slide({ ...toward(spots[i], centre, 0.12), rot: 0 }, to, mulberry32(entry.id), { lift: 0, wobble: 0.02 }) })
+          add.push({ key: `c${entry.id}`, kind: 'bet', seat: i, amount: moved, pose: to, frames: slide({ ...toward(spots[i], centre, 0.12), rot: 0 }, to, mulberry32(entry.id), { hand: 0.4, lift: 0, wobble: 0.02 }) })
         }
       }
       if (entry.kind === 'win' && i >= 0 && motion) {
         const to = { ...toward(spots[i], centre, 0.3), rot: 0 }
-        add.push({ key: `w${entry.id}`, kind: 'chips', amount: entry.amount, pose: to, frames: slide({ ...potAt, rot: 0 }, to, mulberry32(entry.id), { lift: 0, wobble: 0.03, friction: 0.0022 }) })
+        add.push({ key: `w${entry.id}`, kind: 'chips', amount: entry.amount, pose: to, frames: slide({ ...potAt, rot: 0 }, to, mulberry32(entry.id), { hand: 0.35, lift: 0, wobble: 0.03, skidTau: 200 }) })
       }
       if (entry.kind === 'level') {
         const key = `l${entry.id}`

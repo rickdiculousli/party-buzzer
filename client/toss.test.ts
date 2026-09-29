@@ -23,12 +23,14 @@ test('friction only ever slows a slide down', () => {
   assert.ok(steps.every((s) => s >= -1e-6), 'went backwards')
 })
 
-test('a slide takes the time constant friction needs for its distance', () => {
+test('a card flies fast, then the cloth slows it to a crawl', () => {
+  const frames = slide({ x: 0, y: 0, rot: 0 }, { x: 700, y: 0, rot: 0 }, mulberry32(3))
+  const total = frames[frames.length - 1].t
+  const at = (share: number) => frames.find((f) => f.t >= total * share)!.x
+  assert.ok(at(0.4) > 700 * 0.7, `only ${at(0.4)} by 40% of the time`)
+  assert.ok(700 - at(0.6) < 700 * 0.1, `still ${700 - at(0.6)} to go in the last 40%`)
   const near = slide({ x: 0, y: 0, rot: 0 }, { x: 200, y: 0, rot: 0 }, mulberry32(3))
-  const far = slide({ x: 0, y: 0, rot: 0 }, { x: 800, y: 0, rot: 0 }, mulberry32(3))
-  const time = (f: Frame[]) => f[f.length - 1].t
-  assert.ok(Math.abs(time(far) - Math.sqrt((2 * 800) / TOSS.friction)) < TOSS.stepMs)
-  assert.ok(time(far) > time(near))
+  assert.ok(total > near[near.length - 1].t)
 })
 
 test('the path wanders sideways in flight but not at either end', () => {
@@ -53,30 +55,21 @@ test('the same seed throws the same card', () => {
   assert.deepEqual(a, b)
 })
 
-test('a dealer pitch turns a little in from the dealer and settles on its spot', () => {
-  for (let seed = 1; seed < 40; seed++) {
+test('a dealer pitch spins in the air and settles exactly on its spot', () => {
+  for (let seed = 1; seed < 30; seed++) {
     const frames = pitch({ x: 500, y: -60 }, { x: 200, y: 600, rot: -4 }, mulberry32(seed))
-    const spin = frames[0].rot - -4
-    assert.ok(Math.abs(spin) >= 8 && Math.abs(spin) <= 45, `spin ${spin}`)
+    assert.ok(Math.abs(frames[0].rot - -4) >= 20, `barely spun: ${frames[0].rot}`)
+    assert.deepEqual({ x: frames[0].x, y: frames[0].y }, { x: 500, y: -60 })
     assert.equal(frames[frames.length - 1].rot, -4)
   }
 })
 
-test('a card is still turning as it slows, not snapped square early', () => {
-  const frames = pitch({ x: 500, y: -60 }, { x: 200, y: 600, rot: 0 }, mulberry32(7))
-  const spin = Math.abs(frames[0].rot)
-  const late = frames[Math.floor(frames.length * 0.8)]
-  assert.ok(Math.abs(late.rot) >= spin * 0.08, `only ${late.rot} of ${spin} left at 80%`)
-})
-
-test('no throw turns a card more than a quarter turn', () => {
-  const from = { x: 500, y: 700, rot: 0 }
-  for (let seed = 1; seed < 60; seed++) {
-    for (const flick of [{ dx: 0.9, dy: -0.4, speed: 1 }, { dx: 0, dy: -1, speed: 0.5 }, null]) {
-      const thrown = toss(from, { x: 500, y: 300 }, flick, mulberry32(seed))
-      assert.ok(Math.abs(thrown.rest.rot) <= 90, `turned ${thrown.rest.rot}`)
-    }
-  }
+test('spin is quick in the air and the cloth drags it down', () => {
+  const frames = pitch({ x: 500, y: -60 }, { x: 200, y: 700, rot: 0 }, mulberry32(5))
+  const land = frames.findIndex((f) => f.lift === 0)
+  const turn = (i: number) => Math.abs(frames[i + 1].rot - frames[i].rot)
+  assert.ok(turn(land - 2) > 1.5 * turn(land + 1), `air ${turn(land - 2)} vs cloth ${turn(land + 1)}`)
+  assert.ok(turn(frames.length - 3) < turn(land + 1), 'the cloth does not slow the spin')
 })
 
 test('a pushed card rides the hand before it is let go, then slows', () => {

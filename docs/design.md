@@ -717,14 +717,15 @@ actions sit on a stitched leather rail (`--leather`) as plaques; reactions
 are printed tokens on the cloth. Win % and the shot clock stay cyan readouts
 without effects.
 
-Motion follows hands, not keyframes: `client/toss.ts` models three. A
-dealer's pitch leaves the fingers low and flat, turning 8–45°, and slides to
-rest under friction; the second hole card catches the first and nudges it. A
-firm flick throws a fold from between the fingers, bent the way the flick
-went; a soft flick or a timeout pushes the cards, which ride the hand, speed
-up, and are let go. No card turns more than a quarter turn, and spin bleeds
-off more slowly than speed, so a card is still easing round as it stops
-rather than squaring up early. Cards come to rest a few degrees off square,
+Motion follows hands and cloth, not keyframes: `client/toss.ts` moves a card
+in two phases. In the air it is fast and loses little speed, spinning freely;
+at touchdown the cloth takes over, drag slows it exponentially and a little
+constant friction finally stops it, so it crawls the last stretch. Touchdown
+bites into the spin and the cloth drags the rest off faster than the slide, so
+a card spins in flight and barely turns once it is skidding. How much it spins
+comes from the throw: a dealer's pitch, or how hard a player flicked. A soft
+flick or a timeout pushes the cards instead: they ride the hand, speed up, and
+are let go straight into the skid. Chips are pushed the same way. Cards come to rest a few degrees off square,
 fixed per card. The flop lands face down and turns together; folds lie in the
 middle and the dealer pulls them to the muck. Bets slide to the line and are
 swept into the pot as a street closes; the pot slides to the winner. A level

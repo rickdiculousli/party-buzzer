@@ -458,7 +458,7 @@ const dealScenario: Scenario = {
   id: 'poker-deal',
   label: 'Deal',
   family: 'Poker',
-  note: 'Two cards pitched from the dealer off the top edge, one at a time. Tune TOSS in client/toss.ts.',
+  note: 'Two cards pitched from the dealer off the top edge: fast and spinning in the air, then the cloth drags them to rest. Tune TOSS in client/toss.ts.',
   subject: '.poker-piece',
   dials: [],
   render: (lead) => pokerStage(([0, 1] as const).map((k) => {
