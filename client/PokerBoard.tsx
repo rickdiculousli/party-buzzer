@@ -27,7 +27,7 @@ const LOG_LINES = 7
  * name and notes (which run deeper above and below a seat than beside it),
  * and the bet sits past the pair toward the middle.
  */
-const HOLE_IN = { across: 1.7, along: 2.1 }
+const HOLE_IN = { across: 1.7, along: 1.75 }
 const BET_BEYOND = 1.6
 /** How far from the middle a fold always stops, in card widths: wide to the sides where the board cards and pot lie, short above and below. */
 const KEEP_CLEAR = { across: 4, along: 1.6 }

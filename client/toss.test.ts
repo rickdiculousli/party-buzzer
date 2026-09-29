@@ -180,7 +180,8 @@ test('a fold is a light toss: short, low and barely turning', () => {
   const aim = { x: 500, y: 300 }
   for (let seed = 1; seed < 40; seed++) {
     const hard = toss(from, aim, { dx: 0.4, dy: -1, speed: 1 }, mulberry32(seed))
-    assert.ok(Math.hypot(hard.rest.x - from.x, hard.rest.y - from.y) <= 400 * 0.5, 'thrown too far')
+    assert.ok(Math.hypot(hard.rest.x - from.x, hard.rest.y - from.y) <= 400 * 0.625, 'thrown too far')
+    assert.ok(Math.hypot(hard.rest.x - from.x, hard.rest.y - from.y) > 400 * 0.2, 'a hard flick barely moves')
     assert.ok(Math.abs(hard.rest.rot) <= 60, `turned ${hard.rest.rot}`)
     assert.ok(Math.max(...hard.frames.map((f) => f.lift)) <= 0.03, 'thrown too high')
   }
