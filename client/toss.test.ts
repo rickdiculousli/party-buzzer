@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mulberry32 } from '../shared/random.ts'
-import { chipStack, pitch, receive, scatter, slide, sweep, toss, RECEIVE, TOSS, type Frame } from './toss.ts'
+import { chipStack, dealSchedule, pitch, receive, scatter, slide, sweep, toss, RECEIVE, TOSS, type Frame } from './toss.ts'
 
 const along = (frames: Frame[], dx: number, dy: number) => {
   const len = Math.hypot(dx, dy)
@@ -128,28 +128,49 @@ test('a dealt card lands loose near the seat, not squared on it', () => {
   assert.ok(moved > 30, 'most cards should land visibly off their place')
 })
 
-test('the player collects the pair after the second card is down, then taps it square', () => {
+test('the player collects the pair after the second card is down, then taps it square from above', () => {
   const neat = { x: 400, y: 600, rot: 3 }
   const land = scatter(neat, 60, mulberry32(4))
   const flight = pitch({ x: 400, y: -80 }, land, mulberry32(5))
   const landedAt = flight[flight.length - 1].t
   const collectAt = landedAt + 700
-  const frames = receive(flight, neat, collectAt, { x: 0, y: 1 }, mulberry32(6))
-  // Lies where it landed until the collect.
+  const frames = receive(flight, neat, collectAt, mulberry32(6))
   for (const f of frames.filter((f) => f.t >= landedAt && f.t <= collectAt)) {
     assert.deepEqual({ x: f.x, y: f.y, rot: f.rot }, { x: land.x, y: land.y, rot: land.rot })
   }
-  // Ends exactly in place.
   const last = frames[frames.length - 1]
-  assert.deepEqual({ x: last.x, y: last.y, rot: last.rot }, neat)
-  // Two taps toward the player, each a push past its resting point and back.
+  assert.deepEqual({ x: last.x, y: last.y, rot: last.rot, lift: last.lift }, { ...neat, lift: 0 })
+  // Two taps, each a press down into the cloth: the pair dips, then comes back up.
   const after = frames.filter((f) => f.t > collectAt)
-  const pushes = after.filter((f, i) => i > 0 && i < after.length - 1 && f.y > after[i - 1].y && f.y > after[i + 1].y)
-  assert.equal(pushes.length, 2, 'expected two taps')
-  assert.ok(pushes.every((f) => f.y - neat.y <= RECEIVE.tapPx + 3), 'a tap shoves too far')
-  // Each tap straightens it further.
-  const offAt = (f: Frame) => Math.abs(f.rot - neat.rot)
-  const beforeTaps = after.find((f) => f.t >= pushes[0].t - RECEIVE.tapMs)!
-  assert.ok(offAt(pushes[0]) < offAt(beforeTaps))
-  assert.ok(offAt(pushes[1]) < offAt(pushes[0]))
+  const presses = after.filter((f) => f.lift < 0)
+  assert.equal(presses.length, 2, 'expected two taps')
+  // A tap from above never shoves the cards sideways: during the taps they only close on their place.
+  const tapping = after.filter((f) => f.t >= presses[0].t - RECEIVE.tapMs[1])
+  const gap = tapping.map((f) => Math.hypot(f.x - neat.x, f.y - neat.y))
+  for (let i = 1; i < gap.length; i++) assert.ok(gap[i] <= gap[i - 1] + 1e-9, 'a tap moved the cards away')
+  // Each tap straightens them further.
+  const off = (f: Frame) => Math.abs(f.rot - neat.rot)
+  assert.ok(off(presses[1]) < off(presses[0]))
+})
+
+test('no two players tap alike', () => {
+  const neat = { x: 400, y: 600, rot: 3 }
+  const flight = pitch({ x: 400, y: -80 }, scatter(neat, 60, mulberry32(4)), mulberry32(5))
+  const taps = (seed: number) => receive(flight, neat, 2_000, mulberry32(seed)).filter((f) => f.lift < 0).map((f) => [Math.round(f.t), f.lift.toFixed(4)].join())
+  assert.notDeepEqual(taps(1), taps(2))
+})
+
+test('the dealer keeps no metronome: gaps vary but the deal fits its window', () => {
+  const starts = dealSchedule(12, 1_300, 150, mulberry32(3))
+  assert.equal(starts.length, 12)
+  assert.equal(starts[0], 0)
+  const gaps = starts.slice(1).map((s, i) => s - starts[i])
+  assert.ok(gaps.every((g) => g > 0))
+  assert.ok(new Set(gaps.map((g) => Math.round(g))).size > 6, 'gaps are too even')
+  assert.ok(starts[starts.length - 1] <= 1_300)
+})
+
+test('each pitch leaves the fingers at its own speed', () => {
+  const time = (seed: number) => { const f = pitch({ x: 0, y: -80 }, { x: 0, y: 600, rot: 0 }, mulberry32(seed)); return Math.round(f[f.length - 1].t) }
+  assert.ok(new Set([1, 2, 3, 4, 5, 6].map(time)).size >= 4, 'every pitch takes the same time')
 })

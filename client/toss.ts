@@ -134,7 +134,12 @@ export function slide(from: Pose, to: Pose, rand: () => number, options: Options
 
 /** A dealer's pitch: it leaves the fingers spinning, lands, and the cloth drags it to rest square on its spot. */
 export function pitch(dealer: { x: number; y: number }, spot: Pose, rand: () => number): Frame[] {
-  const frames = slide({ x: dealer.x, y: dealer.y, rot: spot.rot }, spot, rand, { spin: sign(rand) * between(rand, 0.35, 0.9) })
+  // Every pitch leaves the fingers a little differently: how far it flies, how it skids, how it spins.
+  const frames = slide({ x: dealer.x, y: dealer.y, rot: spot.rot }, spot, rand, {
+    spin: sign(rand) * between(rand, 0.35, 0.9),
+    airShare: between(rand, 0.46, 0.64),
+    skidTau: TOSS.skidTau * between(rand, 0.8, 1.2),
+  })
   const extra = frames[frames.length - 1].rot - spot.rot
   return frames.map((f) => ({ ...f, rot: f.rot - extra }))
 }
@@ -149,12 +154,12 @@ export const RECEIVE = {
   reactMs: [150, 450] as const,
   /** How askew the pair still is when the hand has drawn it together, degrees. */
   squareRot: 5,
-  /** How far each tap shoves the pair toward the player, px. */
-  tapPx: 3,
+  /** How deep a fingertip presses the pair into the cloth, as a share of its size. */
+  tapDepth: [0.012, 0.03] as const,
   /** Each half of a tap, ms. */
-  tapMs: 70,
+  tapMs: [55, 90] as const,
   /** The pause between the two taps, ms. */
-  tapGap: 110,
+  tapGap: [80, 170] as const,
 }
 
 /** Where a pitched card lands: near its place, visibly off it, and turned a little. Fixed by `rand`. */
@@ -167,36 +172,46 @@ export function scatter(neat: Pose, cardW: number, rand: () => number): Pose {
 /**
  * A dealt card from the dealer's pitch to the player's hand: it lies where
  * `flight` left it until `collectAt` (ms from this card's own start), is drawn
- * into the pair still a little askew, then two taps toward the player
- * (`towards`, a unit vector) square it exactly into `neat`.
+ * into the pair still a little askew, then two fingertip taps from above
+ * press it into the cloth and square it exactly into `neat`. No two players
+ * tap with quite the same depth or rhythm.
  */
-export function receive(flight: Frame[], neat: Pose, collectAt: number, towards: { x: number; y: number }, rand: () => number): Frame[] {
+export function receive(flight: Frame[], neat: Pose, collectAt: number, rand: () => number): Frame[] {
   const land = flight[flight.length - 1]
   const frames: Frame[] = [...flight]
   const start = Math.max(land.t, collectAt)
   if (start > land.t) frames.push({ ...land, t: start, lift: 0 })
-  const side = between(rand, -3, 3)
-  const near: Pose = {
-    x: neat.x - towards.x * 2 - towards.y * side,
-    y: neat.y - towards.y * 2 + towards.x * side,
-    rot: neat.rot + sign(rand) * RECEIVE.squareRot,
-  }
+  const near: Pose = { x: neat.x + between(rand, -3, 3), y: neat.y + between(rand, -3, 3), rot: neat.rot + sign(rand) * RECEIVE.squareRot }
   const drawn = slide(land, near, rand, { hand: 0.55, lift: 0, wobble: 0.01, skidTau: 70, skidFriction: 0.003, minMs: 220 })
   for (const f of drawn.slice(1)) frames.push({ ...f, t: f.t + start })
-  // Each tap shoves the pair a little toward the player and lets it settle, halfway square, then square.
+  // Each tap presses the pair down and lets it come back up, halfway square, then square.
   const mid: Pose = { x: (near.x + neat.x) / 2, y: (near.y + neat.y) / 2, rot: (near.rot + neat.rot) / 2 }
   let t = frames[frames.length - 1].t
   for (const settle of [mid, neat]) {
-    t += RECEIVE.tapMs
-    frames.push({ t, x: settle.x + towards.x * RECEIVE.tapPx, y: settle.y + towards.y * RECEIVE.tapPx, rot: settle.rot, lift: 0 })
-    t += RECEIVE.tapMs
+    const half = between(rand, ...RECEIVE.tapMs)
+    t += half
+    frames.push({ t, ...settle, lift: -between(rand, ...RECEIVE.tapDepth) })
+    t += half
     frames.push({ t, ...settle, lift: 0 })
     if (settle === mid) {
-      t += RECEIVE.tapGap
+      t += between(rand, ...RECEIVE.tapGap)
       frames.push({ t, ...settle, lift: 0 })
     }
   }
   return frames
+}
+
+/**
+ * When each card of a deal leaves the dealer's hand, from 0: a human rhythm,
+ * each gap a little short or long of `maxGap` (less for a big table), and the
+ * whole deal inside `window`.
+ */
+export function dealSchedule(count: number, window: number, maxGap: number, rand: () => number): number[] {
+  const base = Math.min(maxGap, window / Math.max(1, count - 1))
+  const starts = [0]
+  for (let i = 1; i < count; i++) starts.push(starts[i - 1] + base * between(rand, 0.7, 1.35))
+  const last = starts[starts.length - 1]
+  return last > window ? starts.map((s) => (s * window) / last) : starts
 }
 
 /** Below this flick speed a fold is pushed along the cloth rather than thrown. */

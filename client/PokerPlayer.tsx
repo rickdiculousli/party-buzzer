@@ -24,8 +24,8 @@ type Move = { kind: PokerInput['kind'] } & Record<string, unknown>
  * the phone after `delay` and lands loose; at `collectAt` (ms from its own
  * start) the pair is gathered toward you and tapped square.
  */
-function DealtCard({ card, up, index, delay, collectAt, seed }: {
-  card: string; up: boolean; index: 0 | 1; delay: number | null; collectAt: number; seed: number
+function DealtCard({ card, up, index, delay, collectAt, seed, hand }: {
+  card: string; up: boolean; index: 0 | 1; delay: number | null; collectAt: number; seed: number; hand: number
 }) {
   const el = useRef<HTMLSpanElement>(null)
   useLayoutEffect(() => {
@@ -35,7 +35,7 @@ function DealtCard({ card, up, index, delay, collectAt, seed }: {
     const from = { x: innerWidth / 2 - (box.left + box.width / 2), y: -(box.top + box.height * 1.2) }
     const neat = { x: 0, y: 0, rot: REST[index] }
     const flight = pitch(from, scatter(neat, box.width, mulberry32(seed * 7 + 1)), mulberry32(seed))
-    const frames = receive(flight, neat, collectAt, { x: 0, y: 1 }, mulberry32(seed * 7 + 3))
+    const frames = receive(flight, neat, collectAt, mulberry32(hand * 7 + 3))
     const total = frames[frames.length - 1].t
     const run = node.animate(
       frames.map((f) => ({ transform: `translate(${f.x}px, ${f.y}px) rotate(${f.rot}deg) scale(${1 + f.lift})`, offset: f.t / total })),
@@ -197,8 +197,11 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
   }
   const dealing = deal.current?.dealing ?? false
   // Both cards are gathered together, once the second has had time to land and you have reached for it.
-  const secondLands = SECOND_CARD_MS + pitch({ x: 0, y: -innerHeight }, { x: 0, y: 0, rot: 0 }, mulberry32(hand * 2 + 1)).at(-1)!.t
-  const collectAt = secondLands + RECEIVE.reactMs[0] + (RECEIVE.reactMs[1] - RECEIVE.reactMs[0]) * mulberry32(hand * 13)()
+  // The dealer's own rhythm: the second card comes round a little sooner or later each hand.
+  const second = SECOND_CARD_MS * (0.75 + 0.6 * mulberry32(hand * 5 + 2)())
+  const secondLands = second + pitch({ x: 0, y: -innerHeight }, { x: 0, y: 0, rot: 0 }, mulberry32(hand * 2 + 1)).at(-1)!.t
+  // Pitches vary, so allow a little for this one landing late before you reach for the pair.
+  const collectAt = secondLands + 150 + RECEIVE.reactMs[0] + (RECEIVE.reactMs[1] - RECEIVE.reactMs[0]) * mulberry32(hand * 13)()
 
   return <main class={`player poker-phone felt felt--phone ${legal ? 'poker-phone--turn' : ''}`}>
     <div class="felt__lamp felt__lamp--phone" />
@@ -212,7 +215,7 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
           style={drag ? { transform: `translate(${drag.x}px, ${Math.min(drag.y, 40)}px) rotate(${drag.x / 30}deg)`, transition: 'none' } : undefined}
         >
           {([0, 1] as const).map((k) => <DealtCard key={`${hand}-${k}`} card={poker.hole![k]} up={peek || !!mine?.cards} index={k}
-            delay={dealing ? k * SECOND_CARD_MS : null} collectAt={collectAt - k * SECOND_CARD_MS} seed={hand * 2 + k} />)}
+            delay={dealing ? k * second : null} collectAt={collectAt - k * second} seed={hand * 2 + k} hand={hand} />)}
         </div>}
         {note && <p class="poker-phone__note fx-shake">{note}</p>}
       </div>

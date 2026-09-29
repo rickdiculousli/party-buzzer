@@ -728,8 +728,11 @@ flick or a timeout pushes the cards instead: they ride the hand, speed up, and
 are let go straight into the skid. Chips are pushed the same way. Dealt cards are not placed: each lands loose where its pitch leaves it
 (`scatter`), up to half a card off its place and turned up to 22°. Once the
 second is down, the player takes a moment (150–450 ms, their own), gathers
-the pair still a little askew, and taps it toward themselves twice, square
-halfway then square (`receive`, tuned by `RECEIVE`). Cards come to rest a few degrees off square,
+the pair still a little askew, and taps it twice from above with a
+fingertip, pressing it into the cloth, square halfway then square (`receive`,
+tuned by `RECEIVE`); no two players tap with quite the same depth or rhythm.
+The dealer keeps no metronome either: `dealSchedule` varies the gap before
+each card, and every pitch leaves the fingers at its own speed and spin. Cards come to rest a few degrees off square,
 fixed per card. The flop lands face down and turns together; folds lie in the
 middle and the dealer pulls them to the muck. Bets slide to the line and are
 swept into the pot as a street closes; the pot slides to the winner. A level

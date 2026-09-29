@@ -466,7 +466,7 @@ const dealScenario: Scenario = {
     const flights = neat.map((spot, k) => pitch({ x: PATCH.w / 2, y: -90 }, scatter(spot, 56, mulberry32(k + 21)), mulberry32(k + 11)))
     const collect = 150 + flights[1][flights[1].length - 1].t + 300
     return pokerStage(neat.map((spot, k) =>
-      <Piece key={k} pose={spot} frames={lead ? null : receive(flights[k], spot, collect - k * 150, { x: 0, y: 1 }, mulberry32(k + 31))} delay={k * 150}>
+      <Piece key={k} pose={spot} frames={lead ? null : receive(flights[k], spot, collect - k * 150, mulberry32(31))} delay={k * 150}>
         <PlayingCard card={null} up={false} />
       </Piece>))
   },

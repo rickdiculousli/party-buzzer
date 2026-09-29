@@ -7,7 +7,7 @@ import { matchFrame } from './minigame-info.ts'
 import { Burst, Letters } from './fx.tsx'
 import { ChipStack, DealerPuck, FeltMark, PaintPile, Piece, PlayingCard, ShotRing, reducedMotion, usePokerCues, useSize } from './PokerParts.tsx'
 import { ELLIPSE, feedLine, seatPositions, POKER_RULES } from './poker.ts'
-import { chain, pitch, receive, scatter, slide, sweep, toss, RECEIVE, type Frame, type Pose } from './toss.ts'
+import { chain, dealSchedule, pitch, receive, scatter, slide, sweep, toss, RECEIVE, type Frame, type Pose } from './toss.ts'
 import { colorForPlayer, ordinal, playerName, setlistPosition } from './ui.ts'
 
 type Point = { x: number; y: number }
@@ -199,10 +199,10 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
   const live = seats.map((seat, i) => ({ seat, i })).filter(({ seat }) => !seat.busted)
   const start = Math.max(0, live.findIndex(({ i }) => i > buttonAt))
   const order = [...live.slice(start), ...live.slice(0, start)].map(({ i }) => i)
-  const gap = Math.min(DEAL_GAP_MS, DEAL_WINDOW_MS / Math.max(1, order.length * 2))
+  const schedule = dealSchedule(order.length * 2, DEAL_WINDOW_MS, DEAL_GAP_MS, mulberry32(seedOf(poker.handNo, 'deal')))
   const dealtAt = deal.current?.at ?? null
   const dealDelay = (i: number, k: 0 | 1) =>
-    dealtAt === null ? null : Math.max(0, dealtAt + (k * order.length + order.indexOf(i)) * gap - performance.now())
+    dealtAt === null ? null : Math.max(0, dealtAt + schedule[k * order.length + order.indexOf(i)] - performance.now())
   /**
    * One seat's deal: both cards land loose where the pitches leave them, and
    * once the second is down the player takes a moment, gathers the pair and
@@ -214,10 +214,8 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
     const flights = ([0, 1] as const).map((k) => pitch(dealer, scatter(holeOf(i, k), cardW, mulberry32(seedOf(poker.handNo, i, k, 'land'))), mulberry32(seedOf(poker.handNo, i, k))))
     const react = RECEIVE.reactMs[0] + (RECEIVE.reactMs[1] - RECEIVE.reactMs[0]) * mulberry32(seedOf(poker.handNo, i, 'react'))()
     const collect = delays[1]! + flights[1][flights[1].length - 1].t + react
-    const out = { x: spots[i].x - centre.x, y: spots[i].y - centre.y }
-    const len = Math.hypot(out.x, out.y) || 1
-    const towards = { x: out.x / len, y: out.y / len }
-    return [0, 1].map((k) => receive(flights[k], holeOf(i, k as 0 | 1), collect - delays[k]!, towards, mulberry32(seedOf(poker.handNo, i, k, 'tap')))) as [Frame[], Frame[]]
+    // One tap rhythm per player: both cards of the pair move as one.
+    return [0, 1].map((k) => receive(flights[k], holeOf(i, k as 0 | 1), collect - delays[k]!, mulberry32(seedOf(poker.handNo, i, 'tap')))) as [Frame[], Frame[]]
   }
   const incomingBet = new Set(ghosts.filter((g) => g.kind === 'bet').map((g) => g.seat))
   const pushing = poker.phase === 'showdown' || poker.phase === 'muck'
