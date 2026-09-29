@@ -239,7 +239,7 @@ export function toss(from: Pose, aim: { x: number; y: number }, flick: PokerFlic
   const wobble = thrown ? 0.02 : 0.01
   // Along any heading within a right angle of the aim, stopping `keepClear` short of it stays `keepClear` away; the bow gets its own margin.
   const room = Math.max(0, (reach - keepClear) / (1 + wobble))
-  const dist = Math.min(room, reach * (thrown ? 0.225 + 0.275 * flick!.speed : flick ? 0.2 : 0.1375) * between(rand, 0.75, 1.25))
+  const dist = Math.min(room, reach * (thrown ? 0.28125 + 0.34375 * flick!.speed : flick ? 0.25 : 0.171875) * between(rand, 0.75, 1.25))
   const way = flick?.dx ? Math.sign(flick.dx) : sign(rand)
   const turn = wild
     ? way * between(rand, 1.3, 2.1) * (thrown ? 1 : 0.6)
