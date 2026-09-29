@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mulberry32 } from '../../../shared/random.ts'
-import { act, createTable, legal, startHand, stepTable, STEP_MS } from './table.ts'
+import { act, createTable, finished, legal, places, setPresence, startHand, stepTable, STEP_MS, PACE } from './table.ts'
 import type { PokerWorld, Seat } from './types.ts'
 
 const OPTS = { stack: 1500, bigBlind: 20, levelMin: 10, shotSec: 30 }
@@ -17,7 +17,7 @@ function rig(w: PokerWorld, holes: Record<string, [string, string]>, board: stri
   for (const [id, hole] of Object.entries(holes)) seatOf(w, id).hole = hole
   w.deck = [...board]
 }
-function setStack(seat: Seat, total: number) { seat.stack = total - seat.bet }
+function setStack(seat: Seat, total: number) { seat.stack = total - seat.bet; seat.startStack = total }
 
 test('blinds post and preflop action starts left of the big blind', () => {
   const w = createTable(1, ['a', 'b', 'c', 'd'], OPTS)
@@ -163,4 +163,79 @@ test('chips are conserved', () => {
     assert.equal(chips(w), total, `hand ${w.handNo}`)
   }
   assert.ok(w.handNo > 20)
+})
+
+test('shot clock checks when free, folds when owing', () => {
+  const w = createTable(10, ['a', 'b', 'c'], OPTS)
+  untilBet(w)
+  const slow = actorId(w)
+  run(w, OPTS.shotSec * 1000 + STEP_MS)
+  assert.deepEqual(w.feed.at(-1), { id: w.feed.at(-1)!.id, player: slow, kind: 'fold', auto: true })
+  act(w, actorId(w), { kind: 'call' })
+  if (w.phase.at === 'bet') act(w, actorId(w), { kind: 'check' })
+  untilBet(w)
+  const free = actorId(w)
+  run(w, OPTS.shotSec * 1000 + STEP_MS)
+  assert.deepEqual(w.feed.at(-1), { id: w.feed.at(-1)!.id, player: free, kind: 'check', auto: true })
+})
+
+test('disconnected seat is auto-acted within 2 s and blinds keep posting', () => {
+  const rand = mulberry32(4)
+  const w = createTable(11, ['a', 'b', 'c', 'd'], OPTS)
+  setPresence(w, ['b', 'c', 'd'])
+  let waited = 0
+  for (let i = 0; i < 200_000 && w.handNo < 20 && w.phase.at !== 'over'; i++) {
+    if (w.phase.at === 'bet' && actorId(w) !== 'a') { botMove(w, rand); waited = 0; continue }
+    waited = w.phase.at === 'bet' ? waited + 1 : 0
+    assert.ok(waited <= PACE.awayShotMs / STEP_MS + 1, 'stalled on the away seat')
+    stepTable(w)
+  }
+  assert.ok(w.handNo >= 20 || seatOf(w, 'a').out)
+  assert.ok(w.feed.length > 0)
+})
+
+test('a level change applies at the next hand, not mid-hand', () => {
+  const w = createTable(12, ['a', 'b', 'c'], { ...OPTS, levelMin: 1 })
+  untilBet(w)
+  w.elapsedBase = 60_000 / STEP_MS
+  act(w, actorId(w), { kind: 'fold' })
+  act(w, actorId(w), { kind: 'fold' })
+  assert.equal(w.bb, 20)
+  until(w, 'deal')
+  assert.equal(w.bb, 40)
+  assert.equal(w.sb, 20)
+  assert.ok(w.feed.some((entry) => entry.kind === 'level' && entry.amount === 40))
+})
+
+/** Five seats; a and b bust together against c's aces while d and e fold. */
+function doubleBust(aStack: number, bStack: number) {
+  const w = createTable(13, ['a', 'b', 'c', 'd', 'e'], OPTS)
+  setStack(seatOf(w, 'a'), aStack)
+  setStack(seatOf(w, 'b'), bStack)
+  setStack(seatOf(w, 'c'), 3000)
+  rig(w, { a: ['7c', '2d'], b: ['8c', '3d'], c: ['Ah', 'As'] }, ['4s', '9h', 'Td', 'Jc', 'Kd'])
+  untilBet(w)
+  while (w.phase.at === 'bet') act(w, actorId(w), { kind: ['d', 'e'].includes(actorId(w)) ? 'fold' : 'allIn' })
+  until(w, 'deal')
+  return w
+}
+
+test('busts are placed by hand-start stack, ties share', () => {
+  assert.deepEqual(doubleBust(300, 800).busted, [{ player: 'b', place: 4 }, { player: 'a', place: 5 }])
+  assert.deepEqual(doubleBust(500, 500).busted, [{ player: 'a', place: 4 }, { player: 'b', place: 4 }])
+})
+
+test('the match ends with one stack', () => {
+  const rand = mulberry32(5)
+  const w = createTable(14, ['a', 'b', 'c', 'd', 'e', 'f'], { ...OPTS, levelMin: 1 })
+  for (let i = 0; i < 2_000_000 && !finished(w); i++) {
+    if (w.phase.at === 'bet') botMove(w, rand)
+    else stepTable(w)
+  }
+  assert.ok(finished(w))
+  const result = places(w)
+  const winner = w.seats.find((seat) => !seat.out)!
+  assert.equal(winner.stack, 6 * OPTS.stack)
+  assert.equal(result.find((row) => row.place === 1)?.playerId, winner.player)
+  assert.equal(result.length, 6)
 })

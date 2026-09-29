@@ -296,7 +296,7 @@ export type PokerFeedEntry = {
   amount?: number
   flick?: PokerFlick
   auto?: true
-  /** The winning hand's name, or the place on a bust. */
+  /** The winning hand's name. A bust carries its place in `amount`, a level its big blind. */
   hand?: string
 }
 /** One pot's result at a showdown. */

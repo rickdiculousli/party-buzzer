@@ -77,6 +77,10 @@ export function startHand(w: PokerWorld): void {
     w.actBy = null
     return
   }
+  const level = levelOf(w)
+  if (level.bb !== w.bb) feed(w, { player: null, kind: 'level', amount: level.bb })
+  w.bb = level.bb
+  w.sb = Math.floor(level.bb / 2)
   w.handNo++
   for (const seat of w.seats) {
     Object.assign(seat, { hole: null, bet: 0, contributed: 0, folded: false, acted: false, mayRaise: true, faceUp: false, startStack: seat.stack })
@@ -148,7 +152,8 @@ function raiseTo(w: PokerWorld, seat: Seat, to: number): void {
   feed(w, { player: seat.player, kind: seat.stack === 0 ? 'allIn' : opening ? 'bet' : 'raise', amount: to })
 }
 
-export function act(w: PokerWorld, player: PlayerId, action: PokerAction): InputOutcome {
+/** `auto` marks an action the shot clock took. */
+export function act(w: PokerWorld, player: PlayerId, action: PokerAction, auto = false): InputOutcome {
   if (action.kind === 'show') {
     if (w.phase.at !== 'muck' || w.phase.winner !== player || w.phase.shown) return NO
     w.phase.shown = true
@@ -162,11 +167,11 @@ export function act(w: PokerWorld, player: PlayerId, action: PokerAction): Input
   switch (action.kind) {
     case 'fold':
       seat.folded = true
-      feed(w, { player, kind: 'fold', ...(action.flick ? { flick: action.flick } : {}) })
+      feed(w, { player, kind: 'fold', ...(action.flick ? { flick: action.flick } : {}), ...(auto ? { auto } : {}) })
       break
     case 'check':
       if (!options.canCheck) return NO
-      feed(w, { player, kind: 'check' })
+      feed(w, { player, kind: 'check', ...(auto ? { auto } : {}) })
       break
     case 'call': {
       if (options.canCheck) return NO
@@ -270,16 +275,57 @@ function endByFold(w: PokerWorld, winner: Seat): void {
   w.phase = { at: 'muck', until: w.tick + ticks(PACE.muckMs), winner: winner.player, shown: false }
 }
 
-/** Marks players left with no chips as out. */
+/**
+ * Players left with no chips go out. Several out in one hand are placed by
+ * their stacks as it began, larger first; equal stacks share the place.
+ */
 function finishHand(w: PokerWorld): void {
-  for (const seat of w.seats) if (!seat.out && seat.stack === 0) seat.out = true
+  const live = w.seats.filter((seat) => !seat.out)
+  const gone = live.filter((seat) => seat.stack === 0).sort((a, b) => b.startStack - a.startStack)
+  const firstPlace = live.length - gone.length + 1
+  for (const seat of gone) {
+    const place = firstPlace + gone.filter((other) => other.startStack > seat.startStack).length
+    seat.out = true
+    w.busted.push({ player: seat.player, place })
+    feed(w, { player: seat.player, kind: 'bust', amount: place })
+  }
   startHand(w)
+}
+
+export function levelOf(w: PokerWorld): { level: number; bb: number; nextAtTick: number } {
+  const per = ticks(w.opts.levelMin * 60_000)
+  const level = Math.floor((w.elapsedBase + w.tick) / per)
+  return { level, bb: w.opts.bigBlind * 2 ** level, nextAtTick: (level + 1) * per - w.elapsedBase }
+}
+
+export function setPresence(w: PokerWorld, connected: PlayerId[]): void {
+  for (const seat of w.seats) seat.connected = connected.includes(seat.player)
+  // Someone who drops on their turn gets the short clock from now.
+  if (w.actor !== null && !w.seats[w.actor].connected && w.actBy !== null) {
+    w.actBy = Math.min(w.actBy, w.tick + ticks(PACE.awayShotMs))
+  }
+}
+
+export const finished = (w: PokerWorld) => w.phase.at === 'over'
+
+/** Everyone's finishing place; whoever is still seated is first. */
+export function places(w: PokerWorld): { playerId: PlayerId; place: number }[] {
+  return [
+    ...w.seats.filter((seat) => !seat.out).map((seat) => ({ playerId: seat.player, place: 1 })),
+    ...[...w.busted].sort((a, b) => a.place - b.place).map((row) => ({ playerId: row.player, place: row.place })),
+  ]
 }
 
 export function stepTable(w: PokerWorld): void {
   w.tick++
   const phase = w.phase
-  if (phase.at === 'over' || phase.at === 'bet') return
+  if (phase.at === 'over') return
+  if (phase.at === 'bet') {
+    if (w.actBy === null || w.tick < w.actBy) return
+    const player = w.seats[w.actor!].player
+    act(w, player, { kind: legal(w, player)!.canCheck ? 'check' : 'fold' }, true)
+    return
+  }
   if (w.tick < phase.until) return
   switch (phase.at) {
     case 'deal':
