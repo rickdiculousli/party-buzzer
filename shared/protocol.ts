@@ -1,6 +1,8 @@
 import type { Refusal } from './legality.ts'
 
 export type PlayerId = string
+/** A playing card: rank from `23456789TJQKA`, then suit from `shdc`, e.g. `As`, `Td`. */
+export type Card = string
 export type TeamId = string
 /** Scores key on team id in a teams grouping, player id in solo. */
 export type ScoreKey = string
