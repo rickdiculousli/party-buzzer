@@ -2953,8 +2953,17 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 /* Painted onto the pile: gold that took on most fibres and missed some, seated by the pile around it. */
 .felt-mark__press { color: var(--felt-press); translate: 0 1px; filter: blur(1px); }
 .felt-mark__ink {
-  color: var(--felt-ink);
-  opacity: 0.82;
+  /* The felt's own grain and nap over the paint, at the felt's scale, so painted pile reads as the same cloth. */
+  background:
+    var(--felt-grain) 0 0 / 220px 220px,
+    var(--felt-nap) 0 0 / 420px 420px,
+    var(--paint-grain) 0 0 / 56px 56px,
+    linear-gradient(var(--felt-ink), var(--felt-ink));
+  background-blend-mode: normal, normal, overlay, normal;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  opacity: 0.85;
   -webkit-mask: var(--paint-fibre) 0 0 / 64px 64px;
   mask: var(--paint-fibre) 0 0 / 64px 64px;
 }

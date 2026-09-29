@@ -5,7 +5,7 @@ import { mulberry32 } from '../shared/random.ts'
 import type { MinigameBoardProps } from './minigames.tsx'
 import { matchFrame } from './minigame-info.ts'
 import { Burst, Letters } from './fx.tsx'
-import { ChipStack, DealerPuck, FeltMark, Piece, PlayingCard, ShotRing, reducedMotion, usePokerCues, useSize } from './PokerParts.tsx'
+import { ChipStack, DealerPuck, FeltMark, PaintPile, Piece, PlayingCard, ShotRing, reducedMotion, usePokerCues, useSize } from './PokerParts.tsx'
 import { ELLIPSE, feedLine, seatPositions, POKER_RULES } from './poker.ts'
 import { chain, pitch, slide, sweep, toss, type Frame, type Pose } from './toss.ts'
 import { colorForPlayer, ordinal, playerName, setlistPosition } from './ui.ts'
@@ -213,7 +213,8 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
       <svg class="felt-line" viewBox={`0 0 ${w || 1} ${h || 1}`} aria-hidden="true">
         {/* The betting line is sheared into the pile: a shadowed upper edge over a lighter, shorter-napped band. */}
         <ellipse class="felt-line__shade" cx={centre.x} cy={centre.y - 1} rx={ELLIPSE.rx * w * (1 - BET_IN) + cardW * 0.84} ry={ELLIPSE.ry * h * (1 - BET_IN) + cardW * 0.64} />
-        <ellipse class="felt-line__sheen" cx={centre.x} cy={centre.y} rx={ELLIPSE.rx * w * (1 - BET_IN) + cardW * 0.84} ry={ELLIPSE.ry * h * (1 - BET_IN) + cardW * 0.64} />
+        <PaintPile id="line-pile" />
+        <ellipse class="felt-line__sheen" filter="url(#line-pile)" cx={centre.x} cy={centre.y} rx={ELLIPSE.rx * w * (1 - BET_IN) + cardW * 0.84} ry={ELLIPSE.ry * h * (1 - BET_IN) + cardW * 0.64} />
       </svg>
       <div class="poker-logo" style={{ transform: `translate(${centre.x}px, ${centre.y + h * 0.01}px) translate(-50%, -50%)` }}>
         <FeltMark text="Party Buzzer" class="poker-logo__name" />

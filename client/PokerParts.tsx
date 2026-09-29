@@ -78,10 +78,30 @@ export function FeltArc({ text, bow, class: cls = '' }: { text: string; bow: 'up
   const id = useRef(`arc-${Math.random().toString(36).slice(2)}`).current
   const d = bow === 'up' ? 'M24 78 Q200 -2 376 78' : 'M24 10 Q200 90 376 10'
   return <svg class={`felt-arc ${cls}`} viewBox="0 0 400 88" role="img" aria-label={text}>
+    <PaintPile id={`${id}-pile`} />
     <path id={id} d={d} fill="none" />
     <text class="felt-arc__press"><textPath href={`#${id}`} startOffset="50%" text-anchor="middle">{text}</textPath></text>
-    <text class="felt-arc__ink"><textPath href={`#${id}`} startOffset="50%" text-anchor="middle">{text}</textPath></text>
+    <text class="felt-arc__ink" filter={`url(#${id}-pile)`}><textPath href={`#${id}`} startOffset="50%" text-anchor="middle">{text}</textPath></text>
   </svg>
+}
+
+/**
+ * The felt's fibres inside painted marks: grey noise overlaid on the paint and
+ * kept to its shape, so no painted stroke is ever a flat colour.
+ */
+export function PaintPile({ id }: { id: string }) {
+  return <defs>
+    <filter id={id} x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9 1.6" numOctaves="3" seed="7" result="noise" />
+      <feColorMatrix in="noise" values=".95 .95 .95 0 -.9  .95 .95 .95 0 -.9  .95 .95 .95 0 -.9  0 0 0 0 1" result="fibres" />
+      <feBlend in="SourceGraphic" in2="fibres" mode="overlay" result="paint" />
+      {/* The felt's dark specks on top, as on the bare cloth around the mark. */}
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" seed="11" result="grain" />
+      <feColorMatrix in="grain" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .6 0" result="specks" />
+      <feComposite in="specks" in2="paint" operator="over" result="cloth" />
+      <feComposite in="cloth" in2="SourceGraphic" operator="in" />
+    </filter>
+  </defs>
 }
 
 export const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches

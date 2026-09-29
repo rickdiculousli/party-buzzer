@@ -693,7 +693,11 @@ follows the player to act, and on the phone the lamp brightens on your turn.
 Marks on the cloth are paint soaked into the pile, never UI type or a flat
 film: `FeltMark`, `FeltArc` and the betting line take `--felt-ink` casino
 gold through the `--paint-fibre` mask, so the paint takes on most fibres and
-misses some and the green shows through, as paint does on turf. A soft
+misses some and the green shows through, as paint does on turf. Where it took,
+the paint still has the pile's texture: `--paint-grain` fibre noise is
+overlaid on it, and the felt's own grain and nap lie over it at the felt's
+scale (`PaintPile` does the same inside SVG), so a painted stroke is never a
+flat colour. A soft
 `--felt-press` shadow of the surrounding pile seats it in the cloth. The phone carries its two instructions on arcs, the way a table
 carries "insurance pays 2 to 1". The board has a painted betting line and the
 Party Buzzer mark in the middle, where the board cards and the pot lie on top
