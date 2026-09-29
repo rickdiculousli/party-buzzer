@@ -29,7 +29,7 @@ import { Spoken } from '../Spoken.tsx'
 import { Burst, CountUp, Glitch, Letters } from '../fx.tsx'
 import { FaceOff, Finale } from '../Board.tsx'
 import { Piece, PlayingCard } from '../PokerParts.tsx'
-import { chain, pitch, sweep, toss } from '../toss.ts'
+import { chain, pitch, receive, scatter, sweep, toss } from '../toss.ts'
 import { mulberry32 } from '../../shared/random.ts'
 import type { BurstFrom } from '../fx.ts'
 import type { Recipe } from '../synth.ts'
@@ -453,20 +453,23 @@ function foldScenario(id: string, label: string, flick: { dx: number; dy: number
   }
 }
 
-/** A dealer's pitch from off the top edge: two cards to one seat, the second catching the first. */
+/** Two cards dealt to one seat: pitched loose from off the top edge, then gathered and tapped square. */
 const dealScenario: Scenario = {
   id: 'poker-deal',
   label: 'Deal',
   family: 'Poker',
-  note: 'Two cards pitched from the dealer off the top edge: fast and spinning in the air, then the cloth drags them to rest. Tune TOSS in client/toss.ts.',
+  note: 'Two cards pitched from the dealer land loose; the player gathers the pair and taps it square. Tune TOSS and RECEIVE in client/toss.ts.',
   subject: '.poker-piece',
   dials: [],
-  render: (lead) => pokerStage(([0, 1] as const).map((k) => {
-    const spot = { x: PATCH.w / 2 + (k ? 17 : -17), y: PATCH.h * 0.72, rot: k ? 5 : -4 }
-    return <Piece key={k} pose={spot} frames={lead ? null : pitch({ x: PATCH.w / 2, y: -90 }, spot, mulberry32(k + 11))} delay={k * 150}>
-      <PlayingCard card={null} up={false} />
-    </Piece>
-  })),
+  render: (lead) => {
+    const neat = ([0, 1] as const).map((k) => ({ x: PATCH.w / 2 + (k ? 8 : -8), y: PATCH.h * 0.72, rot: k ? 3 : -2 }))
+    const flights = neat.map((spot, k) => pitch({ x: PATCH.w / 2, y: -90 }, scatter(spot, 56, mulberry32(k + 21)), mulberry32(k + 11)))
+    const collect = 150 + flights[1][flights[1].length - 1].t + 300
+    return pokerStage(neat.map((spot, k) =>
+      <Piece key={k} pose={spot} frames={lead ? null : receive(flights[k], spot, collect - k * 150, { x: 0, y: 1 }, mulberry32(k + 31))} delay={k * 150}>
+        <PlayingCard card={null} up={false} />
+      </Piece>))
+  },
 }
 
 export const SCENARIOS: Scenario[] = [

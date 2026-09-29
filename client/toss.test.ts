@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mulberry32 } from '../shared/random.ts'
-import { chipStack, pitch, slide, sweep, toss, TOSS, type Frame } from './toss.ts'
+import { chipStack, pitch, receive, scatter, slide, sweep, toss, RECEIVE, TOSS, type Frame } from './toss.ts'
 
 const along = (frames: Frame[], dx: number, dy: number) => {
   const len = Math.hypot(dx, dy)
@@ -113,4 +113,43 @@ test('a bet stacks as the fewest chips, biggest at the bottom', () => {
   assert.deepEqual(chipStack(0), [])
   assert.ok(chipStack(99_999).length <= 10)
   assert.equal(chipStack(99_999)[0], 500)
+})
+
+test('a dealt card lands loose near the seat, not squared on it', () => {
+  const neat = { x: 400, y: 600, rot: 3 }
+  let moved = 0
+  for (let seed = 1; seed < 40; seed++) {
+    const land = scatter(neat, 60, mulberry32(seed))
+    const off = Math.hypot(land.x - neat.x, land.y - neat.y)
+    assert.ok(off <= 60 * RECEIVE.scatter + 1e-9, `landed ${off} away`)
+    assert.ok(Math.abs(land.rot - neat.rot) <= RECEIVE.scatterRot + 1e-9)
+    if (off > 6 || Math.abs(land.rot - neat.rot) > 4) moved++
+  }
+  assert.ok(moved > 30, 'most cards should land visibly off their place')
+})
+
+test('the player collects the pair after the second card is down, then taps it square', () => {
+  const neat = { x: 400, y: 600, rot: 3 }
+  const land = scatter(neat, 60, mulberry32(4))
+  const flight = pitch({ x: 400, y: -80 }, land, mulberry32(5))
+  const landedAt = flight[flight.length - 1].t
+  const collectAt = landedAt + 700
+  const frames = receive(flight, neat, collectAt, { x: 0, y: 1 }, mulberry32(6))
+  // Lies where it landed until the collect.
+  for (const f of frames.filter((f) => f.t >= landedAt && f.t <= collectAt)) {
+    assert.deepEqual({ x: f.x, y: f.y, rot: f.rot }, { x: land.x, y: land.y, rot: land.rot })
+  }
+  // Ends exactly in place.
+  const last = frames[frames.length - 1]
+  assert.deepEqual({ x: last.x, y: last.y, rot: last.rot }, neat)
+  // Two taps toward the player, each a push past its resting point and back.
+  const after = frames.filter((f) => f.t > collectAt)
+  const pushes = after.filter((f, i) => i > 0 && i < after.length - 1 && f.y > after[i - 1].y && f.y > after[i + 1].y)
+  assert.equal(pushes.length, 2, 'expected two taps')
+  assert.ok(pushes.every((f) => f.y - neat.y <= RECEIVE.tapPx + 3), 'a tap shoves too far')
+  // Each tap straightens it further.
+  const offAt = (f: Frame) => Math.abs(f.rot - neat.rot)
+  const beforeTaps = after.find((f) => f.t >= pushes[0].t - RECEIVE.tapMs)!
+  assert.ok(offAt(pushes[0]) < offAt(beforeTaps))
+  assert.ok(offAt(pushes[1]) < offAt(pushes[0]))
 })

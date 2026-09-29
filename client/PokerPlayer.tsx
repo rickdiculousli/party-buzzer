@@ -7,24 +7,25 @@ import { matchFrame } from './minigame-info.ts'
 import { nextBowSequence } from './bow-control.ts'
 import { FeltArc, FeltMark, PlayingCard, ShotRing, reducedMotion, usePokerCues } from './PokerParts.tsx'
 import { classifyGesture, GESTURE, type TracePoint } from './poker.ts'
-import { pitch } from './toss.ts'
+import { pitch, receive, scatter, RECEIVE } from './toss.ts'
 import { colorForPlayer, ordinal, playerName } from './ui.ts'
 
 const AUTO_NOTE_MS = 2_000
 const REACTS = Object.keys(REACT_LABEL) as ReactKind[]
 /** The phone's deal: the second card follows the first by this much. */
 const SECOND_CARD_MS = 230
-/** How the two hole cards lie: fanned, the second over the first. */
-const REST = [-5, 6]
+/** How the two hole cards lie once collected: squared up, the second just offset over the first. */
+const REST = [-3, 4]
 
 type Move = { kind: PokerInput['kind'] } & Record<string, unknown>
 
 /**
  * One hole card. On a fresh deal it is pitched in from above the top edge of
- * the phone after `delay`; `onLand` fires as it comes to rest.
+ * the phone after `delay` and lands loose; at `collectAt` (ms from its own
+ * start) the pair is gathered toward you and tapped square.
  */
-function DealtCard({ card, up, index, delay, seed, onLand, nudge }: {
-  card: string; up: boolean; index: 0 | 1; delay: number | null; seed: number; onLand?: () => void; nudge: number
+function DealtCard({ card, up, index, delay, collectAt, seed }: {
+  card: string; up: boolean; index: 0 | 1; delay: number | null; collectAt: number; seed: number
 }) {
   const el = useRef<HTMLSpanElement>(null)
   useLayoutEffect(() => {
@@ -32,23 +33,16 @@ function DealtCard({ card, up, index, delay, seed, onLand, nudge }: {
     if (!node || delay === null || reducedMotion()) return
     const box = node.getBoundingClientRect()
     const from = { x: innerWidth / 2 - (box.left + box.width / 2), y: -(box.top + box.height * 1.2) }
-    const frames = pitch(from, { x: 0, y: 0, rot: REST[index] }, mulberry32(seed))
+    const neat = { x: 0, y: 0, rot: REST[index] }
+    const flight = pitch(from, scatter(neat, box.width, mulberry32(seed * 7 + 1)), mulberry32(seed))
+    const frames = receive(flight, neat, collectAt, { x: 0, y: 1 }, mulberry32(seed * 7 + 3))
     const total = frames[frames.length - 1].t
     const run = node.animate(
       frames.map((f) => ({ transform: `translate(${f.x}px, ${f.y}px) rotate(${f.rot}deg) scale(${1 + f.lift})`, offset: f.t / total })),
       { duration: total, delay, fill: 'backwards', easing: 'linear' },
     )
-    run.onfinish = () => onLand?.()
     return () => run.cancel()
   }, [])
-  // The card that lands on top catches this one and shoves it a little.
-  useEffect(() => {
-    if (!nudge || reducedMotion()) return
-    el.current?.animate(
-      [{ transform: `rotate(${REST[index]}deg)` }, { transform: `translate(-3px, -2px) rotate(${REST[index] - 2.5}deg)` }],
-      { duration: 160, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', fill: 'forwards' },
-    )
-  }, [nudge])
   return <span ref={el} class="poker-hole__card" style={{ transform: `rotate(${REST[index]}deg)` }}>
     <PlayingCard card={card} up={up} />
   </span>
@@ -79,7 +73,6 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
   const [sheet, setSheet] = useState(false)
   const [raiseTo, setRaiseTo] = useState(0)
   const [note, setNote] = useState<string | null>(null)
-  const [caught, setCaught] = useState(0)
 
   // When this hand's cards were dealt to this phone. A reload mid-hand deals nothing.
   const deal = useRef<{ hand: number; dealing: boolean } | null>(null)
@@ -87,7 +80,7 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
 
   const myTurn = !!poker?.legal
   const hand = poker?.handNo ?? 0
-  useEffect(() => { setFlying(false); setSheet(false); setNote(null); setCaught(0) }, [hand])
+  useEffect(() => { setFlying(false); setSheet(false); setNote(null) }, [hand])
   useEffect(() => { if (myTurn) navigator.vibrate?.(60) }, [myTurn, hand, poker?.street])
   useEffect(() => { if (!myTurn) setSheet(false) }, [myTurn])
   useEffect(() => {
@@ -203,6 +196,9 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
     setSheet(false)
   }
   const dealing = deal.current?.dealing ?? false
+  // Both cards are gathered together, once the second has had time to land and you have reached for it.
+  const secondLands = SECOND_CARD_MS + pitch({ x: 0, y: -innerHeight }, { x: 0, y: 0, rot: 0 }, mulberry32(hand * 2 + 1)).at(-1)!.t
+  const collectAt = secondLands + RECEIVE.reactMs[0] + (RECEIVE.reactMs[1] - RECEIVE.reactMs[0]) * mulberry32(hand * 13)()
 
   return <main class={`player poker-phone felt felt--phone ${legal ? 'poker-phone--turn' : ''}`}>
     <div class="felt__lamp felt__lamp--phone" />
@@ -216,8 +212,7 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
           style={drag ? { transform: `translate(${drag.x}px, ${Math.min(drag.y, 40)}px) rotate(${drag.x / 30}deg)`, transition: 'none' } : undefined}
         >
           {([0, 1] as const).map((k) => <DealtCard key={`${hand}-${k}`} card={poker.hole![k]} up={peek || !!mine?.cards} index={k}
-            delay={dealing ? k * SECOND_CARD_MS : null} seed={hand * 2 + k}
-            onLand={k === 1 ? () => setCaught((n) => n + 1) : undefined} nudge={k === 0 ? caught : 0} />)}
+            delay={dealing ? k * SECOND_CARD_MS : null} collectAt={collectAt - k * SECOND_CARD_MS} seed={hand * 2 + k} />)}
         </div>}
         {note && <p class="poker-phone__note fx-shake">{note}</p>}
       </div>

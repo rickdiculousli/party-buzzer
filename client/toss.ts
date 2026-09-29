@@ -139,6 +139,66 @@ export function pitch(dealer: { x: number; y: number }, spot: Pose, rand: () => 
   return frames.map((f) => ({ ...f, rot: f.rot - extra }))
 }
 
+/** How a player takes delivery of their two cards. Distances are shares of a card's width or px. */
+export const RECEIVE = {
+  /** How far from its place a pitched card may land, as a share of a card's width. */
+  scatter: 0.45,
+  /** How far off square it may land, degrees. */
+  scatterRot: 22,
+  /** How long a player takes to reach for the pair once the second card is down, ms. */
+  reactMs: [150, 450] as const,
+  /** How askew the pair still is when the hand has drawn it together, degrees. */
+  squareRot: 5,
+  /** How far each tap shoves the pair toward the player, px. */
+  tapPx: 3,
+  /** Each half of a tap, ms. */
+  tapMs: 70,
+  /** The pause between the two taps, ms. */
+  tapGap: 110,
+}
+
+/** Where a pitched card lands: near its place, visibly off it, and turned a little. Fixed by `rand`. */
+export function scatter(neat: Pose, cardW: number, rand: () => number): Pose {
+  const angle = between(rand, 0, Math.PI * 2)
+  const r = cardW * RECEIVE.scatter * (0.35 + 0.65 * rand())
+  return { x: neat.x + Math.cos(angle) * r, y: neat.y + Math.sin(angle) * r, rot: neat.rot + sign(rand) * between(rand, 4, RECEIVE.scatterRot) }
+}
+
+/**
+ * A dealt card from the dealer's pitch to the player's hand: it lies where
+ * `flight` left it until `collectAt` (ms from this card's own start), is drawn
+ * into the pair still a little askew, then two taps toward the player
+ * (`towards`, a unit vector) square it exactly into `neat`.
+ */
+export function receive(flight: Frame[], neat: Pose, collectAt: number, towards: { x: number; y: number }, rand: () => number): Frame[] {
+  const land = flight[flight.length - 1]
+  const frames: Frame[] = [...flight]
+  const start = Math.max(land.t, collectAt)
+  if (start > land.t) frames.push({ ...land, t: start, lift: 0 })
+  const side = between(rand, -3, 3)
+  const near: Pose = {
+    x: neat.x - towards.x * 2 - towards.y * side,
+    y: neat.y - towards.y * 2 + towards.x * side,
+    rot: neat.rot + sign(rand) * RECEIVE.squareRot,
+  }
+  const drawn = slide(land, near, rand, { hand: 0.55, lift: 0, wobble: 0.01, skidTau: 70, skidFriction: 0.003, minMs: 220 })
+  for (const f of drawn.slice(1)) frames.push({ ...f, t: f.t + start })
+  // Each tap shoves the pair a little toward the player and lets it settle, halfway square, then square.
+  const mid: Pose = { x: (near.x + neat.x) / 2, y: (near.y + neat.y) / 2, rot: (near.rot + neat.rot) / 2 }
+  let t = frames[frames.length - 1].t
+  for (const settle of [mid, neat]) {
+    t += RECEIVE.tapMs
+    frames.push({ t, x: settle.x + towards.x * RECEIVE.tapPx, y: settle.y + towards.y * RECEIVE.tapPx, rot: settle.rot, lift: 0 })
+    t += RECEIVE.tapMs
+    frames.push({ t, ...settle, lift: 0 })
+    if (settle === mid) {
+      t += RECEIVE.tapGap
+      frames.push({ t, ...settle, lift: 0 })
+    }
+  }
+  return frames
+}
+
 /** Below this flick speed a fold is pushed along the cloth rather than thrown. */
 const PUSH_BELOW = 0.35
 

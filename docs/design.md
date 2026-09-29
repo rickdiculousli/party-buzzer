@@ -725,7 +725,11 @@ bites into the spin and the cloth drags the rest off faster than the slide, so
 a card spins in flight and barely turns once it is skidding. How much it spins
 comes from the throw: a dealer's pitch, or how hard a player flicked. A soft
 flick or a timeout pushes the cards instead: they ride the hand, speed up, and
-are let go straight into the skid. Chips are pushed the same way. Cards come to rest a few degrees off square,
+are let go straight into the skid. Chips are pushed the same way. Dealt cards are not placed: each lands loose where its pitch leaves it
+(`scatter`), up to half a card off its place and turned up to 22°. Once the
+second is down, the player takes a moment (150–450 ms, their own), gathers
+the pair still a little askew, and taps it toward themselves twice, square
+halfway then square (`receive`, tuned by `RECEIVE`). Cards come to rest a few degrees off square,
 fixed per card. The flop lands face down and turns together; folds lie in the
 middle and the dealer pulls them to the muck. Bets slide to the line and are
 swept into the pot as a street closes; the pot slides to the winner. A level
