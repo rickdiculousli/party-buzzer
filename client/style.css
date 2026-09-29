@@ -3071,7 +3071,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .poker-seat { position: absolute; left: 0; top: 0; display: grid; justify-items: center; gap: 2px; text-align: center; pointer-events: none; transition: opacity 400ms ease; }
 .poker-seat p { margin: 0; }
 .poker-seat--folded { opacity: 0.5; }
-.poker-seat--out > :not(.poker-seat__out) { opacity: 0.4; }
+.poker-seat--out > :not(.poker-seat__out) { opacity: 0.55; }
 .poker-seat__name { font-family: var(--display); font-weight: 800; font-size: clamp(1.6rem, 2.5vw, 3.2rem); line-height: 0.95; text-transform: uppercase; letter-spacing: 0.04em; color: var(--id, var(--chalk)); text-shadow: 0 2px 4px rgb(0 0 0 / 0.7), 0 0 22px rgb(0 0 0 / 0.75); }
 .poker-seat__stack { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: clamp(1.05rem, 1.35vw, 1.6rem); color: var(--chalk); text-shadow: 0 1px 6px rgb(0 0 0 / 0.9); min-height: 1.2em; }
 .poker-seat__notes { display: flex; gap: var(--s2); align-items: baseline; min-height: 1.2em; }
@@ -3080,7 +3080,27 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .poker-seat__ring { position: absolute; top: 0.1em; right: -1.9rem; width: 1.5rem; height: 1.5rem; }
 .poker-seat__said { font-family: var(--display); font-size: clamp(0.75rem, 0.95vw, 1.05rem); letter-spacing: 0.1em; text-transform: uppercase; color: rgb(245 240 230 / 0.78); text-shadow: 0 1px 6px rgb(0 0 0 / 0.9); }
 .poker-allin { padding: 0.15em 0.55em; border-radius: 3px; background: var(--tally); color: var(--hot); font-family: var(--display); font-weight: 800; font-size: clamp(0.8rem, 1vw, 1.1rem); letter-spacing: 0.1em; text-transform: uppercase; box-shadow: 0 3px 10px rgb(0 0 0 / 0.5); }
-.poker-seat__out { margin-top: var(--s1); padding: 0.12em 0.6em; border-radius: 4px; background: linear-gradient(180deg, #c8322a, #8f1f1a); color: var(--hot); font-family: var(--display); font-weight: 800; font-size: clamp(1.1rem, 1.7vw, 2rem); letter-spacing: 0.08em; text-transform: uppercase; rotate: -5deg; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25), 0 4px 14px rgb(0 0 0 / 0.6); }
+/* A rubber stamp on the felt: a boxed word in thin ink, unevenly taken, across the lower edge of the name. */
+.poker-seat__out {
+  position: absolute;
+  left: 50%;
+  top: 54%;
+  translate: -50% 0;
+  rotate: -7deg;
+  padding: 0.04em 0.4em 0;
+  border: 0.13em solid currentColor;
+  border-radius: 0.14em;
+  color: var(--stamp-ink);
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(0.95rem, 1.3vw, 1.55rem);
+  line-height: 1.05;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  -webkit-mask: var(--stamp-wear) 0 0 / 120px 120px;
+  mask: var(--stamp-wear) 0 0 / 120px 120px;
+}
 .poker-ring { width: 2.25rem; height: 2.25rem; transform: rotate(-90deg); }
 .poker-ring__track { fill: none; stroke: rgb(0 0 0 / 0.45); stroke-width: 10; }
 .poker-ring__left { fill: none; stroke: var(--tungsten); stroke-width: 10; stroke-linecap: round; }

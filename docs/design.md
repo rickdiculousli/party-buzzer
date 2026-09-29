@@ -724,7 +724,12 @@ rather than squaring up early. Cards come to rest a few degrees off square,
 fixed per card. The flop lands face down and turns together; folds lie in the
 middle and the dealer pulls them to the muck. Bets slide to the line and are
 swept into the pot as a street closes; the pot slides to the winner. A level
-change prints over a dark oval so it reads over the play. Tunables live in `TOSS`; the harness's Poker
+change prints over a dark oval so it reads over the play.
+
+A player out of the tournament is stamped, not announced: a thin boxed word in
+faded `--stamp-ink`, masked by `--stamp-wear` so the rubber takes unevenly,
+across the lower edge of their dimmed name. It never floats on a plate or a
+shadow, because by then it is the least important thing on the table. Tunables live in `TOSS`; the harness's Poker
 scenarios preview the deal and the three kinds of fold.
 
 ---

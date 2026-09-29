@@ -285,7 +285,7 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
           {last && !seat.busted && (last.kind === 'allIn'
             ? <span key={last.id} class="poker-allin fx-zoom">All in</span>
             : <span key={last.id} class="poker-seat__said fx-fade">{capital(feedLine(last, () => '').trim())}</span>)}
-          {seat.busted && <span class="poker-seat__out fx-rubber-stamp">{bustLine(poker.feed, seat.player)}</span>}
+          {seat.busted && <span class="poker-seat__out fx-fade">{bustLine(poker.feed, seat.player)}</span>}
         </div>
       })}
 
