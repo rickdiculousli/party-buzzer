@@ -48,7 +48,7 @@ export function classifyGesture(trace: TracePoint[], prevTapEnd: number | null, 
 }
 
 /** The table's oval in board-normalized units. */
-export const ELLIPSE = { cx: 0.5, cy: 0.5, rx: 0.4, ry: 0.36 }
+export const ELLIPSE = { cx: 0.44, cy: 0.5, rx: 0.34, ry: 0.35 }
 
 /** Seat centres around the oval: the first at bottom centre, then clockwise, which is the table's "left". */
 export function seatPositions(n: number): { x: number; y: number }[] {
@@ -59,32 +59,6 @@ export function seatPositions(n: number): { x: number; y: number }[] {
     // Snap the float noise off the first seat so it lands exactly at bottom centre.
     return i === 0 ? { x: ELLIPSE.cx, y: ELLIPSE.cy + ELLIPSE.ry } : { x, y }
   })
-}
-
-type Point = { x: number; y: number }
-export type Leg = { at: Point & { rotate: number }; ms: number }
-
-/** How long each leg of a fold takes; a flick's first leg runs from `flyMs[0]` (hard) to `flyMs[1]` (soft). */
-export const FOLD = { flyMs: [250, 500] as const, slideMs: 900, lingerMs: 600, floatMs: 500, overshoot: 0.05, spinDeg: 40 }
-
-/**
- * A folded pair's three legs from its seat: fly to the centre (overshooting
- * along the flick, faster for a harder one; a timeout slides slowly instead),
- * linger there, then float to the discard pile.
- */
-export function foldPath(centre: Point, pile: Point, flick: PokerFlick | null): Leg[] {
-  const push = flick ? FOLD.overshoot * flick.speed : 0
-  const landing = {
-    x: centre.x + (flick?.dx ?? 0) * push,
-    y: centre.y + (flick?.dy ?? 0) * push,
-    rotate: flick ? flick.dx * FOLD.spinDeg * (0.5 + flick.speed) : 0,
-  }
-  const fly = flick ? Math.round(FOLD.flyMs[1] - (FOLD.flyMs[1] - FOLD.flyMs[0]) * flick.speed) : FOLD.slideMs
-  return [
-    { at: landing, ms: fly },
-    { at: landing, ms: FOLD.lingerMs },
-    { at: { ...pile, rotate: 0 }, ms: FOLD.floatMs },
-  ]
 }
 
 /** The shot clock's last seconds tick. */

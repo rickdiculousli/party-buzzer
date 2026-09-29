@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { PokerFeedEntry } from '../shared/protocol.ts'
-import { classifyGesture, foldPath, pokerCues, seatPositions, ELLIPSE, type PokerView, type TracePoint } from './poker.ts'
+import { classifyGesture, pokerCues, seatPositions, ELLIPSE, type PokerView, type TracePoint } from './poker.ts'
 
 /** A straight trace from (0,0) to (dx,dy) over ms, one point every 10 ms. */
 function line(dx: number, dy: number, ms: number, t0 = 0): TracePoint[] {
@@ -42,20 +42,6 @@ test('seats sit on the ellipse, the first at bottom centre', () => {
   }
   // Clockwise on screen: the second seat is left of the first.
   assert.ok(seatPositions(4)[1].x < seatPositions(4)[0].x)
-})
-
-test('a flicked fold flies, lingers at the centre, then floats to the pile', () => {
-  const centre = { x: 0.5, y: 0.5 }
-  const pile = { x: 0.62, y: 0.5 }
-  const legs = foldPath(centre, pile, { dx: 0, dy: -1, speed: 1 })
-  assert.equal(legs.length, 3)
-  assert.equal(legs[1].ms, 600)
-  assert.deepEqual({ x: legs[1].at.x, y: legs[1].at.y }, { x: legs[0].at.x, y: legs[0].at.y })
-  assert.ok(Math.hypot(legs[0].at.x - centre.x, legs[0].at.y - centre.y) < 0.1)
-  assert.deepEqual({ x: legs[2].at.x, y: legs[2].at.y }, pile)
-  const slow = foldPath(centre, pile, { dx: 0, dy: -1, speed: 0.1 })
-  assert.ok(slow[0].ms > legs[0].ms, 'a harder flick flies faster')
-  assert.equal(foldPath(centre, pile, null)[0].ms, 900)
 })
 
 const seat = (player: string) => ({ player, stack: 1000, bet: 0, button: false, sb: false, bb: false, folded: false, allIn: false, busted: false, away: false, cards: null })

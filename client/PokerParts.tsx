@@ -1,21 +1,128 @@
 import type { ComponentChildren } from 'preact'
-import { useEffect, useLayoutEffect, useRef } from 'preact/hooks'
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import type { Card } from '../shared/protocol.ts'
-import { pokerCues, type Leg, type PokerView } from './poker.ts'
+import { pokerCues, type PokerView } from './poker.ts'
 import { play } from './sound.ts'
+import { chipStack, type Frame, type Pose } from './toss.ts'
 
-const SUIT: Record<string, string> = { s: '♠', h: '♥', d: '♦', c: '♣' }
+/** Suit pips drawn on a 100-unit square, so every card prints the same shapes at any size. */
+const PIP: Record<string, string> = {
+  h: 'M50 90C22 68 5 51 5 32C5 17 16 7 30 7c9 0 16 5 20 13c4-8 11-13 20-13c14 0 25 10 25 25c0 19-17 36-45 58z',
+  d: 'M50 4Q68 29 90 50Q68 71 50 96Q32 71 10 50Q32 29 50 4z',
+  s: 'M50 5C61 24 95 40 95 62c0 14-11 22-23 22c-9 0-15-4-18-10c1 10 5 18 13 22H33c8-4 12-12 13-22c-3 6-9 10-18 10C16 84 5 76 5 62C5 40 39 24 50 5z',
+  c: 'M50 8a19 19 0 0 1 16 29a19 19 0 1 1-10 34c1 10 5 18 12 23H32c7-5 11-13 12-23a19 19 0 1 1-10-34A19 19 0 0 1 50 8z',
+}
 const RANK: Record<string, string> = { T: '10' }
+const COURT = new Set(['J', 'Q', 'K'])
+const SUIT_NAME: Record<string, string> = { s: 'spades', h: 'hearts', d: 'diamonds', c: 'clubs' }
 
-/** One playing card, a paper prop. Face down shows its back; `lift` raises a winning card. */
-export function PlayingCard({ card, down = false, class: cls = '' }: { card: Card | null; down?: boolean; class?: string }) {
-  if (down || !card) return <span class={`poker-card poker-card--down ${cls}`} aria-label="face-down card" />
-  const red = card[1] === 'h' || card[1] === 'd'
-  const rank = RANK[card[0]] ?? card[0]
-  return <span class={`poker-card ${red ? 'poker-card--red' : ''} ${cls}`} aria-label={`${rank}${SUIT[card[1]]}`}>
-    <span class="poker-card__rank">{rank}</span>
-    <span class="poker-card__suit">{SUIT[card[1]]}</span>
+export function SuitPip({ suit, class: cls = '' }: { suit: string; class?: string }) {
+  return <svg class={`poker-pip ${cls}`} viewBox="0 0 100 100" aria-hidden="true"><path d={PIP[suit]} /></svg>
+}
+
+/**
+ * A poker-size card (63 × 88 mm) with its face and back on either side, so
+ * turning it over is a real flip. Corner indices read when cards overlap.
+ */
+export function PlayingCard({ card, up, class: cls = '' }: { card: Card | null; up: boolean; class?: string }) {
+  const suit = card?.[1] ?? 's'
+  const rank = card ? RANK[card[0]] ?? card[0] : ''
+  const red = suit === 'h' || suit === 'd'
+  const showing = up && !!card
+  return <span class={`poker-card ${showing ? 'poker-card--up' : ''} ${cls}`} role="img" aria-label={showing ? `${rank} of ${SUIT_NAME[suit]}` : 'face-down card'}>
+    <span class="poker-card__turn">
+      <span class={`poker-card__face ${red ? 'poker-card__face--red' : ''}`}>
+        {card && <>
+          <span class="poker-card__index"><span class="poker-card__rank">{rank}</span><SuitPip suit={suit} /></span>
+          <span class="poker-card__index poker-card__index--foot"><span class="poker-card__rank">{rank}</span><SuitPip suit={suit} /></span>
+          {COURT.has(card[0])
+            ? <span class="poker-card__court"><span class="poker-card__court-rank">{rank}</span><SuitPip suit={suit} /></span>
+            : <SuitPip suit={suit} class={card[0] === 'A' ? 'poker-card__ace' : 'poker-card__centre'} />}
+        </>}
+      </span>
+      <span class="poker-card__back"><span class="poker-card__lattice" /></span>
+    </span>
   </span>
+}
+
+/** A bet as real chips: side-on slices under a face-up top chip, biggest at the bottom. */
+export function ChipStack({ amount, class: cls = '' }: { amount: number; class?: string }) {
+  const chips = chipStack(amount)
+  if (!chips.length) return null
+  return <span class={`poker-stack ${cls}`} style={{ '--n': chips.length }} aria-hidden="true">
+    {chips.map((value, i) => <span key={i} class={`poker-chip poker-chip--${value}`} style={{ '--i': i }} />)}
+  </span>
+}
+
+export function DealerPuck() {
+  return <span class="poker-puck" role="img" aria-label="dealer button"><span class="poker-puck__word">Dealer</span></span>
+}
+
+/**
+ * Words printed into the felt: a dark impression under light ink, both
+ * blended into the cloth so its grain shows through the letters.
+ */
+export function FeltMark({ text, class: cls = '' }: { text: string; class?: string }) {
+  return <span class={`felt-mark ${cls}`}>
+    <span class="felt-mark__press" aria-hidden="true">{text}</span>
+    <span class="felt-mark__ink">{text}</span>
+  </span>
+}
+
+/** Printed felt words along an arc, the way a table prints "insurance pays 2 to 1". `bow` up is a frown, down a smile. */
+export function FeltArc({ text, bow, class: cls = '' }: { text: string; bow: 'up' | 'down'; class?: string }) {
+  const id = useRef(`arc-${Math.random().toString(36).slice(2)}`).current
+  const d = bow === 'up' ? 'M24 78 Q200 -2 376 78' : 'M24 10 Q200 90 376 10'
+  return <svg class={`felt-arc ${cls}`} viewBox="0 0 400 88" role="img" aria-label={text}>
+    <path id={id} d={d} fill="none" />
+    <text class="felt-arc__press"><textPath href={`#${id}`} startOffset="50%" text-anchor="middle">{text}</textPath></text>
+    <text class="felt-arc__ink"><textPath href={`#${id}`} startOffset="50%" text-anchor="middle">{text}</textPath></text>
+  </svg>
+}
+
+export const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+const transformOf = (p: Pose, lift = 0) => `translate(${p.x}px, ${p.y}px) translate(-50%, -50%) rotate(${p.rot}deg) scale(${1 + lift})`
+
+/**
+ * Something lying on the felt at a pose, in table pixels. Given `frames`, it
+ * first travels them after `delay`, holding the first frame until then, and
+ * calls `done` on arrival. Reduced motion puts it straight at rest.
+ */
+export function Piece({ pose, frames, delay = 0, done, class: cls = '', children }: {
+  pose: Pose; frames?: Frame[] | null; delay?: number; done?: () => void; class?: string; children: ComponentChildren
+}) {
+  const el = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const node = el.current
+    if (!node || !frames?.length || reducedMotion()) { done?.(); return }
+    const total = frames[frames.length - 1].t || 1
+    const run = node.animate(
+      frames.map((f) => ({ transform: transformOf(f, f.lift), offset: f.t / total })),
+      { duration: total, delay, fill: 'backwards', easing: 'linear' },
+    )
+    run.onfinish = () => done?.()
+    return () => run.cancel()
+  }, [])
+  return <div ref={el} class={`poker-piece ${cls}`} style={{ transform: transformOf(pose) }}>{children}</div>
+}
+
+/**
+ * A container's size in pixels, kept current as the window changes. The ref is
+ * a callback, so a container that mounts later (after a waiting screen) is
+ * still measured.
+ */
+export function useSize<T extends HTMLElement>(): [(node: T | null) => void, { w: number; h: number }] {
+  const [node, setNode] = useState<T | null>(null)
+  const [size, setSize] = useState({ w: 0, h: 0 })
+  useLayoutEffect(() => {
+    if (!node) return
+    const measure = () => setSize({ w: node.clientWidth, h: node.clientHeight })
+    measure()
+    const watch = new ResizeObserver(measure)
+    watch.observe(node)
+    return () => watch.disconnect()
+  }, [node])
+  return [setNode, size]
 }
 
 /** Plays this surface's cues as frames arrive. `who` is 'board' or the phone's player id. */
@@ -28,44 +135,14 @@ export function usePokerCues(frame: PokerView | null, who: string | null) {
   }, [frame, who])
 }
 
-/** A ring that empties as a shot clock runs down; the last seconds beat. */
+/** A thin ring that empties as a shot clock runs down; the last seconds beat. */
 export function ShotRing({ until, total, now, class: cls = '' }: { until: number; total: number; now: number; class?: string }) {
   const left = Math.max(0, until - now)
   const share = Math.min(1, left / total)
   const r = 45
   const around = 2 * Math.PI * r
-  return <svg class={`poker-ring ${left <= 5_000 ? 'fx-heartbeat' : ''} ${cls}`} viewBox="0 0 100 100" aria-label={`${Math.ceil(left / 1000)} seconds to act`}>
+  return <svg class={`poker-ring ${left <= 5_000 ? 'fx-heartbeat' : ''} ${cls}`} viewBox="0 0 100 100" role="img" aria-label={`${Math.ceil(left / 1000)} seconds to act`}>
     <circle class="poker-ring__track" cx="50" cy="50" r={r} />
     <circle class="poker-ring__left" cx="50" cy="50" r={r} style={{ strokeDasharray: around, strokeDashoffset: around * (1 - share) }} />
   </svg>
-}
-
-/**
- * Something crossing the felt: it starts at `from` and runs `legs` in turn,
- * moving by transform only, then calls `done`. Coordinates are 0–1 of the table.
- */
-export function Flight({ from, legs, easing, children, done }: {
-  from: { x: number; y: number }; legs: Leg[]; easing: string; children: ComponentChildren; done: () => void
-}) {
-  const el = useRef<HTMLDivElement>(null)
-  useLayoutEffect(() => {
-    const node = el.current
-    const table = node?.parentElement?.getBoundingClientRect()
-    if (!node || !table) return done()
-    const total = legs.reduce((sum, leg) => sum + leg.ms, 0)
-    let at = 0
-    const frames: Keyframe[] = [{ transform: 'translate(0px, 0px) rotate(0deg)', offset: 0, easing }]
-    for (const leg of legs) {
-      at += leg.ms
-      frames.push({
-        transform: `translate(${(leg.at.x - from.x) * table.width}px, ${(leg.at.y - from.y) * table.height}px) rotate(${leg.at.rotate}deg)`,
-        offset: at / total,
-        easing,
-      })
-    }
-    const run = node.animate(frames, { duration: total, fill: 'forwards' })
-    run.onfinish = done
-    return () => run.cancel()
-  }, [])
-  return <div ref={el} class="poker-flight" style={{ left: `${from.x * 100}%`, top: `${from.y * 100}%` }}>{children}</div>
 }

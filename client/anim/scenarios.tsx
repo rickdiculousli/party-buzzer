@@ -28,8 +28,9 @@ import { Votes } from '../Votes.tsx'
 import { Spoken } from '../Spoken.tsx'
 import { Burst, CountUp, Glitch, Letters } from '../fx.tsx'
 import { FaceOff, Finale } from '../Board.tsx'
-import { Flight, PlayingCard } from '../PokerParts.tsx'
-import { foldPath } from '../poker.ts'
+import { Piece, PlayingCard } from '../PokerParts.tsx'
+import { chain, pitch, sweep, toss } from '../toss.ts'
+import { mulberry32 } from '../../shared/random.ts'
 import type { BurstFrom } from '../fx.ts'
 import type { Recipe } from '../synth.ts'
 
@@ -420,27 +421,52 @@ const FX: Scenario[] = [
   burst('confetti', 'Confetti (top)', '<Burst kind="confetti" from="top"> — off the whole top edge of a wide word.', { from: 'top' }),
 ]
 
-/** A fold crossing a felt: a hard flick, a soft one, and a timeout's slide. Leg timings are `FOLD` in client/poker.ts. */
+/** The stage for Poker's motion: a patch of felt 576 × 320 px with a dealer off its top edge. */
+const PATCH = { w: 576, h: 320 }
+const pokerStage = (children: preact.ComponentChildren) => (
+  <div class="fx-stage">
+    <div class="felt felt--board poker-patch" style={{ width: `${PATCH.w}px`, height: `${PATCH.h}px`, '--card-w': '56px' }}>
+      <div class="felt__lamp felt__lamp--centre" />
+      <div class="poker-layer">{children}</div>
+    </div>
+  </div>
+)
+
+/** A fold thrown into the middle, left to lie, then swept to the muck. Physics tunables are `TOSS` in client/toss.ts. */
 function foldScenario(id: string, label: string, flick: { dx: number; dy: number; speed: number } | null): Scenario {
+  const from = { x: PATCH.w / 2, y: PATCH.h * 0.86, rot: -4 }
+  const aim = { x: PATCH.w / 2, y: PATCH.h * 0.45 }
+  const muck = { x: PATCH.w * 0.8, y: PATCH.h * 0.4, rot: 14 }
   return {
     id,
     label,
     family: 'Poker',
-    note: `${label}: flies to the centre, lingers, floats to the pile. Tune FOLD in client/poker.ts.`,
-    subject: '.poker-flight',
+    note: `${label}: thrown with friction and spin, left to lie, swept to the muck. Tune TOSS in client/toss.ts.`,
+    subject: '.poker-piece',
     dials: [],
-    sound: 'poker-check',
-    render: (lead) => (
-      <div class="fx-stage">
-        <div class="poker-table" style={{ width: '36rem', height: '20rem' }}>
-          <div class="poker-oval" />
-          {!lead && <Flight from={{ x: 0.5, y: 0.85 }} legs={foldPath({ x: 0.5, y: 0.5 }, { x: 0.66, y: 0.5 }, flick)} easing={flick ? 'ease-out' : 'ease-in-out'} done={() => {}}>
-            <span class="poker-flight__pair"><PlayingCard card={null} /><PlayingCard card={null} /></span>
-          </Flight>}
-        </div>
-      </div>
-    ),
+    render: (lead) => pokerStage(([0, 1] as const).map((k) => {
+      const thrown = toss({ ...from, x: from.x + (k ? 16 : -16) }, aim, flick, mulberry32(k + 3))
+      return <Piece key={k} pose={lead ? from : muck} frames={lead ? null : chain(thrown.frames, 700 + k * 90, sweep(thrown.rest, muck))}>
+        <PlayingCard card={null} up={false} />
+      </Piece>
+    })),
   }
+}
+
+/** A dealer's pitch from off the top edge: two cards to one seat, the second catching the first. */
+const dealScenario: Scenario = {
+  id: 'poker-deal',
+  label: 'Deal',
+  family: 'Poker',
+  note: 'Two cards pitched from the dealer off the top edge, one at a time. Tune TOSS in client/toss.ts.',
+  subject: '.poker-piece',
+  dials: [],
+  render: (lead) => pokerStage(([0, 1] as const).map((k) => {
+    const spot = { x: PATCH.w / 2 + (k ? 17 : -17), y: PATCH.h * 0.72, rot: k ? 5 : -4 }
+    return <Piece key={k} pose={spot} frames={lead ? null : pitch({ x: PATCH.w / 2, y: -90 }, spot, mulberry32(k + 11))} delay={k * 150}>
+      <PlayingCard card={null} up={false} />
+    </Piece>
+  })),
 }
 
 export const SCENARIOS: Scenario[] = [
@@ -648,6 +674,7 @@ export const SCENARIOS: Scenario[] = [
     dials: [ms('--faceoff-slide-dur', 1500, 'Charge'), amount('--faceoff-dust-amp', 0, 20, 0.5, 'em', 'Dust')],
     render: (lead) => <Stage mid={lead ? <div class="harness__ghost" /> : <FaceOff pair={['Ada', 'Bo']} />} />,
   },
+  dealScenario,
   foldScenario('poker-fold-hard', 'Fold, hard flick', { dx: 0.2, dy: -0.98, speed: 1 }),
   foldScenario('poker-fold-soft', 'Fold, soft flick', { dx: -0.3, dy: -0.95, speed: 0.2 }),
   foldScenario('poker-fold-timeout', 'Fold, timed out', null),

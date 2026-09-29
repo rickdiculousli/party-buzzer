@@ -1,26 +1,40 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import type { PlayerId, PokerFeedEntry } from '../shared/protocol.ts'
 import { REACT_LABEL } from '../shared/protocol.ts'
+import { mulberry32 } from '../shared/random.ts'
 import type { MinigameBoardProps } from './minigames.tsx'
 import { matchFrame } from './minigame-info.ts'
-import { Burst, CountUp, Letters } from './fx.tsx'
-import { Flight, PlayingCard, ShotRing, usePokerCues } from './PokerParts.tsx'
-import { feedLine, foldPath, seatPositions, POKER_RULES, type Leg } from './poker.ts'
+import { Burst, Letters } from './fx.tsx'
+import { ChipStack, DealerPuck, FeltMark, Piece, PlayingCard, ShotRing, reducedMotion, usePokerCues, useSize } from './PokerParts.tsx'
+import { ELLIPSE, feedLine, seatPositions, POKER_RULES } from './poker.ts'
+import { chain, pitch, slide, sweep, toss, type Frame, type Pose } from './toss.ts'
 import { colorForPlayer, ordinal, playerName, setlistPosition } from './ui.ts'
 
 type Point = { x: number; y: number }
-const CENTRE = { x: 0.5, y: 0.5 }
-const PILE = { x: 0.7, y: 0.3 }
-const POT = { x: 0.5, y: 0.62 }
-const CHIP_MS = 420
+/** How long folded cards lie in the middle before the dealer sweeps them. */
+const LINGER_MS = 700
+/** Longest gap between cards in a deal; a big table deals faster so the round fits the server's beat. */
+const DEAL_GAP_MS = 150
+const DEAL_WINDOW_MS = 1_300
+const FLOP_GAP_MS = 110
+/** A pitched community card takes about this long to come to rest. */
+const PITCH_MS = 520
 const BANNER_MS = 2_600
 const REACTION_MS = 1_800
-const FEED_SHOWN = 8
+const LOG_LINES = 7
+/** Where things sit, as shares of the way from a seat to the middle. */
+const HOLE_IN = 0.36
+const BET_IN = 0.57
 
-/** A seat's bets and cards sit a little way in from its name, toward the felt's middle. */
-const inward = (p: Point, by: number): Point => ({ x: p.x + (CENTRE.x - p.x) * by, y: p.y + (CENTRE.y - p.y) * by })
+const toward = (p: Point, c: Point, by: number): Point => ({ x: p.x + (c.x - p.x) * by, y: p.y + (c.y - p.y) * by })
+/** A stable seed for one card's throw, so a re-render never re-rolls its path. */
+const seedOf = (...parts: (string | number)[]) => {
+  let h = 2166136261
+  for (const ch of parts.join('|')) h = Math.imul(h ^ ch.charCodeAt(0), 16777619)
+  return h >>> 0
+}
 
-/** Entries newer than the last frame's; the first frame only sets the baseline, so a reload replays nothing. */
+/** Entries newer than the last frame's. The first frame only sets the baseline, so a reload replays nothing. */
 function useFresh<T extends { id: number }>(list: T[] | undefined, matchId: string): T[] {
   const seen = useRef<{ match: string; id: number } | null>(null)
   if (!list) return []
@@ -34,178 +48,263 @@ function useFresh<T extends { id: number }>(list: T[] | undefined, matchId: stri
   return fresh
 }
 
-/** Keeps short-lived things on screen for `ms`, then drops them. */
-function useTransient<T extends { key: string }>(ms: number): [T[], (items: T[]) => void] {
-  const [items, setItems] = useState<T[]>([])
-  const add = (fresh: T[]) => {
-    if (!fresh.length) return
-    setItems((now) => [...now, ...fresh])
-    const keys = new Set(fresh.map((item) => item.key))
-    setTimeout(() => setItems((now) => now.filter((item) => !keys.has(item.key))), ms)
-  }
-  return [items, add]
-}
+type Ghost = { key: string; pose: Pose; frames: Frame[]; kind: 'fold' | 'chips' | 'bet'; amount?: number; seat?: number }
 
-const cssVar = (name: string, fallback: string) =>
-  getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback
-
-type Fly = { key: string; from: Point; legs: Leg[]; kind: 'fold' | 'chips'; easing: string }
-
+/**
+ * The board is the table under one lamp: felt to every edge, seats printed
+ * around it, and a dealer just off the top edge who pitches every card.
+ */
 export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
   const session = state.minigame!
   const poker = matchFrame(frame, 'poker', 'board', session.matchId)
   usePokerCues(poker, 'board')
   const nameOf = (id: PlayerId) => playerName(state, id)
   const place = setlistPosition(state) ?? 'Poker'
+  const [tableRef, { w, h }] = useSize<HTMLDivElement>()
 
-  const [flights, setFlights] = useState<Fly[]>([])
-  const [banners, addBanners] = useTransient<{ key: string; text: string }>(BANNER_MS)
-  const [floats, addFloats] = useTransient<{ key: string; player: PlayerId; text: string }>(REACTION_MS)
+  const [ghosts, setGhosts] = useState<Ghost[]>([])
+  const [banners, setBanners] = useState<{ key: string; text: string }[]>([])
+  const [floats, setFloats] = useState<{ key: string; player: PlayerId; text: string }[]>([])
+  const [landed, setLanded] = useState<number | null>(null)
+  // When this hand was dealt. A reload mid-hand deals nothing; one that lands during a deal still watches it.
+  const deal = useRef<{ hand: number; at: number | null } | null>(null)
+  if (poker && deal.current?.hand !== poker.handNo) deal.current = { hand: poker.handNo, at: deal.current || poker.phase === 'deal' ? performance.now() : null }
   const fresh = useFresh(poker?.feed, session.matchId)
   const freshReacts = useFresh(poker?.reactions, session.matchId)
+  const prev = useRef<typeof poker>(null)
 
+  // Geometry, in table pixels.
   const seats = poker?.seats ?? []
-  const spots = seatPositions(seats.length)
-  const spotOf = (id: PlayerId | null) => spots[seats.findIndex((seat) => seat.player === id)] ?? CENTRE
+  const cardW = Math.round(Math.min(92, Math.max(44, w * 0.046)))
+  const centre = { x: ELLIPSE.cx * w, y: ELLIPSE.cy * h }
+  const spots = seatPositions(seats.length).map((p) => ({ x: p.x * w, y: p.y * h }))
+  const dealer = { x: centre.x, y: -cardW * 1.6 }
+  const board = (i: number): Pose => ({ x: centre.x + (i - 2) * cardW * 1.14, y: centre.y - h * 0.035, rot: 0 })
+  const potAt = { x: centre.x, y: centre.y + h * 0.085 }
+  const muck: Pose = { x: centre.x + cardW * 3.9, y: centre.y - h * 0.035, rot: 14 }
+  const holeOf = (i: number, k: 0 | 1): Pose => {
+    const at = toward(spots[i], centre, HOLE_IN)
+    const tilt = ((spots[i].x - centre.x) / w) * -18
+    return { x: at.x + (k ? 0.3 : -0.3) * cardW, y: at.y + (k ? 1 : 0), rot: tilt + (k ? 5 : -4) }
+  }
+  const betOf = (i: number) => toward(spots[i], centre, BET_IN)
+  const seatIndex = (id: PlayerId | null) => seats.findIndex((seat) => seat.player === id)
 
   useEffect(() => {
-    if (!poker) return
-    const flies: Fly[] = []
-    const charge = cssVar('--rate-charge', 'cubic-bezier(0.6, 0, 0.9, 0.4)')
+    if (!poker || !w) return
+    const before = prev.current
+    prev.current = poker
+    const motion = !reducedMotion()
+    const add: Ghost[] = []
     for (const entry of fresh) {
-      const spot = spotOf(entry.player)
-      if (entry.kind === 'fold') {
-        flies.push({ key: `f${entry.id}`, kind: 'fold', from: inward(spot, 0.36), legs: foldPath(CENTRE, PILE, entry.flick ?? null), easing: entry.flick ? 'ease-out' : 'ease-in-out' })
-      } else if (entry.kind === 'call' || entry.kind === 'bet' || entry.kind === 'raise' || entry.kind === 'blind' || entry.kind === 'allIn') {
-        flies.push({ key: `c${entry.id}`, kind: 'chips', from: spot, legs: [{ at: { ...inward(spot, 0.55), rotate: 0 }, ms: CHIP_MS }], easing: charge })
+      const i = seatIndex(entry.player)
+      if (entry.kind === 'fold' && i >= 0 && motion) {
+        // The two cards leave together but fly apart: each has its own throw, and they are swept one after the other.
+        for (const k of [0, 1] as const) {
+          const thrown = toss(holeOf(i, k), centre, entry.flick ?? null, mulberry32(seedOf(entry.id, k)))
+          add.push({ key: `f${entry.id}-${k}`, kind: 'fold', pose: muck, frames: chain(thrown.frames, LINGER_MS + k * 90, sweep(thrown.rest, muck)) })
+        }
+      }
+      const bets = entry.kind === 'call' || entry.kind === 'bet' || entry.kind === 'raise' || entry.kind === 'allIn' || entry.kind === 'blind'
+      if (bets && i >= 0 && motion) {
+        const moved = (entry.amount ?? 0) - (before?.seats.find((seat) => seat.player === entry.player)?.bet ?? 0)
+        if (moved > 0) {
+          const to = { ...betOf(i), rot: 0 }
+          add.push({ key: `c${entry.id}`, kind: 'bet', seat: i, amount: moved, pose: to, frames: slide({ ...toward(spots[i], centre, 0.12), rot: 0 }, to, mulberry32(entry.id), { lift: 0, wobble: 0.02 }) })
+        }
+      }
+      if (entry.kind === 'win' && i >= 0 && motion) {
+        const to = { ...toward(spots[i], centre, 0.3), rot: 0 }
+        add.push({ key: `w${entry.id}`, kind: 'chips', amount: entry.amount, pose: to, frames: slide({ ...potAt, rot: 0 }, to, mulberry32(entry.id), { lift: 0, wobble: 0.03, friction: 0.0022 }) })
+      }
+      if (entry.kind === 'level') {
+        const key = `l${entry.id}`
+        setBanners((all) => [...all, { key, text: `Blinds ${Math.floor(entry.amount! / 2)} / ${entry.amount}` }])
+        setTimeout(() => setBanners((all) => all.filter((b) => b.key !== key)), BANNER_MS)
       }
     }
-    if (flies.length) setFlights((now) => [...now, ...flies])
-    addBanners(fresh.filter((entry) => entry.kind === 'level').map((entry) => ({ key: `l${entry.id}`, text: `Blinds ${Math.floor(entry.amount! / 2)} / ${entry.amount}` })))
-    addFloats(freshReacts.map((r) => ({ key: `r${r.id}`, player: r.player, text: REACT_LABEL[r.kind] })))
+    // A street closes: the dealer draws every bet into the pot.
+    if (before && motion && poker.handNo === before.handNo && before.seats.some((seat) => seat.bet > 0) && poker.seats.every((seat) => seat.bet === 0)) {
+      before.seats.forEach((seat, i) => {
+        if (!seat.bet) return
+        add.push({ key: `s${poker.handNo}-${poker.street}-${i}`, kind: 'chips', amount: seat.bet, pose: { ...potAt, rot: 0 }, frames: sweep({ ...betOf(i), rot: 0 }, { ...potAt, rot: 0 }) })
+      })
+    }
+    if (add.length) setGhosts((all) => [...all, ...add])
+    if (freshReacts.length) {
+      const items = freshReacts.map((r) => ({ key: `r${r.id}`, player: r.player, text: REACT_LABEL[r.kind] }))
+      setFloats((all) => [...all, ...items])
+      setTimeout(() => setFloats((all) => all.filter((f) => !items.some((item) => item.key === f.key))), REACTION_MS)
+    }
   }, [poker])
+
+  // Community cards land face down and turn over once the last card of their street is down.
+  const boardLen = poker?.board.length ?? 0
+  const down = landed ?? boardLen
+  useEffect(() => {
+    if (!poker) return
+    if (boardLen <= down) { setLanded(boardLen); return }
+    const timer = setTimeout(() => setLanded(boardLen), reducedMotion() ? 0 : PITCH_MS + (boardLen - down - 1) * FLOP_GAP_MS)
+    return () => clearTimeout(timer)
+  }, [boardLen, !!poker])
 
   if (session.phase === 'results') {
     const rows = [...session.results ?? []].sort((a, b) => (a.place ?? 0) - (b.place ?? 0))
     const winner = rows[0]
-    return <main class="board">
-      <section class="board__wall">
-        <div class="board__status"><span class="chip">{place}</span></div>
-        <div class="board__above" />
-        <div class="board__mid">
-          {winner && <p class="board__hero fx-hero-slam-glow" style={{ '--id': colorForPlayer(state, winner.playerId) }}>
+    return <main class="board poker-room">
+      <div class="felt felt--board"><div class="felt__lamp felt__lamp--centre" />
+        <section class="poker-final">
+          {winner && <p class="poker-final__name fx-hero-slam-glow" style={{ '--id': colorForPlayer(state, winner.playerId) }}>
             {nameOf(winner.playerId)}<Burst kind="confetti" />
           </p>}
-        </div>
-        <div class="board__below">
-          <ol class="poker-places">{rows.map((row) => <li key={row.playerId}>
-            <span class="readout">{row.place ? ordinal(row.place) : ''}</span> {nameOf(row.playerId)}
+          <FeltMark text="Takes the table" class="poker-final__sub" />
+          <ol class="poker-final__places">{rows.slice(1).map((row) => <li key={row.playerId}>
+            <span class="poker-final__place">{row.place ? ordinal(row.place) : ''}</span>
+            <span style={{ color: colorForPlayer(state, row.playerId) }}>{nameOf(row.playerId)}</span>
           </li>)}</ol>
-        </div>
-      </section>
+        </section>
+      </div>
     </main>
   }
 
-  if (!poker) return <main class="board">
-    <section class="board__wall">
-      <div class="board__status"><span class="chip">{place}</span></div>
-      <div class="board__above" />
-      <div class="board__mid">
-        <div class="board__next">
-          <p class="board__next-label">{session.phase === 'ready' ? (session.checkpoint ? `Resumes from ${session.checkpoint.label}` : 'Next up') : 'Starting'}</p>
-          <p class="board__next-value">Poker</p>
-        </div>
-      </div>
-      <div class="board__below"><p class="sketch-rules">{POKER_RULES}</p></div>
-    </section>
+  if (!poker) return <main class="board poker-room">
+    <div class="felt felt--board"><div class="felt__lamp felt__lamp--centre" />
+      <section class="poker-final">
+        <FeltMark text="Party Buzzer" class="poker-logo__name" />
+        <FeltMark text="No-limit Hold'em" class="poker-logo__game" />
+        <p class="poker-waiting">{session.phase === 'ready' ? (session.checkpoint ? `Resumes from ${session.checkpoint.label}` : 'Next up') : 'Shuffling up'}</p>
+        <p class="poker-rules">{POKER_RULES}</p>
+      </section>
+    </div>
   </main>
 
   const lastBy = new Map<PlayerId, PokerFeedEntry>()
   for (const entry of poker.feed) if (entry.player && entry.kind !== 'win' && entry.kind !== 'bust') lastBy.set(entry.player, entry)
   const winners = new Set(poker.showdown?.flatMap((pot) => pot.winners) ?? [])
-  const shown = new Set(poker.showdown?.[0]?.five ?? [])
-  const mainName = poker.showdown?.[0]?.name
-  const folding = flights.filter((f) => f.kind === 'fold').length
+  const five = new Set(poker.showdown?.[0]?.five ?? [])
+  const handName = poker.showdown?.[0]?.name
+  const folding = ghosts.filter((g) => g.kind === 'fold').length / 2
   const potTotal = poker.pots.reduce((a, b) => a + b, 0)
   const nextLevel = Math.max(0, Math.ceil((poker.nextLevelAt - now()) / 1000))
+  const actor = seatIndex(poker.actor)
+  const buttonAt = seats.findIndex((seat) => seat.button)
 
-  return <main class="board poker-board">
-    <header class="poker-top">
-      <span class="chip">{place}</span>
-      <span class="chip">Hand {poker.handNo}</span>
-      <span class="poker-top__blinds">Blinds {poker.sb} / {poker.bb}</span>
-      <span class="poker-top__next">Next level <span class="readout">{Math.floor(nextLevel / 60)}:{String(nextLevel % 60).padStart(2, '0')}</span></span>
-    </header>
-    <section class="poker-table">
-      <div class="poker-oval" />
-      <div class="poker-centre">
-        <div class="poker-community">
-          {poker.board.map((card) => <PlayingCard key={card} card={card} class={`fx-flip ${shown.size && !shown.has(card) ? 'poker-card--dim' : ''} ${shown.has(card) ? 'poker-card--lift' : ''}`} />)}
-        </div>
-        {mainName && <Letters key={poker.handNo} text={mainName} class="poker-hand-name" />}
+  // The deal: clockwise from the seat left of the button, one card each, then the second.
+  const live = seats.map((seat, i) => ({ seat, i })).filter(({ seat }) => !seat.busted)
+  const start = Math.max(0, live.findIndex(({ i }) => i > buttonAt))
+  const order = [...live.slice(start), ...live.slice(0, start)].map(({ i }) => i)
+  const gap = Math.min(DEAL_GAP_MS, DEAL_WINDOW_MS / Math.max(1, order.length * 2))
+  const dealtAt = deal.current?.at ?? null
+  const dealDelay = (i: number, k: 0 | 1) =>
+    dealtAt === null ? null : Math.max(0, dealtAt + (k * order.length + order.indexOf(i)) * gap - performance.now())
+  const incomingBet = new Set(ghosts.filter((g) => g.kind === 'bet').map((g) => g.seat))
+  const pushing = poker.phase === 'showdown' || poker.phase === 'muck'
+  const puck = buttonAt >= 0 ? spots[buttonAt] : null
+
+  return <main class="board poker-room">
+    <div class="felt felt--board" ref={tableRef}>
+      <div class="felt__lamp felt__lamp--centre" />
+      {actor >= 0 && <div class="felt__lamp felt__lamp--seat" style={{ transform: `translate(${spots[actor].x}px, ${spots[actor].y}px) translate(-50%, -50%)` }} />}
+      <svg class="felt-line" viewBox={`0 0 ${w || 1} ${h || 1}`} aria-hidden="true">
+        <ellipse cx={centre.x} cy={centre.y} rx={ELLIPSE.rx * w * (1 - BET_IN) + cardW * 0.9} ry={ELLIPSE.ry * h * (1 - BET_IN) + cardW * 0.7} />
+        <ellipse cx={centre.x} cy={centre.y} rx={ELLIPSE.rx * w * (1 - BET_IN) + cardW * 0.78} ry={ELLIPSE.ry * h * (1 - BET_IN) + cardW * 0.58} />
+      </svg>
+      <div class="poker-logo" style={{ transform: `translate(${centre.x}px, ${centre.y + h * 0.215}px) translate(-50%, -50%)` }}>
+        <FeltMark text="Party Buzzer" class="poker-logo__name" />
+        <FeltMark text="No-limit Hold'em" class="poker-logo__game" />
       </div>
-      <p class="poker-pot" style={{ left: `${POT.x * 100}%`, top: `${POT.y * 100}%` }}>
-        {potTotal > 0 && <>Pot <span class="readout"><CountUp key={potTotal} to={potTotal} /></span></>}
-        {poker.pots.length > 1 && <span class="poker-pot__side"> · {poker.pots.length - 1} side</span>}
-      </p>
-      <div class="poker-pile" style={{ left: `${PILE.x * 100}%`, top: `${PILE.y * 100}%` }}>
+
+      {w > 0 && <div class="poker-layer" style={{ '--card-w': `${cardW}px` }}>
+        {puck && <Piece key="puck" pose={{ x: puck.x + cardW * 1.5, y: puck.y, rot: 0 }} class="poker-piece--glide"><DealerPuck /></Piece>}
+
         {Array.from({ length: Math.max(0, poker.discard / 2 - folding) }, (_, i) =>
-          <PlayingCard key={i} card={null} class="poker-pile__card" />)}
-      </div>
+          <Piece key={`m${i}`} pose={{ ...muck, rot: muck.rot + ((i * 37) % 23) - 11, x: muck.x + ((i * 13) % 7) - 3 }}><PlayingCard card={null} up={false} /></Piece>)}
+
+        {poker.board.map((card, i) => {
+          const incoming = i >= down && !reducedMotion()
+          const frames = incoming ? pitch(dealer, board(i), mulberry32(seedOf(poker.handNo, 'b', i))) : null
+          return <Piece key={`${poker.handNo}-b${i}`} pose={board(i)} frames={frames} delay={incoming ? (i - down) * FLOP_GAP_MS : 0}>
+            <PlayingCard card={card} up={i < down} class={five.size ? (five.has(card) ? 'poker-card--win' : 'poker-card--dim') : ''} />
+          </Piece>
+        })}
+
+        {potTotal > 0 && !pushing && <Piece key="pot" pose={{ ...potAt, rot: 0 }}>
+          <span class="poker-pot"><ChipStack amount={potTotal} />
+            <span class="poker-pot__amount">{potTotal.toLocaleString()}</span>
+            {poker.pots.length > 1 && <span class="poker-pot__side">{poker.pots.length - 1} side pot{poker.pots.length > 2 ? 's' : ''}</span>}
+          </span>
+        </Piece>}
+
+        {seats.map((seat, i) => seat.busted || seat.folded ? null : ([0, 1] as const).map((k) => {
+          const delay = dealDelay(i, k)
+          const frames = delay !== null ? pitch(dealer, holeOf(i, k), mulberry32(seedOf(poker.handNo, i, k))) : null
+          const won = winners.has(seat.player)
+          const card = seat.cards?.[k] ?? null
+          return <Piece key={`${poker.handNo}-${i}-${k}`} pose={holeOf(i, k)} frames={frames} delay={delay ?? 0}>
+            <PlayingCard card={card} up={!!card} class={card && five.size ? (won && five.has(card) ? 'poker-card--win' : won ? '' : 'poker-card--dim') : ''} />
+          </Piece>
+        }))}
+
+        {seats.map((seat, i) => seat.bet > 0 && <Piece key={`bet-${i}`} pose={{ ...betOf(i), rot: 0 }}>
+          <span class="poker-bet">{!incomingBet.has(i) && <ChipStack amount={seat.bet} />}<span class="poker-bet__amount">{seat.bet.toLocaleString()}</span></span>
+        </Piece>)}
+
+        {ghosts.map((g) => <Piece key={g.key} pose={g.pose} frames={g.frames} done={() => setGhosts((all) => all.filter((other) => other.key !== g.key))}>
+          {g.kind === 'fold' ? <PlayingCard card={null} up={false} /> : <ChipStack amount={g.amount ?? 0} />}
+        </Piece>)}
+      </div>}
 
       {seats.map((seat, i) => {
         const spot = spots[i]
-        const bet = inward(spot, 0.55)
+        if (!spot) return null
         const last = lastBy.get(seat.player)
-        const acting = poker.actor === seat.player
         const won = winners.has(seat.player)
         const odds = poker.equity?.[seat.player]
-        return <div key={seat.player}>
-          <div
-            class={`poker-seat ${seat.folded ? 'poker-seat--folded' : ''} ${seat.busted ? 'poker-seat--out fx-poof' : ''} ${acting ? 'fx-glow-pulse' : ''}`}
-            style={{ left: `${spot.x * 100}%`, top: `${spot.y * 100}%`, '--id': colorForPlayer(state, seat.player), '--fx-color': 'var(--tungsten)' }}
-          >
-            <div key={won ? `w${poker.handNo}` : 'seat'} class={won ? 'fx-tada' : ''}>
-              <p class="poker-seat__name">{nameOf(seat.player)}{seat.away && <span class="poker-seat__away"> away</span>}</p>
-              <p class="poker-seat__stack"><span key={seat.stack} class="fx-flash">{seat.stack}</span></p>
-              <p class="poker-seat__marks">
-                {seat.button && <span class="chip poker-mark">D</span>}
-                {seat.sb && <span class="chip poker-mark">SB</span>}
-                {seat.bb && <span class="chip poker-mark">BB</span>}
-                {odds !== undefined && <span class="readout poker-odds">{Math.round(odds * 100)}%</span>}
-              </p>
-              {won && <Burst kind="stars" />}
-            </div>
-            {acting && poker.actBy && <ShotRing class="poker-seat__ring" until={poker.actBy} total={(seat.away ? 2 : session.options.shotSec) * 1000} now={now()} />}
-            {last && !seat.busted && <span key={last.id} class={`chip poker-last ${last.kind === 'allIn' ? 'fx-zoom poker-last--allin' : 'fx-pop'}`}>
-              {last.kind === 'allIn' ? 'All in' : capital(feedLine(last, () => '').trim())}
-            </span>}
-            {seat.busted && <span class="poker-seat__stamp fx-rubber-stamp">{bustLine(poker.feed, seat.player)}</span>}
+        return <div key={seat.player}
+          class={`poker-seat ${seat.folded ? 'poker-seat--folded' : ''} ${seat.busted ? 'poker-seat--out' : ''}`}
+          style={{ transform: `translate(${spot.x}px, ${spot.y}px) translate(-50%, -50%)`, '--id': colorForPlayer(state, seat.player) }}
+        >
+          <div key={won ? `w${poker.handNo}` : 'seat'} class={won ? 'fx-tada' : ''}>
+            <p class="poker-seat__name">{nameOf(seat.player)}</p>
+            <p class="poker-seat__stack">{seat.busted ? '' : seat.stack.toLocaleString()}</p>
+            <p class="poker-seat__notes">
+              {seat.sb && <span class="poker-seat__blind">Small blind</span>}
+              {seat.bb && <span class="poker-seat__blind">Big blind</span>}
+              {seat.away && <span class="poker-seat__away">Away</span>}
+              {odds !== undefined && <span class="readout poker-odds">{Math.round(odds * 100)}%</span>}
+            </p>
+            {won && <Burst kind="stars" />}
           </div>
-          {!seat.busted && !seat.folded && poker.handNo > 0 && <div class="poker-hole-cards" style={{ left: `${inward(spot, 0.36).x * 100}%`, top: `${inward(spot, 0.36).y * 100}%` }}>
-            {[0, 1].map((n) => <PlayingCard key={`${poker.handNo}-${n}-${seat.cards ? 'up' : 'down'}`} card={seat.cards?.[n] ?? null}
-              class={`${seat.cards ? 'fx-flip' : 'fx-drop'} ${seat.cards && shown.size && won && shown.has(seat.cards[n]) ? 'poker-card--lift' : ''} ${seat.cards && shown.size && !won ? 'poker-card--dim' : ''}`} />)}
-          </div>}
-          {seat.bet > 0 && <p class="poker-bet" style={{ left: `${bet.x * 100}%`, top: `${bet.y * 100}%` }}><span class="readout">{seat.bet}</span></p>}
+          {actor === i && poker.actBy && <ShotRing class="poker-seat__ring" until={poker.actBy} total={(seat.away ? 2 : session.options.shotSec) * 1000} now={now()} />}
+          {last && !seat.busted && (last.kind === 'allIn'
+            ? <span key={last.id} class="poker-allin fx-zoom">All in</span>
+            : <span key={last.id} class="poker-seat__said fx-fade">{capital(feedLine(last, () => '').trim())}</span>)}
+          {seat.busted && <span class="poker-seat__out fx-rubber-stamp">{bustLine(poker.feed, seat.player)}</span>}
         </div>
       })}
 
-      {flights.map((f) => <Flight key={f.key} from={f.from} legs={f.legs} easing={f.easing}
-        done={() => setFlights((now) => now.filter((other) => other.key !== f.key))}>
-        {f.kind === 'fold'
-          ? <span class="poker-flight__pair"><PlayingCard card={null} /><PlayingCard card={null} /></span>
-          : <span class="poker-chip" />}
-      </Flight>)}
+      {handName && <div class="poker-handname" style={{ transform: `translate(${centre.x}px, ${centre.y + h * 0.075}px) translate(-50%, -50%)` }}>
+        <Letters key={`${poker.handNo}-${handName}`} text={handName} />
+      </div>}
       {floats.map((f) => {
-        const spot = spotOf(f.player)
-        return <p key={f.key} class="poker-float fx-rise" style={{ left: `${spot.x * 100}%`, top: `${spot.y * 100}%`, '--id': colorForPlayer(state, f.player) }}>{f.text}</p>
+        const i = seatIndex(f.player)
+        if (i < 0 || !spots[i]) return null
+        return <p key={f.key} class="poker-float fx-rise" style={{ left: `${spots[i].x}px`, top: `${spots[i].y - cardW}px`, '--id': colorForPlayer(state, f.player) }}>{f.text}</p>
       })}
       {banners.map((b) => <p key={b.key} class="poker-banner fx-zoom">{b.text}</p>)}
-    </section>
-    <aside class="poker-feed">
-      <ol>{poker.feed.filter((entry) => entry.kind !== 'blind').slice(-FEED_SHOWN).map((entry) =>
-        <li key={entry.id} class="fx-slide" style={{ '--id': entry.player ? colorForPlayer(state, entry.player) : undefined }}>{feedLine(entry, nameOf)}</li>)}
-      </ol>
+    </div>
+
+    <header class="poker-hud">
+      <span class="chip">{place}</span>
+      <p class="poker-hud__blinds">Blinds <span class="poker-hud__num">{poker.sb} / {poker.bb}</span></p>
+      <p class="poker-hud__next">Next level <span class="readout">{Math.floor(nextLevel / 60)}:{String(nextLevel % 60).padStart(2, '0')}</span></p>
+      <p class="poker-hud__hand">Hand {poker.handNo}</p>
+    </header>
+    <aside class="poker-log" aria-label="Table log">
+      <ol>{poker.feed.filter((entry) => entry.kind !== 'blind').slice(-LOG_LINES).map((entry) => <li key={entry.id} class="fx-fade">
+        {entry.player && <span class="poker-log__who" style={{ color: colorForPlayer(state, entry.player) }}>{nameOf(entry.player)}</span>}
+        {' '}{feedLine(entry, () => '').trim()}
+      </li>)}</ol>
     </aside>
   </main>
 }
@@ -216,4 +315,3 @@ function bustLine(feed: PokerFeedEntry[], player: PlayerId): string {
   const entry = [...feed].reverse().find((e) => e.kind === 'bust' && e.player === player)
   return entry?.amount ? `Out in ${ordinal(entry.amount)}` : 'Out'
 }
-

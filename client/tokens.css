@@ -39,9 +39,29 @@
   --paper: #bdb3a0;   /* a paper prop on the set, kept dim so it never outshines a screen */
   --typed: #231e17;   /* typewriter ink on paper */
   --graphite: #3b3833; /* pencil on paper */
-  --felt: #16291f;     /* a card table's baize, deep and matte, well clear of cyan */
-  --felt-rim: #0f1c15; /* the felt's shadowed edge */
-  --suit-red: #a8322a; /* red suits printed on a card, a prop's ink rather than a signal */
+  /* Poker's card room: baize under one lamp, card stock, casino chips, a leather rail. Props, not signals. */
+  --felt: #1f4d35;      /* baize under the lamp */
+  --felt-deep: #133121; /* baize past the lamp's pool */
+  --felt-rim: #050a07;  /* where the cloth falls into the dark */
+  --felt-ink: rgb(228 211 164 / 0.72); /* gold-cream print, thin enough that the nap shows through */
+  --felt-press: rgb(0 0 0 / 0.5);      /* the impression the print leaves in the cloth */
+  --felt-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .6 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  --felt-nap: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='420'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.05 .3' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --felt-mottle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900'%3E%3Cfilter id='m'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.004' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .5 -.08'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23m)'/%3E%3C/svg%3E");
+  --card-face: #f4efe3; /* card stock, ivory under a warm lamp */
+  --card-edge: #cbbfa6; /* the stock's cut edge */
+  --card-ink: #151210;
+  --suit-red: #a3262a;
+  --card-back: #5b1b20; /* oxblood back, the classic answer to green cloth */
+  --chip-1: #ece5d6;
+  --chip-5: #a3262a;
+  --chip-25: #2c6b48;
+  --chip-100: #1a1714;
+  --chip-500: #5b4a86;
+  --chip-spot: #f1ead9;
+  --leather: #2a1a11;
+  --leather-hi: #45301f;
+  --stitch: rgb(214 176 126 / 0.4);
 
   /* --- Ink ------------------------------------------------------------ */
   --chalk: #f5f0e6;   /* primary text, warm white so it sits in the set */

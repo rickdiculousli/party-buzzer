@@ -679,16 +679,44 @@ slips on its set's outer side. Sun and Moon are `--team-sun` (`--id-1`) and
 the `--sun`/`--moon` modifiers. A peek letter is written in the page's team
 colour, and a peek row carries an eye.
 
-#### Poker — `.poker-felt`, `.poker-card`
+#### Poker — the late room (`.felt`, `.poker-card`, `.poker-rail`)
 
-A card table: `--felt` baize fading to `--felt-rim` at its edge, framed on the
-board by a `--raise` rail. Cards are paper props: `--paper` faces with
-`--typed` black suits and `--suit-red` red ones, a prop's ink rather than a
-signal. A face-down card is a `--raise` back in a paper frame. Chips are
-`--tungsten` with a `--brass` edge. Win % and the shot clock are measurements,
-so they are cyan readouts and never get effects. Folds and chips cross the felt
-through one `Flight` (`client/PokerParts.tsx`), transform only; fold timings
-are `FOLD` in `client/poker.ts`, previewed in the harness's Poker scenarios.
+A card room after midnight: one lamp over the table, felt to every edge, dark
+all round. There is no rail and no table border on either surface; the cloth
+runs off the screen and a vignette drops it into `--felt-rim`, so the table
+feels bigger than the screen. The felt is layered, not flat: `--felt-grain`
+(fine noise), `--felt-nap` (a faint directional sheen) and `--felt-mottle`
+(slow blotches), all inline SVG noise, over a `--felt` to `--felt-deep`
+gradient. A warm lamp pool sits over the middle; on the board a second pool
+follows the player to act, and on the phone the lamp brightens on your turn.
+
+Words on the cloth are printed, never set as UI: `FeltMark` and `FeltArc`
+lay thin `--felt-ink` over a `--felt-press` impression a pixel above it, so
+the letters look pressed into the nap. The phone prints its two instructions
+on arcs, the way a table prints "insurance pays 2 to 1". The board prints a
+betting line and the Party Buzzer mark.
+
+Cards are poker size (63 × 88 mm), radius 5.6% of the width, with ivory
+`--card-face` stock, a hairline and a `--card-edge` cut edge, and a shadow
+that falls away from the lamp. Corner indices (rank over a drawn suit pip)
+read when cards overlap; `--suit-red` and `--card-ink` print them. Backs are a
+white margin around an oxblood `--card-back` diamond lattice. A card has both
+sides, so turning it over is a real flip. Suits are drawn SVG, never glyphs.
+Chips are casino chips in five `--chip-*` inks with edge spots, stacked by
+`chipStack`; the dealer puck is a white disc marked Dealer. The phone's
+actions sit on a stitched leather rail (`--leather`) as plaques; reactions
+are printed tokens on the cloth. Win % and the shot clock stay cyan readouts
+without effects.
+
+Motion is physics, not keyframes: `client/toss.ts` slides everything under
+constant friction. The dealer sits off the top edge and pitches every card
+one at a time, clockwise from the small blind, spinning in and settling; the
+second hole card catches the first and nudges it. The flop lands face down
+and turns together. A fold is thrown along the flick with spin and bowed
+flutter, lies in the middle, and is swept to the muck; a timeout is a limp
+push. Bets slide to the line and are swept into the pot as a street closes;
+the pot slides to the winner. Tunables live in `TOSS`; the harness's Poker
+scenarios preview the deal and the three kinds of fold.
 
 ---
 
