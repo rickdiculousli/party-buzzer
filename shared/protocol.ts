@@ -281,6 +281,27 @@ export const isMinigameId = (id: string): id is MinigameId => Object.hasOwn(MINI
 export type MinigamePhase = 'ready' | 'countdown' | 'playing' | 'results'
 export type MinigameResult = { playerId: PlayerId; points: number; shots: number }
 
+/** One betting round of a poker hand. */
+export type PokerStreet = 'preflop' | 'flop' | 'turn' | 'river'
+export type ReactKind = 'nice' | 'ouch' | 'bluff' | 'wow'
+export const REACT_LABEL: Record<ReactKind, string> = { nice: 'Nice hand', ouch: 'Ouch', bluff: 'Bluff?', wow: 'Wow' }
+/** A fold's flick: a unit direction (y grows downward) and a speed from 0 to 1. */
+export type PokerFlick = { dx: number; dy: number; speed: number }
+export type PokerFeedKind = 'blind' | 'fold' | 'check' | 'call' | 'bet' | 'raise' | 'allIn' | 'show' | 'win' | 'bust' | 'level'
+/** One line of the table's action feed. `id` rises, so a surface animates each entry once. */
+export type PokerFeedEntry = {
+  id: number
+  player: PlayerId | null
+  kind: PokerFeedKind
+  amount?: number
+  flick?: PokerFlick
+  auto?: true
+  /** The winning hand's name, or the place on a bust. */
+  hand?: string
+}
+/** One pot's result at a showdown. */
+export type PokerPotResult = { winners: PlayerId[]; name: string; five: Card[]; amount: number }
+
 export type InkTeamName = 'sun' | 'moon'
 
 /** 1-based rows with the peek mark. */
