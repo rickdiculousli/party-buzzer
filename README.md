@@ -148,6 +148,45 @@ sound cue, placeholders for now.
 `npm run sim-sketch` plays a match with eight bots against the running server;
 `npm run sim-sketch -- 300` speeds them up.
 
+### Poker minigame
+
+No-limit Texas Hold'em, one table, played down to the last stack. Open **Poker**
+on the host's Games tab and press **Start match**; it needs two connected
+players, and everyone connected at Start takes a seat (no late entry, no
+rebuys). The board is the table: seats, bets, the pot, the cards on the felt,
+and a feed of every action. Each phone is a small felt table holding that
+player's two cards, face down until pressed:
+
+- **Fold:** flick the cards up off the top of the phone. On the board they fly
+  to the middle, linger, and float to the discard pile.
+- **Check or call:** double tap the felt. The line at the bottom says which,
+  and how much.
+- **Peek:** press and hold the cards.
+- **Raise** and **All in** are buttons; Raise opens a slider with ½ pot, pot and
+  all-in presets.
+- **Reactions** (Nice hand, Ouch, Bluff?, Wow) float up from your seat, one
+  every 3 seconds, busted players included.
+
+A shot clock acts for a slow player: it checks when that is free and folds
+otherwise. A disconnected player keeps the seat, and their clock is 2 seconds.
+Blinds double every level. When everyone else folds, the winner has a few
+seconds to Show. When no more betting is possible, every hand turns face up and
+the board deals the rest slowly with each player's win %.
+
+Options: **Starting stack** (1500), **Starting big blind** (20), **Minutes per
+level** (10) and **Shot clock seconds** (30). Poker never touches the night's
+scores; results are finishing places.
+
+A tournament survives a restart. Poker saves a checkpoint as each hand begins,
+and after a server restart, or after **Cancel match**, the host's Start reads
+**Resume from hand N**: that hand is dealt again from the same stacks. Opening
+Poker again from the Games tab starts a new tournament.
+
+`npm run sim-poker` plays a fast tournament with six bots against the running
+server (Fay never acts, so her shot clock plays her hands) and checks that no
+chip appears or vanishes; `npm run sim-poker -- 150` speeds them up. Run it
+again after stopping it to resume.
+
 ## Question packs and spoken play
 
 Put `.txt` files in `packs/`, select one, and press **Read**. For example:

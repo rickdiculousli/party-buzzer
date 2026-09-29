@@ -43,7 +43,7 @@ are objects in the same process as `Hub`. The composition root is
 | Startup and transport | `server/index.ts` | Load state, construct services, HTTP(S), WebSocket, spoken uploads, shutdown flush |
 | Room coordination | `server/hub.ts` | Connections, dispatch, undo history, collection timers, role views, change notification |
 | Game transitions | `server/state.ts` | Apply host actions, distinguish outcomes, coordinate rule modules, load/save state |
-| Minigame runtime | `server/minigames/runtime.ts`, `server/minigames/registry.ts`, `server/minigames/bow/`, `server/minigames/tank/`, `server/minigames/ink/`, `server/minigames/sketch/` | Match lifecycle, fixed-step simulation, queued inputs, role frames, ready lobby and touch relay; bow, tank, ink and sketch rules behind registry definitions |
+| Minigame runtime | `server/minigames/runtime.ts`, `server/minigames/registry.ts`, `server/minigames/bow/`, `server/minigames/tank/`, `server/minigames/ink/`, `server/minigames/sketch/`, `server/minigames/poker/` | Match lifecycle, fixed-step simulation, queued inputs, role frames, ready lobby, touch relay and checkpoints; bow, tank, ink, sketch and poker rules behind registry definitions |
 | Buzz ranking | `server/resolve.ts` | Clamp and sort timestamps, deduplicate players, exclude lockouts |
 | Gameplay framework | `server/items.ts`, `duel.ts`, `setlist.ts`, `eligibility.ts` | Inventories/effects, seating, block progression, effect and mode eligibility |
 | Mode rules | `server/modes/` | Static registry, options, mode memory, scoring hooks and host status |
@@ -129,6 +129,21 @@ world, so it restores the match ready to replay. A definition may be untimed:
 the runtime then ignores `durationSec` and completes when the definition's
 `finished` hook reports true. Touches are relayed to the audience the
 definition names and never stored.
+
+A long minigame can opt out of losing its world. Four optional definition hooks
+serve it, and Poker is the one user. `checkpoint` returns a small durable
+summary with a version; after each pump the runtime stores a new version in
+`state.minigame.checkpoint` and reports `minigame:checkpoint`, which persists it.
+Cancel keeps the checkpoint and results drop it; prepare starts without one. On
+Start, a session holding a checkpoint calls `resume` instead of `create`, and
+`resume` names the participants. The disk snapshot needs no special case: its
+reset of a playing match spreads the session, so the checkpoint rides along.
+`presence` hands the definition the connected player ids before each pump's
+steps. `hostStatus` returns lines for the host desk, stored in
+`state.minigame.status` when they change. Poker checkpoints at the start of
+each hand, because its deck follows from the seed and the hand number; a resume
+deals that hand again. Minigame results may carry a finishing `place` in place
+of points.
 
 Each minigame's host-settable options are `MINIGAME_OPTIONS` in
 `shared/protocol.ts`, the same `OptionSpec` schema the modes ship: the runtime

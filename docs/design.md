@@ -679,6 +679,17 @@ slips on its set's outer side. Sun and Moon are `--team-sun` (`--id-1`) and
 the `--sun`/`--moon` modifiers. A peek letter is written in the page's team
 colour, and a peek row carries an eye.
 
+#### Poker — `.poker-felt`, `.poker-card`
+
+A card table: `--felt` baize fading to `--felt-rim` at its edge, framed on the
+board by a `--raise` rail. Cards are paper props: `--paper` faces with
+`--typed` black suits and `--suit-red` red ones, a prop's ink rather than a
+signal. A face-down card is a `--raise` back in a paper frame. Chips are
+`--tungsten` with a `--brass` edge. Win % and the shot clock are measurements,
+so they are cyan readouts and never get effects. Folds and chips cross the felt
+through one `Flight` (`client/PokerParts.tsx`), transform only; fold timings
+are `FOLD` in `client/poker.ts`, previewed in the harness's Poker scenarios.
+
 ---
 
 ## 6. The signature
@@ -936,6 +947,12 @@ disagree, the code is what gets renamed.
 - **match / minigame / field** — a match is one synchronized minigame
   start-to-results cycle; a minigame is the kind of play; its shared 2D space
   is the field. A match is not a question, and the field is not the stage.
+- **street / hand / table** — in Poker a street is one betting round (preflop,
+  flop, turn, river), a hand is one deal to its pot, and the match is the whole
+  tournament. The table is Poker's field. None of them is a round. Pressing the
+  cards to see them is a **peek**, and folded cards pausing mid-table
+  **linger**; neither is a hold. Players still contesting a pot are "in the
+  hand", never live.
 - **guess / drawer** — a guess is a typed answer in Sketch or Phantom Ink,
   never a pick or a buzz; the drawer is the player drawing this Sketch turn.
   A Sketch turn is not a round.

@@ -27,12 +27,12 @@ One local server coordinates the host desk, player phones, and room board. In th
 
 ## Capabilities and Constraints
 
-- Quiz play includes trivia and quizbowl-lite modes, shown and multiple-choice questions, team grouping, duels, items, scoring, rebounds, and standings. Bow, Tank battle, Phantom Ink, and Sketch are minigames in the same game night.
+- Quiz play includes trivia and quizbowl-lite modes, shown and multiple-choice questions, team grouping, duels, items, scoring, rebounds, and standings. Bow, Tank battle, Phantom Ink, Sketch, and Poker are minigames in the same game night.
 - The server owns game rules and scores. Browsers receive role-specific views; phones do not receive the full buzz order or private reader progress.
 - Buzz timing accommodates network jitter among trusted clients. It is not designed to defend against dishonest clients.
 - The application is for a trusted room. Host access has no authentication; a remote game service and a general plugin framework are outside the current product scope.
 - Fonts, sounds, and browser assets are hosted locally. HTTPS supports phone microphone access when certificate setup and LAN DNS work; host judging remains available when microphone access does not.
-- Saved state restores settings, players, scores, and setlist position, but a server restart does not resume an active question or minigame.
+- Saved state restores settings, players, scores, and setlist position, but a server restart does not resume an active question or minigame, except Poker, which resumes at the start of its last hand.
 - Use the distinct terms in `docs/design.md` §9, especially question, round, attempt, block, setlist, order, standings, leader, and hero.
 
 ## Brand Commitments

@@ -292,3 +292,17 @@ npm run walk-packs
 - [ ] Answer window at 5: say nothing — the lapse scores a wrong on its own
 - [ ] Host W mid-answer: the judge's late verdict does not double-dock
 - [ ] A machine mistake is one undo away: Z restores the pre-verdict state
+
+## Poker
+
+- [ ] Real phone: flick the cards up folds, and they fly off the top; a short
+      or slow push springs back
+- [ ] Double tap checks or calls what the bottom line says; a single tap does
+      nothing
+- [ ] Press and hold shows the cards; letting go hides them
+- [ ] Out of turn: a flick springs back with a shake, a double tap does nothing
+- [ ] If flicks or double taps misfire, tune `GESTURE` in `client/poker.ts`
+- [ ] Board on the TV: folded cards fly in, linger, and land on the pile; seats
+      and cards stay clear of each other at seven or more players
+- [ ] Stop the server mid-tournament, start it again: the host's Start reads
+      Resume from hand N and the table picks up with the same stacks
