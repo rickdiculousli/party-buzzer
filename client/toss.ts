@@ -227,6 +227,10 @@ export const REVEAL = {
   stackIn: [0.1, 0.3] as const,
   /** How far off square the stack lands, degrees. */
   stackRot: [3, 9] as const,
+  /** How far each card of the stack sits off the one under it, up and to the right. */
+  stackStep: [0.05, 0.09] as const,
+  /** How far each card of the stack is twisted on the one under it, degrees. */
+  stackTwist: [1.5, 3.5] as const,
   /** How far from its slot a turn or river card lands. */
   offSlot: [0.15, 0.35] as const,
   /** How far off square a turn or river card lands, degrees. */
@@ -261,11 +265,17 @@ export function flop(dealer: { x: number; y: number }, slots: Pose[], cardW: num
   const flight = pitch(dealer, stack, rand, [0.15, 0.4])
   const { turnAt, holdMs } = turnOver(flight[flight.length - 1].t, rand)
   const lag = between(rand, 0, REVEAL.spreadLag)
+  // Squared by hand, not by machine: each card sits a little off and twisted on the one under it, so all three show.
+  const offsets: Pose[] = [{ x: 0, y: 0, rot: 0 }]
+  for (let k = 1; k < slots.length; k++) {
+    const angle = between(rand, -0.6, 0.6) - Math.PI / 4
+    const r = cardW * between(rand, ...REVEAL.stackStep)
+    const below = offsets[k - 1]
+    offsets.push({ x: below.x + Math.cos(angle) * r, y: below.y + Math.sin(angle) * r, rot: below.rot + sign(rand) * between(rand, ...REVEAL.stackTwist) })
+  }
   const frames = slots.map((slot, k) => {
-    // A hair up and left for each card higher in the stack, so its edges show.
-    const shift = (f: Frame) => ({ ...f, x: f.x - k, y: f.y - k * 1.2 })
-    const top = { ...stack, x: stack.x - k, y: stack.y - k * 1.2 }
-    return chain(flight.map(shift), holdMs + k * lag, nudge(top, slot, rand))
+    const shift = <P extends Pose>(f: P): P => ({ ...f, x: f.x + offsets[k].x, y: f.y + offsets[k].y, rot: f.rot + offsets[k].rot })
+    return chain(flight.map(shift), holdMs + k * lag, nudge(shift(stack), slot, rand))
   })
   return { frames, turnAt }
 }

@@ -268,17 +268,23 @@ test('every flop card comes to rest exactly on its slot', () => {
   }
 })
 
-test('the flop travels as one stack until it has turned over', () => {
+test('the flop travels as one stack until it has turned over, each card of it showing', () => {
   for (let seed = 1; seed < 20; seed++) {
     const { frames, turnAt } = flop(DEALER, slotsAt(), CARD_W, mulberry32(seed))
-    frames[0].forEach((f, i) => {
-      if (f.t > turnAt + REVEAL.turnMs) return
-      for (const other of [frames[1], frames[2]]) {
-        assert.equal(other[i].t, f.t)
-        assert.ok(Math.hypot(other[i].x - f.x, other[i].y - f.y) <= 4, `stack came apart at ${f.t}ms`)
-        assert.equal(other[i].rot, f.rot)
-      }
-    })
+    for (const k of [1, 2]) {
+      const [below, card] = [frames[k - 1], frames[k]]
+      const gap = (i: number) => ({ x: card[i].x - below[i].x, y: card[i].y - below[i].y, rot: card[i].rot - below[i].rot })
+      const first = gap(0)
+      const off = Math.hypot(first.x, first.y)
+      assert.ok(off >= CARD_W * 0.04 && off <= CARD_W * 0.15, `card ${k} sits ${off.toFixed(1)}px off the one under it`)
+      assert.ok(Math.abs(first.rot) <= 5, `card ${k} is twisted ${first.rot.toFixed(1)}° off the one under it`)
+      below.forEach((f, i) => {
+        if (f.t > turnAt + REVEAL.turnMs) return
+        assert.equal(card[i].t, f.t)
+        const now = gap(i)
+        assert.ok(Math.hypot(now.x - first.x, now.y - first.y) < 0.01 && Math.abs(now.rot - first.rot) < 0.01, `stack shifted at ${f.t}ms`)
+      })
+    }
   }
 })
 
