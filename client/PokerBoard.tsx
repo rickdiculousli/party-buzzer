@@ -7,7 +7,7 @@ import { matchFrame } from './minigame-info.ts'
 import { Burst, Letters } from './fx.tsx'
 import { ChipStack, DealerPuck, FeltMark, PaintPile, Piece, PlayingCard, ShotRing, reducedMotion, usePokerCues, useSize } from './PokerParts.tsx'
 import { ELLIPSE, feedLine, seatPositions, POKER_RULES } from './poker.ts'
-import { chain, dealSchedule, pitch, receive, scatter, slide, sweep, toss, wildCard, RECEIVE, type Frame, type Pose } from './toss.ts'
+import { chain, dealSchedule, flop, pitch, receive, scatter, slide, street, sweep, toss, wildCard, RECEIVE, type Frame, type Pose } from './toss.ts'
 import { colorForPlayer, ordinal, playerName, setlistPosition } from './ui.ts'
 
 type Point = { x: number; y: number }
@@ -16,9 +16,6 @@ const LINGER_MS = 800
 /** Longest gap between cards in a deal; a big table deals faster so the round fits the server's beat. */
 const DEAL_GAP_MS = 150
 const DEAL_WINDOW_MS = 1_300
-const FLOP_GAP_MS = 110
-/** A pitched community card takes about this long to come to rest. */
-const PITCH_MS = 950
 const BANNER_MS = 2_600
 const REACTION_MS = 1_800
 const LOG_LINES = 7
@@ -73,7 +70,9 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
   const [ghosts, setGhosts] = useState<Ghost[]>([])
   const [banners, setBanners] = useState<{ key: string; text: string }[]>([])
   const [floats, setFloats] = useState<{ key: string; player: PlayerId; text: string }[]>([])
-  const [landed, setLanded] = useState<number | null>(null)
+  const [, rerender] = useState(0)
+  /** Each community card's motion and when it turns face up (a performance.now() time), per hand. */
+  const laid = useRef<{ hand: number; cards: { frames: Frame[] | null; delay: number; upAt: number }[]; busy: number } | null>(null)
   // When this hand was dealt. A reload mid-hand deals nothing; one that lands during a deal still watches it.
   const deal = useRef<{ hand: number; at: number | null } | null>(null)
   if (poker && deal.current?.hand !== poker.handNo) deal.current = { hand: poker.handNo, at: deal.current || poker.phase === 'deal' ? performance.now() : null }
@@ -87,7 +86,11 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
   const centre = { x: ELLIPSE.cx * w, y: ELLIPSE.cy * h }
   const spots = seatPositions(seats.length).map((p) => ({ x: p.x * w, y: p.y * h }))
   const dealer = { x: centre.x, y: -cardW * 1.6 }
-  const board = (i: number): Pose => ({ x: centre.x + (i - 2) * cardW * 1.14, y: centre.y, rot: lie(2, poker?.handNo ?? 0, 'b', i) })
+  // A dealer's board is never a perfect grid: each card rests a little off its line.
+  const board = (i: number): Pose => {
+    const hand = poker?.handNo ?? 0
+    return { x: centre.x + (i - 2) * cardW * 1.14 + lie(cardW * 0.06, hand, 'bx', i), y: centre.y + lie(cardW * 0.05, hand, 'by', i), rot: lie(2, hand, 'b', i) }
+  }
   // The pot sits beside the board cards, so the lanes above and below them stay clear for the seats there.
   const potAt = { x: centre.x + cardW * 3.8, y: centre.y }
   /** The unit direction from a seat toward the middle, and how much of it runs across the table (1) rather than along it (0). */
@@ -167,15 +170,31 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
     }
   }, [poker])
 
-  // Community cards land face down and turn over once the last card of their street is down.
-  const boardLen = poker?.board.length ?? 0
-  const down = landed ?? boardLen
+  // Community cards land face down and the dealer turns each street over; a street that comes while the last is still moving waits for it.
+  // The board seen first (a reload) is already face up and still.
+  if (poker && w > 0) {
+    const first = !laid.current
+    if (laid.current?.hand !== poker.handNo) laid.current = { hand: poker.handNo, cards: [], busy: 0 }
+    const table = laid.current
+    const t = performance.now()
+    while (table.cards.length < poker.board.length) {
+      const at = table.cards.length
+      if (first || reducedMotion()) { table.cards.push({ frames: null, delay: 0, upAt: 0 }); continue }
+      const start = Math.max(t, table.busy)
+      const rand = mulberry32(seedOf(poker.handNo, 'b', at))
+      const moves = at === 0 && poker.board.length >= 3
+        ? flop(dealer, [0, 1, 2].map(board), cardW, rand)
+        : (({ frames, turnAt }) => ({ frames: [frames], turnAt }))(street(dealer, board(at), cardW, rand))
+      for (const frames of moves.frames) table.cards.push({ frames, delay: start - t, upAt: start + moves.turnAt })
+      table.busy = start + Math.max(...moves.frames.map((f) => f[f.length - 1].t))
+    }
+  }
+  const up = (i: number) => performance.now() >= (laid.current?.cards[i]?.upAt ?? 0)
   useEffect(() => {
-    if (!poker) return
-    if (boardLen <= down) { setLanded(boardLen); return }
-    const timer = setTimeout(() => setLanded(boardLen), reducedMotion() ? 0 : PITCH_MS + (boardLen - down - 1) * FLOP_GAP_MS)
-    return () => clearTimeout(timer)
-  }, [boardLen, !!poker])
+    const t = performance.now()
+    const timers = (laid.current?.cards ?? []).filter((c) => c.upAt > t).map((c) => setTimeout(() => rerender((n) => n + 1), c.upAt - t))
+    return () => timers.forEach(clearTimeout)
+  }, [poker?.handNo, poker?.board.length, w > 0])
 
   if (session.phase === 'results') {
     const rows = [...session.results ?? []].sort((a, b) => (a.place ?? 0) - (b.place ?? 0))
@@ -268,10 +287,9 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
         {puck && <Piece key="puck" pose={{ x: puck.x + cardW * 1.5, y: puck.y, rot: 0 }} class="poker-piece--glide"><DealerPuck /></Piece>}
 
         {poker.board.map((card, i) => {
-          const incoming = i >= down && !reducedMotion()
-          const frames = incoming ? pitch(dealer, board(i), mulberry32(seedOf(poker.handNo, 'b', i))) : null
-          return <Piece key={`${poker.handNo}-b${i}`} pose={board(i)} frames={frames} delay={incoming ? (i - down) * FLOP_GAP_MS : 0}>
-            <PlayingCard card={card} up={i < down} class={five.size ? (five.has(card) ? 'poker-card--win' : 'poker-card--dim') : ''} />
+          const move = laid.current?.cards[i]
+          return <Piece key={`${poker.handNo}-b${i}`} pose={board(i)} frames={move?.frames} delay={move?.delay}>
+            <PlayingCard card={card} up={up(i)} class={five.size ? (five.has(card) ? 'poker-card--win' : 'poker-card--dim') : ''} />
           </Piece>
         })}
 

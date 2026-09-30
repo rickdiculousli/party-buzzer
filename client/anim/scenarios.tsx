@@ -21,6 +21,7 @@
  * properties on a wrapper and the real rules pick them up, so a scenario cannot
  * drift from what the board actually does.
  */
+import { useEffect, useState } from 'preact/hooks'
 import { COLLECT_MS } from '../../shared/protocol.ts'
 import type { Cue } from '../sound.ts'
 import { NUMERIC, type NumericField } from '../cues.ts'
@@ -29,7 +30,7 @@ import { Spoken } from '../Spoken.tsx'
 import { Burst, CountUp, Glitch, Letters } from '../fx.tsx'
 import { FaceOff, Finale } from '../Board.tsx'
 import { Piece, PlayingCard } from '../PokerParts.tsx'
-import { chain, pitch, receive, scatter, toss } from '../toss.ts'
+import { chain, flop, pitch, receive, scatter, street, toss } from '../toss.ts'
 import { mulberry32 } from '../../shared/random.ts'
 import type { BurstFrom } from '../fx.ts'
 import type { Recipe } from '../synth.ts'
@@ -471,6 +472,52 @@ const dealScenario: Scenario = {
   },
 }
 
+/** A community card that turns face up `at` ms after it mounts, as the board turns it once the dealer lets go. */
+function TurnsUp({ card, at }: { card: string; at: number | null }) {
+  const [up, setUp] = useState(at === null)
+  useEffect(() => {
+    if (at === null) return
+    const timer = setTimeout(() => setUp(true), at)
+    return () => clearTimeout(timer)
+  }, [])
+  return <PlayingCard card={card} up={up} />
+}
+
+const BOARD_SLOTS = [0, 1, 2, 3].map((i) => ({ x: PATCH.w / 2 + (i - 1.5) * 64 + (i % 2 ? 2 : -2), y: PATCH.h * 0.5 + (i === 1 ? 2 : -1), rot: [-1, 1.5, 0.5, -1.5][i] }))
+
+/** The flop as the dealer lays it out: one face-down stack, a beat, turned over, spread left to right. */
+const flopScenario: Scenario = {
+  id: 'poker-flop',
+  label: 'Flop',
+  family: 'Poker',
+  note: 'The flop lands as one face-down stack, is turned over, and spread left to right with one push. Tune REVEAL in client/toss.ts.',
+  subject: '.poker-piece',
+  dials: [],
+  render: (lead) => {
+    const laid = flop({ x: PATCH.w / 2, y: -90 }, BOARD_SLOTS.slice(0, 3), 56, mulberry32(41))
+    return pokerStage(['Ah', 'Kd', '7c'].map((card, k) =>
+      <Piece key={`${k}-${lead}`} pose={BOARD_SLOTS[k]} frames={lead ? null : laid.frames[k]}>
+        <TurnsUp card={card} at={lead ? null : laid.turnAt} />
+      </Piece>))
+  },
+}
+
+/** The turn beside a flop that is already down: pitched a little off its slot, turned over, drawn into line. */
+const streetScenario: Scenario = {
+  id: 'poker-street',
+  label: 'Turn card',
+  family: 'Poker',
+  note: 'A turn or river card lands face down off its slot, is turned over, and drawn into line. Tune REVEAL in client/toss.ts.',
+  subject: '.poker-piece',
+  dials: [],
+  render: (lead) => {
+    const laid = street({ x: PATCH.w / 2, y: -90 }, BOARD_SLOTS[3], 56, mulberry32(43))
+    return pokerStage(['Ah', 'Kd', '7c', 'Qs'].map((card, i) => i < 3
+      ? <Piece key={i} pose={BOARD_SLOTS[i]}><PlayingCard card={card} up /></Piece>
+      : lead ? null : <Piece key={i} pose={BOARD_SLOTS[i]} frames={laid.frames}><TurnsUp card={card} at={laid.turnAt} /></Piece>))
+  },
+}
+
 export const SCENARIOS: Scenario[] = [
   {
     id: 'mark',
@@ -677,6 +724,8 @@ export const SCENARIOS: Scenario[] = [
     render: (lead) => <Stage mid={lead ? <div class="harness__ghost" /> : <FaceOff pair={['Ada', 'Bo']} />} />,
   },
   dealScenario,
+  flopScenario,
+  streetScenario,
   foldScenario('poker-fold-hard', 'Fold, hard flick, one card gets away', { dx: 0.2, dy: -0.98, speed: 1 }, 1),
   foldScenario('poker-fold-soft', 'Fold, soft flick', { dx: -0.3, dy: -0.95, speed: 0.2 }),
   foldScenario('poker-fold-timeout', 'Fold, timed out', null),

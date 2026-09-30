@@ -134,10 +134,10 @@ export function slide(from: Pose, to: Pose, rand: () => number, options: Options
 }
 
 /** A dealer's pitch: it leaves the fingers spinning, lands, and the cloth drags it to rest square on its spot. */
-export function pitch(dealer: { x: number; y: number }, spot: Pose, rand: () => number): Frame[] {
+export function pitch(dealer: { x: number; y: number }, spot: Pose, rand: () => number, spin: readonly [number, number] = [0.35, 0.9]): Frame[] {
   // Every pitch leaves the fingers a little differently: how far it flies, how it skids, how it spins.
   const frames = slide({ x: dealer.x, y: dealer.y, rot: spot.rot }, spot, rand, {
-    spin: sign(rand) * between(rand, 0.35, 0.9),
+    spin: sign(rand) * between(rand, ...spin),
     airShare: between(rand, 0.46, 0.64),
     skidTau: TOSS.skidTau * between(rand, 0.8, 1.2),
   })
@@ -213,6 +213,71 @@ export function dealSchedule(count: number, window: number, maxGap: number, rand
   for (let i = 1; i < count; i++) starts.push(starts[i - 1] + base * between(rand, 0.7, 1.35))
   const last = starts[starts.length - 1]
   return last > window ? starts.map((s) => (s * window) / last) : starts
+}
+
+/** How the dealer lays out the community cards. Distances are shares of a card's width. */
+export const REVEAL = {
+  /** How long a street lies face down before the dealer turns it over, ms. */
+  beatMs: [150, 300] as const,
+  /** The turn itself: matches `.poker-card__turn`'s transition in style.css. */
+  turnMs: 360,
+  /** The pause between turning the cards over and moving them into line, ms. */
+  afterTurnMs: [60, 140] as const,
+  /** How far right of the first slot the flop's stack lands. */
+  stackIn: [0.1, 0.3] as const,
+  /** How far off square the stack lands, degrees. */
+  stackRot: [3, 9] as const,
+  /** How far from its slot a turn or river card lands. */
+  offSlot: [0.15, 0.35] as const,
+  /** How far off square a turn or river card lands, degrees. */
+  offRot: [4, 12] as const,
+  /** Each card of the spread is let go a little after the one under it, up to this, ms. */
+  spreadLag: 30,
+}
+
+/** A card drawn a short way along the cloth under the dealer's hand. */
+const nudge = (from: Pose, to: Pose, rand: () => number) =>
+  slide(from, to, rand, { hand: 0.6, lift: 0, wobble: 0.01, skidTau: 80, skidFriction: 0.003, minMs: 200 })
+
+/** The face-down hold before a turn over, the turn, and the pause after it: returns when it turns and how long it all lasts. */
+function turnOver(landedAt: number, rand: () => number) {
+  const beat = between(rand, ...REVEAL.beatMs)
+  return { turnAt: landedAt + beat, holdMs: beat + REVEAL.turnMs + between(rand, ...REVEAL.afterTurnMs) }
+}
+
+/**
+ * The flop, as a dealer lays it out: the three cards pitched as one face-down
+ * stack that lands just right of the first slot and askew, a beat, the stack
+ * turned over at `turnAt` (ms), then one push of the hand spreads it left to
+ * right. The top card (the last) rides the hand furthest; each card ends
+ * exactly on its slot.
+ */
+export function flop(dealer: { x: number; y: number }, slots: Pose[], cardW: number, rand: () => number): { frames: Frame[][]; turnAt: number } {
+  const stack: Pose = {
+    x: slots[0].x + cardW * between(rand, ...REVEAL.stackIn),
+    y: slots[0].y + cardW * between(rand, -0.12, 0.12),
+    rot: slots[0].rot + sign(rand) * between(rand, ...REVEAL.stackRot),
+  }
+  const flight = pitch(dealer, stack, rand, [0.15, 0.4])
+  const { turnAt, holdMs } = turnOver(flight[flight.length - 1].t, rand)
+  const lag = between(rand, 0, REVEAL.spreadLag)
+  const frames = slots.map((slot, k) => {
+    // A hair up and left for each card higher in the stack, so its edges show.
+    const shift = (f: Frame) => ({ ...f, x: f.x - k, y: f.y - k * 1.2 })
+    const top = { ...stack, x: stack.x - k, y: stack.y - k * 1.2 }
+    return chain(flight.map(shift), holdMs + k * lag, nudge(top, slot, rand))
+  })
+  return { frames, turnAt }
+}
+
+/** A turn or river card: pitched face down to land a little off its slot, turned over at `turnAt` (ms), then drawn into line. */
+export function street(dealer: { x: number; y: number }, slot: Pose, cardW: number, rand: () => number): { frames: Frame[]; turnAt: number } {
+  const angle = between(rand, 0, Math.PI * 2)
+  const r = cardW * between(rand, ...REVEAL.offSlot)
+  const off: Pose = { x: slot.x + Math.cos(angle) * r, y: slot.y + Math.sin(angle) * r, rot: slot.rot + sign(rand) * between(rand, ...REVEAL.offRot) }
+  const flight = pitch(dealer, off, rand)
+  const { turnAt, holdMs } = turnOver(flight[flight.length - 1].t, rand)
+  return { frames: chain(flight, holdMs, nudge(off, slot, rand)), turnAt }
 }
 
 /** Below this flick speed a fold is pushed along the cloth rather than thrown. */

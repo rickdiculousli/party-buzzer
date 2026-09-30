@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mulberry32 } from '../shared/random.ts'
-import { chipStack, dealSchedule, pitch, receive, scatter, slide, sweep, toss, wildCard, RECEIVE, TOSS, type Frame } from './toss.ts'
+import { chipStack, dealSchedule, flop, pitch, receive, scatter, slide, street, sweep, toss, wildCard, RECEIVE, REVEAL, TOSS, type Frame, type Pose } from './toss.ts'
 
 const along = (frames: Frame[], dx: number, dy: number) => {
   const len = Math.hypot(dx, dy)
@@ -242,4 +242,86 @@ test('the two cards of a fold part ways a little, not stuck together', () => {
   assert.ok(mean(spread.map((s) => s.angle)) > 6, 'the pair heads the same way every time')
   assert.ok(Math.max(...spread.map((s) => s.angle)) <= 30, 'the pair splits apart')
   assert.ok(mean(spread.map((s) => s.reach)) > 12, 'the pair travels the same distance every time')
+})
+
+const DEALER = { x: 500, y: -60 }
+const CARD_W = 60
+const slotsAt = (y = 400): Pose[] => [0, 1, 2].map((i) => ({ x: 380 + i * 68, y: y + (i - 1) * 2, rot: i - 1 }))
+/** When a card's frames stop changing after `from`: the end of the move that follows. */
+const settledAt = (frames: Frame[], from: number) => {
+  const end = frames[frames.length - 1]
+  const moving = frames.filter((f) => f.t >= from && (f.x !== end.x || f.y !== end.y || f.rot !== end.rot))
+  return moving.length ? moving[moving.length - 1].t : from
+}
+const still = (frames: Frame[], from: number, to: number) => {
+  const held = frames.filter((f) => f.t >= from && f.t <= to)
+  return held.every((f) => f.x === held[0].x && f.y === held[0].y && f.rot === held[0].rot)
+}
+
+test('every flop card comes to rest exactly on its slot', () => {
+  for (let seed = 1; seed < 20; seed++) {
+    const slots = slotsAt()
+    flop(DEALER, slots, CARD_W, mulberry32(seed)).frames.forEach((frames, k) => {
+      const last = frames[frames.length - 1]
+      assert.deepEqual({ x: last.x, y: last.y, rot: last.rot, lift: last.lift }, { ...slots[k], lift: 0 })
+    })
+  }
+})
+
+test('the flop travels as one stack until it has turned over', () => {
+  for (let seed = 1; seed < 20; seed++) {
+    const { frames, turnAt } = flop(DEALER, slotsAt(), CARD_W, mulberry32(seed))
+    frames[0].forEach((f, i) => {
+      if (f.t > turnAt + REVEAL.turnMs) return
+      for (const other of [frames[1], frames[2]]) {
+        assert.equal(other[i].t, f.t)
+        assert.ok(Math.hypot(other[i].x - f.x, other[i].y - f.y) <= 4, `stack came apart at ${f.t}ms`)
+        assert.equal(other[i].rot, f.rot)
+      }
+    })
+  }
+})
+
+test('the flop lands, lies still for a beat, and only turns over once it is down', () => {
+  for (let seed = 1; seed < 20; seed++) {
+    const { frames, turnAt } = flop(DEALER, slotsAt(), CARD_W, mulberry32(seed))
+    const down = frames[0].find((f, i) => i > 0 && f.t < turnAt && still(frames[0], f.t, turnAt))!
+    assert.ok(turnAt - down.t >= REVEAL.beatMs[0] - 16, `turned ${turnAt - down.t}ms after landing`)
+    assert.ok(still(frames[0], down.t, turnAt + REVEAL.turnMs), 'moved while turning over')
+  }
+})
+
+test('the spread lays the cards out left to right, the top card going furthest', () => {
+  for (let seed = 1; seed < 20; seed++) {
+    const { frames, turnAt } = flop(DEALER, slotsAt(), CARD_W, mulberry32(seed))
+    const from = turnAt + REVEAL.turnMs
+    const spreadStart = frames.map((c) => c.find((f) => f.t >= from)!)
+    const travel = frames.map((c, k) => Math.hypot(c[c.length - 1].x - spreadStart[k].x, c[c.length - 1].y - spreadStart[k].y))
+    assert.ok(travel[0] < travel[1] && travel[1] < travel[2], `travel ${travel.map(Math.round)}`)
+    const ends = frames.map((c) => settledAt(c, from))
+    assert.ok(ends[0] <= ends[1] && ends[1] <= ends[2], `settled at ${ends.map(Math.round)}`)
+    assert.ok(spreadStart[0].x < frames[0][frames[0].length - 1].x + CARD_W * 0.5, 'the stack landed right of the first slot')
+  }
+})
+
+test('no two flops are dealt alike', () => {
+  const rest = (seed: number) => {
+    const { frames, turnAt } = flop(DEALER, slotsAt(), CARD_W, mulberry32(seed))
+    return frames[0].find((f) => f.t >= turnAt)!
+  }
+  const poses = [1, 2, 3, 4].map(rest)
+  assert.equal(new Set(poses.map((p) => `${p.x.toFixed(1)},${p.rot.toFixed(1)}`)).size, 4)
+})
+
+test('a turn or river card lands off its slot, turns over, then is pushed into line', () => {
+  for (let seed = 1; seed < 20; seed++) {
+    const slot = { x: 600, y: 400, rot: 1 }
+    const { frames, turnAt } = street(DEALER, slot, CARD_W, mulberry32(seed))
+    const at = frames.find((f) => f.t >= turnAt)!
+    const off = Math.hypot(at.x - slot.x, at.y - slot.y)
+    assert.ok(off >= CARD_W * 0.1 && off <= CARD_W * 0.5, `landed ${off}px off its slot`)
+    assert.ok(still(frames, turnAt - REVEAL.beatMs[0] + 16, turnAt + REVEAL.turnMs), 'moved while turning over')
+    const last = frames[frames.length - 1]
+    assert.deepEqual({ x: last.x, y: last.y, rot: last.rot, lift: last.lift }, { ...slot, lift: 0 })
+  }
 })
