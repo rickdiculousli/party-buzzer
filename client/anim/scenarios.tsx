@@ -29,7 +29,7 @@ import { Spoken } from '../Spoken.tsx'
 import { Burst, CountUp, Glitch, Letters } from '../fx.tsx'
 import { FaceOff, Finale } from '../Board.tsx'
 import { Piece, PlayingCard } from '../PokerParts.tsx'
-import { chain, flop, pitch, receive, scatter, street, toss, FOLD, RECEIVE, REVEAL, TOSS } from '../toss.ts'
+import { chain, flop, pitch, receive, scatter, street, toss, turnUp, FOLD, RECEIVE, REVEAL, TOSS } from '../toss.ts'
 import { mulberry32 } from '../../shared/random.ts'
 import type { BurstFrom } from '../fx.ts'
 import type { Recipe } from '../synth.ts'
@@ -602,6 +602,26 @@ const streetScenario: Scenario = {
   },
 }
 
+/** A player on the left of the table shows their pair at showdown, turning each card over toward the middle. */
+const showdownScenario: Scenario = {
+  id: 'poker-showdown',
+  label: 'Showdown',
+  family: 'Poker',
+  note: 'A player shows their pair: each card turns over on one edge toward the middle and comes down there. Tune REVEAL in client/toss.ts.',
+  subject: '.poker-piece',
+  dials: [...TURN, ...SHADOW],
+  render: (lead) => {
+    const middle = { x: PATCH.w / 2, y: PATCH.h / 2 }
+    const pair = ([0, 1] as const).map((k) => ({ x: PATCH.w * 0.2 + (k ? 8 : -8), y: PATCH.h * 0.5 + (k ? 2 : 0), rot: 8 + (k ? 3 : -2) }))
+    return pokerStage(pair.map((faceDown, k) => {
+      const shown = turnUp(faceDown, middle, 56)
+      return lead
+        ? <Piece key={`${k}-down`} pose={faceDown}><PlayingCard card={null} up={false} /></Piece>
+        : <Piece key={`${k}-up`} pose={shown.rest} frames={shown.frames} delay={k * 50}><PlayingCard card={k ? 'Kh' : 'Ks'} up hinge={shown.hinge} /></Piece>
+    }))
+  },
+}
+
 export const SCENARIOS: Scenario[] = [
   {
     id: 'mark',
@@ -810,6 +830,7 @@ export const SCENARIOS: Scenario[] = [
   dealScenario,
   flopScenario,
   streetScenario,
+  showdownScenario,
   foldScenario('poker-fold-hard', 'Fold, hard flick, one card gets away', { dx: 0.2, dy: -0.98, speed: 1 }, 1),
   foldScenario('poker-fold-soft', 'Fold, soft flick', { dx: -0.3, dy: -0.95, speed: 0.2 }),
   foldScenario('poker-fold-timeout', 'Fold, timed out', null),

@@ -133,6 +133,7 @@ export function Piece({ pose, frames, delay = 0, done, class: cls = '', children
       frames.map((f) => ({
         transform: transformOf(f, f.lift), '--piece-x': f.x, '--piece-y': f.y, '--piece-lift': f.lift, '--piece-rot': f.rot,
         ...(f.turn === undefined ? {} : { '--piece-turn': f.turn }),
+        ...(f.z === undefined ? {} : { zIndex: f.z }),
         offset: f.t / total,
       })),
       { duration: total, delay, fill: 'backwards', easing: 'linear' },

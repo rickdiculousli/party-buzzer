@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mulberry32 } from '../shared/random.ts'
-import { chipStack, dealSchedule, flop, pitch, receive, scatter, slide, street, sweep, toss, wildCard, RECEIVE, REVEAL, TOSS, type Frame, type Pose } from './toss.ts'
+import { chipStack, dealSchedule, flop, turnUp, pitch, receive, scatter, slide, street, sweep, toss, wildCard, RECEIVE, REVEAL, TOSS, type Frame, type Pose } from './toss.ts'
 
 const along = (frames: Frame[], dx: number, dy: number) => {
   const len = Math.hypot(dx, dy)
@@ -271,8 +271,9 @@ test('every flop card comes to rest exactly on its slot', () => {
 test('the flop flies as one stack, each card of it showing', () => {
   for (let seed = 1; seed < 20; seed++) {
     const { frames } = flop(DEALER, slotsAt(), CARD_W, mulberry32(seed))
-    for (const k of [1, 2]) {
-      const [below, card] = [frames[k - 1], frames[k]]
+    // Face down, the first card dealt is on top: each card sits on the one after it.
+    for (const k of [0, 1]) {
+      const [below, card] = [frames[k + 1], frames[k]]
       const gap = (i: number) => ({ x: card[i].x - below[i].x, y: card[i].y - below[i].y, rot: card[i].rot - below[i].rot })
       const first = gap(0)
       const off = Math.hypot(first.x, first.y)
@@ -294,8 +295,8 @@ test('as the stack skids, each card rides further on the one under it, then it a
     const down = frames[0].findIndex((f, i) => i > 0 && f.lift <= 0)
     const travel = { x: frames[0][down].x - frames[0][0].x, y: frames[0][down].y - frames[0][0].y }
     const len = Math.hypot(travel.x, travel.y)
-    for (const k of [1, 2]) {
-      const [below, card] = [frames[k - 1], frames[k]]
+    for (const k of [0, 1]) {
+      const [below, card] = [frames[k + 1], frames[k]]
       // How far this card is ahead of the one under it, along the way the stack was thrown.
       const ahead = (i: number) => ((card[i].x - below[i].x) * travel.x + (card[i].y - below[i].y) * travel.y) / len
       let last = ahead(down)
@@ -385,5 +386,36 @@ test('a turn or river card turns over toward the board, on a hinge by its right 
     assert.equal(hinge, REVEAL.hinge)
     // rotateY lifts the side left of a right-hand hinge for a positive turn.
     turnsOnce(frames, turnAt, 180)
+  }
+})
+
+test('turning the stack over turns its order over too: the first card is on top face down, the last face up', () => {
+  for (let seed = 1; seed < 20; seed++) {
+    const { frames } = flop(DEALER, slotsAt(), CARD_W, mulberry32(seed))
+    frames[0].forEach((f, i) => {
+      const zs = frames.map((card) => card[i].z!)
+      assert.ok(zs.every((z) => z !== undefined), 'a frame has no stacking order')
+      const faceDown = Math.abs(f.turn!) > 90
+      assert.deepEqual([...zs].sort((a, b) => a - b), faceDown ? [...zs].reverse() : zs, `wrong card on top at ${f.t}ms`)
+    })
+  }
+})
+
+test('a player shows their card by turning it toward the middle, from exactly where it lay face down', () => {
+  const middle = { x: 500, y: 300 }
+  for (const [faceDown, hinge] of [
+    [{ x: 200, y: 300, rot: 5 }, 1 - REVEAL.hinge],
+    [{ x: 800, y: 300, rot: -5 }, REVEAL.hinge],
+    [{ x: 500, y: 600, rot: 180 }, REVEAL.hinge],
+  ] as const) {
+    const shown = turnUp(faceDown, middle, CARD_W)
+    assert.equal(shown.hinge, hinge)
+    // Face down, a hinged card lies the hinge's swing from its pose; that has to be where it already was.
+    const a = (shown.rest.rot * Math.PI) / 180
+    const swing = (2 * shown.hinge - 1) * CARD_W
+    assert.ok(Math.hypot(shown.rest.x + Math.cos(a) * swing - faceDown.x, shown.rest.y + Math.sin(a) * swing - faceDown.y) < 1e-6, 'jumped when it started turning')
+    // A card can only come down across its own width, so it goes whichever way along that is nearer the middle; a seat square to the middle may go either.
+    assert.ok((shown.rest.x - faceDown.x) * (middle.x - faceDown.x) + (shown.rest.y - faceDown.y) * (middle.y - faceDown.y) >= 0, 'turned away from the middle')
+    turnsOnce(shown.frames, 0, shown.hinge > 0.5 ? 180 : -180)
   }
 })

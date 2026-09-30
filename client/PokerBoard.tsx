@@ -7,7 +7,7 @@ import { matchFrame } from './minigame-info.ts'
 import { Burst, Letters } from './fx.tsx'
 import { ChipStack, DealerPuck, FeltMark, PaintPile, Piece, PlayingCard, ShotRing, reducedMotion, usePokerCues, useSize } from './PokerParts.tsx'
 import { ELLIPSE, feedLine, seatPositions, POKER_RULES } from './poker.ts'
-import { chain, dealSchedule, flop, pitch, receive, scatter, slide, street, sweep, toss, wildCard, RECEIVE, type Frame, type Pose } from './toss.ts'
+import { chain, dealSchedule, flop, turnUp, pitch, receive, scatter, slide, street, sweep, toss, wildCard, RECEIVE, type Frame, type Pose } from './toss.ts'
 import { colorForPlayer, ordinal, playerName, setlistPosition } from './ui.ts'
 
 type Point = { x: number; y: number }
@@ -72,6 +72,9 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
   const [floats, setFloats] = useState<{ key: string; player: PlayerId; text: string }[]>([])
   /** Each community card's motion, turn over included, and the hinge it turns on, per hand. */
   const laid = useRef<{ hand: number; cards: { frames: Frame[] | null; delay: number; hinge?: number }[]; busy: number } | null>(null)
+  /** Hole cards this hand that the board has seen face down, `seat-card`: only those are turned over when shown. */
+  const seenDown = useRef<{ hand: number; cards: Set<string> }>({ hand: -1, cards: new Set() })
+  if (poker && seenDown.current.hand !== poker.handNo) seenDown.current = { hand: poker.handNo, cards: new Set() }
   // When this hand was dealt. A reload mid-hand deals nothing; one that lands during a deal still watches it.
   const deal = useRef<{ hand: number; at: number | null } | null>(null)
   if (poker && deal.current?.hand !== poker.handNo) deal.current = { hand: poker.handNo, at: deal.current || poker.phase === 'deal' ? performance.now() : null }
@@ -298,6 +301,14 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
           const frames = dealtTo(i)?.[k] ?? null
           const won = winners.has(seat.player)
           const card = seat.cards?.[k] ?? null
+          if (!card) seenDown.current.cards.add(`${i}-${k}`)
+          // Shown at showdown: the player turns it over toward the middle, from where it lay.
+          if (card && seenDown.current.cards.has(`${i}-${k}`) && !reducedMotion()) {
+            const shown = turnUp(holeOf(i, k), centre, cardW)
+            return <Piece key={`${poker.handNo}-${i}-${k}-up`} pose={shown.rest} frames={shown.frames} delay={k * 50}>
+              <PlayingCard card={card} up hinge={shown.hinge} class={five.size ? (won && five.has(card) ? 'poker-card--win' : won ? '' : 'poker-card--dim') : ''} />
+            </Piece>
+          }
           return <Piece key={`${poker.handNo}-${i}-${k}`} pose={holeOf(i, k)} frames={frames} delay={delay ?? 0}>
             <PlayingCard card={card} up={!!card} class={card && five.size ? (won && five.has(card) ? 'poker-card--win' : won ? '' : 'poker-card--dim') : ''} />
           </Piece>

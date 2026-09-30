@@ -12,8 +12,12 @@ import type { PokerFlick } from '../shared/protocol.ts'
  * Units are pixels, degrees and ms.
  */
 export type Pose = { x: number; y: number; rot: number }
-/** `turn`, when a move has one, is how far a card is turned over about its hinge in degrees: ±180 face down, 0 face up. */
-export type Frame = Pose & { t: number; lift: number; turn?: number }
+/**
+ * `turn`, when a move has one, is how far a card is turned over about its
+ * hinge in degrees: ±180 face down, 0 face up. `z`, when it has one, is its
+ * place in a pile, higher on top.
+ */
+export type Frame = Pose & { t: number; lift: number; turn?: number; z?: number }
 
 export const TOSS = {
   /** Share of a throw's distance covered in the air, before touchdown. 0 keeps it on the cloth. */
@@ -324,12 +328,30 @@ export function flop(dealer: { x: number; y: number }, slots: Pose[], cardW: num
   const along = (f: Pose) => (f.x - dealer.x) * fwd.x + (f.y - dealer.y) * fwd.y
   const skidLen = along(stack) - along(touchdown)
   const skidded = (f: Frame) => f.lift > 0 || skidLen <= 0 ? 0 : Math.min(1, Math.max(0, (along(f) - along(touchdown)) / skidLen))
+  // Face down, the first card dealt is on top; turning the stack over puts the last on top.
   const frames = slots.map((slot, k) => {
-    const o = offsets[k]
+    const o = offsets[slots.length - 1 - k]
     const shift = <P extends Pose>(f: P, fan: number): P => ({ ...f, x: f.x + o.x + fwd.x * fan, y: f.y + o.y + fwd.y * fan, rot: f.rot + o.rot })
     return turnedOver(chain(flight.map((f) => shift(f, o.fan * skidded(f))), holdMs + k * lag, nudge(shift(stack, o.fan), slot, rand)), turnAt, hinge)
+      .map((f) => ({ ...f, z: Math.abs(f.turn!) > 90 ? slots.length - k : k + 1 }))
   })
   return { frames, turnAt, hinge }
+}
+
+/**
+ * A player showing a card that lies face down at `faceDown`: turned over on a
+ * hinge by the edge away from `toward` (the middle of the table), so it comes
+ * down that way, at `rest`. Face down, the hinged card lies exactly where it
+ * already was.
+ */
+export function turnUp(faceDown: Pose, toward: { x: number; y: number }, cardW: number): { frames: Frame[]; rest: Pose; hinge: number } {
+  const a = (faceDown.rot * Math.PI) / 180
+  const across = { x: Math.cos(a), y: Math.sin(a) }
+  const hinge = (toward.x - faceDown.x) * across.x + (toward.y - faceDown.y) * across.y >= 0 ? 1 - REVEAL.hinge : REVEAL.hinge
+  const swing = (1 - 2 * hinge) * cardW
+  const rest = { x: faceDown.x + across.x * swing, y: faceDown.y + across.y * swing, rot: faceDown.rot }
+  const still = [{ ...rest, t: 0, lift: 0 }, { ...rest, t: REVEAL.turnMs, lift: 0 }]
+  return { frames: turnedOver(still, 0, hinge), rest, hinge }
 }
 
 /** A turn or river card: pitched face down to land a little off its slot, turned over at `turnAt` (ms) toward the board, then drawn into line. */
