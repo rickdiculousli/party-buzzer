@@ -141,7 +141,9 @@ export function Piece({ pose, frames, delay = 0, done, class: cls = '', children
     run.onfinish = () => done?.()
     return () => run.cancel()
   }, [])
-  return <div ref={el} class={`poker-piece ${cls}`} style={{ transform: transformOf(pose), '--piece-x': pose.x, '--piece-y': pose.y, '--piece-rot': pose.rot }}>{children}</div>
+  // At rest it keeps the place in the pile its move ended in.
+  const z = frames?.[frames.length - 1]?.z
+  return <div ref={el} class={`poker-piece ${cls}`} style={{ transform: transformOf(pose), '--piece-x': pose.x, '--piece-y': pose.y, '--piece-rot': pose.rot, zIndex: z }}>{children}</div>
 }
 
 /**

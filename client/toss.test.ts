@@ -401,21 +401,35 @@ test('turning the stack over turns its order over too: the first card is on top 
   }
 })
 
-test('a player shows their card by turning it toward the middle, from exactly where it lay face down', () => {
+test('a player shows their pair by turning it over as one, toward the middle, from exactly where it lay face down', () => {
   const middle = { x: 500, y: 300 }
-  for (const [faceDown, hinge] of [
-    [{ x: 200, y: 300, rot: 5 }, 1 - REVEAL.hinge],
-    [{ x: 800, y: 300, rot: -5 }, REVEAL.hinge],
-    [{ x: 500, y: 600, rot: 180 }, REVEAL.hinge],
-  ] as const) {
-    const shown = turnUp(faceDown, middle, CARD_W)
-    assert.equal(shown.hinge, hinge)
-    // Face down, a hinged card lies the hinge's swing from its pose; that has to be where it already was.
-    const a = (shown.rest.rot * Math.PI) / 180
-    const swing = (2 * shown.hinge - 1) * CARD_W
-    assert.ok(Math.hypot(shown.rest.x + Math.cos(a) * swing - faceDown.x, shown.rest.y + Math.sin(a) * swing - faceDown.y) < 1e-6, 'jumped when it started turning')
-    // A card can only come down across its own width, so it goes whichever way along that is nearer the middle; a seat square to the middle may go either.
-    assert.ok((shown.rest.x - faceDown.x) * (middle.x - faceDown.x) + (shown.rest.y - faceDown.y) * (middle.y - faceDown.y) >= 0, 'turned away from the middle')
-    turnsOnce(shown.frames, 0, shown.hinge > 0.5 ? 180 : -180)
+  for (const pair of [
+    [{ x: 192, y: 300, rot: 3 }, { x: 208, y: 302, rot: 8 }],
+    [{ x: 792, y: 300, rot: -7 }, { x: 808, y: 302, rot: -2 }],
+    [{ x: 492, y: 600, rot: 178 }, { x: 508, y: 602, rot: 183 }],
+  ]) {
+    const shown = turnUp(pair, middle, CARD_W)
+    const a = ((pair[0].rot + pair[1].rot) / 2) * (Math.PI / 180)
+    const across = { x: Math.cos(a), y: Math.sin(a) }
+    const pivots = shown.map((card, k) => {
+      const r = (card.rest.rot * Math.PI) / 180
+      // Face down, a hinged card lies the hinge's swing from its pose; that has to be where it already was.
+      const swing = (2 * card.hinge - 1) * CARD_W
+      assert.ok(Math.hypot(card.rest.x + Math.cos(r) * swing - pair[k].x, card.rest.y + Math.sin(r) * swing - pair[k].y) < 1e-6, `card ${k} jumped when it started turning`)
+      // A card can only come down across its own width, so it goes whichever way along that is nearer the middle; a pair square to the middle may go either.
+      const toMiddle = { x: middle.x - pair[k].x, y: middle.y - pair[k].y }
+      const square = Math.abs(toMiddle.x * across.x + toMiddle.y * across.y) < 0.3 * Math.hypot(toMiddle.x, toMiddle.y)
+      if (!square) assert.ok((card.rest.x - pair[k].x) * toMiddle.x + (card.rest.y - pair[k].y) * toMiddle.y > 0, `card ${k} turned away from the middle`)
+      turnsOnce(card.frames, 0, card.hinge > 0.5 ? 180 : -180)
+      // Where it turns about: halfway between where it lay and where it comes down.
+      return ((card.rest.x + pair[k].x) / 2) * across.x + ((card.rest.y + pair[k].y) / 2) * across.y
+    })
+    assert.ok(Math.abs(pivots[0] - pivots[1]) < 1.5, `the two cards turn about lines ${(pivots[0] - pivots[1]).toFixed(1)}px apart`)
+    assert.deepEqual(shown[0].frames.map((f) => [f.t, f.turn]), shown[1].frames.map((f) => [f.t, f.turn]), 'the two cards turn at different times')
+    // Face down the second card is on top; turned over as one, the first is.
+    shown[0].frames.forEach((f, i) => {
+      const [z0, z1] = [f.z!, shown[1].frames[i].z!]
+      assert.ok(Math.abs(f.turn!) > 90 ? z1 > z0 : z0 > z1, `wrong card on top at ${f.t}ms`)
+    })
   }
 })

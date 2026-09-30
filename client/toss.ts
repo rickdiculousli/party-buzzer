@@ -339,19 +339,31 @@ export function flop(dealer: { x: number; y: number }, slots: Pose[], cardW: num
 }
 
 /**
- * A player showing a card that lies face down at `faceDown`: turned over on a
- * hinge by the edge away from `toward` (the middle of the table), so it comes
- * down that way, at `rest`. Face down, the hinged card lies exactly where it
- * already was.
+ * A player showing the cards that lie face down at `faceDown`, turned over as
+ * one toward `toward` (the middle of the table): lifted by the far side, they
+ * turn about one line 1 − `REVEAL.hinge` of a card in from the pile's near
+ * edge and come down mirrored over it, so the card that was underneath ends on
+ * top. Each card's `hinge` is that line as a share of its own width; face down,
+ * each lies exactly where it already was.
  */
-export function turnUp(faceDown: Pose, toward: { x: number; y: number }, cardW: number): { frames: Frame[]; rest: Pose; hinge: number } {
-  const a = (faceDown.rot * Math.PI) / 180
+export function turnUp(faceDown: Pose[], toward: { x: number; y: number }, cardW: number): { frames: Frame[]; rest: Pose; hinge: number }[] {
+  const a = (faceDown.reduce((sum, p) => sum + p.rot, 0) / faceDown.length) * (Math.PI / 180)
   const across = { x: Math.cos(a), y: Math.sin(a) }
-  const hinge = (toward.x - faceDown.x) * across.x + (toward.y - faceDown.y) * across.y >= 0 ? 1 - REVEAL.hinge : REVEAL.hinge
-  const swing = (1 - 2 * hinge) * cardW
-  const rest = { x: faceDown.x + across.x * swing, y: faceDown.y + across.y * swing, rot: faceDown.rot }
-  const still = [{ ...rest, t: 0, lift: 0 }, { ...rest, t: REVEAL.turnMs, lift: 0 }]
-  return { frames: turnedOver(still, 0, hinge), rest, hinge }
+  const at = faceDown.map((p) => p.x * across.x + p.y * across.y)
+  const mid = faceDown.reduce((sum, p) => ({ x: sum.x + p.x / faceDown.length, y: sum.y + p.y / faceDown.length }), { x: 0, y: 0 })
+  const forward = (toward.x - mid.x) * across.x + (toward.y - mid.y) * across.y >= 0
+  const inset = (1 - REVEAL.hinge) * cardW
+  const pivot = forward ? Math.max(...at) + cardW / 2 - inset : Math.min(...at) - cardW / 2 + inset
+  return faceDown.map((p, k) => {
+    const hinge = (at[k] - pivot) / cardW + 0.5
+    const r = (p.rot * Math.PI) / 180
+    const swing = (1 - 2 * hinge) * cardW
+    const rest = { x: p.x + Math.cos(r) * swing, y: p.y + Math.sin(r) * swing, rot: p.rot }
+    const still = [{ ...rest, t: 0, lift: 0 }, { ...rest, t: REVEAL.turnMs, lift: 0 }]
+    // Face down the later card is on top; turned over, the pile is too.
+    const frames = turnedOver(still, 0, hinge).map((f) => ({ ...f, z: Math.abs(f.turn!) > 90 ? k + 1 : faceDown.length - k }))
+    return { frames, rest, hinge }
+  })
 }
 
 /** A turn or river card: pitched face down to land a little off its slot, turned over at `turnAt` (ms) toward the board, then drawn into line. */

@@ -302,10 +302,10 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
           const won = winners.has(seat.player)
           const card = seat.cards?.[k] ?? null
           if (!card) seenDown.current.cards.add(`${i}-${k}`)
-          // Shown at showdown: the player turns it over toward the middle, from where it lay.
+          // Shown at showdown: the player turns the pair over as one toward the middle, from where it lay.
           if (card && seenDown.current.cards.has(`${i}-${k}`) && !reducedMotion()) {
-            const shown = turnUp(holeOf(i, k), centre, cardW)
-            return <Piece key={`${poker.handNo}-${i}-${k}-up`} pose={shown.rest} frames={shown.frames} delay={k * 50}>
+            const shown = turnUp([holeOf(i, 0), holeOf(i, 1)], centre, cardW)[k]
+            return <Piece key={`${poker.handNo}-${i}-${k}-up`} pose={shown.rest} frames={shown.frames}>
               <PlayingCard card={card} up hinge={shown.hinge} class={five.size ? (won && five.has(card) ? 'poker-card--win' : won ? '' : 'poker-card--dim') : ''} />
             </Piece>
           }

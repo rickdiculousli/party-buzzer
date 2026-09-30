@@ -602,22 +602,22 @@ const streetScenario: Scenario = {
   },
 }
 
-/** A player on the left of the table shows their pair at showdown, turning each card over toward the middle. */
+/** A player on the left of the table shows their pair at showdown, turning it over as one toward the middle. */
 const showdownScenario: Scenario = {
   id: 'poker-showdown',
   label: 'Showdown',
   family: 'Poker',
-  note: 'A player shows their pair: each card turns over on one edge toward the middle and comes down there. Tune REVEAL in client/toss.ts.',
+  note: 'A player shows their pair: it turns over as one on the edge nearer the middle and comes down mirrored there. Tune REVEAL in client/toss.ts.',
   subject: '.poker-piece',
   dials: [...TURN, ...SHADOW],
   render: (lead) => {
     const middle = { x: PATCH.w / 2, y: PATCH.h / 2 }
     const pair = ([0, 1] as const).map((k) => ({ x: PATCH.w * 0.2 + (k ? 8 : -8), y: PATCH.h * 0.5 + (k ? 2 : 0), rot: 8 + (k ? 3 : -2) }))
+    const shown = turnUp(pair, middle, 56)
     return pokerStage(pair.map((faceDown, k) => {
-      const shown = turnUp(faceDown, middle, 56)
       return lead
         ? <Piece key={`${k}-down`} pose={faceDown}><PlayingCard card={null} up={false} /></Piece>
-        : <Piece key={`${k}-up`} pose={shown.rest} frames={shown.frames} delay={k * 50}><PlayingCard card={k ? 'Kh' : 'Ks'} up hinge={shown.hinge} /></Piece>
+        : <Piece key={`${k}-up`} pose={shown[k].rest} frames={shown[k].frames}><PlayingCard card={k ? 'Kh' : 'Ks'} up hinge={shown[k].hinge} /></Piece>
     }))
   },
 }
