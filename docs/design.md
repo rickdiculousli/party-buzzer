@@ -722,7 +722,9 @@ raising the top of the stack by a small amount and growing slightly as it gets
 closer to the viewer. Size and shadow length convey height without a long
 extrusion. The edge facing away from the lamp is darkest at its middle and
 softens around the sides into the lit edge. One shadow per stack falls away
-from the table's centre lamp; taller stacks cast it further. CSS layers fake the depth without
+from the table's centre lamp; taller stacks cast it further. A tight dark
+contact edge and a lightly softened cast shadow give the stack weight.
+CSS layers fake the depth without
 3D geometry or a blur on every chip. The dealer puck is a white disc marked
 Dealer. The phone's
 actions sit on a stitched leather rail (`--leather`) as plaques; reactions

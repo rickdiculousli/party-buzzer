@@ -838,20 +838,15 @@ export const SCENARIOS: Scenario[] = [
     id: 'poker-chips',
     label: 'Chip stacks under the centre lamp',
     family: 'Poker',
-    note: 'Round tops and striped edges stand above the felt. Taller stacks cast longer shadows away from the centre; the moving bet crosses beneath the lamp.',
+    note: 'A short mixed stack (137) and a tall stack (5000) push across the felt together. Height reads through larger tops and longer, tight shadows pointing away from the centre lamp.',
     subject: '.poker-piece',
     dials: [],
     render: (lead) => pokerStage(<>
-      {[
-        { x: 90, y: 80, amount: 1 }, { x: 288, y: 65, amount: 5 }, { x: 486, y: 80, amount: 25 },
-        { x: 90, y: 240, amount: 100 }, { x: 288, y: 250, amount: 1500 }, { x: 486, y: 240, amount: 5000 },
-      ].map(({ x, y, amount }) => <Piece key={amount} pose={{ x, y, rot: 0 }}>
+      {[{ y: 110, amount: 137 }, { y: 230, amount: 5000 }].map(({ y, amount }) =>
+        <Piece key={`${amount}-${lead}`} pose={{ x: lead ? 120 : 440, y, rot: 0 }}
+          frames={lead ? null : sweep({ x: 120, y, rot: 0 }, { x: 440, y, rot: 0 })}>
         <span class="poker-bet"><ChipStack amount={amount} /><span class="poker-bet__amount">{amount}</span></span>
       </Piece>)}
-      <Piece key={String(lead)} pose={lead ? { x: 90, y: 160, rot: 0 } : { x: 400, y: 160, rot: 0 }}
-        frames={lead ? null : sweep({ x: 90, y: 160, rot: 0 }, { x: 400, y: 160, rot: 0 })}>
-        <ChipStack amount={137} />
-      </Piece>
     </>),
   },
   foldScenario('poker-fold-hard', 'Fold, hard flick, one card gets away', { dx: 0.2, dy: -0.98, speed: 1 }, 1),
