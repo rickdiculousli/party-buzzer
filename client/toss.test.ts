@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mulberry32 } from '../shared/random.ts'
-import { chipStack, dealSchedule, flop, turnUp, pitch, receive, scatter, slide, street, sweep, toss, wildCard, RECEIVE, REVEAL, TOSS, type Frame, type Pose } from './toss.ts'
+import { chipStack, dealSchedule, gather, potOf, topShades, flop, turnUp, pitch, receive, scatter, slide, street, sweep, toss, wildCard, RECEIVE, REVEAL, TOSS, type Frame, type Pose } from './toss.ts'
 
 const along = (frames: Frame[], dx: number, dy: number) => {
   const len = Math.hypot(dx, dy)
@@ -113,6 +113,17 @@ test('a bet stacks as the fewest chips, biggest at the bottom', () => {
   assert.deepEqual(chipStack(0), [])
   assert.ok(chipStack(99_999).length <= 10)
   assert.equal(chipStack(99_999)[0], 500)
+})
+
+test('bets pushed into the pot keep every chip, some onto stacks and some beside them', () => {
+  const bets = [[100, 25], [25, 5, 5], [100], [5, 1], [25, 25], [100, 5], [25], [5, 5, 5]]
+  const { pot, onto } = gather([], bets, mulberry32(4))
+  assert.equal(pot.flatMap((stack) => stack.chips).length, bets.flat().length)
+  assert.ok(pot.length > 1 && pot.length < bets.length, `${pot.length} stacks for ${bets.length} bets`)
+  assert.equal(onto.length, bets.length)
+  const again = gather(pot, [[500]], mulberry32(5))
+  pot.forEach((stack, i) => assert.deepEqual(again.pot[i].chips.slice(0, stack.chips.length), stack.chips, 'a new bet went under a stack'))
+  assert.equal(potOf(1_234, mulberry32(6)).flatMap((stack) => stack.chips).reduce((a, b) => a + b, 0), 1_234)
 })
 
 test('a dealt card lands loose near the seat, not squared on it', () => {
@@ -433,4 +444,14 @@ test('a player shows their pair by turning it over as one, toward the middle, fr
       assert.ok(Math.abs(f.turn!) > 90 ? z1 > z0 : z0 > z1, `wrong card on top at ${f.t}ms`)
     })
   }
+})
+
+test('a taller stack between the lamp and a lower one shades its top, longer for a bigger drop', () => {
+  const lamp = { x: 0, y: 0 }
+  const shades = (n: number) => topShades([{ x: 100, y: 0, n }, { x: 140, y: 0, n: 2 }], lamp, 40)
+  assert.deepEqual(shades(2), [[], []])
+  assert.equal(shades(8)[1].length, 1)
+  assert.equal(shades(8)[0].length, 0, 'a lower stack shaded a taller one')
+  assert.ok(shades(12)[1][0].dx > shades(8)[1][0].dx)
+  assert.deepEqual(topShades([{ x: 100, y: 0, n: 12 }, { x: 50, y: 0, n: 2 }], lamp, 40)[1], [], 'a shadow fell toward the lamp')
 })

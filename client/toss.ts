@@ -459,15 +459,85 @@ export function chain(a: Frame[], holdMs: number, b: Frame[]): Frame[] {
 const DENOMINATIONS = [500, 100, 25, 5, 1]
 const MAX_CHIPS = 10
 
-/** The chips a bet is built from, fewest possible, biggest first; a tall stack is capped. */
-export function chipStack(amount: number): number[] {
+/** The chips a bet is built from, fewest possible, biggest first; a tall stack is capped at `max`. */
+export function chipStack(amount: number, max = MAX_CHIPS): number[] {
   const out: number[] = []
   let left = Math.max(0, Math.floor(amount))
   for (const value of DENOMINATIONS) {
-    while (left >= value && out.length < MAX_CHIPS) {
+    while (left >= value && out.length < max) {
       out.push(value)
       left -= value
     }
   }
   return out
+}
+
+/** A stack in the pot, placed in chip widths from the pot's middle. */
+export type PotStack = { x: number; y: number; chips: number[] }
+/**
+ * Where the pot's stacks stand, in chip widths, in the order they are started:
+ * a corral packed round the middle, ring by ring, each ring from the side
+ * away from the board first.
+ */
+const around = (count: number, r: number, turn: number) => Array.from({ length: count }, (_, k) => (turn + (k * 360) / count) % 360)
+  .sort((a, b) => Math.abs(((a + 180) % 360) - 180) - Math.abs(((b + 180) % 360) - 180))
+  .map((deg) => [Math.cos((deg * Math.PI) / 180) * r, Math.sin((deg * Math.PI) / 180) * r])
+const POT_SPOTS = [[0, 0], ...around(6, 1, 0), ...around(12, 1.95, 15)]
+const POT_STACK_MAX = 10
+
+/**
+ * Bets pushed into the pot as they stood: usually one is pushed onto a
+ * stack already there, if it fits; otherwise it stands on its own in the next
+ * spot. Returns the pot and the stack each bet went to.
+ */
+export function gather(pot: PotStack[], bets: number[][], rand: () => number): { pot: PotStack[]; onto: number[] } {
+  const out = pot.map((stack) => ({ ...stack, chips: [...stack.chips] }))
+  const onto = bets.map((chips) => {
+    const fits = out.flatMap((stack, i) => stack.chips.length + chips.length <= POT_STACK_MAX ? [i] : [])
+    const room = out.length < POT_SPOTS.length
+    let i: number
+    if (fits.length && (!room || rand() < 0.75)) i = fits[Math.floor(rand() * fits.length)]
+    else if (room) {
+      const [x, y] = POT_SPOTS[out.length]
+      out.push({ x: x + between(rand, -0.08, 0.08), y: y + between(rand, -0.08, 0.08), chips: [] })
+      i = out.length - 1
+    } else i = out.reduce((low, stack, j) => stack.chips.length < out[low].chips.length ? j : low, 0)
+    out[i].chips.push(...chips.slice(0, POT_STACK_MAX - out[i].chips.length))
+    return i
+  })
+  return { pot: out, onto }
+}
+
+/** How far each chip raises a stack, in chip widths (the CSS `--step`). */
+export const CHIP_STEP = 0.05
+/** How tall a chip's top looks against its width, the table seen a little from the front (the CSS `--face-height`); depth on the felt shortens the same way. */
+export const CHIP_FACE = 0.9
+
+/**
+ * The shadows taller stacks cast across the top of a lower one: for each
+ * taller stack, where its column meets the lower top, relative to that top's
+ * middle, and how far the shadow runs from there (`dx`, `dy`), straight away
+ * from the lamp, one chip step per chip of drop, as from a lamp well up to one
+ * side. Stacks and the lamp are in pixels; `chipW` is a chip's width.
+ */
+export function topShades(stacks: { x: number; y: number; n: number }[], lamp: { x: number; y: number }, chipW: number): { x: number; y: number; dx: number; dy: number }[][] {
+  return stacks.map((low) => stacks.flatMap((high) => {
+    if (high.n <= low.n || !low.n) return []
+    const x = high.x - low.x
+    const y = high.y - low.y
+    const away = Math.hypot(high.x - lamp.x, high.y - lamp.y) || 1
+    const run = chipW * CHIP_STEP * (high.n - low.n)
+    const dx = ((high.x - lamp.x) / away) * run
+    const dy = ((high.y - lamp.y) / away) * run
+    // Only a shadow that reaches this top: the caster's column, drawn out along the cast, overlaps it.
+    const t = Math.max(0, Math.min(1, -(x * dx + y * dy) / (dx * dx + dy * dy || 1)))
+    return Math.hypot(x + dx * t, y + dy * t) < chipW ? [{ x, y, dx, dy }] : []
+  }))
+}
+
+/** A pot seen all at once, as after a reload: its chips in a few stacks of eight. */
+export function potOf(amount: number, rand: () => number): PotStack[] {
+  const chips = chipStack(amount, 48)
+  const bets = Array.from({ length: Math.ceil(chips.length / 8) }, (_, i) => chips.slice(i * 8, i * 8 + 8))
+  return gather([], bets, rand).pot
 }

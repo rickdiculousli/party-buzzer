@@ -84,12 +84,31 @@ export function PlayingCard({ card, up, hinge, class: cls = '' }: { card: Card |
   </span>
 }
 
-/** A bet as real chips: side-on slices under a face-up top chip, biggest at the bottom. */
-export function ChipStack({ amount, class: cls = '' }: { amount: number; class?: string }) {
-  const chips = chipStack(amount)
+/**
+ * A bet as real chips: side-on slices under a face-up top chip, biggest at the
+ * bottom, standing on its spot however tall. `held` bottom chips and `pending`
+ * top chips keep their place but are not drawn: a stack sliding onto another
+ * carries the chips it lands on as `held`, and the stack it lands on waits with
+ * them `pending`. Its shadow only counts chips that are there. `part` draws
+ * just the shadow or just the chips, so a pile can lay every shadow under every
+ * chip. `shades` are taller neighbours' shadows across its top, from `topShades`.
+ */
+export function ChipStack({ amount = 0, chips = chipStack(amount), held = 0, pending = 0, part, shades = [], class: cls = '' }: {
+  amount?: number; chips?: number[]; held?: number; pending?: number; part?: 'shade' | 'chips'; shades?: { x: number; y: number; dx: number; dy: number }[]; class?: string
+}) {
+  const standing = chips.length - pending
   if (!chips.length) return null
-  return <span class={`poker-stack ${cls}`} style={{ '--n': chips.length }} aria-hidden="true">
-    {chips.map((value, i) => <span key={i} class={`poker-chip poker-chip--${value}`} style={{ '--i': i }} />)}
+  const shaded = !held && standing > 0 && part !== 'chips'
+  return <span class={`poker-stack ${shaded ? '' : 'poker-stack--unshaded'} ${cls}`} style={{ '--n': chips.length, '--standing': Math.max(1, standing) }} aria-hidden="true">
+    {part !== 'shade' && chips.map((value, i) => <span key={i} class={`poker-chip poker-chip--${value}`} style={{ '--i': i, visibility: i < held || i >= standing ? 'hidden' : undefined }}>
+      {i === standing - 1 && shades.length > 0 && <span class="poker-chip__shades">
+        {/* A caster's column where it meets this top, drawn out along its cast: a disc stretched into an oval. */}
+        {shades.map(({ x, y, dx, dy }, k) => <span key={k} class="poker-chip__shade" style={{
+          '--len': `${Math.hypot(dx, dy)}px`,
+          transform: `translate(${x}px, ${y}px) rotate(${Math.atan2(dy, dx)}rad)`,
+        }} />)}
+      </span>}
+    </span>)}
   </span>
 }
 

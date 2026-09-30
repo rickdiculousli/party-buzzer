@@ -717,12 +717,19 @@ Backs are a
 white margin around an oxblood `--card-back` diamond lattice. A card has both
 sides, so turning it over is a real flip. Suits are drawn SVG, never glyphs.
 Chips are casino chips in five `--chip-*` inks with edge spots, stacked by
-`chipStack`. Nearly circular tops sit above thin striped edges, with each chip
-raising the top of the stack by a small amount and growing slightly as it gets
-closer to the viewer. Size and shadow length convey height without a long
-extrusion. The edge facing away from the lamp is darkest at its middle and
-softens around the sides into the lit edge. One shadow per stack falls away
-from the table's centre lamp; taller stacks cast it further. A tight dark
+`chipStack`. Slightly oval tops, the table seen a little from the front, sit above thin striped edges, every chip the
+same size, each raising the top of the stack by a small amount; a stack stands
+on its spot and rises from there. Shadow length conveys height without a long
+extrusion. A call or raise lands on top of the bet already there. The pot is a
+corral of stacks round its middle, and a swept bet usually lands on a stack
+already there. The edge facing away from the lamp stays near black across its far quarter and
+softens around the sides into the lit edge. Chips run a little more saturated than their inks, and tops are matte: a faint,
+soft hotspot on the side facing the lamp, fainter the further the stack stands from it. One shadow per stack falls away
+from the table's centre lamp; taller stacks cast it further. The pot lays every
+shadow on the felt under every chip, and draws its stacks back to front, so a
+nearer, taller stack covers the tops behind it. A taller stack also shades the
+top of a lower neighbour on the side away from the lamp: its chip-sized column
+drawn out into an oval, one chip step per chip of drop, clipped to that top. A tight dark
 contact edge and a lightly softened cast shadow give the stack weight.
 CSS layers fake the depth without
 3D geometry or a blur on every chip. The dealer puck is a white disc marked
