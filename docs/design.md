@@ -708,7 +708,12 @@ seam, and the slow mottle is one untiled sheet.
 Cards are poker size (63 × 88 mm), radius 5.6% of the width, with ivory
 `--card-face` stock, a hairline and a `--card-edge` cut edge, and a shadow
 that falls away from the lamp. Corner indices (rank over a drawn suit pip)
-read when cards overlap; `--suit-red` and `--card-ink` print them. Backs are a
+read when cards overlap; `--suit-red` and `--card-ink` print them. Face cards
+carry simple two-ended portraits in the same suit ink: a feathered cap for
+the Jack, a low tiara and long outward-curling hair for the Queen, a crown and
+beard for the King. Suit symbols stay in the corner indices.
+Ivory cutouts define the faces and collars, with no frame around the portrait.
+Backs are a
 white margin around an oxblood `--card-back` diamond lattice. A card has both
 sides, so turning it over is a real flip. Suits are drawn SVG, never glyphs.
 Chips are casino chips in five `--chip-*` inks with edge spots, stacked by
