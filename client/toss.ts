@@ -12,7 +12,8 @@ import type { PokerFlick } from '../shared/protocol.ts'
  * Units are pixels, degrees and ms.
  */
 export type Pose = { x: number; y: number; rot: number }
-export type Frame = Pose & { t: number; lift: number }
+/** `turn`, when a move has one, is how far a card is turned over about its hinge in degrees: ±180 face down, 0 face up. */
+export type Frame = Pose & { t: number; lift: number; turn?: number }
 
 export const TOSS = {
   /** Share of a throw's distance covered in the air, before touchdown. 0 keeps it on the cloth. */
@@ -219,8 +220,14 @@ export function dealSchedule(count: number, window: number, maxGap: number, rand
 export const REVEAL = {
   /** How long a street lies face down before the dealer turns it over, ms. */
   beatMs: [150, 300] as const,
-  /** The turn itself: matches `.poker-card__turn`'s transition in style.css. */
+  /** The turn itself, ms. */
   turnMs: 360,
+  /**
+   * Where the hinge a card turns over on sits, as a share of its width in from
+   * the side it tips away from: a card is turned over by lifting one edge, so it
+   * rocks on the other and comes down most of a card's width over.
+   */
+  hinge: 0.85,
   /** The pause between turning the cards over and moving them into line, ms. */
   afterTurnMs: [60, 140] as const,
   /** How far right of the first slot the flop's stack lands. */
@@ -251,14 +258,42 @@ function turnOver(landedAt: number, rand: () => number) {
   return { turnAt: landedAt + beat, holdMs: beat + REVEAL.turnMs + between(rand, ...REVEAL.afterTurnMs) }
 }
 
+/** A frame list's pose at `t`, between its frames. */
+function poseAt(frames: Frame[], t: number): Frame {
+  const i = frames.findIndex((f) => f.t >= t)
+  if (i <= 0) return { ...frames[i < 0 ? frames.length - 1 : 0], t }
+  const [a, b] = [frames[i - 1], frames[i]]
+  const u = (t - a.t) / (b.t - a.t)
+  const mix = (p: number, q: number) => p + (q - p) * u
+  return { t, x: mix(a.x, b.x), y: mix(a.y, b.y), rot: mix(a.rot, b.rot), lift: mix(a.lift, b.lift) }
+}
+
+/**
+ * The card turned over at `at` about its hinge (`hinge`, a share of its width
+ * from its left edge), face down until then and face up after. The turn's
+ * sign is the one that lifts the far side off the table rather than through
+ * it. The turn is sampled finely, since a frame list otherwise only has its
+ * ends through a hold.
+ */
+function turnedOver(frames: Frame[], at: number, hinge: number): Frame[] {
+  const down = hinge > 0.5 ? 180 : -180
+  const end = at + REVEAL.turnMs
+  const turn = (t: number) => t <= at ? down : t >= end ? 0 : down * (0.5 + 0.5 * Math.cos((Math.PI * (t - at)) / REVEAL.turnMs))
+  const samples = Array.from({ length: Math.ceil(REVEAL.turnMs / TOSS.stepMs) }, (_, k) => at + (k + 1) * TOSS.stepMs).filter((t) => t < end)
+  const times = [...new Set([...frames.map((f) => f.t), at, ...samples, end])].sort((p, q) => p - q)
+  return times.map((t) => ({ ...(frames.find((f) => f.t === t) ?? poseAt(frames, t)), turn: turn(t) }))
+}
+
 /**
  * The flop, as a dealer lays it out: the three cards pitched as one face-down
- * stack that lands just right of the first slot and askew, a beat, the stack
- * turned over at `turnAt` (ms), then one push of the hand spreads it left to
- * right. The top card (the last) rides the hand furthest; each card ends
- * exactly on its slot.
+ * stack that lands askew left of the first slot, a beat, the stack turned over
+ * as one at `turnAt` (ms) on a hinge by its left edge, so it comes down just
+ * right of that slot, then one push of the hand spreads it left to right. The
+ * top card (the last) rides the hand furthest; each card ends exactly on its
+ * slot. The frames' poses are where each card lies face up; face down it lies
+ * the hinge's swing to the left of them.
  */
-export function flop(dealer: { x: number; y: number }, slots: Pose[], cardW: number, rand: () => number): { frames: Frame[][]; turnAt: number } {
+export function flop(dealer: { x: number; y: number }, slots: Pose[], cardW: number, rand: () => number): { frames: Frame[][]; turnAt: number; hinge: number } {
   const stack: Pose = {
     x: slots[0].x + cardW * between(rand, ...REVEAL.stackIn),
     y: slots[0].y + cardW * between(rand, -0.12, 0.12),
@@ -267,6 +302,7 @@ export function flop(dealer: { x: number; y: number }, slots: Pose[], cardW: num
   const flight = pitch(dealer, stack, rand, [0.15, 0.4])
   const { turnAt, holdMs } = turnOver(flight[flight.length - 1].t, rand)
   const lag = between(rand, 0, REVEAL.spreadLag)
+  const hinge = 1 - REVEAL.hinge
   const reach = Math.hypot(stack.x - dealer.x, stack.y - dealer.y) || 1
   const fwd = { x: (stack.x - dealer.x) / reach, y: (stack.y - dealer.y) / reach }
   // Squared by hand, not by machine: each card sits a little ahead and twisted on the one under it, so all three show.
@@ -291,19 +327,21 @@ export function flop(dealer: { x: number; y: number }, slots: Pose[], cardW: num
   const frames = slots.map((slot, k) => {
     const o = offsets[k]
     const shift = <P extends Pose>(f: P, fan: number): P => ({ ...f, x: f.x + o.x + fwd.x * fan, y: f.y + o.y + fwd.y * fan, rot: f.rot + o.rot })
-    return chain(flight.map((f) => shift(f, o.fan * skidded(f))), holdMs + k * lag, nudge(shift(stack, o.fan), slot, rand))
+    return turnedOver(chain(flight.map((f) => shift(f, o.fan * skidded(f))), holdMs + k * lag, nudge(shift(stack, o.fan), slot, rand)), turnAt, hinge)
   })
-  return { frames, turnAt }
+  return { frames, turnAt, hinge }
 }
 
-/** A turn or river card: pitched face down to land a little off its slot, turned over at `turnAt` (ms), then drawn into line. */
-export function street(dealer: { x: number; y: number }, slot: Pose, cardW: number, rand: () => number): { frames: Frame[]; turnAt: number } {
+/** A turn or river card: pitched face down to land a little off its slot, turned over at `turnAt` (ms) toward the board, then drawn into line. */
+export function street(dealer: { x: number; y: number }, slot: Pose, cardW: number, rand: () => number): { frames: Frame[]; turnAt: number; hinge: number } {
   const angle = between(rand, 0, Math.PI * 2)
   const r = cardW * between(rand, ...REVEAL.offSlot)
   const off: Pose = { x: slot.x + Math.cos(angle) * r, y: slot.y + Math.sin(angle) * r, rot: slot.rot + sign(rand) * between(rand, ...REVEAL.offRot) }
   const flight = pitch(dealer, off, rand)
   const { turnAt, holdMs } = turnOver(flight[flight.length - 1].t, rand)
-  return { frames: chain(flight, holdMs, nudge(off, slot, rand)), turnAt }
+  // Hinged by its right edge, so face down it lies out past the board's end rather than over the card beside it.
+  const hinge = REVEAL.hinge
+  return { frames: turnedOver(chain(flight, holdMs, nudge(off, slot, rand)), turnAt, hinge), turnAt, hinge }
 }
 
 /** How a fold leaves the fingertips. Reaches are shares of the way from the seat to the middle. */

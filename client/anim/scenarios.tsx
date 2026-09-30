@@ -21,7 +21,6 @@
  * properties on a wrapper and the real rules pick them up, so a scenario cannot
  * drift from what the board actually does.
  */
-import { useEffect, useState } from 'preact/hooks'
 import { COLLECT_MS } from '../../shared/protocol.ts'
 import type { Cue } from '../sound.ts'
 import { NUMERIC, type NumericField } from '../cues.ts'
@@ -480,6 +479,12 @@ const SHADOW: Dial[] = [
   { var: '--card-shadow-spread', label: 'Shadow spread in the air', min: 0, max: 0.3, step: 0.01, unit: '' },
   { var: '--card-shadow-dark', label: 'Shadow darkness in the air', min: 0, max: 0.5, step: 0.01, unit: '' },
 ]
+/** Turning a card over, and its shadow on the felt while it stands on its edge. */
+const TURN: Dial[] = [
+  { motion: 'REVEAL.hinge', label: 'Hinge, in from the lifted side', min: 0.5, max: 1, step: 0.01, unit: '' },
+  { motion: 'REVEAL.turnMs', label: 'Turn over', min: 120, max: 900, step: 10, unit: 'ms' },
+  { var: '--card-shadow-side', label: 'Shadow on its edge', min: 0, max: 0.9, step: 0.01, unit: '' },
+]
 const FOLD_DIALS: Dial[] = [
   { motion: 'FOLD.reachThrown', label: 'Throw reach', min: 0, max: 0.8, step: 0.01, unit: '' },
   { motion: 'FOLD.reachFlick', label: 'Extra reach, full flick', min: 0, max: 0.8, step: 0.01, unit: '' },
@@ -544,17 +549,6 @@ const dealScenario: Scenario = {
   },
 }
 
-/** A community card that turns face up `at` ms after it mounts, as the board turns it once the dealer lets go. */
-function TurnsUp({ card, at }: { card: string; at: number | null }) {
-  const [up, setUp] = useState(at === null)
-  useEffect(() => {
-    if (at === null) return
-    const timer = setTimeout(() => setUp(true), at)
-    return () => clearTimeout(timer)
-  }, [])
-  return <PlayingCard card={card} up={up} />
-}
-
 const BOARD_SLOTS = [0, 1, 2, 3].map((i) => ({ x: PATCH.w / 2 + (i - 1.5) * 64 + (i % 2 ? 2 : -2), y: PATCH.h * 0.5 + (i === 1 ? 2 : -1), rot: [-1, 1.5, 0.5, -1.5][i] }))
 
 /** The flop as the dealer lays it out: one face-down stack, a beat, turned over, spread left to right. */
@@ -573,13 +567,14 @@ const flopScenario: Scenario = {
     ...range('REVEAL.beatMs', 'Lies face down', 0, 800, 10, 'ms'),
     ...range('REVEAL.afterTurnMs', 'Pause after turning', 0, 400, 10, 'ms'),
     { motion: 'REVEAL.spreadLag', label: 'Spread lag, up to', min: 0, max: 120, step: 5, unit: 'ms' },
+    ...TURN,
     ...SHADOW,
   ],
   render: (lead) => {
     const laid = flop({ x: PATCH.w / 2, y: -90 }, BOARD_SLOTS.slice(0, 3), 56, mulberry32(41))
     return pokerStage(['Ah', 'Kd', '7c'].map((card, k) =>
       <Piece key={`${k}-${lead}`} pose={BOARD_SLOTS[k]} frames={lead ? null : laid.frames[k]}>
-        <TurnsUp card={card} at={lead ? null : laid.turnAt} />
+        <PlayingCard card={card} up hinge={lead ? undefined : laid.hinge} />
       </Piece>))
   },
 }
@@ -596,13 +591,14 @@ const streetScenario: Scenario = {
     ...range('REVEAL.offRot', 'Lands off square', 0, 25, 0.5, '°'),
     ...range('REVEAL.beatMs', 'Lies face down', 0, 800, 10, 'ms'),
     ...range('REVEAL.afterTurnMs', 'Pause after turning', 0, 400, 10, 'ms'),
+    ...TURN,
     ...SHADOW,
   ],
   render: (lead) => {
     const laid = street({ x: PATCH.w / 2, y: -90 }, BOARD_SLOTS[3], 56, mulberry32(43))
     return pokerStage(['Ah', 'Kd', '7c', 'Qs'].map((card, i) => i < 3
       ? <Piece key={i} pose={BOARD_SLOTS[i]}><PlayingCard card={card} up /></Piece>
-      : lead ? null : <Piece key={i} pose={BOARD_SLOTS[i]} frames={laid.frames}><TurnsUp card={card} at={laid.turnAt} /></Piece>))
+      : lead ? null : <Piece key={i} pose={BOARD_SLOTS[i]} frames={laid.frames}><PlayingCard card={card} up hinge={laid.hinge} /></Piece>))
   },
 }
 

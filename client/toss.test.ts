@@ -354,3 +354,36 @@ test('a turn or river card lands off its slot, turns over, then is pushed into l
     assert.deepEqual({ x: last.x, y: last.y, rot: last.rot, lift: last.lift }, { ...slot, lift: 0 })
   }
 })
+
+/** Checks a card's turn: face down (±180) until `turnAt`, face up (0) once the turn is done, only ever turning one way between, and sampled finely enough to see. */
+const turnsOnce = (frames: Frame[], turnAt: number, down: number) => {
+  assert.ok(frames.every((f) => f.turn !== undefined), 'a frame has no turn')
+  for (const f of frames) {
+    if (f.t <= turnAt) assert.equal(f.turn, down, `turned early at ${f.t}ms`)
+    if (f.t >= turnAt + REVEAL.turnMs) assert.equal(f.turn, 0, `still turning at ${f.t}ms`)
+  }
+  const turning = frames.filter((f) => f.t > turnAt && f.t < turnAt + REVEAL.turnMs)
+  assert.ok(turning.length >= 8, `only ${turning.length} frames of turning`)
+  frames.forEach((f, i) => i && assert.ok(Math.abs(f.turn!) <= Math.abs(frames[i - 1].turn!) + 1e-9, `turned back at ${f.t}ms`))
+}
+
+test('the flop turns over as one on a hinge by its left edge, toward the spread', () => {
+  for (let seed = 1; seed < 20; seed++) {
+    const { frames, turnAt, hinge } = flop(DEALER, slotsAt(), CARD_W, mulberry32(seed))
+    assert.equal(hinge, 1 - REVEAL.hinge)
+    for (const card of frames) turnsOnce(card, turnAt, -180)
+    const window = (card: Frame[]) => card.filter((f) => f.t > turnAt && f.t < turnAt + REVEAL.turnMs).map((f) => [f.t, f.turn])
+    assert.deepEqual(window(frames[1]), window(frames[0]))
+    assert.deepEqual(window(frames[2]), window(frames[0]))
+  }
+})
+
+test('a turn or river card turns over toward the board, on a hinge by its right edge, lifting its left side', () => {
+  for (let seed = 1; seed < 20; seed++) {
+    const { frames, turnAt, hinge } = street(DEALER, { x: 600, y: 400, rot: 1 }, CARD_W, mulberry32(seed))
+    // Face down it lies out past the board's end, clear of the card beside it.
+    assert.equal(hinge, REVEAL.hinge)
+    // rotateY lifts the side left of a right-hand hinge for a positive turn.
+    turnsOnce(frames, turnAt, 180)
+  }
+})

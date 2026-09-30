@@ -23,13 +23,21 @@ export function SuitPip({ suit, class: cls = '' }: { suit: string; class?: strin
 /**
  * A poker-size card (63 × 88 mm) with its face and back on either side, so
  * turning it over is a real flip. Corner indices read when cards overlap.
+ * Given a `hinge` (a share of its width from its left edge), it is turned over
+ * by the `Piece` carrying it, about that hinge, rather than by `up`.
  */
-export function PlayingCard({ card, up, class: cls = '' }: { card: Card | null; up: boolean; class?: string }) {
+export function PlayingCard({ card, up, hinge, class: cls = '' }: { card: Card | null; up: boolean; hinge?: number; class?: string }) {
   const suit = card?.[1] ?? 's'
   const rank = card ? RANK[card[0]] ?? card[0] : ''
   const red = suit === 'h' || suit === 'd'
   const showing = up && !!card
-  return <span class={`poker-card ${showing ? 'poker-card--up' : ''} ${cls}`} role="img" aria-label={showing ? `${rank} of ${SUIT_NAME[suit]}` : 'face-down card'}>
+  return <span
+    class={`poker-card ${showing ? 'poker-card--up' : ''} ${hinge === undefined ? '' : 'poker-card--hinged'} ${cls}`}
+    style={hinge === undefined ? undefined : { '--hinge': hinge }}
+    role="img"
+    aria-label={showing ? `${rank} of ${SUIT_NAME[suit]}` : 'face-down card'}
+  >
+    <span class="poker-card__cast" />
     <span class="poker-card__turn">
       <span class={`poker-card__face ${red ? 'poker-card__face--red' : ''}`}>
         {card && <>
@@ -121,8 +129,12 @@ export function Piece({ pose, frames, delay = 0, done, class: cls = '', children
     if (!node || !frames?.length || reducedMotion()) { done?.(); return }
     const total = frames[frames.length - 1].t || 1
     const run = node.animate(
-      // Place, height and turn also go to the card's shadow, which falls from the lamp rather than turning with the card.
-      frames.map((f) => ({ transform: transformOf(f, f.lift), '--piece-x': f.x, '--piece-y': f.y, '--piece-lift': f.lift, '--piece-rot': f.rot, offset: f.t / total })),
+      // Place, height and rotation also go to the card's shadow, which falls from the lamp rather than turning with the card, and a turn over to a hinged card.
+      frames.map((f) => ({
+        transform: transformOf(f, f.lift), '--piece-x': f.x, '--piece-y': f.y, '--piece-lift': f.lift, '--piece-rot': f.rot,
+        ...(f.turn === undefined ? {} : { '--piece-turn': f.turn }),
+        offset: f.t / total,
+      })),
       { duration: total, delay, fill: 'backwards', easing: 'linear' },
     )
     run.onfinish = () => done?.()
