@@ -227,8 +227,10 @@ export const REVEAL = {
   stackIn: [0.1, 0.3] as const,
   /** How far off square the stack lands, degrees. */
   stackRot: [3, 9] as const,
-  /** How far each card of the stack sits off the one under it, up and to the right. */
+  /** How far each card of the stack sits ahead of the one under it, the way it was thrown. */
   stackStep: [0.05, 0.09] as const,
+  /** How much further each card of the stack rides on the one under it as the stack skids to rest. */
+  stackFan: [0.08, 0.14] as const,
   /** How far each card of the stack is twisted on the one under it, degrees. */
   stackTwist: [1.5, 3.5] as const,
   /** How far from its slot a turn or river card lands. */
@@ -265,17 +267,31 @@ export function flop(dealer: { x: number; y: number }, slots: Pose[], cardW: num
   const flight = pitch(dealer, stack, rand, [0.15, 0.4])
   const { turnAt, holdMs } = turnOver(flight[flight.length - 1].t, rand)
   const lag = between(rand, 0, REVEAL.spreadLag)
-  // Squared by hand, not by machine: each card sits a little off and twisted on the one under it, so all three show.
-  const offsets: Pose[] = [{ x: 0, y: 0, rot: 0 }]
+  const reach = Math.hypot(stack.x - dealer.x, stack.y - dealer.y) || 1
+  const fwd = { x: (stack.x - dealer.x) / reach, y: (stack.y - dealer.y) / reach }
+  // Squared by hand, not by machine: each card sits a little ahead and twisted on the one under it, so all three show.
+  // Once the stack is down, the cloth grips the bottom card while each card above slides on card, so it rides a little further.
+  const offsets: (Pose & { fan: number })[] = [{ x: 0, y: 0, rot: 0, fan: 0 }]
   for (let k = 1; k < slots.length; k++) {
-    const angle = between(rand, -0.6, 0.6) - Math.PI / 4
+    const angle = Math.atan2(fwd.y, fwd.x) + between(rand, -0.6, 0.6)
     const r = cardW * between(rand, ...REVEAL.stackStep)
     const below = offsets[k - 1]
-    offsets.push({ x: below.x + Math.cos(angle) * r, y: below.y + Math.sin(angle) * r, rot: below.rot + sign(rand) * between(rand, ...REVEAL.stackTwist) })
+    offsets.push({
+      x: below.x + Math.cos(angle) * r,
+      y: below.y + Math.sin(angle) * r,
+      rot: below.rot + sign(rand) * between(rand, ...REVEAL.stackTwist),
+      fan: below.fan + cardW * between(rand, ...REVEAL.stackFan),
+    })
   }
+  // How much of the skid the stack has covered, 0 in the air to 1 at rest.
+  const touchdown = flight.find((f, i) => i > 0 && f.lift <= 0) ?? flight[flight.length - 1]
+  const along = (f: Pose) => (f.x - dealer.x) * fwd.x + (f.y - dealer.y) * fwd.y
+  const skidLen = along(stack) - along(touchdown)
+  const skidded = (f: Frame) => f.lift > 0 || skidLen <= 0 ? 0 : Math.min(1, Math.max(0, (along(f) - along(touchdown)) / skidLen))
   const frames = slots.map((slot, k) => {
-    const shift = <P extends Pose>(f: P): P => ({ ...f, x: f.x + offsets[k].x, y: f.y + offsets[k].y, rot: f.rot + offsets[k].rot })
-    return chain(flight.map(shift), holdMs + k * lag, nudge(shift(stack), slot, rand))
+    const o = offsets[k]
+    const shift = <P extends Pose>(f: P, fan: number): P => ({ ...f, x: f.x + o.x + fwd.x * fan, y: f.y + o.y + fwd.y * fan, rot: f.rot + o.rot })
+    return chain(flight.map((f) => shift(f, o.fan * skidded(f))), holdMs + k * lag, nudge(shift(stack, o.fan), slot, rand))
   })
   return { frames, turnAt }
 }

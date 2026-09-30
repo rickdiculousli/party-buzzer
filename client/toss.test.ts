@@ -268,9 +268,9 @@ test('every flop card comes to rest exactly on its slot', () => {
   }
 })
 
-test('the flop travels as one stack until it has turned over, each card of it showing', () => {
+test('the flop flies as one stack, each card of it showing', () => {
   for (let seed = 1; seed < 20; seed++) {
-    const { frames, turnAt } = flop(DEALER, slotsAt(), CARD_W, mulberry32(seed))
+    const { frames } = flop(DEALER, slotsAt(), CARD_W, mulberry32(seed))
     for (const k of [1, 2]) {
       const [below, card] = [frames[k - 1], frames[k]]
       const gap = (i: number) => ({ x: card[i].x - below[i].x, y: card[i].y - below[i].y, rot: card[i].rot - below[i].rot })
@@ -279,11 +279,34 @@ test('the flop travels as one stack until it has turned over, each card of it sh
       assert.ok(off >= CARD_W * 0.04 && off <= CARD_W * 0.15, `card ${k} sits ${off.toFixed(1)}px off the one under it`)
       assert.ok(Math.abs(first.rot) <= 5, `card ${k} is twisted ${first.rot.toFixed(1)}° off the one under it`)
       below.forEach((f, i) => {
-        if (f.t > turnAt + REVEAL.turnMs) return
+        if (f.lift <= 0) return
         assert.equal(card[i].t, f.t)
         const now = gap(i)
-        assert.ok(Math.hypot(now.x - first.x, now.y - first.y) < 0.01 && Math.abs(now.rot - first.rot) < 0.01, `stack shifted at ${f.t}ms`)
+        assert.ok(Math.hypot(now.x - first.x, now.y - first.y) < 0.01 && Math.abs(now.rot - first.rot) < 0.01, `stack shifted in the air at ${f.t}ms`)
       })
+    }
+  }
+})
+
+test('as the stack skids, each card rides further on the one under it, then it all lies still until turned over', () => {
+  for (let seed = 1; seed < 20; seed++) {
+    const { frames, turnAt } = flop(DEALER, slotsAt(), CARD_W, mulberry32(seed))
+    const down = frames[0].findIndex((f, i) => i > 0 && f.lift <= 0)
+    const travel = { x: frames[0][down].x - frames[0][0].x, y: frames[0][down].y - frames[0][0].y }
+    const len = Math.hypot(travel.x, travel.y)
+    for (const k of [1, 2]) {
+      const [below, card] = [frames[k - 1], frames[k]]
+      // How far this card is ahead of the one under it, along the way the stack was thrown.
+      const ahead = (i: number) => ((card[i].x - below[i].x) * travel.x + (card[i].y - below[i].y) * travel.y) / len
+      let last = ahead(down)
+      for (let i = down + 1; below[i].t <= turnAt + REVEAL.turnMs; i++) {
+        assert.ok(ahead(i) >= last - 1e-6, `card ${k} slid back on the one under it at ${below[i].t}ms`)
+        last = ahead(i)
+      }
+      assert.ok(last - ahead(down) >= CARD_W * 0.05, `card ${k} only rode ${(last - ahead(down)).toFixed(1)}px further`)
+      assert.ok(last <= CARD_W * 0.4, `card ${k} rode ${last.toFixed(1)}px clear of the one under it`)
+      const rest = frames[k].findIndex((f) => f.t >= turnAt)
+      assert.ok(still(frames[k], frames[k][rest].t - REVEAL.beatMs[0] + 16, turnAt + REVEAL.turnMs), `card ${k} moved while lying still`)
     }
   }
 })
