@@ -28,8 +28,8 @@ import { Votes } from '../Votes.tsx'
 import { Spoken } from '../Spoken.tsx'
 import { Burst, CountUp, Glitch, Letters } from '../fx.tsx'
 import { FaceOff, Finale } from '../Board.tsx'
-import { Piece, PlayingCard } from '../PokerParts.tsx'
-import { chain, flop, pitch, receive, scatter, street, toss, turnUp, FOLD, RECEIVE, REVEAL, TOSS } from '../toss.ts'
+import { ChipStack, Piece, PlayingCard } from '../PokerParts.tsx'
+import { chain, flop, pitch, receive, scatter, street, sweep, toss, turnUp, FOLD, RECEIVE, REVEAL, TOSS } from '../toss.ts'
 import { mulberry32 } from '../../shared/random.ts'
 import type { BurstFrom } from '../fx.ts'
 import type { Recipe } from '../synth.ts'
@@ -834,6 +834,21 @@ export const SCENARIOS: Scenario[] = [
   flopScenario,
   streetScenario,
   showdownScenario,
+  {
+    id: 'poker-chips',
+    label: 'Chip stacks under the centre lamp',
+    family: 'Poker',
+    note: 'A short mixed stack (137) and a tall stack (5000) push across the felt together. Height reads through larger tops and longer, tight shadows pointing away from the centre lamp.',
+    subject: '.poker-piece',
+    dials: [],
+    render: (lead) => pokerStage(<>
+      {[{ y: 110, amount: 137 }, { y: 230, amount: 5000 }].map(({ y, amount }) =>
+        <Piece key={`${amount}-${lead}`} pose={{ x: lead ? 120 : 440, y, rot: 0 }}
+          frames={lead ? null : sweep({ x: 120, y, rot: 0 }, { x: 440, y, rot: 0 })}>
+        <span class="poker-bet"><ChipStack amount={amount} /><span class="poker-bet__amount">{amount}</span></span>
+      </Piece>)}
+    </>),
+  },
   foldScenario('poker-fold-hard', 'Fold, hard flick, one card gets away', { dx: 0.2, dy: -0.98, speed: 1 }, 1),
   foldScenario('poker-fold-soft', 'Fold, soft flick', { dx: -0.3, dy: -0.95, speed: 0.2 }),
   foldScenario('poker-fold-timeout', 'Fold, timed out', null),

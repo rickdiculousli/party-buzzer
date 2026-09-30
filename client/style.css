@@ -3091,22 +3091,78 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .poker-card--win .poker-card__face { box-shadow: inset 0 0 0 1px rgb(70 52 30 / 0.2), 0 0 0 2px var(--brass), 0 0 calc(var(--w) * 0.3) rgb(201 162 39 / 0.45), 0 calc(var(--w) * 0.12) calc(var(--w) * 0.3) rgb(0 0 0 / 0.45); }
 .poker-card--dim { filter: brightness(0.42) saturate(0.6); }
 
-/* Casino chips: each a face-up disc whose cut edge shows under the one above. */
-.poker-stack { position: relative; display: inline-block; width: calc(var(--card-w, 72px) * 0.64); height: calc(var(--card-w, 72px) * (0.27 + var(--n) * 0.07)); }
+/* Nearly round tops over thin striped edges: cheap upright stacks on flat felt.
+   Only the stack casts a blurred shadow, using the same centre lamp as cards. */
+.poker-stack {
+  --diameter: calc(var(--card-w, 72px) * 0.64);
+  --face-height: calc(var(--diameter) * 0.94);
+  --step: calc(var(--diameter) * 0.02);
+  --rise: calc((var(--n) - 1) * var(--step));
+  /* Height reads through a nearer, larger top rather than a long sideways extrusion. */
+  --top-scale: calc(1 + (var(--n) - 1) * 0.027);
+  --size-rise: calc(var(--face-height) * (var(--top-scale) - 1));
+  --dx: calc(var(--piece-x) - var(--lamp-x, var(--piece-x)));
+  --dy: calc(var(--piece-y) - var(--lamp-y, calc(var(--piece-y) - 1000)));
+  --reach: var(--lamp-reach, 1000);
+  --cast: calc(var(--diameter) * (0.18 + (var(--n) - 1) * 0.095));
+  --cast-x: calc(var(--dx) / var(--reach) * var(--cast));
+  --cast-y: calc(var(--dy) / var(--reach) * var(--cast));
+  --light-angle: atan2(calc(-1 * var(--dx)), var(--dy));
+  position: relative;
+  display: inline-block;
+  isolation: isolate;
+  width: calc(var(--diameter) * var(--top-scale));
+  height: calc(var(--face-height) + var(--rise) + var(--step) + var(--size-rise));
+}
+.poker-stack::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  translate: -50% 0;
+  bottom: 0;
+  width: var(--diameter);
+  height: var(--face-height);
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.6);
+  box-shadow:
+    calc(var(--cast-x) * 0.5) calc(var(--cast-y) * 0.5) calc(var(--diameter) * 0.025) rgb(0 0 0 / 0.65),
+    var(--cast-x) var(--cast-y) calc(var(--diameter) * 0.055) rgb(0 0 0 / 0.5);
+  pointer-events: none;
+}
 .poker-chip {
   --c: var(--chip-1);
   position: absolute;
-  left: 0; right: 0;
-  bottom: calc(var(--i) * var(--card-w, 72px) * 0.07);
-  height: calc(var(--card-w, 72px) * 0.27);
+  left: 50%;
+  translate: -50% 0;
+  width: var(--diameter);
+  bottom: calc(var(--i) * var(--step) + var(--step));
+  height: var(--face-height);
   border-radius: 50%;
+  scale: calc(1 + var(--i) * 0.027);
+  transform-origin: 50% 100%;
+}
+.poker-chip::before, .poker-chip::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.poker-chip::before {
+  translate: 0 var(--step);
   background:
-    radial-gradient(ellipse at 50% 50%, var(--c) 0 44%, var(--chip-spot) 45% 47%, transparent 48%),
+    conic-gradient(from calc(var(--light-angle) + 90deg),
+      rgb(0 0 0 / 0.22), rgb(0 0 0 / 0.84) 90deg,
+      rgb(0 0 0 / 0.22) 180deg, rgb(255 255 255 / 0.14) 270deg,
+      rgb(0 0 0 / 0.22)),
     repeating-conic-gradient(from 8deg, var(--chip-spot) 0 12deg, var(--c) 12deg 45deg);
-  box-shadow:
-    0 calc(var(--card-w, 72px) * 0.045) 0 color-mix(in oklab, var(--c) 62%, #000),
-    0 calc(var(--card-w, 72px) * 0.05) calc(var(--card-w, 72px) * 0.06) rgb(0 0 0 / 0.45),
-    inset 0 1px 0 rgb(255 255 255 / 0.3);
+  box-shadow: inset 0 -1px 0 rgb(0 0 0 / 0.4);
+}
+.poker-chip::after {
+  background:
+    linear-gradient(var(--light-angle), rgb(0 0 0 / 0.12), rgb(255 255 255 / 0.12)),
+    radial-gradient(ellipse at 50% 50%, var(--c) 0 43%, var(--chip-spot) 44% 46%, var(--c) 47% 62%, transparent 63%),
+    repeating-conic-gradient(from 8deg, var(--chip-spot) 0 12deg, var(--c) 12deg 45deg);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3), inset 0 -1px 0 rgb(0 0 0 / 0.25);
 }
 .poker-chip--5 { --c: var(--chip-5); }
 .poker-chip--25 { --c: var(--chip-25); }
