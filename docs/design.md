@@ -710,7 +710,8 @@ Cards are poker size (63 × 88 mm), radius 5.6% of the width, with ivory
 that falls away from the lamp. Corner indices (rank over a drawn suit pip)
 read when cards overlap; `--suit-red` and `--card-ink` print them. Face cards
 carry simple two-ended portraits in the same suit ink: a feathered cap for
-the Jack, a crown and long hair for the Queen, a crown and beard for the King.
+the Jack, a low tiara and long outward-curling hair for the Queen, a crown and
+beard for the King. Suit symbols stay in the corner indices.
 Ivory cutouts define the faces and collars, with no frame around the portrait.
 Backs are a
 white margin around an oxblood `--card-back` diamond lattice. A card has both

@@ -21,7 +21,7 @@ export function SuitPip({ suit, class: cls = '' }: { suit: string; class?: strin
 }
 
 /** Two-ended court portraits, printed in the same ink as the corner indices. */
-function CourtPortrait({ rank, suit }: { rank: string; suit: string }) {
+function CourtPortrait({ rank }: { rank: string }) {
   const jack = rank === 'J'
   const queen = rank === 'Q'
   return <svg class="poker-card__court" viewBox="0 0 60 104" aria-hidden="true">
@@ -29,25 +29,24 @@ function CourtPortrait({ rank, suit }: { rank: string; suit: string }) {
       {/* A broad robe and a cut-paper profile keep their shape at table size. */}
       <path fill="currentColor" d="M9 51V46Q10 41 23 37V30H36V37Q49 41 51 46V51Z" />
       <path fill="currentColor" d={queen
-        ? 'M19 17Q19 10 29 10Q40 10 40 21L38 36H19Z'
+        ? 'M19 20Q19 11 29 11Q40 11 40 21L38 31L26 30V35Q26 43 17 43Q8 43 8 34Q11 39 16 37Q19 36 18 31Z'
         : 'M20 19Q20 12 30 12Q40 12 40 21V30Q35 36 25 32L20 29Z'} />
       <path class="poker-card__paper" d="M27 19H38V23L43 27L38 29V33Q33 37 28 32L25 28V23Z" />
       <path fill="currentColor" d={jack
         ? 'M18 17Q17 7 31 8L39 15L43 18H18Z'
         : queen
-          ? 'M20 16L18 7L25 11L30 4L35 11L42 7L39 16Z'
+          ? 'M20 17L20 12Q24 15 27 12L30 8L33 12Q36 15 40 12L39 17Z'
           : 'M20 16L18 5L25 10L30 3L35 10L42 5L39 16Z'} />
       {jack && <path fill="currentColor" d="M20 12Q10 11 12 2Q21 3 23 10Z" />}
-      {!jack && <path class="poker-card__paper-line" d="M23 13H36" />}
+      {!jack && <path class="poker-card__paper-line" d={queen ? 'M23 15H36' : 'M23 13H36'} />}
       {queen
         ? <>
-            <path class="poker-card__paper-line" d="M23 21V32" />
+            <path class="poker-card__paper-line" d="M22 22V34Q22 40 16 40Q12 40 11 37" />
             <circle class="poker-card__paper" cx="26" cy="30" r="1.6" />
           </>
         : <path fill="currentColor" d={jack ? 'M25 19L28 19L26 26L23 25Z' : 'M26 29Q32 34 38 31L36 39L29 36Z'} />}
       <path class="poker-card__ink-line" d="M35 23H37M37 30H39" />
       <path class="poker-card__paper-line" d="M23 38L38 51M36 38L30 43M17 44V51M44 44V51" />
-      <path fill="currentColor" d={PIP[suit]} transform="translate(3 5) scale(.1)" />
     </g>)}
     <path class="poker-card__ink-line" d="M9 52H51" />
   </svg>
@@ -69,7 +68,7 @@ export function PlayingCard({ card, up, class: cls = '' }: { card: Card | null; 
           <span class="poker-card__index"><span class="poker-card__rank">{rank}</span><SuitPip suit={suit} /></span>
           <span class="poker-card__index poker-card__index--foot"><span class="poker-card__rank">{rank}</span><SuitPip suit={suit} /></span>
           {COURT.has(card[0])
-            ? <CourtPortrait rank={rank} suit={suit} />
+            ? <CourtPortrait rank={rank} />
             : <SuitPip suit={suit} class={card[0] === 'A' ? 'poker-card__ace' : 'poker-card__centre'} />}
         </>}
       </span>
