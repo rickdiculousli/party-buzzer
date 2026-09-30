@@ -479,11 +479,11 @@ const SHADOW: Dial[] = [
   { var: '--card-shadow-spread', label: 'Shadow spread in the air', min: 0, max: 0.3, step: 0.01, unit: '' },
   { var: '--card-shadow-dark', label: 'Shadow darkness in the air', min: 0, max: 0.5, step: 0.01, unit: '' },
 ]
-/** Turning a card over, and its shadow on the felt while it stands on its edge. */
+/** Turning a card over, and how dark its face goes while it stands on its edge. */
 const TURN: Dial[] = [
   { motion: 'REVEAL.hinge', label: 'Hinge, in from the lifted side', min: 0.5, max: 1, step: 0.01, unit: '' },
   { motion: 'REVEAL.turnMs', label: 'Turn over', min: 120, max: 900, step: 10, unit: 'ms' },
-  { var: '--card-shadow-side', label: 'Shadow on its edge', min: 0, max: 0.9, step: 0.01, unit: '' },
+  { var: '--card-turn-shade', label: 'Face darkens on its edge', min: 0, max: 0.9, step: 0.01, unit: '' },
 ]
 const FOLD_DIALS: Dial[] = [
   { motion: 'FOLD.reachThrown', label: 'Throw reach', min: 0, max: 0.8, step: 0.01, unit: '' },

@@ -37,7 +37,6 @@ export function PlayingCard({ card, up, hinge, class: cls = '' }: { card: Card |
     role="img"
     aria-label={showing ? `${rank} of ${SUIT_NAME[suit]}` : 'face-down card'}
   >
-    <span class="poker-card__cast" />
     <span class="poker-card__turn">
       <span class={`poker-card__face ${red ? 'poker-card__face--red' : ''}`}>
         {card && <>

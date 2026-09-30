@@ -1516,7 +1516,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   --card-shadow-drop: 0.12;
   --card-shadow-spread: 0.08;
   --card-shadow-dark: 0.18;
-  --card-shadow-side: 0.45;
+  --card-turn-shade: 0.5;
 
   /* No cue's sound lives here any more. A cue's gain, offset and envelope are
      fields on its layers in client/cues.ts, and the one cue still on the sample
@@ -3018,28 +3018,22 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   --sx: calc(var(--wx) * cos(var(--piece-rot) * 1deg) + var(--wy) * sin(var(--piece-rot) * 1deg));
   --sy: calc(var(--wy) * cos(var(--piece-rot) * 1deg) - var(--wx) * sin(var(--piece-rot) * 1deg));
   --fall: calc(var(--w) * var(--far) * (var(--card-shadow-rest) + var(--card-shadow-drop) * var(--h)));
-  /* How far a card turning over stands up off the felt: 0 lying flat, 1 on its edge. Its own shadow fades as it rises, and its shadow on the felt (__cast) takes over. */
+  /* How far a card turning over stands up off the felt: 0 lying flat, 1 on its edge. */
   --side: max(sin(var(--piece-turn) * 1deg), -1 * sin(var(--piece-turn) * 1deg));
-  --flat: calc(1 - var(--side));
 }
 .poker-card__turn { position: absolute; inset: 0; transform-style: preserve-3d; transform: rotateY(180deg); transition: transform 360ms cubic-bezier(0.2, 0.7, 0.2, 1); }
 .poker-card--up .poker-card__turn { transform: rotateY(0deg); }
 /* A hinged card is turned over by its Piece, rocking on the hinge rather than spinning in place. */
 .poker-card--hinged .poker-card__turn { transform-origin: calc(var(--hinge) * 100%) 50%; transform: rotateY(calc(var(--piece-turn) * 1deg)); transition: none; }
-/* The shadow a card turning over throws on the felt. It stays on the felt, so it narrows toward the hinge as the card stands up, and slides away from the lamp by the raised side's height. */
-.poker-card__cast {
-  --c: cos(var(--piece-turn) * 1deg);
+/* The lamp is overhead, so a card tipped up on its edge catches less of it: its face (or back) darkens as it stands. A flat layer rather than a shadow, so a turn costs no blur. */
+.poker-card__face::after, .poker-card__back::after {
+  content: '';
   position: absolute;
   inset: 0;
-  border-radius: calc(var(--w) * 0.056);
-  background: rgb(0 0 0 / var(--card-shadow-side));
+  border-radius: inherit;
+  background: #000;
+  opacity: calc(var(--side) * var(--card-turn-shade));
   pointer-events: none;
-  opacity: var(--side);
-  transform-origin: calc(var(--hinge, 0.5) * 100%) 50%;
-  transform:
-    translate(calc(var(--sx) * var(--w) * var(--side) * (0.1 + 0.3 * var(--far))), calc(var(--sy) * var(--w) * var(--side) * (0.1 + 0.3 * var(--far))))
-    scaleX(calc(clamp(-1, var(--c) * 20, 1) * max(var(--c), -1 * var(--c), 0.18)));
-  filter: blur(calc(var(--w) * (0.015 + 0.05 * var(--side))));
 }
 .poker-card__face, .poker-card__back {
   position: absolute;
@@ -3051,9 +3045,9 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   box-shadow:
     inset 0 0 0 1px rgb(70 52 30 / 0.2),
     inset 0 1px 0 rgb(255 255 255 / 0.8),
-    calc(var(--sx) * var(--far) * var(--flat) * 1px) calc(var(--sy) * var(--far) * var(--flat) * 1px) 0 var(--card-edge),
-    calc(var(--sx) * var(--fall)) calc(var(--sy) * var(--fall)) calc(var(--w) * (0.02 + 0.16 * var(--h))) rgb(0 0 0 / calc(0.4 * var(--flat))),
-    calc(var(--sx) * var(--fall) * 2) calc(var(--sy) * var(--fall) * 2) calc(var(--w) * (0.06 + 0.3 * var(--h))) calc(var(--w) * var(--card-shadow-spread) * var(--h)) rgb(0 0 0 / calc((0.12 + var(--card-shadow-dark) * var(--h)) * var(--flat)));
+    calc(var(--sx) * var(--far) * 1px) calc(var(--sy) * var(--far) * 1px) 0 var(--card-edge),
+    calc(var(--sx) * var(--fall)) calc(var(--sy) * var(--fall)) calc(var(--w) * (0.02 + 0.16 * var(--h))) rgb(0 0 0 / 0.4),
+    calc(var(--sx) * var(--fall) * 2) calc(var(--sy) * var(--fall) * 2) calc(var(--w) * (0.06 + 0.3 * var(--h))) calc(var(--w) * var(--card-shadow-spread) * var(--h)) rgb(0 0 0 / calc(0.12 + var(--card-shadow-dark) * var(--h)));
 }
 .poker-card__face { color: var(--card-ink); }
 .poker-card__face--red { color: var(--suit-red); }
