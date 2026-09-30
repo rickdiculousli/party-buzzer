@@ -256,7 +256,8 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
   }
   const incomingBet = new Set(ghosts.filter((g) => g.kind === 'bet').map((g) => g.seat))
   const pushing = poker.phase === 'showdown' || poker.phase === 'muck'
-  const puck = buttonAt >= 0 ? spots[buttonAt] : null
+  // The button lies beside the seat's cards, clear of the cards and the bets in front.
+  const puck = buttonAt >= 0 ? (({ x, y }, u) => ({ x: x - u.y * cardW * 1.35, y: y + u.x * cardW * 1.35 }))(holeOf(buttonAt, 0), inward(buttonAt)) : null
   // The betting line is a generous oval inside the seats, the shape of the table; bets are pushed over it.
   const lineRx = ELLIPSE.rx * w * 0.66
   const lineRy = ELLIPSE.ry * h * 0.6
@@ -277,7 +278,7 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
       </div>
 
       {w > 0 && <div class="poker-layer" style={{ '--card-w': `${cardW}px`, '--lamp-x': centre.x, '--lamp-y': centre.y, '--lamp-reach': Math.hypot(w, h) / 2 }}>
-        {puck && <Piece key="puck" pose={{ x: puck.x + cardW * 1.5, y: puck.y, rot: 0 }} class="poker-piece--glide"><DealerPuck /></Piece>}
+        {puck && <Piece key="puck" pose={{ ...puck, rot: 0 }} class="poker-piece--glide"><DealerPuck /></Piece>}
 
         {poker.board.map((card, i) => {
           const move = laid.current?.cards[i]
