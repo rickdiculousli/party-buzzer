@@ -1512,8 +1512,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   --fx-burst-amp: 4em;
 
   /* Poker cards' shadow under the lamp, in card widths */
-  --card-shadow-rest: 0.035;
-  --card-shadow-contact: 0.6;
+  --card-shadow-rest: 0.055;
+  --card-shadow-contact: 0.45;
   --card-shadow-drop: 0.12;
   --card-shadow-spread: 0.08;
   --card-shadow-dark: 0.18;
