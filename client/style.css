@@ -3096,27 +3096,31 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .poker-stack {
   --diameter: calc(var(--card-w, 72px) * 0.64);
   --face-height: calc(var(--diameter) * 0.86);
-  --step: calc(var(--diameter) * 0.095);
+  --step: calc(var(--diameter) * 0.04);
   --rise: calc((var(--n) - 1) * var(--step));
+  /* Height reads through a nearer, larger top rather than a long sideways extrusion. */
+  --top-scale: calc(1 + (var(--n) - 1) * 0.018);
+  --size-rise: calc(var(--face-height) * (var(--top-scale) - 1));
   --dx: calc(var(--piece-x) - var(--lamp-x, var(--piece-x)));
   --dy: calc(var(--piece-y) - var(--lamp-y, calc(var(--piece-y) - 1000)));
   --reach: var(--lamp-reach, 1000);
-  --cast: calc(var(--rise) + var(--diameter) * 0.18);
+  --cast: calc(var(--diameter) * (0.18 + (var(--n) - 1) * 0.095));
   --cast-x: calc(var(--dx) / var(--reach) * var(--cast));
   --cast-y: calc(var(--dy) / var(--reach) * var(--cast));
   --light-angle: atan2(calc(-1 * var(--dx)), var(--dy));
   position: relative;
   display: inline-block;
   isolation: isolate;
-  width: var(--diameter);
-  height: calc(var(--face-height) + var(--rise) + var(--step));
+  width: calc(var(--diameter) * var(--top-scale));
+  height: calc(var(--face-height) + var(--rise) + var(--step) + var(--size-rise));
 }
 .poker-stack::before {
   content: '';
   position: absolute;
-  left: 0;
+  left: 50%;
+  translate: -50% 0;
   bottom: 0;
-  width: 100%;
+  width: var(--diameter);
   height: var(--face-height);
   border-radius: 50%;
   background: rgb(0 0 0 / 0.25);
@@ -3128,10 +3132,14 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .poker-chip {
   --c: var(--chip-1);
   position: absolute;
-  left: 0; right: 0;
+  left: 50%;
+  translate: -50% 0;
+  width: var(--diameter);
   bottom: calc(var(--i) * var(--step) + var(--step));
   height: var(--face-height);
   border-radius: 50%;
+  scale: calc(1 + var(--i) * 0.018);
+  transform-origin: 50% 100%;
 }
 .poker-chip::before, .poker-chip::after {
   content: '';
@@ -3142,7 +3150,10 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .poker-chip::before {
   translate: 0 var(--step);
   background:
-    linear-gradient(var(--light-angle), rgb(0 0 0 / 0.55), rgb(0 0 0 / 0.15)),
+    conic-gradient(from calc(var(--light-angle) + 90deg),
+      rgb(0 0 0 / 0.14), rgb(0 0 0 / 0.72) 90deg,
+      rgb(0 0 0 / 0.14) 180deg, rgb(255 255 255 / 0.18) 270deg,
+      rgb(0 0 0 / 0.14)),
     repeating-conic-gradient(from 8deg, var(--chip-spot) 0 12deg, var(--c) 12deg 45deg);
 }
 .poker-chip::after {
