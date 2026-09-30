@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 /**
  * The motion harness. A dev-only page for dialling in the anchor animations
  * against the real stylesheet.
@@ -804,3 +805,8 @@ function Harness() {
 }
 
 render(<Harness />, document.getElementById('app')!)
+
+// The harness lasts as long as `npm run motion`: once the dev server is gone, close the tab it opened.
+import.meta.hot?.on('vite:ws:disconnect', () => {
+  fetch(location.href, { method: 'HEAD' }).catch(() => window.close())
+})
