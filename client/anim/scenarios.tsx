@@ -28,8 +28,8 @@ import { Votes } from '../Votes.tsx'
 import { Spoken } from '../Spoken.tsx'
 import { Burst, CountUp, Glitch, Letters } from '../fx.tsx'
 import { FaceOff, Finale } from '../Board.tsx'
-import { Piece, PlayingCard } from '../PokerParts.tsx'
-import { chain, flop, pitch, receive, scatter, street, toss, turnUp, FOLD, RECEIVE, REVEAL, TOSS } from '../toss.ts'
+import { ChipStack, Piece, PlayingCard } from '../PokerParts.tsx'
+import { chain, flop, pitch, receive, scatter, street, sweep, toss, turnUp, FOLD, RECEIVE, REVEAL, TOSS } from '../toss.ts'
 import { mulberry32 } from '../../shared/random.ts'
 import type { BurstFrom } from '../fx.ts'
 import type { Recipe } from '../synth.ts'
@@ -834,6 +834,26 @@ export const SCENARIOS: Scenario[] = [
   flopScenario,
   streetScenario,
   showdownScenario,
+  {
+    id: 'poker-chips',
+    label: 'Chip stacks under the centre lamp',
+    family: 'Poker',
+    note: 'Round tops and striped edges stand above the felt. Taller stacks cast longer shadows away from the centre; the moving bet crosses beneath the lamp.',
+    subject: '.poker-piece',
+    dials: [],
+    render: (lead) => pokerStage(<>
+      {[
+        { x: 90, y: 80, amount: 1 }, { x: 288, y: 65, amount: 5 }, { x: 486, y: 80, amount: 25 },
+        { x: 90, y: 240, amount: 100 }, { x: 288, y: 250, amount: 1500 }, { x: 486, y: 240, amount: 5000 },
+      ].map(({ x, y, amount }) => <Piece key={amount} pose={{ x, y, rot: 0 }}>
+        <span class="poker-bet"><ChipStack amount={amount} /><span class="poker-bet__amount">{amount}</span></span>
+      </Piece>)}
+      <Piece key={String(lead)} pose={lead ? { x: 90, y: 160, rot: 0 } : { x: 400, y: 160, rot: 0 }}
+        frames={lead ? null : sweep({ x: 90, y: 160, rot: 0 }, { x: 400, y: 160, rot: 0 })}>
+        <ChipStack amount={137} />
+      </Piece>
+    </>),
+  },
   foldScenario('poker-fold-hard', 'Fold, hard flick, one card gets away', { dx: 0.2, dy: -0.98, speed: 1 }, 1),
   foldScenario('poker-fold-soft', 'Fold, soft flick', { dx: -0.3, dy: -0.95, speed: 0.2 }),
   foldScenario('poker-fold-timeout', 'Fold, timed out', null),
