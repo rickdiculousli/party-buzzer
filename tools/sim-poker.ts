@@ -19,7 +19,7 @@ import type { PokerInput } from '../shared/protocol.ts'
 
 const args = process.argv.slice(2)
 const TICK_MS = Number(args.find((arg) => /^\d+$/.test(arg)) ?? 400)
-const URL = args.find((arg) => arg.startsWith('http')) ?? (await reachable())
+const URL = await reachable(args.find((arg) => arg.startsWith('http')))
 const NAMES = ['Ada', 'Bo', 'Cy', 'Dee', 'Eli', 'Fay']
 const IDLE = 'Fay'
 const OPTIONS = { stack: 500, bigBlind: 20, levelMin: 1, shotSec: 5 }

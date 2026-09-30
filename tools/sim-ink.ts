@@ -25,7 +25,7 @@ import type { InkInput, LobbyChange, State } from '../shared/protocol.ts'
 
 const args = process.argv.slice(2)
 const TICK_MS = Number(args.find((arg) => /^\d+$/.test(arg)) ?? 700)
-const URL = args.find((arg) => arg.startsWith('http')) ?? (await reachable())
+const URL = await reachable(args.find((arg) => arg.startsWith('http')))
 const NAMES = ['Ivy', 'Jax', 'Kai', 'Lux', 'Mo', 'Rex', 'Sol', 'Tia']
 const START_MOON = new Set(['Rex', 'Sol'])
 /** Everyone else crowds onto Sun first; these two then move to Moon. */

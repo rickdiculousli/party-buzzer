@@ -17,7 +17,7 @@ import type { SketchInput } from '../shared/protocol.ts'
 
 const args = process.argv.slice(2)
 const TICK_MS = Number(args.find((arg) => /^\d+$/.test(arg)) ?? 600)
-const URL = args.find((arg) => arg.startsWith('http')) ?? (await reachable())
+const URL = await reachable(args.find((arg) => arg.startsWith('http')))
 const NAMES = ['Ada', 'Bo', 'Cy', 'Dee', 'Eli', 'Fay', 'Gus', 'Hal']
 const WRONG = ['cat', 'house', 'a sad dog', 'PANCAKE', 'banana??', 'the moon', 'spaghetti', 'a potato', 'is that a horse', 'robot']
 const RESULTS_MS = 8_000

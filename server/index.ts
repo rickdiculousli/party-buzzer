@@ -17,7 +17,7 @@ import { render as renderClip, play as playClip, type Speech } from './speech.ts
 import { synthesize, timedFor, folds, takePath, spans } from './eleven.ts'
 import { parsePools } from './quips.ts'
 import { lanAddresses, pickAddress, banner, link, qrFor, qrSvg } from './net.ts'
-import { certHost, ensureCert } from './cert.ts'
+import { PROVIDERS, certHost, ensureCert, type Tls } from './cert.ts'
 import type { ClientMsg } from '../shared/protocol.ts'
 import { MinigameRuntime } from './minigames/runtime.ts'
 
@@ -222,11 +222,19 @@ export async function startServer(opts: {
 
   let joinUrl = ''
 
-  // Fetched before the server is built, because the certificate decides which
-  // kind of server it is. Null means http: the room still plays, without a mic.
-  const tls = (opts.tls ?? true) ? await ensureCert(join(ROOT, '.cert')) : null
+  // Null means http: the room still plays, without a mic.
+  let tls: Tls | null = null
+  let provider = PROVIDERS[0]
+
+  // Answered at /boot, so the https self-check below can tell this server from
+  // anything else holding the same published wildcard.
+  const bootId = crypto.randomUUID()
 
   const onRequest = (req: IncomingMessage, res: ServerResponse) => {
+    if (req.url === '/boot') {
+      res.writeHead(200, { 'content-type': 'text/plain' }).end(bootId)
+      return
+    }
     if ((req.url ?? '').startsWith('/qr.svg')) {
       qrSvg(joinUrl).then(
         (svg) => res.writeHead(200, { 'content-type': 'image/svg+xml' }).end(svg),
@@ -263,7 +271,41 @@ export async function startServer(opts: {
     void serveStatic(req, res, packDir)
   }
 
-  const http = tls ? createSecureServer(tls, onRequest) : createServer(onRequest)
+  const listen = async () => {
+    const server = tls ? createSecureServer(tls, onRequest) : createServer(onRequest)
+    await new Promise<void>((resolve) => server.listen(port, '0.0.0.0', resolve))
+    return server
+  }
+  const host = pickAddress(lanAddresses(), process.env.HOST_IP)
+  let http: Awaited<ReturnType<typeof listen>> | null = null
+
+  // A certificate on disk is no promise a phone can use it: the provider's DNS
+  // can fail to resolve, or its chain can stop verifying. Ask each provider's
+  // join url ourselves, the way a phone would, and take the first that answers.
+  for (const p of (opts.tls ?? true) ? PROVIDERS : []) {
+    tls = await ensureCert(join(ROOT, '.cert', p.domain), p)
+    if (!tls) continue
+    http = await listen()
+    const url = `https://${certHost(host, p)}:${(http.address() as { port: number }).port}`
+    try {
+      const res = await fetch(`${url}/boot`, { signal: AbortSignal.timeout(5000) })
+      if ((await res.text()) !== bootId) throw new Error('a different server answered')
+      provider = p
+      break
+    } catch (err) {
+      const e = err as Error & { cause?: Error }
+      console.warn(`[cert] ${url} does not work (${e.cause?.message ?? e.message})`)
+      http.closeAllConnections()
+      const closing = http
+      await new Promise<void>((resolve) => closing.close(() => resolve()))
+      http = null
+      tls = null
+    }
+  }
+  if (!http) {
+    if (opts.tls ?? true) console.warn('[cert] no working certificate; serving http')
+    http = await listen()
+  }
 
   const wss = new WebSocketServer({ server: http, path: '/ws' })
 
@@ -291,19 +333,17 @@ export async function startServer(opts: {
     socket.on('error', () => hub.remove(conn))
   })
 
-  await new Promise<void>((resolve) => http.listen(port, '0.0.0.0', resolve))
-
   const actualPort = (http.address() as { port: number }).port
-  const host = pickAddress(lanAddresses(), process.env.HOST_IP)
-  // The certificate is for `*.local-ip.sh`, so the hostname has to be the one
-  // that resolves back to this address — the raw IP would not match it.
+  // The certificate is a wildcard for the provider's domain, so the hostname
+  // has to be the one that resolves back to this address — the raw IP would
+  // not match it.
   joinUrl = tls
-    ? `https://${certHost(host)}:${actualPort}`
+    ? `https://${certHost(host, provider)}:${actualPort}`
     : `http://${host}:${actualPort}`
 
   return {
     url: joinUrl,
-    /** The raw-IP url, which works whenever local-ip.sh's DNS does not. */
+    /** The raw-IP url, which works whenever the provider's DNS does not. */
     fallbackUrl: `http${tls ? 's' : ''}://${host}:${actualPort}`,
     tls: !!tls,
     port: actualPort,
@@ -381,8 +421,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     console.log(`  Phones need this name, not the IP — it is what the certificate covers.`)
     console.log(`  If it will not resolve, ${link(server.fallbackUrl)} still plays (no mic).\n`)
   } else {
-    console.log(`  No certificate: serving http, so phones cannot use the microphone.`)
-    console.log(`  Spoken answers need internet at startup to fetch one.\n`)
+    console.log(`  No working certificate: serving http, so phones cannot use the microphone.`)
+    console.log(`  Spoken answers need internet and local-ip.sh or local-ip.co at startup.\n`)
   }
 
   // The two screens the host always ends up opening by hand. NO_OPEN=1 for a

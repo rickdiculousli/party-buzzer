@@ -24,7 +24,7 @@ import { createBowWorld } from '../server/minigames/bow/world.ts'
 const [argMatches, argSeconds, argUrl] = process.argv.slice(2)
 const MATCHES = Number(argMatches ?? Infinity)
 const SECONDS = Number(argSeconds ?? 40)
-const URL = argUrl ?? (await reachable())
+const URL = await reachable(argUrl)
 
 type Bot = {
   name: string

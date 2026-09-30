@@ -79,7 +79,7 @@ import { clipPath, run } from '../server/speech.ts'
 import { ARM_DELAY_MS, COLLECT_MS } from '../shared/protocol.ts'
 
 const args = process.argv.slice(2)
-const URL = process.env.URL ?? (await reachable())
+const URL = await reachable(process.env.URL)
 
 const log = (s = '') => console.log(s)
 

@@ -3,13 +3,14 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, writeFileSync, readFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { certHost, ensureCert } from './cert.ts'
+import { PROVIDERS, certHost, ensureCert } from './cert.ts'
 
 const dir = () => mkdtempSync(join(tmpdir(), 'pb-cert-'))
 
 test('certHost turns an address into the name that resolves back to it', () => {
   assert.equal(certHost('192.168.0.74'), '192-168-0-74.local-ip.sh')
   assert.equal(certHost('10.0.0.1'), '10-0-0-1.local-ip.sh')
+  assert.equal(certHost('10.0.0.1', PROVIDERS[1]), '10-0-0-1.my.local-ip.co')
 })
 
 test('a cache that cannot be parsed is not served', async () => {
@@ -56,7 +57,7 @@ test('a live cache inside its window is served without refetching', async (t) =>
   const d = dir()
   // Borrow the real certificate if this machine has one from a previous boot;
   // otherwise there is nothing to assert against without going to the network.
-  const real = join(import.meta.dirname, '..', '.cert', 'server.pem')
+  const real = join(import.meta.dirname, '..', '.cert', 'local-ip.sh', 'server.pem')
   if (!existsSync(real)) return t.skip('no cached certificate on this machine')
   writeFileSync(join(d, 'server.pem'), readFileSync(real))
   writeFileSync(join(d, 'server.key'), 'key')

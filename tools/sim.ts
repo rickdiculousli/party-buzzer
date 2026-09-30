@@ -30,7 +30,7 @@ const positional = argv.filter((a, i) => a !== '--game' && i !== gi + 1)
 const [argRounds, argPace, argUrl] = positional
 const ROUNDS = Number(argRounds ?? process.env.ROUNDS ?? Infinity)
 const PACE = Number(argPace ?? process.env.PACE ?? 1)
-const URL = argUrl ?? process.env.URL ?? (await reachable())
+const URL = await reachable(argUrl ?? process.env.URL)
 
 /** Everything the eye needs time for is scaled by PACE; the buzzing is not. */
 const beat = (ms: number) => sleep(ms * PACE)

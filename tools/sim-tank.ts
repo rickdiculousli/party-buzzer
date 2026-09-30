@@ -25,7 +25,7 @@ import { TANK_FIELD, TANK_RADIUS } from '../server/minigames/tank/types.ts'
 const [argMatches, argSeconds, argUrl] = process.argv.slice(2)
 const MATCHES = Number(argMatches ?? Infinity)
 const SECONDS = Number(argSeconds ?? 60)
-const URL = argUrl ?? (await reachable())
+const URL = await reachable(argUrl)
 const NAMES = ['Ivy', 'Jax', 'Kai', 'Lux', 'Mo', 'Rex', 'Zed']
 const TICK_MS = 50
 

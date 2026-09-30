@@ -12,25 +12,37 @@ import type { ClientMsg, MinigameFrame, ServerMsg, State } from '../shared/proto
 /**
  * Where the tools look for a server, unless `URL=` says otherwise.
  *
- * The loopback spelling of the same name the phones use: `127-0-0-1.local-ip.sh`
- * resolves to 127.0.0.1 and is covered by the wildcard the server serves, so it
- * works against https without disabling verification. `npm start` falls back to
- * plain http when it could not get a certificate — that is what the second
- * entry is for, and why `reachable` tries them in order rather than picking one.
+ * The loopback spellings of the names the phones use: `127-0-0-1.local-ip.sh`
+ * and `127-0-0-1.my.local-ip.co` resolve to 127.0.0.1 and are covered by the
+ * wildcards the server may serve, so they work against https without disabling
+ * verification. The server tries the same providers in the same order, and
+ * serves plain http when neither works — that is what the last entry is for.
  */
-export const URLS = ['https://127-0-0-1.local-ip.sh:8080', 'http://localhost:8080']
+export const URLS = [
+  'https://127-0-0-1.local-ip.sh:8080',
+  'https://127-0-0-1.my.local-ip.co:8080',
+  'http://localhost:8080',
+]
 
-/** The first of `URLS` with a server behind it. Saves every tool the same probe. */
-export async function reachable(): Promise<string> {
-  for (const url of URLS) {
+/**
+ * The first working url: `url` if given, else the first of `URLS`. An https
+ * url that does not answer — DNS down, or a certificate that no longer
+ * verifies — falls through to the next, with a warning.
+ */
+export async function reachable(url?: string): Promise<string> {
+  const tries = url ? [...new Set([url, url.replace(/^https:/, 'http:')])] : URLS
+  for (const [i, u] of tries.entries()) {
     try {
-      await fetch(`${url}/qr.svg`, { signal: AbortSignal.timeout(2500) })
-      return url
-    } catch {
-      // Next spelling. Both failing means no server, which `connect` reports.
+      await fetch(`${u}/qr.svg`, { signal: AbortSignal.timeout(2500) })
+      return u
+    } catch (err) {
+      const e = err as Error & { cause?: Error }
+      if (u.startsWith('https:') && tries[i + 1])
+        console.warn(`[conn] ${u} does not work (${e.cause?.message ?? e.message}); trying ${tries[i + 1]}`)
+      // Every spelling failing means no server, which `connect` reports.
     }
   }
-  return URLS[0]
+  return tries[0]
 }
 
 export type Conn = {

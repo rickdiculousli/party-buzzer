@@ -15,7 +15,7 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { reachable } from './conn.ts'
 import type { ClientMsg, ServerMsg, State } from '../shared/protocol.ts'
 
-const URL = process.env.URL ?? (await reachable())
+const URL = await reachable(process.env.URL)
 
 /** The pinned range. Everything this tool does stays inside it. */
 const PREFIX = 'fake-'
