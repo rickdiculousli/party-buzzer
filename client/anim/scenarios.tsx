@@ -475,6 +475,7 @@ const range = (key: string, label: string, min: number, max: number, step: numbe
 /** The lamp's shadow, on every card. Fractions of a card's width. */
 const SHADOW: Dial[] = [
   { var: '--card-shadow-rest', label: 'Shadow at rest', min: 0, max: 0.1, step: 0.005, unit: '' },
+  { var: '--card-shadow-contact', label: 'Shadow darkness at the edge', min: 0, max: 1, step: 0.01, unit: '' },
   { var: '--card-shadow-drop', label: 'Shadow drop in the air', min: 0, max: 0.4, step: 0.01, unit: '' },
   { var: '--card-shadow-spread', label: 'Shadow spread in the air', min: 0, max: 0.3, step: 0.01, unit: '' },
   { var: '--card-shadow-dark', label: 'Shadow darkness in the air', min: 0, max: 0.5, step: 0.01, unit: '' },

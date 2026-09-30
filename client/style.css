@@ -1513,6 +1513,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 
   /* Poker cards' shadow under the lamp, in card widths */
   --card-shadow-rest: 0.035;
+  --card-shadow-contact: 0.6;
   --card-shadow-drop: 0.12;
   --card-shadow-spread: 0.08;
   --card-shadow-dark: 0.18;
@@ -3046,7 +3047,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
     inset 0 0 0 1px rgb(70 52 30 / 0.2),
     inset 0 1px 0 rgb(255 255 255 / 0.8),
     calc(var(--sx) * var(--far) * 1px) calc(var(--sy) * var(--far) * 1px) 0 var(--card-edge),
-    calc(var(--sx) * var(--fall)) calc(var(--sy) * var(--fall)) calc(var(--w) * (0.02 + 0.16 * var(--h))) rgb(0 0 0 / 0.4),
+    calc(var(--sx) * var(--fall)) calc(var(--sy) * var(--fall)) calc(var(--w) * (0.006 + 0.16 * var(--h))) rgb(0 0 0 / var(--card-shadow-contact)),
     calc(var(--sx) * var(--fall) * 2) calc(var(--sy) * var(--fall) * 2) calc(var(--w) * (0.06 + 0.3 * var(--h))) calc(var(--w) * var(--card-shadow-spread) * var(--h)) rgb(0 0 0 / calc(0.12 + var(--card-shadow-dark) * var(--h)));
 }
 .poker-card__face { color: var(--card-ink); }
