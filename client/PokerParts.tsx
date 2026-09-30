@@ -121,14 +121,14 @@ export function Piece({ pose, frames, delay = 0, done, class: cls = '', children
     if (!node || !frames?.length || reducedMotion()) { done?.(); return }
     const total = frames[frames.length - 1].t || 1
     const run = node.animate(
-      // Height and turn also go to the card's shadow, which falls from the lamp rather than turning with the card.
-      frames.map((f) => ({ transform: transformOf(f, f.lift), '--piece-lift': f.lift, '--piece-rot': f.rot, offset: f.t / total })),
+      // Place, height and turn also go to the card's shadow, which falls from the lamp rather than turning with the card.
+      frames.map((f) => ({ transform: transformOf(f, f.lift), '--piece-x': f.x, '--piece-y': f.y, '--piece-lift': f.lift, '--piece-rot': f.rot, offset: f.t / total })),
       { duration: total, delay, fill: 'backwards', easing: 'linear' },
     )
     run.onfinish = () => done?.()
     return () => run.cancel()
   }, [])
-  return <div ref={el} class={`poker-piece ${cls}`} style={{ transform: transformOf(pose), '--piece-rot': pose.rot }}>{children}</div>
+  return <div ref={el} class={`poker-piece ${cls}`} style={{ transform: transformOf(pose), '--piece-x': pose.x, '--piece-y': pose.y, '--piece-rot': pose.rot }}>{children}</div>
 }
 
 /**

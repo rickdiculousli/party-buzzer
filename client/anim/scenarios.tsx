@@ -428,7 +428,7 @@ const pokerStage = (children: preact.ComponentChildren) => (
   <div class="fx-stage">
     <div class="felt felt--board poker-patch" style={{ width: `${PATCH.w}px`, height: `${PATCH.h}px`, '--card-w': '56px' }}>
       <div class="felt__lamp felt__lamp--centre" />
-      <div class="poker-layer">{children}</div>
+      <div class="poker-layer" style={{ '--lamp-x': PATCH.w / 2, '--lamp-y': PATCH.h / 2, '--lamp-reach': Math.hypot(PATCH.w, PATCH.h) / 2 }}>{children}</div>
     </div>
   </div>
 )

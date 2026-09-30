@@ -2980,7 +2980,9 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .felt-line__sheen { stroke: var(--felt-ink); stroke-width: 4; opacity: 0.7; }
 
 /* A poker-size card, 63 × 88 mm, with a face and a back to turn between. */
-/* How high a card is carried (a `Piece`'s lift: 0.05 at a pitch's release) and how it is turned, in degrees. Registered so a Piece's keyframes animate them and every card inside reads them. */
+/* Where a card is on the table (px), how high it is carried (a `Piece`'s lift: 0.05 at a pitch's release) and how it is turned (degrees). Registered so a Piece's keyframes animate them and every card inside reads them. */
+@property --piece-x { syntax: '<number>'; inherits: true; initial-value: 0; }
+@property --piece-y { syntax: '<number>'; inherits: true; initial-value: 0; }
 @property --piece-lift { syntax: '<number>'; inherits: true; initial-value: 0; }
 @property --piece-rot { syntax: '<number>'; inherits: true; initial-value: 0; }
 .poker-card { --w: var(--card-w, 72px); position: relative; display: inline-block; width: var(--w); aspect-ratio: 63 / 88; perspective: calc(var(--w) * 8); vertical-align: middle; }
@@ -2993,19 +2995,27 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   background: linear-gradient(165deg, #fbf8f0, var(--card-face) 55%, #e9e2d1);
-  /* One lamp over the table, so every shadow falls the same way on the felt:
-     down and a little right. A card at rest casts it past one or two edges; the
-     higher a card is carried, the further off and softer it falls, spreading
-     all round. The fall is turned back against the card's own rotation, so a
-     spinning card's shadow keeps to the lamp. */
+  /* One lamp hangs over the table at (--lamp-x, --lamp-y), so every shadow
+     falls away from it: barely at all under the lamp, longer toward the rail.
+     A card at rest casts it past one or two edges; the higher a card is
+     carried, the further off and softer it falls, spreading all round. The
+     fall is turned back against the card's own rotation, so a spinning card's
+     shadow keeps to the lamp. With no lamp set (a phone), it hangs far above
+     the top of the screen. */
   --h: calc(max(0, var(--piece-lift)) * 20);
-  --sx: calc(0.35 * cos(var(--piece-rot) * 1deg) + 0.94 * sin(var(--piece-rot) * 1deg));
-  --sy: calc(0.94 * cos(var(--piece-rot) * 1deg) - 0.35 * sin(var(--piece-rot) * 1deg));
-  --fall: calc(var(--w) * (0.014 + 0.12 * var(--h)));
+  --dx: calc(var(--piece-x) - var(--lamp-x, var(--piece-x)));
+  --dy: calc(var(--piece-y) - var(--lamp-y, calc(var(--piece-y) - 1000)));
+  --dist: max(1, hypot(var(--dx), var(--dy)));
+  --far: min(1.2, var(--dist) / var(--lamp-reach, 1000));
+  --wx: calc(var(--dx) / var(--dist));
+  --wy: calc(var(--dy) / var(--dist));
+  --sx: calc(var(--wx) * cos(var(--piece-rot) * 1deg) + var(--wy) * sin(var(--piece-rot) * 1deg));
+  --sy: calc(var(--wy) * cos(var(--piece-rot) * 1deg) - var(--wx) * sin(var(--piece-rot) * 1deg));
+  --fall: calc(var(--w) * var(--far) * (0.035 + 0.12 * var(--h)));
   box-shadow:
     inset 0 0 0 1px rgb(70 52 30 / 0.2),
     inset 0 1px 0 rgb(255 255 255 / 0.8),
-    calc(var(--sx) * 1px) calc(var(--sy) * 1px) 0 var(--card-edge),
+    calc(var(--sx) * var(--far) * 1px) calc(var(--sy) * var(--far) * 1px) 0 var(--card-edge),
     calc(var(--sx) * var(--fall)) calc(var(--sy) * var(--fall)) calc(var(--w) * (0.02 + 0.16 * var(--h))) rgb(0 0 0 / 0.4),
     calc(var(--sx) * var(--fall) * 2) calc(var(--sy) * var(--fall) * 2) calc(var(--w) * (0.06 + 0.3 * var(--h))) calc(var(--w) * 0.08 * var(--h)) rgb(0 0 0 / calc(0.12 + 0.18 * var(--h)));
 }

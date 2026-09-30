@@ -283,7 +283,7 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
         <FeltMark text="No-limit Hold'em" class="poker-logo__game" />
       </div>
 
-      {w > 0 && <div class="poker-layer" style={{ '--card-w': `${cardW}px` }}>
+      {w > 0 && <div class="poker-layer" style={{ '--card-w': `${cardW}px`, '--lamp-x': centre.x, '--lamp-y': centre.y, '--lamp-reach': Math.hypot(w, h) / 2 }}>
         {puck && <Piece key="puck" pose={{ x: puck.x + cardW * 1.5, y: puck.y, rot: 0 }} class="poker-piece--glide"><DealerPuck /></Piece>}
 
         {poker.board.map((card, i) => {
