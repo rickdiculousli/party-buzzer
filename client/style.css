@@ -3167,7 +3167,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   -webkit-mask: var(--stamp-wear) 0 0 / 120px 120px;
   mask: var(--stamp-wear) 0 0 / 120px 120px;
 }
-.poker-ring { width: 2.25rem; height: 2.25rem; transform: rotate(-90deg); }
+.poker-ring { width: 2.25rem; height: 2.25rem; }
 .poker-ring__track { fill: none; stroke: rgb(0 0 0 / 0.45); stroke-width: 10; }
 .poker-ring__left { fill: none; stroke: var(--tungsten); stroke-width: 10; stroke-linecap: round; }
 .poker-bet, .poker-pot { display: grid; justify-items: center; gap: 2px; }

@@ -214,6 +214,6 @@ export function ShotRing({ until, total, now, class: cls = '' }: { until: number
   const around = 2 * Math.PI * r
   return <svg class={`poker-ring ${left <= 5_000 ? 'fx-heartbeat' : ''} ${cls}`} viewBox="0 0 100 100" role="img" aria-label={`${Math.ceil(left / 1000)} seconds to act`}>
     <circle class="poker-ring__track" cx="50" cy="50" r={r} />
-    <circle class="poker-ring__left" cx="50" cy="50" r={r} style={{ strokeDasharray: around, strokeDashoffset: around * (1 - share) }} />
+    <circle class="poker-ring__left" cx="50" cy="50" r={r} transform="rotate(-90 50 50)" style={{ strokeDasharray: around, strokeDashoffset: around * (1 - share) }} />
   </svg>
 }
