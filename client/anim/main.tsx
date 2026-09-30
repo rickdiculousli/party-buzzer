@@ -23,7 +23,7 @@
  */
 import { Fragment, render } from 'preact'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
-import { SCENARIOS, dialKey, recipeDials, type Dial } from './scenarios.tsx'
+import { SCENARIOS, applyMotion, commitMotion, committedMotion, dialKey, recipeDials, type Dial } from './scenarios.tsx'
 import { play, prime, primeFile, setDialled, unlock } from '../sound.ts'
 import { RECIPES, addLayer, getPath, removeLayer, setPath } from '../cues.ts'
 import { Layers } from './Layers.tsx'
@@ -53,6 +53,12 @@ function readDefaults(dials: Dial[]): Record<string, string> {
   const root = getComputedStyle(document.documentElement)
   const out: Record<string, string> = {}
   for (const d of dials) if ('var' in d) out[dialKey(d)] = root.getPropertyValue(d.var).trim()
+  return out
+}
+/** Where each motion dial starts: what toss.ts holds. */
+function readMotion(dials: Dial[]): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const d of dials) if ('motion' in d) out[d.motion] = String(committedMotion(d.motion))
   return out
 }
 
@@ -102,8 +108,26 @@ function Slider({
   )
 }
 
+/**
+ * This tab's scenario and last save, kept across reloads: saving a motion
+ * number rewrites toss.ts, and Vite reloads the page for it.
+ */
+const kept = (key: string) => {
+  try {
+    return sessionStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+const keep = (key: string, value: string | null) => {
+  try {
+    if (value === null) sessionStorage.removeItem(key)
+    else sessionStorage.setItem(key, value)
+  } catch {}
+}
+
 function Harness() {
-  const [id, setId] = useState(SCENARIOS[0].id)
+  const [id, setId] = useState(() => SCENARIOS.find((s) => s.id === kept('anim:scenario'))?.id ?? SCENARIOS[0].id)
   const scenario = SCENARIOS.find((s) => s.id === id)!
 
   const [values, setValues] = useState<Record<string, string>>(() =>
@@ -130,6 +154,11 @@ function Harness() {
    * what makes Reset able to bring a deleted layer back.
    */
   const [draft, setDraft] = useState<Record<string, Recipe>>(() => structuredClone(RECIPES))
+  /** Motion dials, as `values` is for CSS ones: what is dialled, and what toss.ts held when this scenario opened or last saved. */
+  const [motion, setMotion] = useState<Record<string, string>>(() => readMotion(scenario.dials))
+  const [motionOrigin, setMotionOrigin] = useState<Record<string, string>>(() => readMotion(scenario.dials))
+  // The scene computes its throws as it renders, so the constants have to hold the dialled numbers by then.
+  applyMotion(motion)
   /**
    * `lead` is the frame before the moment; clearing it is the moment.
    *
@@ -143,7 +172,12 @@ function Harness() {
   const [speed, setSpeed] = useState(1)
   const [looping, setLooping] = useState(false)
   const [every, setEvery] = useState(2000)
-  const [saved, setSaved] = useState('')
+  const [saved, setSaved] = useState(() => kept('anim:saved') ?? '')
+  useEffect(() => keep('anim:scenario', id), [id])
+  useEffect(() => {
+    keep('anim:saved', null)
+    if (saved) setTimeout(() => setSaved(''), 4000)
+  }, [])
   const [muted, setMuted] = useState(false)
   /**
    * Whether the sample slows with the picture.
@@ -181,6 +215,9 @@ function Harness() {
     const fresh = readDefaults(scenario.dials)
     setValues(fresh)
     setOrigin(fresh)
+    const freshMotion = readMotion(scenario.dials)
+    setMotion(freshMotion)
+    setMotionOrigin(freshMotion)
     trigger()
   }, [id])
 
@@ -288,7 +325,9 @@ function Harness() {
   const cssDirty = scenario.dials.some(
     (d) => 'var' in d && values[dialKey(d)] !== origin[dialKey(d)],
   )
-  const dirty = cssDirty || JSON.stringify(draft) !== JSON.stringify(RECIPES)
+  const movedMotion = Object.fromEntries(Object.entries(motion).filter(([k, v]) => v !== motionOrigin[k]))
+  const recipesDirty = JSON.stringify(draft) !== JSON.stringify(RECIPES)
+  const dirty = cssDirty || Object.keys(movedMotion).length > 0 || recipesDirty
 
   const save = async () => {
     setSaved('saving')
@@ -296,21 +335,28 @@ function Harness() {
       const res = await fetch('/__anim/save', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ css: values, recipes: draft }),
+        // Recipes only when one changed: the block is regenerated wholesale, so sending it unchanged would still reformat cues.ts.
+        body: JSON.stringify({ css: values, recipes: recipesDirty ? draft : undefined, motion: movedMotion }),
       })
       const body = await res.json()
       // Saved values are the new baseline — see the note on `origin`.
-      if (res.ok) setOrigin({ ...values })
+      if (res.ok) {
+        setOrigin({ ...values })
+        setMotionOrigin({ ...motion })
+        commitMotion(movedMotion)
+      }
       // The recipe baseline re-seeds on reload rather than here: Save has just
       // rewritten cues.ts, and the module's RECIPES in this page's memory is the
       // pre-save one. Reset before a reload therefore goes back to what the file
       // held when the page opened, which is the honest thing for it to mean.
-      setSaved(
+      const message =
         res.ok
           ? `wrote ${body.written} ${body.written === 1 ? 'value' : 'values'} to style.css and ` +
-            `${body.cues} ${body.cues === 1 ? 'cue' : 'cues'} to cues.ts`
-          : `failed: ${body.error}`,
-      )
+            `${body.cues} ${body.cues === 1 ? 'cue' : 'cues'} to cues.ts` +
+            (body.motion ? `, and ${body.motion} ${body.motion === 1 ? 'number' : 'numbers'} to toss.ts` : '')
+          : `failed: ${body.error}`
+      setSaved(message)
+      if (res.ok && body.motion) keep('anim:saved', message)
     } catch (err) {
       setSaved(`failed: ${(err as Error).message}`)
     }
@@ -570,13 +616,15 @@ function Harness() {
           // `addLayer` set specifically to keep the layer audible. There is
           // nothing committed to go back to, so the dial is simply not "moved".
           const committed = recipe ? getPath(RECIPES, d.recipe) : undefined
-          const was = recipe ? (committed === undefined ? '' : String(committed)) : origin[k] ?? ''
-          const now = recipe ? String(getPath(draft, d.recipe) ?? 0) : values[k] ?? ''
+          const was = recipe ? (committed === undefined ? '' : String(committed)) : 'motion' in d ? motionOrigin[k] ?? '' : origin[k] ?? ''
+          const now = recipe ? String(getPath(draft, d.recipe) ?? 0) : 'motion' in d ? motion[k] ?? '' : values[k] ?? ''
           const moved = recipe ? committed !== undefined && now !== was : now !== was
           const back = () =>
             recipe
               ? setDraft((t) => setPath(t, d.recipe, parseFloat(was)))
-              : setValues((v) => ({ ...v, [k]: was }))
+              : 'motion' in d
+                ? setMotion((v) => ({ ...v, [k]: was }))
+                : setValues((v) => ({ ...v, [k]: was }))
 
           if ('text' in d) {
             return (
@@ -626,6 +674,7 @@ function Harness() {
                   onInput={(e) => {
                     const raw = (e.target as HTMLInputElement).value
                     if ('recipe' in d) setDraft((t) => setPath(t, d.recipe, parseFloat(raw)))
+                    else if ('motion' in d) setMotion((v) => ({ ...v, [k]: raw }))
                     else setValues((v) => ({ ...v, [k]: `${raw}${d.unit}` }))
                   }}
                 />
@@ -652,7 +701,7 @@ function Harness() {
             just made. */}
         <p class="harness__hint">
           {dirty
-            ? 'Writes the moved dials into the anim:tunables block in style.css, and every recipe into the cue:recipes block in cues.ts. Both blocks are regenerated in place.'
+            ? 'Writes the moved dials into the anim:tunables block in style.css, every recipe into the cue:recipes block in cues.ts, and each moved motion number into its own line in toss.ts.'
             : 'Nothing has moved yet. Drag a dial or edit a layer and this writes it back to the file it came from.'}
         </p>
         <div class="harness__row">
@@ -664,6 +713,7 @@ function Harness() {
             disabled={!dirty}
             onClick={() => {
               setValues({ ...origin })
+              setMotion({ ...motionOrigin })
               setDraft(structuredClone(RECIPES))
               trigger()
             }}

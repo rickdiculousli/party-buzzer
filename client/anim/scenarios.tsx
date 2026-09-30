@@ -30,7 +30,7 @@ import { Spoken } from '../Spoken.tsx'
 import { Burst, CountUp, Glitch, Letters } from '../fx.tsx'
 import { FaceOff, Finale } from '../Board.tsx'
 import { Piece, PlayingCard } from '../PokerParts.tsx'
-import { chain, flop, pitch, receive, scatter, street, toss } from '../toss.ts'
+import { chain, flop, pitch, receive, scatter, street, toss, FOLD, RECEIVE, REVEAL, TOSS } from '../toss.ts'
 import { mulberry32 } from '../../shared/random.ts'
 import type { BurstFrom } from '../fx.ts'
 import type { Recipe } from '../synth.ts'
@@ -38,19 +38,54 @@ import type { Recipe } from '../synth.ts'
 /**
  * A number the harness can move.
  *
- * Two kinds, told apart by which one they address: `var` is a CSS custom
+ * Three kinds, told apart by which one they address: `var` is a CSS custom
  * property in the `anim:tunables` block, `recipe` is a field in a cue's recipe
- * written as `cue.layer.field`. Everything downstream — the slider, the origin
- * marker, the dirty state, Save — works the same on both, which is the point of
- * giving them one type.
+ * written as `cue.layer.field`, and `motion` is a number in one of toss.ts's
+ * constants written as `NAME.field`, or `NAME.field.i` for one end of a range.
+ * Everything downstream — the slider, the origin marker, the dirty state,
+ * Save — works the same on all three, which is the point of giving them one
+ * type.
  */
 export type Dial =
   | { var: string; label: string; min: number; max: number; step: number; unit: string }
   | { var: string; label: string; text: true }
   | { recipe: string; label: string; min: number; max: number; step: number; unit: string }
+  | { motion: string; label: string; min: number; max: number; step: number; unit: string }
 
-/** What a dial is stored under. The two kinds never collide: one has dashes. */
-export const dialKey = (d: Dial) => ('var' in d ? d.var : d.recipe)
+/** What a dial is stored under. The kinds never collide: a var has dashes, a motion key starts with a capital. */
+export const dialKey = (d: Dial) => ('var' in d ? d.var : 'recipe' in d ? d.recipe : d.motion)
+
+type Constants = Record<string, Record<string, unknown>>
+/** The constants motion dials reach, live: the throws read them on every take. */
+const MOTION = { TOSS, RECEIVE, REVEAL, FOLD } as unknown as Constants
+/** The same constants as toss.ts holds them, for origins and for putting the live ones back. */
+const COMMITTED = structuredClone(MOTION)
+
+const cell = (table: Constants, key: string) => {
+  const [name, field, i] = key.split('.')
+  const holder = (i === undefined ? table[name] : table[name][field]) as Record<string, number>
+  return { holder, at: i ?? field }
+}
+/** A motion dial's number as toss.ts holds it. */
+export const committedMotion = (key: string) => {
+  const { holder, at } = cell(COMMITTED, key)
+  return holder[at]
+}
+/** Puts every constant back as committed, then moves the dialled ones. */
+export function applyMotion(dialled: Record<string, string>) {
+  for (const [name, fields] of Object.entries(COMMITTED)) Object.assign(MOTION[name], structuredClone(fields))
+  for (const [key, value] of Object.entries(dialled)) {
+    const { holder, at } = cell(MOTION, key)
+    holder[at] = parseFloat(value)
+  }
+}
+/** After a save, what was dialled is what toss.ts holds. */
+export function commitMotion(saved: Record<string, string>) {
+  for (const [key, value] of Object.entries(saved)) {
+    const { holder, at } = cell(COMMITTED, key)
+    holder[at] = parseFloat(value)
+  }
+}
 
 export type Scenario = {
   id: string
@@ -433,6 +468,33 @@ const pokerStage = (children: preact.ComponentChildren) => (
   </div>
 )
 
+/** Both ends of a range in toss.ts, as two dials. */
+const range = (key: string, label: string, min: number, max: number, step: number, unit = ''): Dial[] => [
+  { motion: `${key}.0`, label: `${label}, least`, min, max, step, unit },
+  { motion: `${key}.1`, label: `${label}, most`, min, max, step, unit },
+]
+/** The lamp's shadow, on every card. Fractions of a card's width. */
+const SHADOW: Dial[] = [
+  { var: '--card-shadow-rest', label: 'Shadow at rest', min: 0, max: 0.1, step: 0.005, unit: '' },
+  { var: '--card-shadow-drop', label: 'Shadow drop in the air', min: 0, max: 0.4, step: 0.01, unit: '' },
+  { var: '--card-shadow-spread', label: 'Shadow spread in the air', min: 0, max: 0.3, step: 0.01, unit: '' },
+  { var: '--card-shadow-dark', label: 'Shadow darkness in the air', min: 0, max: 0.5, step: 0.01, unit: '' },
+]
+const FOLD_DIALS: Dial[] = [
+  { motion: 'FOLD.reachThrown', label: 'Throw reach', min: 0, max: 0.8, step: 0.01, unit: '' },
+  { motion: 'FOLD.reachFlick', label: 'Extra reach, full flick', min: 0, max: 0.8, step: 0.01, unit: '' },
+  { motion: 'FOLD.reachSoft', label: 'Soft flick reach', min: 0, max: 0.8, step: 0.01, unit: '' },
+  { motion: 'FOLD.reachTimeout', label: 'Timeout reach', min: 0, max: 0.6, step: 0.01, unit: '' },
+  { motion: 'FOLD.reachVary', label: 'Reach varies ±', min: 0, max: 0.6, step: 0.01, unit: '' },
+  { motion: 'FOLD.heading', label: 'Heading varies ±', min: 0, max: 30, step: 1, unit: '°' },
+  { motion: 'FOLD.bend', label: 'Bend with the flick', min: 0, max: 45, step: 1, unit: '°' },
+  { motion: 'FOLD.spinQuiet', label: 'Quiet spin', min: 0, max: 1.5, step: 0.05, unit: '°/ms' },
+  ...range('FOLD.spinWild', 'Wild spin', 0, 4, 0.05, '°/ms'),
+  { motion: 'TOSS.skidTau', label: 'Cloth drag', min: 50, max: 600, step: 10, unit: 'ms' },
+  { motion: 'TOSS.spinTau', label: 'Spin drag', min: 20, max: 300, step: 5, unit: 'ms' },
+  ...SHADOW,
+]
+
 /** A fold thrown into the middle, left to lie for a beat, then popped away. Physics tunables are `TOSS` in client/toss.ts. */
 function foldScenario(id: string, label: string, flick: { dx: number; dy: number; speed: number } | null, wild: -1 | 0 | 1 = -1): Scenario {
   const from = { x: PATCH.w / 2, y: PATCH.h * 0.86, rot: -4 }
@@ -441,12 +503,12 @@ function foldScenario(id: string, label: string, flick: { dx: number; dy: number
     id,
     label,
     family: 'Poker',
-    note: `${label}: thrown with friction and spin, left to lie for a beat, then popped away. Tune TOSS in client/toss.ts.`,
+    note: `${label}: thrown with friction and spin, left to lie for a beat, then popped away. Tune FOLD and TOSS in client/toss.ts.`,
     subject: '.poker-piece',
-    dials: [],
+    dials: FOLD_DIALS,
     render: (lead) => pokerStage(([0, 1] as const).map((k) => {
       const thrown = toss({ ...from, x: from.x + (k ? 16 : -16) }, aim, flick, mulberry32(k + 3), 0, k === wild)
-      return <Piece key={k} pose={lead ? from : thrown.rest} frames={lead ? null : chain(thrown.frames, 800 + k * 60, [thrown.frames[thrown.frames.length - 1]])}>
+      return <Piece key={`${k}-${lead}`} pose={lead ? from : thrown.rest} frames={lead ? null : chain(thrown.frames, 800 + k * 60, [thrown.frames[thrown.frames.length - 1]])}>
         <PlayingCard card={null} up={false} />
       </Piece>
     })),
@@ -460,13 +522,23 @@ const dealScenario: Scenario = {
   family: 'Poker',
   note: 'Two cards pitched from the dealer land loose; the player gathers the pair and taps it square. Tune TOSS and RECEIVE in client/toss.ts.',
   subject: '.poker-piece',
-  dials: [],
+  dials: [
+    { motion: 'RECEIVE.scatter', label: 'Lands off its place', min: 0, max: 1, step: 0.01, unit: '' },
+    { motion: 'RECEIVE.scatterRot', label: 'Lands off square', min: 0, max: 45, step: 1, unit: '°' },
+    ...range('RECEIVE.reactMs', 'Reach for the pair', 0, 1000, 10, 'ms'),
+    { motion: 'RECEIVE.squareRot', label: 'Askew once gathered', min: 0, max: 15, step: 0.5, unit: '°' },
+    ...range('RECEIVE.tapDepth', 'Tap depth', 0, 0.08, 0.002),
+    ...range('RECEIVE.tapMs', 'Each half of a tap', 20, 200, 5, 'ms'),
+    ...range('RECEIVE.tapGap', 'Between taps', 20, 400, 10, 'ms'),
+    { motion: 'TOSS.skidTau', label: 'Cloth drag', min: 50, max: 600, step: 10, unit: 'ms' },
+    ...SHADOW,
+  ],
   render: (lead) => {
     const neat = ([0, 1] as const).map((k) => ({ x: PATCH.w / 2 + (k ? 8 : -8), y: PATCH.h * 0.72, rot: k ? 3 : -2 }))
     const flights = neat.map((spot, k) => pitch({ x: PATCH.w / 2, y: -90 }, scatter(spot, 56, mulberry32(k + 21)), mulberry32(k + 11)))
     const collect = 150 + flights[1][flights[1].length - 1].t + 300
     return pokerStage(neat.map((spot, k) =>
-      <Piece key={k} pose={spot} frames={lead ? null : receive(flights[k], spot, collect - k * 150, mulberry32(31))} delay={k * 150}>
+      <Piece key={`${k}-${lead}`} pose={spot} frames={lead ? null : receive(flights[k], spot, collect - k * 150, mulberry32(31))} delay={k * 150}>
         <PlayingCard card={null} up={false} />
       </Piece>))
   },
@@ -492,7 +564,17 @@ const flopScenario: Scenario = {
   family: 'Poker',
   note: 'The flop lands as one face-down stack, is turned over, and spread left to right with one push. Tune REVEAL in client/toss.ts.',
   subject: '.poker-piece',
-  dials: [],
+  dials: [
+    ...range('REVEAL.stackIn', 'Stack lands right of slot 1', 0, 0.8, 0.01),
+    ...range('REVEAL.stackRot', 'Stack lands off square', 0, 20, 0.5, '°'),
+    ...range('REVEAL.stackStep', 'Each card ahead', 0, 0.2, 0.005),
+    ...range('REVEAL.stackFan', 'Each card rides on', 0, 0.3, 0.005),
+    ...range('REVEAL.stackTwist', 'Each card twisted', 0, 8, 0.25, '°'),
+    ...range('REVEAL.beatMs', 'Lies face down', 0, 800, 10, 'ms'),
+    ...range('REVEAL.afterTurnMs', 'Pause after turning', 0, 400, 10, 'ms'),
+    { motion: 'REVEAL.spreadLag', label: 'Spread lag, up to', min: 0, max: 120, step: 5, unit: 'ms' },
+    ...SHADOW,
+  ],
   render: (lead) => {
     const laid = flop({ x: PATCH.w / 2, y: -90 }, BOARD_SLOTS.slice(0, 3), 56, mulberry32(41))
     return pokerStage(['Ah', 'Kd', '7c'].map((card, k) =>
@@ -509,7 +591,13 @@ const streetScenario: Scenario = {
   family: 'Poker',
   note: 'A turn or river card lands face down off its slot, is turned over, and drawn into line. Tune REVEAL in client/toss.ts.',
   subject: '.poker-piece',
-  dials: [],
+  dials: [
+    ...range('REVEAL.offSlot', 'Lands off its slot', 0, 0.8, 0.01),
+    ...range('REVEAL.offRot', 'Lands off square', 0, 25, 0.5, '°'),
+    ...range('REVEAL.beatMs', 'Lies face down', 0, 800, 10, 'ms'),
+    ...range('REVEAL.afterTurnMs', 'Pause after turning', 0, 400, 10, 'ms'),
+    ...SHADOW,
+  ],
   render: (lead) => {
     const laid = street({ x: PATCH.w / 2, y: -90 }, BOARD_SLOTS[3], 56, mulberry32(43))
     return pokerStage(['Ah', 'Kd', '7c', 'Qs'].map((card, i) => i < 3

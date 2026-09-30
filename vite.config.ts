@@ -7,6 +7,7 @@ import { promisify } from 'node:util'
 import { defineConfig, type Plugin } from 'vite'
 import preact from '@preact/preset-vite'
 import { ffmpegArgs, creditsRow, safeOut, safeRaw } from './tools/sndlib.ts'
+import { setConstant } from './tools/tunables.ts'
 
 const run = promisify(execFile)
 
@@ -17,6 +18,8 @@ const CLOSE = '/* /anim:tunables */'
 const CUES = fileURLToPath(new URL('./client/cues.ts', import.meta.url))
 const R_OPEN = '/* cue:recipes'
 const R_CLOSE = '/* /cue:recipes */'
+
+const MOTION = fileURLToPath(new URL('./client/toss.ts', import.meta.url))
 
 const RAW = fileURLToPath(new URL('./sounds/raw', import.meta.url))
 const OUT = fileURLToPath(new URL('./client/public/sounds', import.meta.url))
@@ -47,9 +50,9 @@ function animSave(): Plugin {
         try {
           const chunks: Buffer[] = []
           for await (const c of req) chunks.push(c as Buffer)
-          const { css: values = {}, recipes } = JSON.parse(
+          const { css: values = {}, recipes, motion = {} } = JSON.parse(
             Buffer.concat(chunks).toString(),
-          ) as { css?: Record<string, string>; recipes?: unknown }
+          ) as { css?: Record<string, string>; recipes?: unknown; motion?: Record<string, string> }
 
           const css = await readFile(STYLE, 'utf8')
           const start = css.indexOf(OPEN)
@@ -80,7 +83,17 @@ function animSave(): Plugin {
           const re = src.indexOf(R_CLOSE)
           if (rec && (rs === -1 || re === -1)) return reply(500, { error: 'cue markers missing' })
 
+          // Motion dials rewrite their one number in toss.ts, where the throws read it.
+          const moves = Object.entries(motion)
+          let toss = moves.length ? await readFile(MOTION, 'utf8') : ''
+          for (const [key, value] of moves) {
+            const next = setConstant(toss, key, String(value))
+            if (next === null) return reply(400, { error: `cannot write ${key} = ${value} in toss.ts` })
+            toss = next
+          }
+
           await writeFile(STYLE, css.slice(0, start) + patched + css.slice(end))
+          if (moves.length) await writeFile(MOTION, toss)
 
           let cues = 0
           if (rec) {
@@ -95,7 +108,7 @@ function animSave(): Plugin {
             await writeFile(CUES, head + marker + body + src.slice(re))
             cues = Object.keys(rec).length
           }
-          reply(200, { written, cues })
+          reply(200, { written, cues, motion: moves.length })
         } catch (err) {
           reply(500, { error: (err as Error).message })
         }

@@ -306,8 +306,29 @@ export function street(dealer: { x: number; y: number }, slot: Pose, cardW: numb
   return { frames: chain(flight, holdMs, nudge(off, slot, rand)), turnAt }
 }
 
-/** Below this flick speed a fold is pushed along the cloth rather than thrown. */
-const PUSH_BELOW = 0.35
+/** How a fold leaves the fingertips. Reaches are shares of the way from the seat to the middle. */
+export const FOLD = {
+  /** Below this flick speed a fold is pushed along the cloth rather than thrown. */
+  pushBelow: 0.35,
+  /** How far the gentlest throw goes. */
+  reachThrown: 0.28125,
+  /** How much further a throw goes at full flick speed. */
+  reachFlick: 0.34375,
+  /** How far a soft flick pushes the cards. */
+  reachSoft: 0.25,
+  /** How far a timeout nudges the cards. */
+  reachTimeout: 0.171875,
+  /** Each card's push varies by up to this share either way. */
+  reachVary: 0.25,
+  /** Each card's heading varies by up to this either way, degrees. */
+  heading: 12,
+  /** How far a flick to one side bends the throw that way, degrees at a full sideways flick. */
+  bend: 20,
+  /** A quiet card's spin at full flick speed, before the squared roll that keeps most barely turning, deg/ms. */
+  spinQuiet: 0.55,
+  /** A wild card's spin, deg/ms. */
+  spinWild: [1.3, 2.1] as const,
+}
 
 /**
  * A fold toward `aim`: a light toss off the fingertips, low and short with a
@@ -319,10 +340,10 @@ const PUSH_BELOW = 0.35
  * the table stays clear.
  */
 export function toss(from: Pose, aim: { x: number; y: number }, flick: PokerFlick | null, rand: () => number, keepClear = 0, wild = false): { frames: Frame[]; rest: Pose } {
-  const thrown = !!flick && flick.speed >= PUSH_BELOW
+  const thrown = !!flick && flick.speed >= FOLD.pushBelow
   const reach = Math.hypot(aim.x - from.x, aim.y - from.y)
   // Each card leaves the fingertips on its own line and with its own push, so a pair parts ways a little.
-  const angle = ((flick ? flick.dx * 20 : 0) + between(rand, -12, 12)) * (Math.PI / 180)
+  const angle = ((flick ? flick.dx * FOLD.bend : 0) + between(rand, -FOLD.heading, FOLD.heading)) * (Math.PI / 180)
   const ux = reach ? (aim.x - from.x) / reach : 0
   const uy = reach ? (aim.y - from.y) / reach : -1
   const dirX = ux * Math.cos(angle) - uy * Math.sin(angle)
@@ -330,12 +351,13 @@ export function toss(from: Pose, aim: { x: number; y: number }, flick: PokerFlic
   const wobble = thrown ? 0.02 : 0.01
   // Along any heading within a right angle of the aim, stopping `keepClear` short of it stays `keepClear` away; the bow gets its own margin.
   const room = Math.max(0, (reach - keepClear) / (1 + wobble))
-  const dist = Math.min(room, reach * (thrown ? 0.28125 + 0.34375 * flick!.speed : flick ? 0.25 : 0.171875) * between(rand, 0.75, 1.25))
+  const share = thrown ? FOLD.reachThrown + FOLD.reachFlick * flick!.speed : flick ? FOLD.reachSoft : FOLD.reachTimeout
+  const dist = Math.min(room, reach * share * between(rand, 1 - FOLD.reachVary, 1 + FOLD.reachVary))
   const way = flick?.dx ? Math.sign(flick.dx) : sign(rand)
   const turn = wild
-    ? way * between(rand, 1.3, 2.1) * (thrown ? 1 : 0.6)
+    ? way * between(rand, ...FOLD.spinWild) * (thrown ? 1 : 0.6)
     : thrown
-      ? way * (0.01 + 0.55 * flick!.speed * rand() ** 2)
+      ? way * (0.01 + FOLD.spinQuiet * flick!.speed * rand() ** 2)
       : way * 0.04 * rand() ** 2
   const target = { x: from.x + dirX * dist, y: from.y + dirY * dist, rot: from.rot }
   const frames = slide(from, target, rand, thrown

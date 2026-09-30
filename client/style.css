@@ -1511,6 +1511,12 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   --fx-burst-dur: 800ms;
   --fx-burst-amp: 4em;
 
+  /* Poker cards' shadow under the lamp, in card widths */
+  --card-shadow-rest: 0.035;
+  --card-shadow-drop: 0.12;
+  --card-shadow-spread: 0.08;
+  --card-shadow-dark: 0.18;
+
   /* No cue's sound lives here any more. A cue's gain, offset and envelope are
      fields on its layers in client/cues.ts, and the one cue still on the sample
      path keeps its four numbers in client/sound.ts beside the code that loops
@@ -3011,13 +3017,13 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   --wy: calc(var(--dy) / var(--dist));
   --sx: calc(var(--wx) * cos(var(--piece-rot) * 1deg) + var(--wy) * sin(var(--piece-rot) * 1deg));
   --sy: calc(var(--wy) * cos(var(--piece-rot) * 1deg) - var(--wx) * sin(var(--piece-rot) * 1deg));
-  --fall: calc(var(--w) * var(--far) * (0.035 + 0.12 * var(--h)));
+  --fall: calc(var(--w) * var(--far) * (var(--card-shadow-rest) + var(--card-shadow-drop) * var(--h)));
   box-shadow:
     inset 0 0 0 1px rgb(70 52 30 / 0.2),
     inset 0 1px 0 rgb(255 255 255 / 0.8),
     calc(var(--sx) * var(--far) * 1px) calc(var(--sy) * var(--far) * 1px) 0 var(--card-edge),
     calc(var(--sx) * var(--fall)) calc(var(--sy) * var(--fall)) calc(var(--w) * (0.02 + 0.16 * var(--h))) rgb(0 0 0 / 0.4),
-    calc(var(--sx) * var(--fall) * 2) calc(var(--sy) * var(--fall) * 2) calc(var(--w) * (0.06 + 0.3 * var(--h))) calc(var(--w) * 0.08 * var(--h)) rgb(0 0 0 / calc(0.12 + 0.18 * var(--h)));
+    calc(var(--sx) * var(--fall) * 2) calc(var(--sy) * var(--fall) * 2) calc(var(--w) * (0.06 + 0.3 * var(--h))) calc(var(--w) * var(--card-shadow-spread) * var(--h)) rgb(0 0 0 / calc(0.12 + var(--card-shadow-dark) * var(--h)));
 }
 .poker-card__face { color: var(--card-ink); }
 .poker-card__face--red { color: var(--suit-red); }
