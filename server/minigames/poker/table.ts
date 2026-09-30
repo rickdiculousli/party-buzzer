@@ -1,4 +1,4 @@
-import type { PlayerId, PokerFeedEntry } from '../../../shared/protocol.ts'
+import { pokerDealSpan, type PlayerId, type PokerFeedEntry } from '../../../shared/protocol.ts'
 import { mulberry32 } from '../../../shared/random.ts'
 import type { InputOutcome } from '../definition.ts'
 import { shuffle } from '../shuffle.ts'
@@ -10,7 +10,7 @@ import type { Legal, PokerAction, PokerCheckpoint, PokerOptions, PokerWorld, Sea
 
 export const STEP_MS = 50
 /** How long each beat of a hand lasts, in ms. */
-export const PACE = { dealMs: 1500, revealMs: 1200, runoutMs: 2500, showdownMs: 5000, muckMs: 4000, awayShotMs: 2000 }
+export const PACE = { dealLandMs: 500, revealMs: 1200, runoutMs: 2500, showdownMs: 5000, muckMs: 4000, awayShotMs: 2000 }
 const FEED_MAX = 20
 
 const ticks = (ms: number) => Math.round(ms / STEP_MS)
@@ -134,7 +134,7 @@ export function startHand(w: PokerWorld): void {
   feed(w, { player: w.seats[w.bbSeat].player, kind: 'blind', amount: pay(w, w.seats[w.bbSeat], w.bb) })
   w.highBet = w.bb
   w.raiseSize = w.bb
-  w.phase = { at: 'deal', until: w.tick + ticks(PACE.dealMs) }
+  w.phase = { at: 'deal', until: w.tick + ticks(pokerDealSpan(live.length) + PACE.dealLandMs) }
 }
 
 /** Whose turn follows `from`, or -1 when the street is done. */

@@ -208,14 +208,13 @@ export function receive(flight: Frame[], neat: Pose, collectAt: number, rand: ()
 }
 
 /**
- * When each card of a deal leaves the dealer's hand, from 0: a human rhythm,
- * each gap a little short or long of `maxGap` (less for a big table), and the
- * whole deal inside `window`.
+ * When each card of a deal to `seats` players leaves the dealer's hand, from 0:
+ * a human rhythm, each gap a little short or long of `gap`, with a longer
+ * `round` before the second card goes round, and the whole deal inside `window`.
  */
-export function dealSchedule(count: number, window: number, maxGap: number, rand: () => number): number[] {
-  const base = Math.min(maxGap, window / Math.max(1, count - 1))
+export function dealSchedule(seats: number, gap: number, round: number, window: number, rand: () => number): number[] {
   const starts = [0]
-  for (let i = 1; i < count; i++) starts.push(starts[i - 1] + base * between(rand, 0.7, 1.35))
+  for (let i = 1; i < seats * 2; i++) starts.push(starts[i - 1] + (i === seats ? round : gap) * between(rand, 0.75, 1.25))
   const last = starts[starts.length - 1]
   return last > window ? starts.map((s) => (s * window) / last) : starts
 }

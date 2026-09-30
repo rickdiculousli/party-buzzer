@@ -161,8 +161,9 @@ test('no two players tap alike', () => {
 })
 
 test('the dealer keeps no metronome: gaps vary but the deal fits its window', () => {
-  const starts = dealSchedule(12, 1_300, 150, mulberry32(3))
+  const starts = dealSchedule(6, 150, 500, 1_300, mulberry32(3))
   assert.equal(starts.length, 12)
+  assert.ok(starts[6] - starts[5] > Math.max(...starts.slice(1, 6).map((s, i) => s - starts[i])), 'no pause before the second card')
   assert.equal(starts[0], 0)
   const gaps = starts.slice(1).map((s, i) => s - starts[i])
   assert.ok(gaps.every((g) => g > 0))

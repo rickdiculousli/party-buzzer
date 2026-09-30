@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import type { PlayerId, PokerFeedEntry } from '../shared/protocol.ts'
-import { REACT_LABEL } from '../shared/protocol.ts'
+import { POKER_DEAL, REACT_LABEL, pokerDealSpan } from '../shared/protocol.ts'
 import { mulberry32 } from '../shared/random.ts'
 import type { MinigameBoardProps } from './minigames.tsx'
 import { matchFrame } from './minigame-info.ts'
@@ -13,9 +13,6 @@ import { colorForPlayer, ordinal, playerName, setlistPosition } from './ui.ts'
 type Point = { x: number; y: number }
 /** How long thrown-away cards lie where they stopped before they pop away. */
 const LINGER_MS = 800
-/** Longest gap between cards in a deal; a big table deals faster so the round fits the server's beat. */
-const DEAL_GAP_MS = 150
-const DEAL_WINDOW_MS = 1_300
 const BANNER_MS = 2_600
 const REACTION_MS = 1_800
 const LOG_LINES = 7
@@ -239,7 +236,7 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
   const live = seats.map((seat, i) => ({ seat, i })).filter(({ seat }) => !seat.busted)
   const start = Math.max(0, live.findIndex(({ i }) => i > buttonAt))
   const order = [...live.slice(start), ...live.slice(0, start)].map(({ i }) => i)
-  const schedule = dealSchedule(order.length * 2, DEAL_WINDOW_MS, DEAL_GAP_MS, mulberry32(seedOf(poker.handNo, 'deal')))
+  const schedule = dealSchedule(order.length, POKER_DEAL.gapMs, POKER_DEAL.roundMs, pokerDealSpan(order.length), mulberry32(seedOf(poker.handNo, 'deal')))
   const dealtAt = deal.current?.at ?? null
   const dealDelay = (i: number, k: 0 | 1) =>
     dealtAt === null ? null : Math.max(0, dealtAt + schedule[k * order.length + order.indexOf(i)] - performance.now())

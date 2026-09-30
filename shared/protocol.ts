@@ -290,6 +290,10 @@ export type MinigameResult = { playerId: PlayerId; points: number; shots: number
 
 /** One betting round of a poker hand. */
 export type PokerStreet = 'preflop' | 'flop' | 'turn' | 'river'
+/** The deal's rhythm, ms: a beat between pitches, a longer one before the second card goes round. */
+export const POKER_DEAL = { gapMs: 260, roundMs: 750 }
+/** When the last card of a deal to `seats` players leaves the dealer's hand. */
+export const pokerDealSpan = (seats: number) => (seats * 2 - 2) * POKER_DEAL.gapMs + POKER_DEAL.roundMs - POKER_DEAL.gapMs
 export type ReactKind = 'nice' | 'ouch' | 'bluff' | 'wow'
 export const REACT_LABEL: Record<ReactKind, string> = { nice: 'Nice hand', ouch: 'Ouch', bluff: 'Bluff?', wow: 'Wow' }
 /** A fold's flick: a unit direction (y grows downward) and a speed from 0 to 1. */
