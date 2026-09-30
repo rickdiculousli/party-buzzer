@@ -1,7 +1,8 @@
 /**
  * Synthetic self-play for Poker. Six bots join and play a fast tournament to
  * one winner: small stacks, one-minute levels and a five-second shot clock.
- * Fay never acts, so the shot clock plays her hands. Folds send a flick, so the
+ * Fay never acts until three are left, so the shot clock plays her hands; the
+ * last three shove often so the match finishes. Folds send a flick, so the
  * board shows flights. Every betting beat checks that no chip appeared or
  * vanished. A Poker match already stopped with a checkpoint resumes instead of
  * starting over.
@@ -79,11 +80,13 @@ while (host.state()?.minigame?.phase === 'playing') {
     if (Math.random() < 0.02) send({ kind: 'react', react: REACTS[Math.floor(Math.random() * REACTS.length)] })
     if (frame.canShow && Math.random() < 0.5) send({ kind: 'show' })
     const legal = frame.legal
-    if (!legal || bot.name === IDLE) continue
+    // Down to the last three, Fay wakes up and everyone shoves more, so the match finishes.
+    const late = frame.seats.filter((seat) => !seat.busted).length <= 3
+    if (!legal || (bot.name === IDLE && !late)) continue
     const roll = Math.random()
     if (roll < 0.2 && !legal.canCheck) send({ kind: 'fold', flick: { dx: Math.random() - 0.5, dy: -1, speed: 0.3 + Math.random() * 0.7 } })
-    else if (roll < 0.75) send({ kind: legal.canCheck ? 'check' : 'call' })
-    else if (roll < 0.95 && legal.canRaise) send({ kind: 'raise', to: legal.minTo })
+    else if (roll < (late ? 0.5 : 0.75)) send({ kind: legal.canCheck ? 'check' : 'call' })
+    else if (roll < (late ? 0.65 : 0.95) && legal.canRaise) send({ kind: 'raise', to: legal.minTo })
     else send({ kind: 'allIn' })
   }
   await sleep(TICK_MS)
