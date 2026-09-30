@@ -512,8 +512,10 @@ function foldScenario(id: string, label: string, flick: { dx: number; dy: number
     subject: '.poker-piece',
     dials: FOLD_DIALS,
     render: (lead) => pokerStage(([0, 1] as const).map((k) => {
-      const thrown = toss({ ...from, x: from.x + (k ? 16 : -16) }, aim, flick, mulberry32(k + 3), 0, k === wild)
-      return <Piece key={`${k}-${lead}`} pose={lead ? from : thrown.rest} frames={lead ? null : chain(thrown.frames, 800 + k * 60, [thrown.frames[thrown.frames.length - 1]])}>
+      // The pair lies side by side before the throw, where each card's throw starts.
+      const held = { ...from, x: from.x + (k ? 16 : -16) }
+      const thrown = toss(held, aim, flick, mulberry32(k + 3), 0, k === wild)
+      return <Piece key={`${k}-${lead}`} pose={lead ? held : thrown.rest} frames={lead ? null : chain(thrown.frames, 800 + k * 60, [thrown.frames[thrown.frames.length - 1]])}>
         <PlayingCard card={null} up={false} />
       </Piece>
     })),
