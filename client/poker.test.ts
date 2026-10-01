@@ -214,3 +214,14 @@ test('tilted cards project the shared bend onto the same screen surface', () => 
     assert.ok(Math.hypot(projected[0].x - projected[1].x, projected[0].y - projected[1].y) < 1e-8)
   }
 })
+
+test('peek samples show the side facing the screen after elevation projection', () => {
+  for (const rot of [0, -24]) {
+    const bend = bendCard(120, 168, { x: 100, y: 168 }, { x: 80, y: 68 }, rot)!
+    for (const strip of bend.strips) {
+      const [a, b, c, d] = strip.matrix
+      // Source face coordinates are mirrored: a negative determinant exposes the back.
+      assert.equal(strip.back, a * d - b * c < 0)
+    }
+  }
+})

@@ -135,7 +135,8 @@ export function bendCard(w: number, h: number, corner: Point, finger: Point, rot
       w + vx * originS + n.x * interceptQ + elevation.x * interceptZ,
       vy * originS + n.y * interceptQ + elevation.y * interceptZ]
     const clip = clipDepth(clipDepth(fold.lifted, Math.max(0, lo - 0.65), true), hi + 0.65, false)
-    const back = centre.theta < Math.PI / 2
+    // Elevation shifts the apparent edge-on point; use projected winding, not the 3D bend angle.
+    const back = matrix[0] * matrix[3] - matrix[1] * matrix[2] < 0
     // The crown catches the lamp; the near-upright paper falls into shade.
     const light = 0.22 * Math.sin(centre.theta) - 0.32 * Math.sin(centre.theta) ** 4 - 0.1 * (s / depth)
     return { clip, matrix, back, light }
