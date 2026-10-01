@@ -348,3 +348,13 @@ The physical device remains unprofiled; this is user-observed responsiveness, no
 a measured FPS claim. Maximum peek reach was then increased from 1.2 to 1.4 card
 widths so the suit indices clear the bend; the gradual curve is retained. A
 phone-size full-lift check showed both suits clearly, and focused checks/build passed.
+
+
+Peek tuning after phone feedback: reach is now 1.45 card widths. Release is 80ms
+with a quadratic ease-out instead of the slow-start 120ms return. The GPU cast
+shadow was present but largely covered by the prints; its centre now follows the
+card along the crease, and its larger/stronger soft footprint extends onto exposed
+felt. An isolated shadow-on/off check confirmed visible cloth darkening. A
+phone-sized release check observed ~95ms including frame scheduling; focused
+checks, typecheck and build passed. The renderer still uses three draw calls and
+no moving blur filters or texture uploads.

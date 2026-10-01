@@ -34,7 +34,7 @@ export const GESTURE = {
  * toward upright. It rises at most `reach` card widths, enough for both indices. It eases in
  * over `liftMs` and drops back over `dropMs`.
  */
-export const PEEK = { line: 0.25, lever: 2.5, tilt: 15, flex: 7, reach: 1.4, liftMs: 140, dropMs: 120 }
+export const PEEK = { line: 0.25, lever: 2.5, tilt: 15, flex: 7, reach: 1.45, liftMs: 140, dropMs: 80 }
 
 export type Point = { x: number; y: number }
 

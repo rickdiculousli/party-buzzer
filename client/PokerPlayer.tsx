@@ -406,8 +406,8 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
       // A frame's timestamp is when the frame began, which can be just before the peek did: below 0 the
       // ease turns negative and folds the pair downward, flashing its faces up from below for a frame.
       const t = reducedMotion() ? 1 : Math.max(0, Math.min(1, (now - p.at) / (p.dropping ? PEEK.dropMs : PEEK.liftMs)))
-      // Laid back down from wherever it was let go; lifted with an ease toward the finger.
-      const e = p.dropping ? 1 - t * t : 1 - (1 - t) ** 3
+      // Released stock springs back immediately, then softens its landing on the cloth.
+      const e = p.dropping ? (1 - t) ** 2 : 1 - (1 - t) ** 3
       if (!p.dropping) {
         const tip = peekTip(at[lead], from, p.finger, geometry[lead].w)
         p.pull = tip ? { x: (tip.x - at[lead].x) * e, y: (tip.y - at[lead].y) * e } : { x: 0, y: 0 }

@@ -41,8 +41,12 @@ void main() {
   float height = arc.y + u_layer * cos(theta);
   if (u_shadow > 0.5) {
     // A soft footprint on the cloth: no folded shadow geometry or self-overdraw at the crease.
-    vec2 size = vec2(u_size.x * 1.25, max(10.0, u_profile.x * 0.4));
-    projected = u_crease + u_normal * (u_profile.x * 0.15) + vec2(2.0, 5.0) + (uv - 0.5) * size;
+    vec2 size = vec2(u_size.x * 1.4, max(14.0, u_profile.x * 0.5));
+    // Centre along the card, not the finger's arbitrary position along the crease.
+    // Extend onto exposed cloth rather than hiding the entire footprint below the print.
+    vec2 centre = u_crease + tangent * dot(u_pose.xy - u_crease, tangent)
+      - u_normal * (u_profile.x * 0.1) + vec2(4.0, 6.0);
+    projected = centre + (uv - 0.5) * size;
     height = 0.0;
   } else {
     // Stack separation follows the surface normal, reversing naturally through the turn.
@@ -69,7 +73,7 @@ varying float v_depth;
 void main() {
   if (u_shadow > 0.5) {
     float radius = length((v_uv - 0.5) * 2.0);
-    float alpha = (1.0 - smoothstep(0.0, 1.0, radius)) * min(0.30, u_profile.x / u_size.x * 0.35);
+    float alpha = (1.0 - smoothstep(0.0, 1.0, radius)) * min(0.42, u_profile.x / u_size.x * 0.5);
     gl_FragColor = vec4(0.0, 0.0, 0.0, alpha);
     return;
   }
