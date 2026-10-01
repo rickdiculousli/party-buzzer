@@ -105,10 +105,13 @@ function drawPeel(card: HTMLElement, flap: HTMLElement, g: CardGeometry, index: 
   flap.style.height = `${g.h}px`
   const placement = `translate(${g.left + g.w / 2}px, ${g.top + g.h / 2}px) rotate(${REST[index]}deg) translate(${-g.w / 2}px, ${-g.h / 2}px)`
   const shadow = flap.firstElementChild as HTMLElement
-  (shadow.firstElementChild as HTMLElement).style.clipPath = polygon(bend.shadow)
+  const xs = bend.shadow.map((p) => p.x), ys = bend.shadow.map((p) => p.y)
+  const left = Math.min(...xs), top = Math.min(...ys)
+  const width = Math.max(...xs) - left, height = Math.max(...ys) - top
   shadow.style.opacity = String(bend.opacity)
-  shadow.style.transform = `${placement} translate(2px, 3px)`
-  // Stamp the face samples only on the first peek, rather than mounting 24 printed cards at deal.
+  // A prepainted soft footprint: scaling and opacity avoid refiltering a moving polygon mask.
+  shadow.style.transform = `${placement} translate(${left + width / 2 + 2}px, ${top + height / 2 + 3}px) scale(${width / g.w}, ${(height + 4) / g.h}) translate(${-g.w / 2}px, ${-g.h / 2}px)`
+  // Stamp the samples only on the first peek, rather than cloning prints at deal.
   const layers = flap.lastElementChild as HTMLElement
   if (layers.children.length === 1) {
     const original = layers.firstElementChild!

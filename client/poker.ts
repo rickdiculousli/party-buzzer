@@ -85,7 +85,7 @@ export function peelCard(w: number, h: number, corner: Point, finger: Point, rea
   }
 }
 
-/** A rounded bend followed by a raised plane, sampled into twelve affine strips.
+/** A rounded bend followed by a raised plane, sampled into eight affine strips.
  * Curvature eases out of the flat cloth tangent; the paper turns through 143°, rather than reflecting
  * abruptly at a crease. Screen elevation foreshortens the bend toward the top of the phone.
  */
@@ -151,10 +151,10 @@ export function bendCard(w: number, h: number, corner: Point, finger: Point, rot
     return out
   }
   // Spend samples on the curve, with a fine first tangent; the raised plane needs only one.
-  const boundaries = [...Array.from({ length: 12 }, (_, i) => bendLength * (i / 11) ** 1.5), depth]
+  const boundaries = [...[0, 0.025, 0.125, 0.3, 0.5, 0.7, 0.9, 1].map((u) => bendLength * u), depth]
   const faceBox = [{ x: 0, y: 0 }, { x: w, y: 0 }, { x: w, y: h }, { x: 0, y: h }]
   const samples = boundaries.map(sample)
-  const strips = Array.from({ length: 12 }, (_, i) => {
+  const strips = Array.from({ length: boundaries.length - 1 }, (_, i) => {
     const lo = boundaries[i], hi = boundaries[i + 1]
     const a = samples[i], b = samples[i + 1]
     // Secants meet exactly at strip boundaries, avoiding hairline gaps along the bend.

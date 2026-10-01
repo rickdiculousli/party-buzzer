@@ -1057,8 +1057,9 @@ light directly to shade leaves, avoiding inherited variables that invalidate the
 printed card subtrees. The underside
 print retains its resting orientation, curvature eases gradually out of the cloth,
 and fine samples at the tangent overlap the
-flat print through the join. Eleven samples describe the curve and one the raised
-plane; the twelve face
+flat print through the join. The cast shadow moves and scales a prepainted soft
+footprint, avoiding a refiltered polygon while dragging. Seven samples describe the curve and one the raised
+plane; the eight face
 samples are created on first peek and reused for that hand.
 
 Cards travel with direct transforms, hinged flips and shade opacity. Uploaded

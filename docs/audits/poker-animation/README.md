@@ -270,3 +270,18 @@ Static felt textures and finite interest-kit celebrations were retained: their
 replacement was conditional on evidence of costly invalidation, which this
 sweep did not find. No extra texture assets, dependency, general framework,
 frame heartbeat, or browser-driven game rules were needed.
+
+
+### Curved peek follow-up
+
+The lifted-card peek uses eight shared curve/plane samples per card, fractional
+pixel dimensions and placement, gradual curvature, continuous leaf-level shade,
+and a prepainted soft shadow footprint moved with transforms and opacity.
+A 1.8-second drag in headless mobile Chrome at 393 CSS px, 2.75× pixel density
+and 4× CPU throttling recorded raster-task CPU decreasing from 717ms to 432ms
+when reducing twelve samples to eight and removing the live blurred shadow
+mask. Callback CPU changed from 138ms to 107ms. These are worker/main-thread
+window sums, not physical-Pixel FPS measurements. The browser's rAF intervals
+stayed near 16.7ms in both cases. Phone-size edge checks retained under 0.001px
+placement error. Cached print images and rectangular-crop/layer-promotion
+experiments did not improve the result and were discarded.

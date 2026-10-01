@@ -157,7 +157,7 @@ test('raise stops run min and the standard sizes short of all in', () => {
 test('bent peek stays finite from a tiny lift through the maximum pull, at either card tilt', () => {
   for (const rot of [0, -24]) for (const rise of [1.1, 5, 40, 120, 250]) {
     const bend = bendCard(120, 168, { x: 100, y: 168 }, { x: 100 - rise * 0.2, y: 168 - rise }, rot)!
-    assert.equal(bend.strips.length, 12)
+    assert.equal(bend.strips.length, 8)
     assert.ok(bend.strips.every((s) => s.matrix.every(Number.isFinite)))
     assert.ok(bend.shade.stops.every(({ at, light }) => Number.isFinite(at) && Number.isFinite(light)))
     assert.ok(bend.shadow.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y)))
@@ -174,7 +174,7 @@ test('adjacent bend strips meet at their shared material boundary', () => {
   const nx = -20 / Math.hypot(20, 100), ny = -100 / Math.hypot(20, 100)
   const mid = { x: 90, y: 118 }
   const at = (m: number[], x: number, y: number) => ({ x: m[0] * x + m[2] * y + m[4], y: m[1] * x + m[3] * y + m[5] })
-  for (let i = 1; i < 12; i++) {
+  for (let i = 1; i < bend.strips.length; i++) {
     const s = bend.strips[i].fromDepth
     const x = 120 - mid.x + nx * s, y = mid.y - ny * s
     const a = at(bend.strips[i - 1].matrix, x, y), b = at(bend.strips[i].matrix, x, y)
@@ -203,7 +203,7 @@ test('tilted cards project the shared bend onto the same screen surface', () => 
   }
   const corner = { x: 85, y: 165 }, finger = { x: 65, y: 65 }
   const bends = [0, -24].map((rot) => bendCard(120, 168, rotate(corner, -rot), rotate(finger, -rot), rot, Infinity, profile)!)
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < bends[0].strips.length; i++) {
     const p = { x: 70, y: 120 + i * 2 }
     const projected = [0, -24].map((rot, k) => {
       const local = rotate(p, -rot), x = 120 - local.x, y = local.y
