@@ -3322,6 +3322,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 /* Samples already project both sides in 2D. A second 3D flip/backface test can leak the opposite print. */
 .poker-peel__sheet .poker-card__turn { transform: none; transform-style: flat; transition: none; }
 .poker-peel__sheet .poker-card__face, .poker-peel__sheet .poker-card__back { transform: none; backface-visibility: visible; -webkit-backface-visibility: visible; }
+/* Face coordinates are mirrored; undo that mirror for the underside print to meet the resting back. */
+.poker-peel__sheet.is-back .poker-card__back { transform: scaleX(-1); }
 .poker-peel__sheet:not(.is-back) .poker-card__back, .poker-peel__sheet.is-back .poker-card__face { display: none; }
 .poker-peel__sheet { transform-origin: 0 0; position: absolute; inset: 0; clip-path: polygon(0 0, 0 0, 0 0); }
 .poker-peel__shade { position: absolute; inset: 0; border-radius: calc(var(--card-w) * 0.056); background: var(--peek-shade, transparent); }

@@ -134,12 +134,11 @@ export function bendCard(w: number, h: number, corner: Point, finger: Point, rot
     })
     return out
   }
-  // Overdraw the flat print beneath the tangent: two antialiased clips meeting edge-to-edge leave a hairline.
+  // Spend samples on the curve, with a fine first tangent; the raised plane needs only one.
+  const boundaries = [...Array.from({ length: 12 }, (_, i) => bendLength * (i / 11) ** 1.5), depth]
   const faceBox = [{ x: 0, y: 0 }, { x: w, y: 0 }, { x: w, y: h }, { x: 0, y: h }]
-  const flat = clipDepth(faceBox, 0.8, false).map((p) => ({ x: w - p.x, y: p.y }))
   const strips = Array.from({ length: 12 }, (_, i) => {
-    const lo = depth * i / 12, hi = depth * (i + 1) / 12
-    const s = (lo + hi) / 2
+    const lo = boundaries[i], hi = boundaries[i + 1]
     const a = sample(lo), b = sample(hi)
     // Secants meet exactly at strip boundaries, avoiding hairline gaps along the bend.
     const dq = (b.q - a.q) / (hi - lo), dz = (b.z - a.z) / (hi - lo)
@@ -150,18 +149,17 @@ export function bendCard(w: number, h: number, corner: Point, finger: Point, rot
     const matrix = [-1 + vx * n.x, vy * n.x, -vx * n.y, 1 - vy * n.y,
       w + vx * originS + n.x * interceptQ + elevation.x * interceptZ,
       vy * originS + n.y * interceptQ + elevation.y * interceptZ]
-    const clip = clipDepth(clipDepth(fold.lifted, Math.max(0, lo - 0.65), true), hi + 0.65, false)
+    // Continue the same sample overlap through the tangent; clamping it there exposes an AA seam.
+    const clip = clipDepth(clipDepth(faceBox, lo - 0.65, true), hi + 0.65, false)
     // Elevation shifts the apparent edge-on point; use projected winding, not the 3D bend angle.
     const back = matrix[0] * matrix[3] - matrix[1] * matrix[2] < 0
-    // The crown catches the lamp; the near-upright paper falls into shade.
-    const light = lightAt(s)
-    return { clip, matrix, back, light }
+    return { clip, matrix, back, fromDepth: lo, toDepth: hi }
   })
   const shadow = fold.lifted.map((p) => {
     const s = depthOf(p), { q, z } = sample(Math.max(0, s))
     return { x: w - p.x + n.x * (s + q) + z * 0.22, y: p.y + n.y * (s + q) + z * 0.3 }
   })
-  return { flat, strips, shadow, shade, opacity: Math.min(0.34, depth / w * 0.4) }
+  return { flat: fold.flat, strips, shadow, shade, opacity: Math.min(0.34, depth / w * 0.4) }
 }
 
 /**

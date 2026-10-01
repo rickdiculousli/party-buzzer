@@ -158,7 +158,8 @@ test('bent peek stays finite from a tiny lift through the maximum pull, at eithe
   for (const rot of [0, -24]) for (const rise of [1.1, 5, 40, 120, 250]) {
     const bend = bendCard(120, 168, { x: 100, y: 168 }, { x: 100 - rise * 0.2, y: 168 - rise }, rot)!
     assert.equal(bend.strips.length, 12)
-    assert.ok(bend.strips.every((s) => s.matrix.every(Number.isFinite) && Number.isFinite(s.light)))
+    assert.ok(bend.strips.every((s) => s.matrix.every(Number.isFinite)))
+    assert.ok(bend.shade.stops.every(({ at, light }) => Number.isFinite(at) && Number.isFinite(light)))
     assert.ok(bend.shadow.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y)))
     assert.ok(bend.strips.some((s) => s.back))
     assert.ok(bend.strips.some((s) => !s.back))
@@ -172,11 +173,9 @@ test('adjacent bend strips meet at their shared material boundary', () => {
   // The overlap clips enclose each boundary; projected positions must agree there.
   const nx = -20 / Math.hypot(20, 100), ny = -100 / Math.hypot(20, 100)
   const mid = { x: 90, y: 118 }
-  const depthOf = (p: { x: number; y: number }) => -((120 - p.x - mid.x) * nx + (p.y - mid.y) * ny)
-  const depth = Math.max(...peelCard(120, 168, { x: 100, y: 168 }, { x: 80, y: 68 })!.lifted.map(depthOf))
   const at = (m: number[], x: number, y: number) => ({ x: m[0] * x + m[2] * y + m[4], y: m[1] * x + m[3] * y + m[5] })
   for (let i = 1; i < 12; i++) {
-    const s = depth * i / 12
+    const s = bend.strips[i].fromDepth
     const x = 120 - mid.x + nx * s, y = mid.y - ny * s
     const a = at(bend.strips[i - 1].matrix, x, y), b = at(bend.strips[i].matrix, x, y)
     assert.ok(Math.hypot(a.x - b.x, a.y - b.y) < 1e-8)
@@ -192,8 +191,8 @@ test('stacked peeks share the bend despite different exposed card depths', () =>
   a.strips.forEach((strip, i) => {
     assert.deepEqual(strip.matrix, b.strips[i].matrix)
     assert.equal(strip.back, b.strips[i].back)
-    assert.equal(strip.light, b.strips[i].light)
   })
+  assert.deepEqual(a.shade.stops.map((s) => s.light), b.shade.stops.map((s) => s.light))
 })
 
 test('tilted cards project the shared bend onto the same screen surface', () => {
@@ -227,11 +226,13 @@ test('peek samples show the side facing the screen after elevation projection', 
 })
 
 
-test('flat card print overlaps the bend tangent without expanding the card outline', () => {
-  const w = 120, h = 168
-  const bend = bendCard(w, h, { x: 100, y: h }, { x: 80, y: 68 })!
-  const d = Math.hypot(20, 100), nx = -20 / d, ny = -100 / d
-  const side = (p: { x: number; y: number }) => (p.x - 90) * nx + (p.y - 118) * ny
-  assert.ok(Math.abs(Math.min(...bend.flat.map(side)) + 0.8) < 1e-8)
-  assert.ok(bend.flat.every((p) => p.x >= 0 && p.x <= w && p.y >= 0 && p.y <= h))
+test('bend starts nearly tangent to the flat underside and spends its samples on the curve', () => {
+  const bend = bendCard(120, 168, { x: 100, y: 168 }, { x: 100, y: 68 })!
+  const first = bend.strips[0]
+  assert.ok(Math.abs(first.matrix[3] - 1) < 0.03)
+  assert.ok(first.toDepth < 1)
+  assert.ok(Math.abs(Math.min(...first.clip.map((p) => p.y - 118)) + 0.65) < 1e-8)
+  const last = bend.strips.at(-1)!
+  assert.ok(last.toDepth - last.fromDepth > 10)
+  assert.deepEqual(bend.flat, peelCard(120, 168, { x: 100, y: 168 }, { x: 100, y: 68 })!.flat)
 })
