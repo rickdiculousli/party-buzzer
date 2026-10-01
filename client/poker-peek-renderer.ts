@@ -48,7 +48,7 @@ void main() {
     // The actual bent stock projected onto the cloth by a light above/slightly left.
     // At zero elevation this meets the resting card exactly, with no added offset.
     projected += u_normal * (u_layer * sin(theta))
-      + vec2(0.08, 0.28) * max(0.0, height - u_layer);
+      + vec2(0.10, 0.42) * max(0.0, height - u_layer);
     height = 0.0;
   } else {
     // Stack separation follows the surface normal, reversing naturally through the turn.
@@ -87,7 +87,7 @@ void main() {
       + texture2D(u_shadow_mask, uv - step).a
       + texture2D(u_shadow_mask, uv + vec2(step.x, -step.y)).a
       + texture2D(u_shadow_mask, uv + vec2(-step.x, step.y)).a) * 0.0625;
-    gl_FragColor = vec4(0.0, 0.0, 0.0, coverage * 0.38);
+    gl_FragColor = vec4(0.0, 0.0, 0.0, coverage * 0.28);
     return;
   }
   if (u_shadow > 0.5) {
@@ -312,7 +312,7 @@ export class PokerPeekRenderer {
     gl.viewport(0, 0, this.canvas.width, this.canvas.height)
     gl.depthMask(true); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
     gl.enable(gl.BLEND); gl.uniform1f(u.shadow, 2)
-    gl.uniform2f(u.shadow_step, 2 / b.w, 2 / b.h)
+    gl.uniform2f(u.shadow_step, 2.4 / b.w, 2.4 / b.h)
     gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, this.shadowTexture)
     this.vertices(2); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
 
