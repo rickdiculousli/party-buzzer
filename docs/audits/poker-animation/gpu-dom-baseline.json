@@ -1,0 +1,101 @@
+{
+  "label": "dom-baseline",
+  "viewport": {
+    "width": 393,
+    "dpr": 2.75,
+    "cpuThrottle": 4
+  },
+  "errors": [],
+  "results": [
+    {
+      "name": "moving, 1.8 seconds",
+      "timing": {
+        "frames": 109,
+        "medianMs": 16.699999999999818,
+        "p95Ms": 16.700000000000273,
+        "slowFrames": 0
+      },
+      "reads": 0,
+      "writes": 4058,
+      "events": {
+        "count": 109
+      },
+      "Paint": {
+        "count": 1552,
+        "ms": 86.12
+      },
+      "UpdateLayoutTree": {
+        "count": 110,
+        "ms": 45.57
+      },
+      "Layout": {
+        "count": 0,
+        "ms": 0
+      },
+      "FireAnimationFrame": {
+        "count": 219,
+        "ms": 155.78
+      },
+      "RasterTask": {
+        "count": 328,
+        "ms": 457.45
+      }
+    },
+    {
+      "name": "stationary, 1 second",
+      "reads": 0,
+      "writes": 4,
+      "events": {
+        "count": 0
+      },
+      "Paint": {
+        "count": 120,
+        "ms": 4.59
+      },
+      "UpdateLayoutTree": {
+        "count": 60,
+        "ms": 1.3
+      },
+      "Layout": {
+        "count": 0,
+        "ms": 0
+      },
+      "FireAnimationFrame": {
+        "count": 1,
+        "ms": 0.01
+      },
+      "RasterTask": {
+        "count": 60,
+        "ms": 6.09
+      }
+    },
+    {
+      "name": "release",
+      "reads": 0,
+      "writes": 374,
+      "events": {
+        "count": 0
+      },
+      "Paint": {
+        "count": 177,
+        "ms": 6.02
+      },
+      "UpdateLayoutTree": {
+        "count": 25,
+        "ms": 7.78
+      },
+      "Layout": {
+        "count": 2,
+        "ms": 0.63
+      },
+      "FireAnimationFrame": {
+        "count": 9,
+        "ms": 8.78
+      },
+      "RasterTask": {
+        "count": 54,
+        "ms": 50.31
+      }
+    }
+  ]
+}
