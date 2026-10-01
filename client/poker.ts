@@ -108,6 +108,19 @@ export function bendCard(w: number, h: number, corner: Point, finger: Point, rot
     return { q: -radius * Math.sin(theta) - tail * Math.cos(theta),
       z: radius * (1 - Math.cos(theta)) + tail * Math.sin(theta), theta }
   }
+  const lightAt = (s: number) => {
+    const { theta } = sample(s)
+    return 0.22 * Math.sin(theta) - 0.32 * Math.sin(theta) ** 4 - 0.1 * (s / depth)
+  }
+  // One continuous gradient in the face's source coordinates, shared by every affine sample.
+  const gradientLength = Math.abs(w * n.x) + Math.abs(h * n.y)
+  const centreDepth = -(w / 2 - mid.x) * n.x - (h / 2 - mid.y) * n.y
+  const shade = {
+    angle: Math.atan2(n.x, n.y) * 180 / Math.PI,
+    stops: [...Array.from({ length: 17 }, (_, i) => bendLength * i / 16), depth].map((s) => ({
+      at: s - centreDepth + gradientLength / 2, light: lightAt(s),
+    })),
+  }
   const clipDepth = (points: Point[], threshold: number, above: boolean) => {
     const out: Point[] = []
     points.forEach((p, i) => {
@@ -124,7 +137,7 @@ export function bendCard(w: number, h: number, corner: Point, finger: Point, rot
   const strips = Array.from({ length: 12 }, (_, i) => {
     const lo = depth * i / 12, hi = depth * (i + 1) / 12
     const s = (lo + hi) / 2
-    const a = sample(lo), b = sample(hi), centre = sample(s)
+    const a = sample(lo), b = sample(hi)
     // Secants meet exactly at strip boundaries, avoiding hairline gaps along the bend.
     const dq = (b.q - a.q) / (hi - lo), dz = (b.z - a.z) / (hi - lo)
     const vx = n.x * (dq + 1) + elevation.x * dz
@@ -138,14 +151,14 @@ export function bendCard(w: number, h: number, corner: Point, finger: Point, rot
     // Elevation shifts the apparent edge-on point; use projected winding, not the 3D bend angle.
     const back = matrix[0] * matrix[3] - matrix[1] * matrix[2] < 0
     // The crown catches the lamp; the near-upright paper falls into shade.
-    const light = 0.22 * Math.sin(centre.theta) - 0.32 * Math.sin(centre.theta) ** 4 - 0.1 * (s / depth)
+    const light = lightAt(s)
     return { clip, matrix, back, light }
   })
   const shadow = fold.lifted.map((p) => {
     const s = depthOf(p), { q, z } = sample(Math.max(0, s))
     return { x: w - p.x + n.x * (s + q) + z * 0.22, y: p.y + n.y * (s + q) + z * 0.3 }
   })
-  return { flat: fold.flat, strips, shadow, opacity: Math.min(0.34, depth / w * 0.4) }
+  return { flat: fold.flat, strips, shadow, shade, opacity: Math.min(0.34, depth / w * 0.4) }
 }
 
 /**

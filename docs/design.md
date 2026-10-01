@@ -1050,7 +1050,8 @@ A peek measures the settled pair once, redraws on pointer changes and sleeps
 while the finger rests. The raised edge follows a rounded bend into an elevated
 plane, with angle-dependent light and shade and a soft cast shadow on the cloth.
 Both cards share the crease, radius and sample boundaries in screen space;
-stacking reverses together where the backs turn into faces. The twelve face
+stacking reverses together where the backs turn into faces. A continuous lighting
+gradient spans the samples so the crease shade has no stepped bands. The twelve face
 samples are created on first peek and reused for that hand.
 
 Cards travel with direct transforms, hinged flips and shade opacity. Uploaded

@@ -3324,7 +3324,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .poker-peel__sheet .poker-card__face, .poker-peel__sheet .poker-card__back { transform: none; backface-visibility: visible; -webkit-backface-visibility: visible; }
 .poker-peel__sheet:not(.is-back) .poker-card__back, .poker-peel__sheet.is-back .poker-card__face { display: none; }
 .poker-peel__sheet { transform-origin: 0 0; position: absolute; inset: 0; clip-path: polygon(0 0, 0 0, 0 0); }
-.poker-peel__shade { position: absolute; inset: 0; border-radius: calc(var(--card-w) * 0.056); }
+.poker-peel__shade { position: absolute; inset: 0; border-radius: calc(var(--card-w) * 0.056); background: var(--peek-shade, transparent); }
 .poker-hole { align-items: flex-start; z-index: 1; }
 /* On the phone the pair lies close to the cloth: barely a shadow, until a finger picks it up (`--piece-lift`, set from script). */
 .poker-hole { --card-shadow-rest: 0.02; --card-shadow-contact: 0.22; --card-shadow-ambient: 0.04; transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease, --piece-lift 140ms ease; }
