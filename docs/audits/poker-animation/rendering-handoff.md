@@ -25,7 +25,12 @@ bug; ownership now follows the actual canvas, and connected canvases remain usab
 when renderer resources are refreshed. Oblique print edges have transparent sampling
 padding. The first soft ellipse avoided folded-shadow overdraw but remained too
 inconspicuous on the phone; it was replaced with softly masked affine card
-silhouettes, still entirely on the GPU.
+silhouettes, still entirely on the GPU. Subsequent user feedback exposed doubled
+alpha and a detached gap: the masks now union before blending, start at contact,
+and broaden their penumbra with lift. An explicitly requested adversarial critic
+found the named static defects addressed after a softness correction, while
+retaining the limitation that the cast is an affine approximation and stills
+cannot establish physical-phone motion quality.
 
 ## Where the original investigation stopped
 

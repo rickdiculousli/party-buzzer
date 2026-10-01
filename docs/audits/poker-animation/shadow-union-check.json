@@ -1,0 +1,13 @@
+{
+  "check": "shadow-only draw from the real PokerPeekRenderer",
+  "logicalCanvas": { "width": 400, "height": 400 },
+  "card": { "width": 200, "height": 280, "left": 40, "top": 20, "rotation": 0 },
+  "crease": { "x": 140, "y": 220 },
+  "normal": { "x": 0, "y": -1 },
+  "profile": { "depth": 80, "length": 60 },
+  "comparison": "two coincident card masks versus one mask with the other outside the canvas",
+  "maxOverlapAlphaDelta": 0,
+  "contactSampleY": [220, 222, 224, 226, 228, 230, 232, 234, 236, 238, 240],
+  "contactAlpha": [28, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46],
+  "limit": "specific union/contact invariants, not a general physical-shadow or device-motion proof"
+}

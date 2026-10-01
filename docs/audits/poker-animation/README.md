@@ -301,7 +301,8 @@ renders two whole cards with 48 crease-aligned curve bands, one flat band and on
 raised-plane band each (100 triangles per card), shared gradual curvature,
 surface-normal stack separation, correct side/UV selection and continuous lighting.
 The initial GPU boundary used a single soft ellipse (three draw calls). The
-current renderer projects a softened silhouette for each card (four draw calls). There
+subsequent renderer projected two softened silhouettes (four draw calls). The
+current renderer unions both masks before a single blend (three draw calls). There
 are no texture uploads, layout reads or DOM shape/style writes per drag frame.
 The stress scene's independent shot clock still generates some DOM/native paint work.
 
@@ -373,3 +374,33 @@ The [silhouette follow-up profile](gpu-silhouette-metal.json) retained near-16.7
 rAF cadence under the same local hardware/mobile/4×-CPU probe, with no slow
 intervals, no drag uploads/layout reads, and zero settled draws. This is still
 local rendering evidence rather than a physical-phone frame-rate claim.
+
+
+### Shadow union and adversarial visual review
+
+The user caught two defects after the silhouette change: source-over alpha
+blending darkened the overlap twice, and raised-plane extrapolation plus a fixed
+offset/bend mask could leave a card → exposed-felt → shadow gap. Those operations
+are removed. The common projection now starts at the crease and both rounded
+source masks are evaluated in the same fragment; `max` coverage is blended once.
+A larger mesh guardband covers the penumbra, which grows with lifted material
+instead of retaining a uniformly narrow edge.
+
+A shadow-only probe of the real GPU renderer found zero alpha difference between
+two coincident cards and one, and nonzero coverage continuously across the tested
+contact interval. This proves those specific mask/composition invariants; it does
+not prove realistic appearance. Focused checks, typecheck and build passed.
+
+At the user's explicit request, an independent adversarial critic inspected
+shallow/medium/full captures at phone scale and zoom. The first pass found a
+shield-shaped tip and overly hard distant edges; depth-dependent softness was
+added. The second pass found no renewed overlap seam, obvious bright gap, or blur
+clipping, and found the hard cutout tip suppressed. Its remaining assessment:
+the shadow is still a broad affine approximation, not physically traced bend
+occlusion. Stills do not establish attachment throughout a drag or performance
+on the actual Pixel. Do not turn pixel presence or a green build into a blanket
+“looks good” claim; assess overlap, attachment, shape and softness separately.
+Saved evidence: [union/contact probe](shadow-union-check.json) and
+[final local hardware profile](gpu-shadow-union-metal.json). The local drag retained
+near-16.7ms rAF cadence with no slow intervals, uploads or layout reads; held
+peeks performed zero draws. The renderer is back to three draw calls per frame.
