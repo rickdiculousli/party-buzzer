@@ -1046,13 +1046,15 @@ disagree, the code is what gets renamed.
 Keep table facts separate from local time: the shot ring and blind-level readout
 advance between state pushes, and the table rerenders when the game changes.
 Deal and showdown trajectories are retained for the hand and table dimensions.
-A peek measures the settled pair once, redraws on pointer changes and sleeps
+A peek measures the settled pair once with fractional pixel dimensions and placement,
+redraws on pointer changes and sleeps
 while the finger rests. The raised edge follows a rounded bend into an elevated
 plane, with angle-dependent light and shade and a soft cast shadow on the cloth.
-Both cards share the crease, radius and sample boundaries in screen space;
+Both cards share the crease, bend profile and sample boundaries in screen space;
 stacking reverses together where the backs turn into faces. A continuous lighting
 gradient spans the samples so the crease shade has no stepped bands. The underside
-print retains its resting orientation, and fine samples at the tangent overlap the
+print retains its resting orientation, curvature eases gradually out of the cloth,
+and fine samples at the tangent overlap the
 flat print through the join. Eleven samples describe the curve and one the raised
 plane; the twelve face
 samples are created on first peek and reused for that hand.

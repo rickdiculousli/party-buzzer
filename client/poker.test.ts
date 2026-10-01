@@ -229,7 +229,7 @@ test('peek samples show the side facing the screen after elevation projection', 
 test('bend starts nearly tangent to the flat underside and spends its samples on the curve', () => {
   const bend = bendCard(120, 168, { x: 100, y: 168 }, { x: 100, y: 68 })!
   const first = bend.strips[0]
-  assert.ok(Math.abs(first.matrix[3] - 1) < 0.03)
+  assert.ok(Math.abs(first.matrix[3] - 1) < 0.001)
   assert.ok(first.toDepth < 1)
   assert.ok(Math.abs(Math.min(...first.clip.map((p) => p.y - 118)) + 0.65) < 1e-8)
   const last = bend.strips.at(-1)!

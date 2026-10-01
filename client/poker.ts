@@ -86,7 +86,7 @@ export function peelCard(w: number, h: number, corner: Point, finger: Point, rea
 }
 
 /** A rounded bend followed by a raised plane, sampled into twelve affine strips.
- * The cloth tangent starts flat; the paper turns through 143°, rather than reflecting
+ * Curvature eases out of the flat cloth tangent; the paper turns through 143°, rather than reflecting
  * abruptly at a crease. Screen elevation foreshortens the bend toward the top of the phone.
  */
 export type BendProfile = { depth: number; length: number }
@@ -99,17 +99,33 @@ export function bendCard(w: number, h: number, corner: Point, finger: Point, rot
   const depthOf = (p: Point) => -((w - p.x - mid.x) * n.x + (p.y - mid.y) * n.y)
   const depth = profile?.depth ?? Math.max(...fold.lifted.map(depthOf))
   const bendLength = profile?.length ?? Math.min(w * 0.3, depth * 0.85)
-  const angle = 2.5, radius = bendLength / angle
+  const angle = 2.5
   const rad = rot * Math.PI / 180
   const elevation = { x: -Math.sin(rad) * 0.55, y: -Math.cos(rad) * 0.55 }
+  const angleAt = (s: number) => {
+    const u = Math.max(0, Math.min(1, s / bendLength))
+    return angle * u ** 3 * (u * (6 * u - 15) + 10)
+  }
+  // Integrate the paper tangent: curvature starts and ends at zero instead of kinking at the cloth.
+  const arcAt = (s: number) => {
+    const step = s / 12
+    let q = 0, z = 0
+    for (let i = 0; i <= 12; i++) {
+      const theta = angleAt(i * step)
+      const weight = i === 0 || i === 12 ? 1 : i % 2 ? 4 : 2
+      q -= weight * Math.cos(theta)
+      z += weight * Math.sin(theta)
+    }
+    return { q: q * step / 3, z: z * step / 3 }
+  }
+  const end = arcAt(bendLength)
   const sample = (s: number) => {
-    const theta = Math.min(angle, s / radius)
-    const tail = Math.max(0, s - bendLength)
-    return { q: -radius * Math.sin(theta) - tail * Math.cos(theta),
-      z: radius * (1 - Math.cos(theta)) + tail * Math.sin(theta), theta }
+    if (s < bendLength) return arcAt(Math.max(0, s))
+    const tail = s - bendLength
+    return { q: end.q - tail * Math.cos(angle), z: end.z + tail * Math.sin(angle) }
   }
   const lightAt = (s: number) => {
-    const { theta } = sample(s)
+    const theta = angleAt(s)
     return 0.22 * Math.sin(theta) - 0.32 * Math.sin(theta) ** 4 - 0.1 * (s / depth)
   }
   // One continuous gradient in the face's source coordinates, shared by every affine sample.
@@ -137,9 +153,10 @@ export function bendCard(w: number, h: number, corner: Point, finger: Point, rot
   // Spend samples on the curve, with a fine first tangent; the raised plane needs only one.
   const boundaries = [...Array.from({ length: 12 }, (_, i) => bendLength * (i / 11) ** 1.5), depth]
   const faceBox = [{ x: 0, y: 0 }, { x: w, y: 0 }, { x: w, y: h }, { x: 0, y: h }]
+  const samples = boundaries.map(sample)
   const strips = Array.from({ length: 12 }, (_, i) => {
     const lo = boundaries[i], hi = boundaries[i + 1]
-    const a = sample(lo), b = sample(hi)
+    const a = samples[i], b = samples[i + 1]
     // Secants meet exactly at strip boundaries, avoiding hairline gaps along the bend.
     const dq = (b.q - a.q) / (hi - lo), dz = (b.z - a.z) / (hi - lo)
     const vx = n.x * (dq + 1) + elevation.x * dz

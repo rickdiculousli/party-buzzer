@@ -75,9 +75,14 @@ function throwPair(node: HTMLElement, x: number, y: number, flick: PokerFlick) {
 type CardGeometry = { w: number; h: number; left: number; top: number; cx: number; cy: number; cos: number; sin: number }
 function geometryOf(card: HTMLElement, index: number): CardGeometry {
   const box = card.getBoundingClientRect()
+  const parent = card.parentElement!.getBoundingClientRect()
+  const style = getComputedStyle(card)
+  const w = parseFloat(style.width), h = parseFloat(style.height)
+  const cx = box.left + box.width / 2, cy = box.top + box.height / 2
   const a = REST[index] * Math.PI / 180
-  return { w: card.offsetWidth, h: card.offsetHeight, left: card.offsetLeft, top: card.offsetTop,
-    cx: box.left + box.width / 2, cy: box.top + box.height / 2, cos: Math.cos(a), sin: Math.sin(a) }
+  // offset* rounds to integers: the printed card and its bend must share fractional geometry.
+  return { w, h, left: cx - parent.left - w / 2, top: cy - parent.top - h / 2,
+    cx, cy, cos: Math.cos(a), sin: Math.sin(a) }
 }
 const cardPoint = (g: CardGeometry, x: number, y: number): Point => {
   const dx = x - g.cx, dy = y - g.cy
@@ -90,7 +95,7 @@ const screenPoint = (g: CardGeometry, p: Point): Point => {
 
 const polygon = (points: Point[]) => `polygon(${points.map((p) => `${p.x}px ${p.y}px`).join(', ')})`
 
-/** Draw the cylindrical bend directly; cached geometry keeps pointer frames free of layout reads. */
+/** Draw the flexed bend directly; cached geometry keeps pointer frames free of layout reads. */
 function drawPeel(card: HTMLElement, flap: HTMLElement, g: CardGeometry, index: number, corner: Point, finger: Point, reach?: number, profile?: BendProfile) {
   const base = card.firstElementChild as HTMLElement
   const bend = bendCard(g.w, g.h, corner, finger, REST[index], reach, profile)
@@ -411,7 +416,7 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
       const n = d ? { x: pull.x / d, y: pull.y / d } : { x: 0, y: -1 }
       const crease = { x: at[lead].x + pull.x / 2, y: at[lead].y + pull.y / 2 }
       const side = (q: Point) => (q.x - crease.x) * n.x + (q.y - crease.y) * n.y
-      // A single cylinder in screen space: tilted cards must not choose independent radii or samples.
+      // A shared bend in screen space: tilted cards must not choose independent profiles or samples.
       const depth = Math.max(0, ...geometry.flatMap((g) =>
         [{ x: 0, y: 0 }, { x: g.w, y: 0 }, { x: g.w, y: g.h }, { x: 0, y: g.h }]
           .map((q) => -side(screenPoint(g, q)))))
