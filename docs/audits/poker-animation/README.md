@@ -285,3 +285,10 @@ window sums, not physical-Pixel FPS measurements. The browser's rAF intervals
 stayed near 16.7ms in both cases. Phone-size edge checks retained under 0.001px
 placement error. Cached print images and rectangular-crop/layer-promotion
 experiments did not improve the result and were discarded.
+
+
+The [rendering lessons and session handoff](rendering-handoff.md) records the full
+curve/seam/performance investigation, discarded experiments and remaining Pixel
+sluggishness. The [GPU peek task outline](../../superpowers/plans/2026-10-01-poker-gpu-peek.md)
+carries the next rendering direction into a fresh session; that renderer is not
+yet implemented.
