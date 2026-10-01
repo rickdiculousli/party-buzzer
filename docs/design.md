@@ -1052,7 +1052,9 @@ while the finger rests. The raised edge follows a rounded bend into an elevated
 plane, with angle-dependent light and shade and a soft cast shadow on the cloth.
 Both cards share the crease, bend profile and sample boundaries in screen space;
 stacking reverses together where the backs turn into faces. A continuous lighting
-gradient spans the samples so the crease shade has no stepped bands. The underside
+gradient spans the samples so the crease shade has no stepped bands. Apply changing
+light directly to shade leaves, avoiding inherited variables that invalidate the
+printed card subtrees. The underside
 print retains its resting orientation, curvature eases gradually out of the cloth,
 and fine samples at the tangent overlap the
 flat print through the join. Eleven samples describe the curve and one the raised

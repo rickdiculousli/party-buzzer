@@ -116,7 +116,7 @@ function drawPeel(card: HTMLElement, flap: HTMLElement, g: CardGeometry, index: 
   }
   const stops = bend.shade.stops.map(({ at, light }) =>
     `${light > 0 ? `rgb(255 255 255 / ${light})` : `rgb(0 0 0 / ${-light})`} ${at}px`)
-  flap.style.setProperty('--peek-shade', `linear-gradient(${bend.shade.angle}deg, ${stops.join(',')})`)
+  const shade = `linear-gradient(${bend.shade.angle}deg, ${stops.join(',')})`
   const sheets = layers.querySelectorAll<HTMLElement>('.poker-peel__sheet')
   bend.strips.forEach((strip, i) => {
     const sheet = sheets[i]
@@ -127,6 +127,9 @@ function drawPeel(card: HTMLElement, flap: HTMLElement, g: CardGeometry, index: 
     sheet.style.transform = `${placement} matrix(${strip.matrix.join(',')})`
     sheet.style.zIndex = String(strip.back ? index + 1 : 4 - index)
     sheet.classList.toggle('is-back', strip.back)
+    // Keep changing light on this one leaf; inherited variables invalidate every cloned card descendant.
+    const overlay = sheet.lastElementChild as HTMLElement
+    overlay.style.background = shade
   })
   flap.style.visibility = 'visible'
 }
