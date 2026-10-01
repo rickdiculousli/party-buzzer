@@ -6,7 +6,7 @@ import type { MinigamePlayerProps } from './minigames.tsx'
 import { matchFrame } from './minigame-info.ts'
 import { nextBowSequence } from './bow-control.ts'
 import { FeltArc, FeltMark, PlayingCard, ShotRing, reducedMotion, usePokerCues } from './PokerParts.tsx'
-import { classifyGesture, dealTimes, peekTip, bendCard, raiseStops, showsRight, GESTURE, PEEK, type Point, type TracePoint } from './poker.ts'
+import { classifyGesture, dealTimes, peekTip, bendCard, raiseStops, showsRight, GESTURE, PEEK, type Point, type TracePoint, type BendProfile } from './poker.ts'
 import { pitch, simplifyFrames } from './toss.ts'
 import { colorForPlayer, ordinal, playerName } from './ui.ts'
 
@@ -91,17 +91,18 @@ const screenPoint = (g: CardGeometry, p: Point): Point => {
 const polygon = (points: Point[]) => `polygon(${points.map((p) => `${p.x}px ${p.y}px`).join(', ')})`
 
 /** Draw the cylindrical bend directly; cached geometry keeps pointer frames free of layout reads. */
-function drawPeel(card: HTMLElement, flap: HTMLElement, g: CardGeometry, index: number, corner: Point, finger: Point, reach?: number) {
+function drawPeel(card: HTMLElement, flap: HTMLElement, g: CardGeometry, index: number, corner: Point, finger: Point, reach?: number, profile?: BendProfile) {
   const base = card.firstElementChild as HTMLElement
-  const bend = bendCard(g.w, g.h, corner, finger, REST[index], reach)
+  const bend = bendCard(g.w, g.h, corner, finger, REST[index], reach, profile)
   base.style.clipPath = bend ? polygon(bend.flat) : ''
   if (!bend) { flap.style.visibility = ''; return }
   flap.style.width = `${g.w}px`
   flap.style.height = `${g.h}px`
-  flap.style.transform = `translate(${g.left + g.w / 2}px, ${g.top + g.h / 2}px) rotate(${REST[index]}deg) translate(${-g.w / 2}px, ${-g.h / 2}px)`
+  const placement = `translate(${g.left + g.w / 2}px, ${g.top + g.h / 2}px) rotate(${REST[index]}deg) translate(${-g.w / 2}px, ${-g.h / 2}px)`
   const shadow = flap.firstElementChild as HTMLElement
   (shadow.firstElementChild as HTMLElement).style.clipPath = polygon(bend.shadow)
   shadow.style.opacity = String(bend.opacity)
+  shadow.style.transform = `${placement} translate(2px, 3px)`
   // Stamp the face samples only on the first peek, rather than mounting 24 printed cards at deal.
   const layers = flap.lastElementChild as HTMLElement
   if (layers.children.length === 1) {
@@ -111,8 +112,12 @@ function drawPeel(card: HTMLElement, flap: HTMLElement, g: CardGeometry, index: 
   const sheets = layers.querySelectorAll<HTMLElement>('.poker-peel__sheet')
   bend.strips.forEach((strip, i) => {
     const sheet = sheets[i]
+    // A shared sample may miss this card entirely; polygon() is invalid and would retain an old clip.
+    sheet.style.visibility = strip.clip.length >= 3 ? '' : 'hidden'
+    if (strip.clip.length < 3) return
     sheet.style.clipPath = polygon(strip.clip)
-    sheet.style.transform = `matrix(${strip.matrix.join(',')})`
+    sheet.style.transform = `${placement} matrix(${strip.matrix.join(',')})`
+    sheet.style.zIndex = String(strip.back ? index + 1 : 4 - index)
     sheet.classList.toggle('is-back', strip.back)
     const shade = sheet.lastElementChild as HTMLElement
     shade.style.background = strip.light > 0
@@ -406,6 +411,11 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
       const n = d ? { x: pull.x / d, y: pull.y / d } : { x: 0, y: -1 }
       const crease = { x: at[lead].x + pull.x / 2, y: at[lead].y + pull.y / 2 }
       const side = (q: Point) => (q.x - crease.x) * n.x + (q.y - crease.y) * n.y
+      // A single cylinder in screen space: tilted cards must not choose independent radii or samples.
+      const depth = Math.max(0, ...geometry.flatMap((g) =>
+        [{ x: 0, y: 0 }, { x: g.w, y: 0 }, { x: g.w, y: g.h }, { x: 0, y: g.h }]
+          .map((q) => -side(screenPoint(g, q)))))
+      const profile = { depth, length: Math.min(geometry[lead].w * 0.3, depth * 0.85) }
       cards.forEach((card, k) => {
         // `peekTip` already bounds the pull; nothing clamps it again here, so the edge stays with the finger.
         // The leading card folds from where the finger holds it. The other folds from whichever bottom
@@ -418,7 +428,7 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
         const v = { x: -2 * past * n.x, y: -2 * past * n.y }
         // The pull is on screen; the card lies at its own tilt.
         const a = (-REST[k] * Math.PI) / 180
-        drawPeel(card, flaps[k]!, g, k, from, { x: from.x + v.x * Math.cos(a) - v.y * Math.sin(a), y: from.y + v.x * Math.sin(a) + v.y * Math.cos(a) }, Infinity)
+        drawPeel(card, flaps[k]!, g, k, from, { x: from.x + v.x * Math.cos(a) - v.y * Math.sin(a), y: from.y + v.x * Math.sin(a) + v.y * Math.cos(a) }, Infinity, profile)
       })
       if (p.dropping && t >= 1) { peel.current = null; return }
       if (t < 1) p.wake()

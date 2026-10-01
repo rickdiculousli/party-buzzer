@@ -89,15 +89,16 @@ export function peelCard(w: number, h: number, corner: Point, finger: Point, rea
  * The cloth tangent starts flat; the paper turns through 143°, rather than reflecting
  * abruptly at a crease. Screen elevation foreshortens the bend toward the top of the phone.
  */
-export function bendCard(w: number, h: number, corner: Point, finger: Point, rot = 0, reach = PEEK.reach * w) {
+export type BendProfile = { depth: number; length: number }
+export function bendCard(w: number, h: number, corner: Point, finger: Point, rot = 0, reach = PEEK.reach * w, profile?: BendProfile) {
   const fold = peelCard(w, h, corner, finger, reach)
   if (!fold || fold.lifted.length < 3) return null
   const d = Math.hypot(fold.tip.x - corner.x, fold.tip.y - corner.y)
   const n = { x: (fold.tip.x - corner.x) / d, y: (fold.tip.y - corner.y) / d }
   const mid = { x: (corner.x + fold.tip.x) / 2, y: (corner.y + fold.tip.y) / 2 }
   const depthOf = (p: Point) => -((w - p.x - mid.x) * n.x + (p.y - mid.y) * n.y)
-  const depth = Math.max(...fold.lifted.map(depthOf))
-  const bendLength = Math.min(w * 0.3, depth * 0.85)
+  const depth = profile?.depth ?? Math.max(...fold.lifted.map(depthOf))
+  const bendLength = profile?.length ?? Math.min(w * 0.3, depth * 0.85)
   const angle = 2.5, radius = bendLength / angle
   const rad = rot * Math.PI / 180
   const elevation = { x: -Math.sin(rad) * 0.55, y: -Math.cos(rad) * 0.55 }

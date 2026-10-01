@@ -182,3 +182,35 @@ test('adjacent bend strips meet at their shared material boundary', () => {
     assert.ok(Math.hypot(a.x - b.x, a.y - b.y) < 1e-8)
   }
 })
+
+
+test('stacked peeks share the bend despite different exposed card depths', () => {
+  const profile = { depth: 80, length: 36 }
+  const a = bendCard(120, 168, { x: 100, y: 168 }, { x: 100, y: 68 }, 0, Infinity, profile)!
+  const b = bendCard(120, 148, { x: 100, y: 148 }, { x: 100, y: 88 }, 0, Infinity, profile)!
+  // Both folds lie on y=118; source depth and bend position are therefore identical.
+  a.strips.forEach((strip, i) => {
+    assert.deepEqual(strip.matrix, b.strips[i].matrix)
+    assert.equal(strip.back, b.strips[i].back)
+    assert.equal(strip.light, b.strips[i].light)
+  })
+})
+
+test('tilted cards project the shared bend onto the same screen surface', () => {
+  const profile = { depth: 90, length: 36 }
+  const rotate = (p: { x: number; y: number }, degrees: number) => {
+    const a = degrees * Math.PI / 180
+    return { x: p.x * Math.cos(a) - p.y * Math.sin(a), y: p.x * Math.sin(a) + p.y * Math.cos(a) }
+  }
+  const corner = { x: 85, y: 165 }, finger = { x: 65, y: 65 }
+  const bends = [0, -24].map((rot) => bendCard(120, 168, rotate(corner, -rot), rotate(finger, -rot), rot, Infinity, profile)!)
+  for (let i = 0; i < 12; i++) {
+    const p = { x: 70, y: 120 + i * 2 }
+    const projected = [0, -24].map((rot, k) => {
+      const local = rotate(p, -rot), x = 120 - local.x, y = local.y
+      const m = bends[k].strips[i].matrix
+      return rotate({ x: m[0] * x + m[2] * y + m[4], y: m[1] * x + m[3] * y + m[5] }, rot)
+    })
+    assert.ok(Math.hypot(projected[0].x - projected[1].x, projected[0].y - projected[1].y) < 1e-8)
+  }
+})

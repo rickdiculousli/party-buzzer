@@ -3317,7 +3317,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .poker-peel__flap { visibility: hidden; position: absolute; top: 0; left: 0; transform-origin: 0 0; pointer-events: none; }
 /* A turned-over face lies on its own card: only its printed edge, none of the table shadows, whose hard offset would show past the rounded corners. */
 .poker-peel__sheet .poker-card__face, .poker-peel__sheet .poker-card__back { box-shadow: inset 0 0 0 1px rgb(70 52 30 / 0.2), inset 0 1px 0 rgb(255 255 255 / 0.8); }
-.poker-peel__cast { position: absolute; inset: 0; filter: blur(5px); transform: translate(2px, 3px); }
+.poker-peel__cast { position: absolute; inset: 0; filter: blur(5px); transform-origin: 0 0; }
 .poker-peel__cast i { position: absolute; inset: 0; background: rgb(0 0 0); }
 .poker-peel__sheet .poker-card__turn { transition: none; }
 .poker-peel__sheet.is-back .poker-card__turn { transform: rotateY(180deg); }
