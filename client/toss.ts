@@ -19,6 +19,44 @@ export type Pose = { x: number; y: number; rot: number }
  */
 export type Frame = Pose & { t: number; lift: number; turn?: number; z?: number }
 
+/**
+ * Thin a sampled path before handing it to the browser. Error is measured at
+ * the original timestamps, so native linear interpolation preserves its pace.
+ * Contacts, pauses, taps, turn endpoints and stacking changes stay exact.
+ */
+export function simplifyFrames(frames: Frame[]): Frame[] {
+  if (frames.length < 3) return frames
+  const keep = new Set([0, frames.length - 1])
+  const samePose = (a: Frame, b: Frame) => a.x === b.x && a.y === b.y && a.rot === b.rot && a.lift === b.lift && a.turn === b.turn
+  for (let i = 1; i < frames.length; i++) {
+    const a = frames[i - 1], b = frames[i], c = frames[i + 1]
+    if (a.z !== b.z || (a.lift > 0 && b.lift <= 0) || (a.turn !== b.turn && (Math.abs(a.turn ?? 0) === 180 || b.turn === 0))) {
+      keep.add(i - 1); keep.add(i)
+    }
+    if (c && (samePose(a, b) !== samePose(b, c) || (b.lift - a.lift) * (c.lift - b.lift) < 0)) keep.add(i)
+  }
+  const anchors = [...keep].sort((a, b) => a - b)
+  const pending = anchors.slice(1).map((end, i) => [anchors[i], end])
+  while (pending.length) {
+    const [start, end] = pending.pop()!
+    const a = frames[start], b = frames[end]
+    let worst = 1, at = -1
+    for (let i = start + 1; i < end; i++) {
+      const f = frames[i], share = (f.t - a.t) / (b.t - a.t || 1)
+      const lerp = (x: number, y: number) => x + (y - x) * share
+      const error = Math.max(
+        Math.hypot(f.x - lerp(a.x, b.x), f.y - lerp(a.y, b.y)) / 0.3,
+        Math.abs(f.rot - lerp(a.rot, b.rot)) / 0.25,
+        Math.abs(f.lift - lerp(a.lift, b.lift)) / 0.0006,
+        Math.abs((f.turn ?? 0) - lerp(a.turn ?? 0, b.turn ?? 0)) / 0.25,
+      )
+      if (error > worst) { worst = error; at = i }
+    }
+    if (at >= 0) { keep.add(at); pending.push([start, at], [at, end]) }
+  }
+  return [...keep].sort((a, b) => a - b).map((i) => frames[i])
+}
+
 export const TOSS = {
   /** Share of a throw's distance covered in the air, before touchdown. 0 keeps it on the cloth. */
   airShare: 0.55,

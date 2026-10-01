@@ -4,7 +4,7 @@ import type { Card } from '../shared/protocol.ts'
 import { pokerClockCue, pokerCues, type PokerView } from './poker.ts'
 import { useSecondsLeft } from './useSocket.ts'
 import { play } from './sound.ts'
-import { chipStack, topShades, type Frame, type Pose } from './toss.ts'
+import { chipStack, simplifyFrames, topShades, type Frame, type Pose } from './toss.ts'
 
 /** Suit pips drawn on a 100-unit square, so every card prints the same shapes at any size. */
 const PIP: Record<string, string> = {
@@ -211,19 +211,20 @@ export function Piece({ pose, frames, delay = 0, done, class: cls = '', children
   useLayoutEffect(() => {
     const node = el.current
     if (!node || !frames?.length || reducedMotion()) { done?.(); return }
+    const samples = simplifyFrames(frames)
     const total = frames[frames.length - 1].t || 1
     const timing = { duration: total, delay, fill: 'backwards' as const, easing: 'linear' }
     const runs: Animation[] = []
-    const launch = (target: Element, keyframes: Keyframe[], easing = 'linear') => {
-      const run = target.animate(keyframes, { ...timing, easing })
+    const launch = (target: Element, keyframes: Keyframe[]) => {
+      const run = target.animate(keyframes, timing)
       runs.push(run)
       return run
     }
-    const run = launch(node, frames.map((f) => ({ transform: transformOf(f, f.lift), offset: f.t / total })))
+    const run = launch(node, samples.map((f) => ({ transform: transformOf(f, f.lift), offset: f.t / total })))
     // Stacking changes only at landing or when a turned pair crosses edge-on.
     const levels = frames.filter((f, i) => f.z !== undefined && (i === 0 || f.z !== frames[i - 1].z))
-    if (levels.length) launch(node, [...levels.map((f) => ({ zIndex: f.z!, offset: f.t / total })),
-      { zIndex: levels.at(-1)!.z!, offset: 1 }], 'steps(1, end)')
+    if (levels.length) launch(node, [...levels.map((f) => ({ zIndex: f.z!, offset: f.t / total, easing: 'steps(1, end)' })),
+      { zIndex: levels.at(-1)!.z!, offset: 1 }])
     const light = getComputedStyle(node)
     const number = (style: CSSStyleDeclaration, name: string, fallback: number) => {
       const value = parseFloat(style.getPropertyValue(name))
@@ -243,7 +244,7 @@ export function Piece({ pose, frames, delay = 0, done, class: cls = '', children
       const spread = number(style, '--card-shadow-spread', 0.08)
       const shade = number(style, '--card-turn-shade', 0.5)
       const hinge = number(style, '--hinge', 0.5)
-      const geometry = frames.map((f) => {
+      const geometry = samples.map((f) => {
         const dx = Number.isFinite(lampX) ? f.x - lampX : 0
         const dy = Number.isFinite(lampY) ? f.y - lampY : 1000
         const dist = Math.max(1, Math.hypot(dx, dy))
@@ -265,9 +266,9 @@ export function Piece({ pose, frames, delay = 0, done, class: cls = '', children
         })))
       }
       if (frames.some((f) => f.turn !== undefined)) {
-        launch(card.querySelector('.poker-card__turn')!, frames.map((f) => ({ transform: `rotateY(${f.turn ?? 0}deg)`, offset: f.t / total })))
+        launch(card.querySelector('.poker-card__turn')!, samples.map((f) => ({ transform: `rotateY(${f.turn ?? 0}deg)`, offset: f.t / total })))
         for (const overlay of card.querySelectorAll('.poker-card__shade')) launch(overlay,
-          frames.map((f) => ({ opacity: Math.abs(Math.sin((f.turn ?? 0) * Math.PI / 180)) * shade, offset: f.t / total })))
+          samples.map((f) => ({ opacity: Math.abs(Math.sin((f.turn ?? 0) * Math.PI / 180)) * shade, offset: f.t / total })))
       }
     }
     run.onfinish = () => done?.()
@@ -316,6 +317,7 @@ export function ShotRing({ until, total, now, tick = false, class: cls = '' }: {
   const clock = useRef(now)
   clock.current = now
   const arc = useRef<SVGCircleElement>(null)
+  const running = useRef<{ run: Animation; until: number; total: number; remaining: number; started: number } | null>(null)
   const previous = useRef<{ until: number; seconds: number } | null>(null)
   const left = Math.max(0, until - now())
   const share = Math.min(1, left / total)
@@ -323,11 +325,19 @@ export function ShotRing({ until, total, now, tick = false, class: cls = '' }: {
   const around = 2 * Math.PI * r
   useLayoutEffect(() => {
     const remaining = Math.max(0, until - clock.current())
+    const before = running.current
+    // Socket clock sync can correct the offset without changing this deadline.
+    // Only this small clock checks drift; ordinary ticks leave the animation alone.
+    if (before && before.until === until && before.total === total &&
+      Math.abs(remaining - (before.remaining - (performance.now() - before.started))) < 60 && !reducedMotion()) return
+    before?.run.cancel()
+    running.current = null
     if (!remaining || reducedMotion()) return
     const run = arc.current?.animate([{ strokeDashoffset: around * (1 - Math.min(1, remaining / total)) }, { strokeDashoffset: around }],
       { duration: remaining, easing: 'linear', fill: 'forwards' })
-    return () => run?.cancel()
-  }, [until, total])
+    if (run) running.current = { run, until, total, remaining, started: performance.now() }
+  })
+  useLayoutEffect(() => () => { running.current?.run.cancel(); running.current = null }, [])
   useEffect(() => {
     const cue = pokerClockCue(previous.current?.until === until ? previous.current.seconds : null, seconds)
     previous.current = { until, seconds }

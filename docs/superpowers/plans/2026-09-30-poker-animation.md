@@ -24,3 +24,10 @@ Checks: focused pure runtime/path tests, typecheck at commit boundaries; one ful
 suite and build at the end. Browser checks use the real motion components and
 peek probes. No UI unit tests or repeated full coverage passes. Perform one final
 code review. Device audio/gesture/multi-device checks remain manual.
+
+
+Execution: completed inline on feat/poker. Checks were grouped per boundary as
+requested. One fresh final review found per-segment z easing and clock-offset
+rebasing issues; both were corrected with a focused real-component browser
+check. Static felt/finite celebrations remain because no expensive invalidation
+was demonstrated. No new dependencies or room mutations.

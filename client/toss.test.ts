@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mulberry32 } from '../shared/random.ts'
-import { chipStack, dealSchedule, gather, potOf, topShades, flop, turnUp, pitch, receive, scatter, slide, street, sweep, toss, wildCard, RECEIVE, REVEAL, TOSS, type Frame, type Pose } from './toss.ts'
+import { chipStack, simplifyFrames, dealSchedule, gather, potOf, topShades, flop, turnUp, pitch, receive, scatter, slide, street, sweep, toss, wildCard, RECEIVE, REVEAL, TOSS, type Frame, type Pose } from './toss.ts'
 
 const along = (frames: Frame[], dx: number, dy: number) => {
   const len = Math.hypot(dx, dy)
@@ -454,4 +454,53 @@ test('a taller stack between the lamp and a lower one shades its top, longer for
   assert.equal(shades(8)[0].length, 0, 'a lower stack shaded a taller one')
   assert.ok(shades(12)[1][0].dx > shades(8)[1][0].dx)
   assert.deepEqual(topShades([{ x: 100, y: 0, n: 12 }, { x: 50, y: 0, n: 2 }], lamp, 40)[1], [], 'a shadow fell toward the lamp')
+})
+
+
+test('motion samples thin out within bounded position, spin, lift and turn error', () => {
+  for (let seed = 1; seed <= 16; seed++) {
+    const neat = { x: 800, y: 700, rot: 3 }
+    const flight = pitch({ x: 800, y: -150 }, scatter(neat, 72, mulberry32(seed)), mulberry32(seed + 20))
+    const paths = [receive(flight, neat, flight.at(-1)!.t + 300, mulberry32(seed + 40)),
+      street({ x: 800, y: -150 }, neat, 72, mulberry32(seed + 60)).frames,
+      toss(neat, { x: 800, y: 350 }, { dx: 0.2, dy: -0.98, speed: 1 }, mulberry32(seed), 150, true).frames]
+    for (const frames of paths) {
+      const compact = simplifyFrames(frames)
+      assert.equal(compact[0], frames[0])
+      assert.equal(compact.at(-1), frames.at(-1))
+      assert.ok(compact.length < frames.length, 'no samples removed')
+      for (const f of frames) {
+        const at = compact.findIndex((g) => g.t >= f.t)
+        const a = compact[Math.max(0, at - 1)], b = compact[at]
+        const share = (f.t - a.t) / (b.t - a.t || 1)
+        const value = (key: 'x' | 'y' | 'rot' | 'lift' | 'turn') => (a[key] ?? 0) + ((b[key] ?? 0) - (a[key] ?? 0)) * share
+        assert.ok(Math.hypot(f.x - value('x'), f.y - value('y')) <= 0.3 + 1e-8)
+        assert.ok(Math.abs(f.rot - value('rot')) <= 0.25 + 1e-8)
+        assert.ok(Math.abs(f.lift - value('lift')) <= 0.0006 + 1e-8)
+        assert.ok(Math.abs((f.turn ?? 0) - value('turn')) <= 0.25 + 1e-8)
+      }
+    }
+  }
+})
+
+test('sample thinning retains exact touchdown, linger, tap and stacking landmarks', () => {
+  const frames: Frame[] = [
+    { t: 0, x: 0, y: 0, rot: 0, lift: 0.02, z: 10 },
+    { t: 20, x: 20, y: 0, rot: 0, lift: 0, z: 10 },
+    { t: 35, x: 20, y: 0, rot: 0, lift: 0, z: 10 },
+    { t: 60, x: 20, y: 0, rot: 0, lift: 0, z: 10 },
+    { t: 80, x: 20, y: 0, rot: 0, lift: -0.02, z: 2 },
+    { t: 90, x: 20, y: 0, rot: 0, lift: 0, z: 2 },
+    { t: 110, x: 20, y: 0, rot: 0, lift: -0.01, z: 2 },
+    { t: 120, x: 20, y: 0, rot: 0, lift: 0, z: 2 },
+  ]
+  const compact = simplifyFrames(frames)
+  for (const at of [0, 20, 60, 80, 90, 110, 120]) assert.ok(compact.some((f) => f.t === at), `lost landmark ${at}`)
+  const turned = turnUp([{ x: 100, y: 200, rot: 3 }, { x: 110, y: 200, rot: -2 }], { x: 400, y: 200 }, 72)
+  for (const card of turned) {
+    const thin = simplifyFrames(card.frames)
+    for (let i = 1; i < card.frames.length; i++) if (card.frames[i].z !== card.frames[i - 1].z) {
+      assert.ok(thin.includes(card.frames[i - 1])); assert.ok(thin.includes(card.frames[i]))
+    }
+  }
 })

@@ -1049,7 +1049,9 @@ Deal and showdown trajectories are retained for the hand and table dimensions.
 A peek measures the settled pair once, redraws on pointer changes and sleeps
 while the finger rests.
 
-Cards travel with direct transforms, hinged flips and shade opacity. Their
+Cards travel with direct transforms, hinged flips and shade opacity. Uploaded
+paths are thinned within 0.3px of position, 0.25° of rotation/turn and 0.0006
+lift, with contact, pause, tap and stacking landmarks retained exactly. Their
 contact, ambient and airborne shadow silhouettes are prepainted and transformed
 or crossfaded, keeping blur and printed faces stable. Chip stacks use their
 arrival lighting throughout a push. Meter fills transform, and the overbet glow

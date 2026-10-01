@@ -7,7 +7,7 @@ import { matchFrame } from './minigame-info.ts'
 import { nextBowSequence } from './bow-control.ts'
 import { FeltArc, FeltMark, PlayingCard, ShotRing, reducedMotion, usePokerCues } from './PokerParts.tsx'
 import { classifyGesture, dealTimes, peekTip, peelCard, raiseStops, showsRight, GESTURE, PEEK, type Point, type TracePoint } from './poker.ts'
-import { pitch } from './toss.ts'
+import { pitch, simplifyFrames } from './toss.ts'
 import { colorForPlayer, ordinal, playerName } from './ui.ts'
 
 const AUTO_NOTE_MS = 2_000
@@ -137,7 +137,7 @@ function DealtCard({ card, up, turned, squared, index, delay, seed }: {
     const box = node.getBoundingClientRect()
     const wide = (mulberry32(seed * 7 + 1)() - 0.5) * box.width * 0.8
     const from = { x: innerWidth / 2 - (box.left + box.width / 2) + wide, y: -(box.top + box.height * 1.2) }
-    const frames = pitch(from, { x: 0, y: 0, rot: REST[index] }, mulberry32(seed))
+    const frames = simplifyFrames(pitch(from, { x: 0, y: 0, rot: REST[index] }, mulberry32(seed)))
     const total = frames[frames.length - 1].t
     const run = node.animate(
       frames.map((f) => ({ transform: `translate(${f.x}px, ${f.y}px) rotate(${f.rot}deg) scale(${1 + f.lift})`, offset: f.t / total })),

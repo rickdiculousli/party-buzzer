@@ -3,7 +3,8 @@
 Poker's largest opportunities are reducing redundant state-driven renders,
 building each trajectory once, and separating object motion from expensive
 lighting. The phone peek also has an unnecessary continuous loop after the
-finger settles. This is an investigation; production code and tuning are unchanged.
+finger settles. The initial sweep was read-only; implementation results are
+recorded in the follow-through section below.
 
 ## Evidence and limits
 
@@ -236,3 +237,36 @@ using the real table/phone components, with controllable duplicate frame cadence
 eight-seat deals and a pot gather. It would make this profiling path repeatable
 without another ad hoc component mount. Frozen review previews cannot establish
 animation performance or synchronization.
+
+
+## Implementation follow-through
+
+The recommendations are now implemented across four boundaries: cached paths
+and gesture lifetimes; semantic poker publication and independent clocks;
+composited prop lighting and lighter chip/meter rendering; bounded native path
+interpolation. Match identity keys clear browser memory on a restart. Hello sends
+fresh role frames without waiting for another action. Clock correction rebases
+only the ring's animation, and stacking steps apply per keyframe segment.
+
+[After measurements](motion-and-board-after.json) use the same isolated prop
+probe before path thinning. Paint CPU changed from 66.0 to 5.3ms for Deal, 72.8
+to 7.9ms for Flop, 72.6 to 9.9ms for Chips and 123.3 to 20.6ms for Pot. These
+are observation-window sums from headless Chromium, not FPS/device guarantees.
+[The settled peek](peek-after.json) now has zero rAF callbacks and geometry reads;
+moving/release peeks also use their cached geometry.
+
+The representative 80-frame pitch/receive path uploads 58 frames with the final
+strict simplification tolerances. Pure tests cover interpolation error, high-spin
+folds, contacts, pauses, taps and stacking. The grouped project suite passed,
+and typecheck/build and real-component table/phone/clock checks passed. A final
+review also identified and corrected segment easing and clock-offset rebasing.
+
+The new motion stress scenarios make eight-seat deals, gathers and phone gestures
+ordinary to inspect. They were exercised as smoke checks; the saved performance
+comparison remains an isolated-prop measurement. Physical-device sound, Safari
+and multi-device synchronization still use the manual checklist.
+
+Static felt textures and finite interest-kit celebrations were retained: their
+replacement was conditional on evidence of costly invalidation, which this
+sweep did not find. No extra texture assets, dependency, general framework,
+frame heartbeat, or browser-driven game rules were needed.
