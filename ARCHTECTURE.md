@@ -141,7 +141,7 @@ table to advance time. Definitions without a key retain continuous frames.
 
 The phone's local peek is owned by `PokerPlayer.tsx` (gestures and rAF lifecycle),
 `poker-bend.ts` (shared material curve/profile) and `poker-peek-renderer.ts`
-(two whole textured meshes and bounded WebGL resources). Native cards retain
+(two whole textured meshes, a binary projected-shadow mask and bounded WebGL resources). Native cards retain
 other motion. `tools/poker-prints.ts` generates local textures from `PlayingCard`
 and its real stylesheet/font via a development-only print page; only the active
 hand is uploaded. GPU loss/loading failure has a simple flat reveal fallback.

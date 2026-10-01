@@ -302,7 +302,9 @@ raised-plane band each (100 triangles per card), shared gradual curvature,
 surface-normal stack separation, correct side/UV selection and continuous lighting.
 The initial GPU boundary used a single soft ellipse (three draw calls). The
 subsequent renderer projected two softened silhouettes (four draw calls). The
-current renderer unions both masks before a single blend (three draw calls). There
+next renderer analytically unioned both masks before a single blend (three draw calls).
+The current renderer projects the actual meshes into a binary mask and composites
+it once, then draws the cards (five draw calls). There
 are no texture uploads, layout reads or DOM shape/style writes per drag frame.
 The stress scene's independent shot clock still generates some DOM/native paint work.
 
@@ -404,3 +406,40 @@ Saved evidence: [union/contact probe](shadow-union-check.json) and
 [final local hardware profile](gpu-shadow-union-metal.json). The local drag retained
 near-16.7ms rAF cadence with no slow intervals, uploads or layout reads; held
 peeks performed zero draws. The renderer is back to three draw calls per frame.
+
+
+### Binary projection of the actual bend
+
+The user still observed the folding tip darkening the body shadow, and clarified
+that the whole cast should have one flat darkness. The affine mask and its
+lift-dependent opacity/feathering have been removed. The actual deformed card
+meshes now project onto the cloth into a half-resolution RGBA target, with
+blending disabled. Every covered fragment writes white; overlapping cards and
+self-overlapping folded stock overwrite the same value. Transparent regions
+discard rather than erasing other coverage. One composite applies fixed 0.38
+opacity to that union, with a small common boundary feather. The light direction
+is deliberately simple; the user's “slightly above” comment was not a request
+for a lighting redesign. Card-material crease shading remains separate.
+
+The target has no depth/MSAA allocation and is at most 375k pixels (~1.43 MiB
+RGBA), in addition to the existing canvas and active prints. It is sized at
+initialization/gesture configuration, reused while dragging, and rebuilt or
+disposed with the renderer. Five small draws replace the old analytical shadow
+pass; no texture uploads or browser layout are needed during drag frames.
+
+The actual GPU mask check read only alpha values 0/255, zero coincident-caster
+opacity difference, and uniformly 97/255 composited alpha throughout the tested
+contact/core interval. Context loss/restoration, resizing and disposal also
+passed, with no WebGL errors. The controlled loss diagnostic waits before
+requesting restoration, as immediate extension-driven restoration was not
+reliably delivered by the local browser. Focused checks/typecheck/build passed.
+
+The adversarial critic inspected shallow/medium/full phone-size captures and
+found a continuous flat-dark band along the lower contour, no extra-dark overlap
+patch, no detached gap, and no previous broad artificial field. It separated
+cloth texture and card-surface lighting from cast opacity. This still does not
+verify every intermediate tip-folding position or the actual Pixel's rendering.
+Saved evidence: [binary mask/core/lifecycle check](shadow-binary-mask-check.json)
+and [local hardware profile](gpu-binary-shadow-metal.json). The final local probe
+retained steady rAF cadence, zero drag uploads/layout reads and zero held draws.
+The profile now counts both indexed mesh draws and the composite quad draw.

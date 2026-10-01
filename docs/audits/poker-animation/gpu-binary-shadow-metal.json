@@ -1,0 +1,122 @@
+{
+  "label": "gpu-binary-shadow-metal",
+  "gpu": {
+    "devices": [
+      {
+        "vendorId": 4203,
+        "deviceId": 0,
+        "vendorString": "Google Inc. (Apple)",
+        "deviceString": "ANGLE (Apple, ANGLE Metal Renderer: Apple A18 Pro, Version 26.5.2 (Build 25F84))",
+        "driverVendor": "Apple",
+        "driverVersion": "26.5.2"
+      }
+    ],
+    "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple A18 Pro, Version 26.5.2 (Build 25F84))"
+  },
+  "viewport": {
+    "width": 393,
+    "dpr": 2.75,
+    "cpuThrottle": 4
+  },
+  "owner": "poker-hole poker-hole--gpu-peek",
+  "errors": [],
+  "warnings": [],
+  "results": [
+    {
+      "name": "moving, 1.8 seconds",
+      "timing": {
+        "frames": 109,
+        "medianMs": 16.699999999999818,
+        "p95Ms": 16.700000000000273,
+        "slowFrames": 0
+      },
+      "reads": 0,
+      "writes": 9,
+      "draws": 545,
+      "uploads": 0,
+      "events": {
+        "count": 109
+      },
+      "Paint": {
+        "count": 220,
+        "ms": 38.01
+      },
+      "UpdateLayoutTree": {
+        "count": 110,
+        "ms": 15.43
+      },
+      "Layout": {
+        "count": 0,
+        "ms": 0
+      },
+      "FireAnimationFrame": {
+        "count": 219,
+        "ms": 91.2
+      },
+      "RasterTask": {
+        "count": 110,
+        "ms": 6.48
+      }
+    },
+    {
+      "name": "stationary, 1 second",
+      "reads": 0,
+      "writes": 5,
+      "draws": 0,
+      "uploads": 0,
+      "events": {
+        "count": 0
+      },
+      "Paint": {
+        "count": 120,
+        "ms": 21.52
+      },
+      "UpdateLayoutTree": {
+        "count": 60,
+        "ms": 5.77
+      },
+      "Layout": {
+        "count": 0,
+        "ms": 0
+      },
+      "FireAnimationFrame": {
+        "count": 1,
+        "ms": 0.13
+      },
+      "RasterTask": {
+        "count": 60,
+        "ms": 3.37
+      }
+    },
+    {
+      "name": "release",
+      "reads": 0,
+      "writes": 3,
+      "draws": 30,
+      "uploads": 0,
+      "events": {
+        "count": 0
+      },
+      "Paint": {
+        "count": 60,
+        "ms": 28.57
+      },
+      "UpdateLayoutTree": {
+        "count": 27,
+        "ms": 12.7
+      },
+      "Layout": {
+        "count": 0,
+        "ms": 0
+      },
+      "FireAnimationFrame": {
+        "count": 8,
+        "ms": 5.43
+      },
+      "RasterTask": {
+        "count": 38,
+        "ms": 1.97
+      }
+    }
+  ]
+}

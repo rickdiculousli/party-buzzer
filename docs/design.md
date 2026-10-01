@@ -1053,9 +1053,11 @@ mesh bands share a gradual material curve and elevated plane; depth separation
 reverses the stack naturally through the turn. Printed backs retain their resting
 orientation and faces use mirrored UVs. Continuous shader lighting and soft
 projected silhouettes on exposed felt suggest flexible stock under the lamp.
-The two shadow masks form one union before blending, so overlap does not double
-the darkness. Their projection starts at contact and their penumbra broadens
-with lifted material; keep the contact edge tighter than the distant shadow.
+The actual bent meshes project into one binary GPU occlusion mask. Covered pixels
+are opaque regardless of self-overlap or overlap between cards; that union is
+composited once at fixed darkness. Only its outer boundary is softened. Keep
+card-surface lighting separate from this cast shadow. The mask is half the
+canvas resolution, allocated outside drag frames and owned by the same lifecycle.
 Released cards spring back immediately and soften their landing, with a shorter
 return than the initial lift.
 

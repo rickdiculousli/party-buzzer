@@ -30,7 +30,13 @@ alpha and a detached gap: the masks now union before blending, start at contact,
 and broaden their penumbra with lift. An explicitly requested adversarial critic
 found the named static defects addressed after a softness correction, while
 retaining the limitation that the cast is an affine approximation and stills
-cannot establish physical-phone motion quality.
+cannot establish physical-phone motion quality. The user then reported
+folded-tip darkening again. The current cast uses the actual deformed meshes in
+a binary offscreen mask (overwrite, no blending), composited once at fixed
+opacity with common boundary softness. The affine/depth-varying shadow machinery
+is removed. GPU readback confirmed 0/255 mask coverage and unchanged core alpha
+under overlap; resource recovery and the adversarial static review passed.
+
 
 ## Where the original investigation stopped
 

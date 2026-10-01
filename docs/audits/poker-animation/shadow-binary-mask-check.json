@@ -1,0 +1,13 @@
+{
+  "check": "actual bent-mesh GPU mask and its composite",
+  "maskAlphaValues": [0, 255],
+  "maxCoincidentCasterAlphaDelta": 0,
+  "contactSampleY": [220, 222, 224, 226, 228, 230, 232, 234, 236, 238, 240],
+  "compositedAlpha": [97, 97, 97, 97, 97, 97, 97, 97, 97, 97, 97],
+  "contextLossAndRestoration": true,
+  "resize": true,
+  "disposal": true,
+  "resizedMaskPixels": 169744,
+  "webglError": 0,
+  "limit": "specific composition/resource checks and local static views; physical-device folding trajectory remains unverified"
+}

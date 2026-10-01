@@ -23,7 +23,7 @@ try {
     document.head.append(style)
     render(h(PokerStress, { lead: true, surface: 'phone' }), document.getElementById('app'))
     window.peekProbe = { reads: 0, writes: 0, draws: 0, uploads: 0, events: [] }
-    for (const [method, counter] of [['drawElements', 'draws'], ['texImage2D', 'uploads']]) {
+    for (const [method, counter] of [['drawElements', 'draws'], ['drawArrays', 'draws'], ['texImage2D', 'uploads']]) {
       const original = WebGLRenderingContext.prototype[method]
       WebGLRenderingContext.prototype[method] = function (...args) { window.peekProbe[counter]++; return original.apply(this, args) }
     }
