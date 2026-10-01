@@ -216,7 +216,7 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
 
   if (state?.minigame) {
     const Surface = MINIGAMES[state.minigame.id].player
-    return <Surface state={state} playerId={playerId} connected={connected} frame={minigameFrame} now={now} send={send} ack={minigameAck} touches={minigameTouches} />
+    return <Surface key={state.minigame.matchId} state={state} playerId={playerId} connected={connected} frame={minigameFrame} now={now} send={send} ack={minigameAck} touches={minigameTouches} />
   }
 
   const choice = round?.kind === 'choice'

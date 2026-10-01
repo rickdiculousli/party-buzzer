@@ -1,0 +1,86 @@
+[
+  {
+    "label": "idle phone, 2 seconds",
+    "reads": {},
+    "writes": 0,
+    "Paint": {
+      "count": 0,
+      "ms": 0
+    },
+    "UpdateLayoutTree": {
+      "count": 0,
+      "ms": 0
+    },
+    "Layout": {
+      "count": 0,
+      "ms": 0
+    },
+    "FireAnimationFrame": {
+      "count": 0,
+      "ms": 0
+    }
+  },
+  {
+    "label": "moving peek, 1 second",
+    "reads": {},
+    "writes": 232,
+    "Paint": {
+      "count": 145,
+      "ms": 4.49
+    },
+    "UpdateLayoutTree": {
+      "count": 29,
+      "ms": 4.3
+    },
+    "Layout": {
+      "count": 0,
+      "ms": 0
+    },
+    "FireAnimationFrame": {
+      "count": 30,
+      "ms": 6.78
+    }
+  },
+  {
+    "label": "stationary raised peek, 2 seconds",
+    "reads": {},
+    "writes": 0,
+    "Paint": {
+      "count": 0,
+      "ms": 0
+    },
+    "UpdateLayoutTree": {
+      "count": 0,
+      "ms": 0
+    },
+    "Layout": {
+      "count": 0,
+      "ms": 0
+    },
+    "FireAnimationFrame": {
+      "count": 0,
+      "ms": 0
+    }
+  },
+  {
+    "label": "release peek",
+    "reads": {},
+    "writes": 58,
+    "Paint": {
+      "count": 42,
+      "ms": 0.7
+    },
+    "UpdateLayoutTree": {
+      "count": 8,
+      "ms": 0.79
+    },
+    "Layout": {
+      "count": 2,
+      "ms": 0.17
+    },
+    "FireAnimationFrame": {
+      "count": 9,
+      "ms": 1.31
+    }
+  }
+]

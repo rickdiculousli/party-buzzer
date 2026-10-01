@@ -1,0 +1,104 @@
+[
+  {
+    "label": "idle phone, 2 seconds",
+    "reads": {},
+    "writes": 0,
+    "Paint": {
+      "count": 0,
+      "ms": 0
+    },
+    "UpdateLayoutTree": {
+      "count": 0,
+      "ms": 0
+    },
+    "Layout": {
+      "count": 0,
+      "ms": 0
+    },
+    "FireAnimationFrame": {
+      "count": 0,
+      "ms": 0
+    }
+  },
+  {
+    "label": "moving peek, 1 second",
+    "reads": {
+      "offsetWidth": 558,
+      "offsetHeight": 496,
+      "rect": 248,
+      "offsetLeft": 124,
+      "offsetTop": 124
+    },
+    "writes": 232,
+    "Paint": {
+      "count": 145,
+      "ms": 3
+    },
+    "UpdateLayoutTree": {
+      "count": 116,
+      "ms": 2.92
+    },
+    "Layout": {
+      "count": 0,
+      "ms": 0
+    },
+    "FireAnimationFrame": {
+      "count": 61,
+      "ms": 11.74
+    }
+  },
+  {
+    "label": "stationary raised peek, 2 seconds",
+    "reads": {
+      "offsetWidth": 1089,
+      "offsetHeight": 968,
+      "rect": 484,
+      "offsetLeft": 242,
+      "offsetTop": 242
+    },
+    "writes": 0,
+    "Paint": {
+      "count": 0,
+      "ms": 0
+    },
+    "UpdateLayoutTree": {
+      "count": 0,
+      "ms": 0
+    },
+    "Layout": {
+      "count": 0,
+      "ms": 0
+    },
+    "FireAnimationFrame": {
+      "count": 120,
+      "ms": 28.07
+    }
+  },
+  {
+    "label": "release peek",
+    "reads": {
+      "offsetWidth": 72,
+      "offsetHeight": 72,
+      "rect": 36,
+      "offsetLeft": 15,
+      "offsetTop": 15
+    },
+    "writes": 66,
+    "Paint": {
+      "count": 47,
+      "ms": 0.92
+    },
+    "UpdateLayoutTree": {
+      "count": 32,
+      "ms": 0.85
+    },
+    "Layout": {
+      "count": 2,
+      "ms": 0.3
+    },
+    "FireAnimationFrame": {
+      "count": 9,
+      "ms": 1.43
+    }
+  }
+]

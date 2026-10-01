@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'preact/hooks'
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import type { PlayerId, PokerFeedEntry } from '../shared/protocol.ts'
 import { REACT_LABEL } from '../shared/protocol.ts'
 import { mulberry32 } from '../shared/random.ts'
@@ -58,6 +58,12 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
 
   const [ghosts, setGhosts] = useState<Ghost[]>([])
   const [banners, setBanners] = useState<{ key: string; text: string }[]>([])
+  const timers = useRef(new Set<ReturnType<typeof setTimeout>>())
+  const later = (fn: () => void, ms: number) => {
+    const timer = setTimeout(() => { timers.current.delete(timer); fn() }, ms)
+    timers.current.add(timer)
+  }
+  useEffect(() => () => { for (const timer of timers.current) clearTimeout(timer) }, [])
   const [floats, setFloats] = useState<{ key: string; player: PlayerId; text: string }[]>([])
   /** Each community card's motion, turn over included, and the hinge it turns on, per hand. */
   const laid = useRef<{ hand: number; cards: { frames: Frame[] | null; delay: number; hinge?: number }[]; busy: number } | null>(null)
@@ -74,6 +80,10 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
    * who won it, waiting for those bets before the pot is pushed their way.
    */
   const pot = useRef<{ hand: number; total: number; stacks: PotStack[]; landing: { key: string; seat: number; stack: number; base: number; count: number; sent?: boolean }[]; wins: { id: number; seat: number; amount: number }[] }>({ hand: -1, total: 0, stacks: [], landing: [], wins: [] })
+  const paths = useRef<{ key: string; deals: Map<number, [Frame[], Frame[]]>; shows: Map<number, ReturnType<typeof turnUp>> }>({ key: '', deals: new Map(), shows: new Map() })
+  const pathKey = `${session.matchId}:${poker?.handNo}:${w}:${h}:${poker?.seats.map((s) => `${s.button}-${s.busted}`).join(',')}`
+  if (paths.current.key !== pathKey) paths.current = { key: pathKey, deals: new Map(), shows: new Map() }
+  const times = useMemo(() => poker ? dealTimes(poker.seats, poker.handNo) : new Map<number, [number, number]>(), [pathKey])
   const fresh = useFresh(poker?.feed, session.matchId)
   const freshReacts = useFresh(poker?.reactions, session.matchId)
   const prev = useRef<typeof poker>(null)
@@ -82,7 +92,7 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
   const seats = poker?.seats ?? []
   const cardW = Math.round(Math.min(92, Math.max(44, w * 0.046)))
   const centre = { x: ELLIPSE.cx * w, y: ELLIPSE.cy * h }
-  const spots = seatPositions(seats.length).map((p) => ({ x: p.x * w, y: p.y * h }))
+  const spots = useMemo(() => seatPositions(seats.length).map((p) => ({ x: p.x * w, y: p.y * h })), [seats.length, w, h])
   const dealer = { x: centre.x, y: -cardW * 1.6 }
   // A dealer's board is never a perfect grid: each card rests a little off its line.
   const board = (i: number): Pose => {
@@ -179,7 +189,7 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
       if (entry.kind === 'level') {
         const key = `l${entry.id}`
         setBanners((all) => [...all, { key, text: `Blinds ${Math.floor(entry.amount! / 2)} / ${entry.amount}` }])
-        setTimeout(() => setBanners((all) => all.filter((b) => b.key !== key)), BANNER_MS)
+        later(() => setBanners((all) => all.filter((b) => b.key !== key)), BANNER_MS)
       }
     }
     // A street closes: the dealer draws every bet into the pot.
@@ -196,9 +206,9 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
     if (freshReacts.length) {
       const items = freshReacts.map((r) => ({ key: `r${r.id}`, player: r.player, text: REACT_LABEL[r.kind] }))
       setFloats((all) => [...all, ...items])
-      setTimeout(() => setFloats((all) => all.filter((f) => !items.some((item) => item.key === f.key))), REACTION_MS)
+      later(() => setFloats((all) => all.filter((f) => !items.some((item) => item.key === f.key))), REACTION_MS)
     }
-  }, [poker])
+  }, [poker, w, h])
 
   // Community cards land face down and the dealer turns each street over; a street that comes while the last is still moving waits for it.
   // The board seen first (a reload) is already face up and still.
@@ -312,7 +322,6 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
   const actor = seatIndex(poker.actor)
   const buttonAt = seats.findIndex((seat) => seat.button)
 
-  const times = dealTimes(seats, poker.handNo)
   const pitches = [...times.values()].flat().sort((a, b) => a - b)
   const dealtAt = deal.current?.at ?? null
   const dealDelay = (i: number, k: 0 | 1) => {
@@ -325,19 +334,23 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
    * taps it square. Null when this hand was not dealt in front of us.
    */
   const dealtTo = (i: number): [Frame[], Frame[]] | null => {
-    const delays = [dealDelay(i, 0), dealDelay(i, 1)]
-    if (delays[0] === null || delays[1] === null) return null
+    if (dealtAt === null || !times.has(i)) return null
+    const cached = paths.current.deals.get(i)
+    if (cached) return cached
+    const delays = times.get(i)!
     const flights = ([0, 1] as const).map((k) => pitch(dealer, scatter(holeOf(i, k), cardW, mulberry32(seedOf(poker.handNo, i, k, 'land'))), mulberry32(seedOf(poker.handNo, i, k))))
     const react = RECEIVE.reactMs[0] + (RECEIVE.reactMs[1] - RECEIVE.reactMs[0]) * mulberry32(seedOf(poker.handNo, i, 'react'))()
     const collect = delays[1]! + flights[1][flights[1].length - 1].t + react
     // One tap rhythm per player: both cards of the pair move as one. In the air a card flies over every card
     // already down, later pitches over earlier ones; landed, it lies with the rest.
-    return ([0, 1] as const).map((k) => {
+    const pair = ([0, 1] as const).map((k) => {
       const lands = flights[k][flights[k].length - 1].t
       const pitched = pitches.indexOf(times.get(i)![k])
       return receive(flights[k], holeOf(i, k), collect - delays[k]!, mulberry32(seedOf(poker.handNo, i, 'tap')))
         .map((f) => ({ ...f, z: f.t < lands ? 10 + pitched : 2 }))
     }) as [Frame[], Frame[]]
+    paths.current.deals.set(i, pair)
+    return pair
   }
   const incomingBet = new Set(ghosts.filter((g) => g.kind === 'bet').map((g) => g.seat))
   const pushing = poker.phase === 'showdown' || poker.phase === 'muck'
@@ -397,7 +410,9 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
           if (!card) seenDown.current.cards.add(`${i}-${k}`)
           // Shown at showdown: the player turns the pair over as one toward the middle, from where it lay.
           if (card && seenDown.current.cards.has(`${i}-${k}`) && !reducedMotion()) {
-            const shown = turnUp([holeOf(i, 0), holeOf(i, 1)], centre, cardW)[k]
+            let pair = paths.current.shows.get(i)
+            if (!pair) { pair = turnUp([holeOf(i, 0), holeOf(i, 1)], centre, cardW); paths.current.shows.set(i, pair) }
+            const shown = pair[k]
             return <Piece key={`${poker.handNo}-${i}-${k}-up`} pose={shown.rest} frames={shown.frames}>
               <PlayingCard card={card} up hinge={shown.hinge} class={five.size ? (won && five.has(card) ? 'poker-card--win' : won ? '' : 'poker-card--dim') : ''} />
             </Piece>

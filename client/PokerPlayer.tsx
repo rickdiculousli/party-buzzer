@@ -68,25 +68,24 @@ function throwPair(node: HTMLElement, x: number, y: number, flick: PokerFlick) {
   const ms = Math.min(FLY_MAX_MS, distance / pxPerMs)
   const spin = x / 30 + flick.dx * 120 + (flick.dx < 0 ? -1 : 1) * 25 * flick.speed
   const to = `translate(${x + flick.dx * distance}px, ${Math.min(y, 40) + flick.dy * distance}px) rotate(${spin}deg)`
-  node.animate([{ transform: held(x, y) }, { transform: to }], { duration: ms, easing: 'cubic-bezier(0.3, 0.6, 0.6, 1)', fill: 'forwards' })
+  return node.animate([{ transform: held(x, y) }, { transform: to }], { duration: ms, easing: 'cubic-bezier(0.3, 0.6, 0.6, 1)', fill: 'forwards' })
 }
 
-/** A hole card's own px for a point on screen, the card lying at its resting tilt. */
-function cardPoint(card: HTMLElement, index: number, x: number, y: number): Point {
+/** Measured once per gesture; the pair stays at its resting tilt during a peek. */
+type CardGeometry = { w: number; h: number; left: number; top: number; cx: number; cy: number; cos: number; sin: number }
+function geometryOf(card: HTMLElement, index: number): CardGeometry {
   const box = card.getBoundingClientRect()
-  const a = (-REST[index] * Math.PI) / 180
-  const dx = x - (box.left + box.width / 2)
-  const dy = y - (box.top + box.height / 2)
-  return { x: dx * Math.cos(a) - dy * Math.sin(a) + card.offsetWidth / 2, y: dx * Math.sin(a) + dy * Math.cos(a) + card.offsetHeight / 2 }
+  const a = REST[index] * Math.PI / 180
+  return { w: card.offsetWidth, h: card.offsetHeight, left: card.offsetLeft, top: card.offsetTop,
+    cx: box.left + box.width / 2, cy: box.top + box.height / 2, cos: Math.cos(a), sin: Math.sin(a) }
 }
-
-/** Where a hole card's own px sit on screen, the card lying at its resting tilt. */
-function screenPoint(card: HTMLElement, index: number, p: Point): Point {
-  const box = card.getBoundingClientRect()
-  const a = (REST[index] * Math.PI) / 180
-  const dx = p.x - card.offsetWidth / 2
-  const dy = p.y - card.offsetHeight / 2
-  return { x: dx * Math.cos(a) - dy * Math.sin(a) + box.left + box.width / 2, y: dx * Math.sin(a) + dy * Math.cos(a) + box.top + box.height / 2 }
+const cardPoint = (g: CardGeometry, x: number, y: number): Point => {
+  const dx = x - g.cx, dy = y - g.cy
+  return { x: dx * g.cos + dy * g.sin + g.w / 2, y: -dx * g.sin + dy * g.cos + g.h / 2 }
+}
+const screenPoint = (g: CardGeometry, p: Point): Point => {
+  const dx = p.x - g.w / 2, dy = p.y - g.h / 2
+  return { x: dx * g.cos - dy * g.sin + g.cx, y: dx * g.sin + dy * g.cos + g.cy }
 }
 
 const polygon = (points: Point[]) => `polygon(${points.map((p) => `${p.x}px ${p.y}px`).join(', ')})`
@@ -96,11 +95,11 @@ const polygon = (points: Point[]) => `polygon(${points.map((p) => `${p.x}px ${p.
  * on the corner lays it flat. The flap lives in a layer above both cards, as a bent pair folds over
  * the top of its own stack, so it is placed and tilted to match its card before it is folded.
  */
-function drawPeel(card: HTMLElement, flap: HTMLElement, index: number, corner: Point, finger: Point, reach?: number) {
+function drawPeel(card: HTMLElement, flap: HTMLElement, g: CardGeometry, index: number, corner: Point, finger: Point, reach?: number) {
   const base = card.firstElementChild as HTMLElement
   const sheet = flap.firstElementChild as HTMLElement
   const shade = sheet.lastElementChild as HTMLElement
-  const [w, h] = [card.offsetWidth, card.offsetHeight]
+  const { w, h } = g
   // A fold that misses the card leaves no flap; an empty clip would show the whole face mirrored below it.
   const fold = peelCard(w, h, corner, finger, reach)
   const peel = fold && fold.lifted.length >= 3 ? fold : null
@@ -114,7 +113,7 @@ function drawPeel(card: HTMLElement, flap: HTMLElement, index: number, corner: P
   }
   flap.style.width = `${w}px`
   flap.style.height = `${h}px`
-  flap.style.transform = `translate(${card.offsetLeft + w / 2}px, ${card.offsetTop + h / 2}px) rotate(${REST[index]}deg) translate(${-w / 2}px, ${-h / 2}px) matrix(${peel.matrix.join(', ')})`
+  flap.style.transform = `translate(${g.left + w / 2}px, ${g.top + h / 2}px) rotate(${REST[index]}deg) translate(${-w / 2}px, ${-h / 2}px) matrix(${peel.matrix.join(', ')})`
   sheet.style.clipPath = polygon(peel.lifted)
   flap.style.visibility = 'visible'
   const { angle, foldAt, depth } = peel.shade
@@ -174,9 +173,12 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
   const seenFeed = useRef(0)
   // A peek in progress: the finger leads, the pair follows it one frame at a time. `pull` is how far the
   // leading edge is drawn (as it was let go, while dropping), in screen px.
-  const peel = useRef<{ finger: Point; pull: Point; at: number; dropping: boolean; raf: number } | null>(null)
+  const peel = useRef<{ finger: Point; pull: Point; at: number; dropping: boolean; raf: number; wake: () => void } | null>(null)
   // The hand whose pair was flicked away: it stays mounted to finish flying once the fold lands.
   const [thrown, setThrown] = useState<number | null>(null)
+  const [retired, setRetired] = useState<number | null>(null)
+  const flight = useRef<Animation | null>(null)
+  const foldSeq = useRef(-1)
   const hole = useRef<HTMLDivElement>(null)
   // The dashed line on the felt where peeking begins: one rank above the pair's lowest point. It is
   // placed from the pair's layout, which only changes with the screen, so it is measured when it
@@ -213,10 +215,26 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
 
   const myTurn = !!poker?.legal
   const hand = poker?.handNo ?? 0
-  const flying = thrown === hand
+  const flying = thrown === hand && retired !== hand
   useEffect(() => { setSheet(false); setNote(null) }, [hand])
   // A new hand's pair is new elements; a peel of the old one just stops.
-  useEffect(() => () => { cancelAnimationFrame(peel.current?.raf ?? 0); peel.current = null }, [hand])
+  const stopPeel = useCallback(() => {
+    clearTimeout(peekTimer.current)
+    cancelAnimationFrame(peel.current?.raf ?? 0)
+    peel.current = null
+    trace.current = []
+    hole.current?.querySelectorAll<HTMLElement>('.poker-peel__base, .poker-peel__sheet').forEach((node) => node.style.removeProperty('clip-path'))
+    hole.current?.querySelectorAll<HTMLElement>('.poker-peel__flap').forEach((node) => node.style.removeProperty('visibility'))
+  }, [])
+  useEffect(() => {
+    addEventListener('resize', stopPeel)
+    return () => { removeEventListener('resize', stopPeel); stopPeel(); flight.current?.cancel(); flight.current = null }
+  }, [hand, stopPeel])
+  useEffect(() => {
+    if (ack?.seq === foldSeq.current && ack.status === 'refused') {
+      flight.current?.cancel(); flight.current = null; setThrown(null); setRetired(null)
+    }
+  }, [ack])
   // At showdown the pair turns over as one, the way the board turns this seat's pair: edge-on, then
   // down mirrored, the card that was underneath on top. A phone that arrives with the cards already
   // shown just shows them.
@@ -359,25 +377,28 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
     cancelAnimationFrame(peel.current?.raf ?? 0)
     // The pair is held at its bottom edge, right under the finger: the same spot on both cards,
     // even past a card's own side, so the two bend up as one stack.
-    const anchors = cards.map((card, k) => ({ x: cardPoint(card, k, x, y).x, y: card.offsetHeight }))
+    const geometry = cards.map(geometryOf)
+    const anchors = geometry.map((g) => ({ x: cardPoint(g, x, y).x, y: g.h }))
     // The lower card's edge leads, levered up by the finger's rise, bending it over a crease. Bent
     // together the pair shares that crease: the other card is picked up when the crease reaches its edge
     // and folds over the same line, so its higher edge comes down that much short of the leading one.
-    const at = cards.map((card, k) => screenPoint(card, k, anchors[k]))
+    const at = geometry.map((g, k) => screenPoint(g, anchors[k]))
     const lead = at[1].y >= at[0].y ? 1 : 0
     // The lever measures the finger's rise from where it touched.
     const from = trace.current[0] ?? { x, y }
-    peel.current = { finger: { x, y }, pull: { x: 0, y: 0 }, at: performance.now(), dropping: false, raf: 0 }
+    peel.current = { finger: { x, y }, pull: { x: 0, y: 0 }, at: performance.now(), dropping: false, raf: 0, wake: () => {} }
     const frame = (now: number) => {
       const p = peel.current
-      if (!p || !cards[1].isConnected) return
+      if (!p) return
+      p.raf = 0
+      if (!cards[1].isConnected) { peel.current = null; return }
       // A frame's timestamp is when the frame began, which can be just before the peek did: below 0 the
       // ease turns negative and folds the pair downward, flashing its faces up from below for a frame.
-      const t = Math.max(0, Math.min(1, (now - p.at) / (p.dropping ? PEEK.dropMs : PEEK.liftMs)))
+      const t = reducedMotion() ? 1 : Math.max(0, Math.min(1, (now - p.at) / (p.dropping ? PEEK.dropMs : PEEK.liftMs)))
       // Laid back down from wherever it was let go; lifted with an ease toward the finger.
       const e = p.dropping ? 1 - t * t : 1 - (1 - t) ** 3
       if (!p.dropping) {
-        const tip = peekTip(at[lead], from, p.finger, cards[lead].offsetWidth)
+        const tip = peekTip(at[lead], from, p.finger, geometry[lead].w)
         p.pull = tip ? { x: (tip.x - at[lead].x) * e, y: (tip.y - at[lead].y) * e } : { x: 0, y: 0 }
       }
       const pull = p.dropping ? { x: p.pull.x * e, y: p.pull.y * e } : p.pull
@@ -390,25 +411,30 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
         // The leading card folds from where the finger holds it. The other folds from whichever bottom
         // corner the crease has reached furthest, the moment it reaches either: turned over the crease,
         // that corner lands as far beyond it. Same line, any point on the edge.
-        const [w, h] = [card.offsetWidth, card.offsetHeight]
-        const from = k === lead ? anchors[k] : [{ x: 0, y: h }, { x: w, y: h }].reduce((a, b) => side(screenPoint(card, k, a)) <= side(screenPoint(card, k, b)) ? a : b)
-        const past = Math.min(0, side(screenPoint(card, k, from)))
+        const g = geometry[k]
+        const { w, h } = g
+        const from = k === lead ? anchors[k] : [{ x: 0, y: h }, { x: w, y: h }].reduce((a, b) => side(screenPoint(g, a)) <= side(screenPoint(g, b)) ? a : b)
+        const past = Math.min(0, side(screenPoint(g, from)))
         const v = { x: -2 * past * n.x, y: -2 * past * n.y }
         // The pull is on screen; the card lies at its own tilt.
         const a = (-REST[k] * Math.PI) / 180
-        drawPeel(card, flaps[k]!, k, from, { x: from.x + v.x * Math.cos(a) - v.y * Math.sin(a), y: from.y + v.x * Math.sin(a) + v.y * Math.cos(a) }, Infinity)
+        drawPeel(card, flaps[k]!, g, k, from, { x: from.x + v.x * Math.cos(a) - v.y * Math.sin(a), y: from.y + v.x * Math.sin(a) + v.y * Math.cos(a) }, Infinity)
       })
-      if (p.dropping && now - p.at >= PEEK.dropMs) { peel.current = null; return }
-      p.raf = requestAnimationFrame(frame)
+      if (p.dropping && t >= 1) { peel.current = null; return }
+      if (t < 1) p.wake()
     }
-    peel.current.raf = requestAnimationFrame(frame)
+    const p = peel.current
+    p.wake = () => { if (!p.raf) p.raf = requestAnimationFrame(frame) }
+    p.wake()
   }
   const move = (e: PointerEvent) => {
     if (!trace.current.length) return
     trace.current.push(point(e))
     const start = trace.current[0]
     // While peeking, the finger only carries the corner; the next frame draws it there.
-    if (peel.current && !peel.current.dropping) return void (peel.current.finger = { x: e.clientX, y: e.clientY })
+    if (peel.current && !peel.current.dropping) {
+      peel.current.finger = { x: e.clientX, y: e.clientY }; peel.current.wake(); return
+    }
     const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y) > GESTURE.tapSlopPx
     if (onCorners.current) {
       // A peek still laying itself down is caught again where it is going.
@@ -434,6 +460,7 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
     // Letting go of a peel only lays the corner back down: it is never a fold or a tap.
     if (peel.current && !peel.current.dropping) {
       Object.assign(peel.current, { dropping: true, at: performance.now() })
+      peel.current.wake()
       trace.current = []
       return
     }
@@ -454,9 +481,13 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
         node?.classList.add('fx-shake')
         return
       }
-      if (node) throwPair(node, e.clientX - start.x, e.clientY - start.y, gesture.flick!)
       setThrown(hand)
-      input({ kind: 'fold', flick: gesture.flick })
+      foldSeq.current = input({ kind: 'fold', flick: gesture.flick })
+      if (node && !reducedMotion()) {
+        const run = throwPair(node, e.clientX - start.x, e.clientY - start.y, gesture.flick!)
+        flight.current = run
+        run.onfinish = () => { setRetired(hand); run.cancel(); flight.current = null }
+      } else setRetired(hand)
     } else if (gesture.kind === 'doubleTap') {
       lastTap.current = null
       if (legal) input({ kind: legal.canCheck ? 'check' : 'call' })
@@ -501,7 +532,7 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
     <section class="poker-phone__table" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
       <FeltArc text={topLine} bow="up" class={legal && inHand ? '' : 'felt-arc--dim'} />
       <div class="poker-phone__spot">
-        {(inHand || flying) && poker.hole && <div
+        {((inHand && retired !== hand) || flying) && poker.hole && <div
           key={hand}
           ref={hole}
           class={`poker-hole ${shown ? 'poker-hole--square' : ''} ${faceUp && shown ? 'poker-hole--turned' : ''}`}

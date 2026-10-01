@@ -519,7 +519,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
   if (!state) return <main class="board"><p class="board__idle">Connecting</p></main>
   if (state.minigame) {
     const Surface = MINIGAMES[state.minigame.id].board
-    return <Surface state={state} frame={minigameFrame} now={now} touches={minigameTouches} />
+    return <Surface key={state.minigame.matchId} state={state} frame={minigameFrame} now={now} touches={minigameTouches} />
   }
 
   const { round } = state

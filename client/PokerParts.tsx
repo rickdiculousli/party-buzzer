@@ -232,7 +232,10 @@ export function useSize<T extends HTMLElement>(): [(node: T | null) => void, { w
   const [size, setSize] = useState({ w: 0, h: 0 })
   useLayoutEffect(() => {
     if (!node) return
-    const measure = () => setSize({ w: node.clientWidth, h: node.clientHeight })
+    const measure = () => {
+      const w = node.clientWidth, h = node.clientHeight
+      setSize((before) => before.w === w && before.h === h ? before : { w, h })
+    }
     measure()
     const watch = new ResizeObserver(measure)
     watch.observe(node)
