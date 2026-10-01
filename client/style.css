@@ -2989,7 +2989,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .felt-line__sheen { stroke: var(--felt-ink); stroke-width: 4; opacity: 0.7; }
 
 /* A poker-size card, 63 × 88 mm, with a face and a back to turn between. */
-/* Where a card is on the table (px), how high it is carried (a `Piece`'s lift: 0.05 at a pitch's release), how it is turned (degrees) and how far it is turned over about its hinge (degrees, ±180 face down). Registered so a Piece's keyframes animate them and every card inside reads them. */
+/* Resting prop geometry and the phone's small pickup lift. Traveling Pieces animate transforms, shadows and turn shading directly, so these inherited lighting inputs stay fixed. */
 @property --piece-x { syntax: '<number>'; inherits: true; initial-value: 0; }
 @property --piece-y { syntax: '<number>'; inherits: true; initial-value: 0; }
 @property --piece-lift { syntax: '<number>'; inherits: true; initial-value: 0; }
@@ -3002,6 +3002,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   width: var(--w);
   aspect-ratio: 63 / 88;
   perspective: calc(var(--w) * 8);
+  isolation: isolate;
   vertical-align: middle;
   /* One lamp hangs over the table at (--lamp-x, --lamp-y), so every shadow
      falls away from it: barely at all under the lamp, longer toward the rail.
@@ -3028,8 +3029,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 /* A hinged card is turned over by its Piece, rocking on the hinge rather than spinning in place. */
 .poker-card--hinged .poker-card__turn { transform-origin: calc(var(--hinge) * 100%) 50%; transform: rotateY(calc(var(--piece-turn) * 1deg)); transition: none; }
 /* The lamp is overhead, so a card tipped up on its edge catches less of it: its face (or back) darkens as it stands. A flat layer rather than a shadow, so a turn costs no blur. */
-.poker-card__face::after, .poker-card__back::after {
-  content: '';
+.poker-card__shade {
   position: absolute;
   inset: 0;
   border-radius: inherit;
@@ -3047,10 +3047,14 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   box-shadow:
     inset 0 0 0 1px rgb(70 52 30 / 0.2),
     inset 0 1px 0 rgb(255 255 255 / 0.8),
-    calc(var(--sx) * var(--far) * 1px) calc(var(--sy) * var(--far) * 1px) 0 var(--card-edge),
-    calc(var(--sx) * var(--fall)) calc(var(--sy) * var(--fall)) calc(var(--w) * (0.006 + 0.16 * var(--h))) rgb(0 0 0 / var(--card-shadow-contact)),
-    calc(var(--sx) * var(--fall) * 2) calc(var(--sy) * var(--fall) * 2) calc(var(--w) * (0.06 + 0.3 * var(--h))) calc(var(--w) * var(--card-shadow-spread) * var(--h)) rgb(0 0 0 / calc(var(--card-shadow-ambient) + var(--card-shadow-dark) * var(--h)));
+    calc(var(--sx) * var(--far) * 1px) calc(var(--sy) * var(--far) * 1px) 0 var(--card-edge);
 }
+/* Separate silhouettes keep the card print and blur cached during motion. */
+.poker-card__shadow { position: absolute; inset: 0; z-index: -1; border-radius: calc(var(--w) * 0.056); background: #000; pointer-events: none; }
+.poker-card__shadow--contact { opacity: var(--card-shadow-contact); filter: blur(calc(var(--w) * 0.006)); transform: translate(calc(var(--sx) * var(--fall)), calc(var(--sy) * var(--fall))); }
+.poker-card__shadow--ambient { opacity: var(--card-shadow-ambient); filter: blur(calc(var(--w) * 0.06)); transform: translate(calc(var(--sx) * var(--fall) * 2), calc(var(--sy) * var(--fall) * 2)); }
+.poker-card__shadow--air { opacity: 0; filter: blur(calc(var(--w) * 0.3)); }
+.poker-peel__sheet .poker-card__shadow { display: none; }
 .poker-card__face { color: var(--card-ink); }
 .poker-card__face--red { color: var(--suit-red); }
 .poker-card__back { transform: rotateY(180deg); }
@@ -3399,16 +3403,17 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .poker-meter__print b { font-family: var(--mono); font-weight: 700; font-size: var(--t-lg); letter-spacing: 0; font-variant-numeric: tabular-nums; }
 .poker-meter__print.is-inv { color: #24170c; clip-path: inset(0 calc((1 - var(--cover)) * 100%) 0 0); transition: clip-path 160ms cubic-bezier(0.16, 1, 0.3, 1); }
 .poker-meter.is-off { opacity: 0.35; filter: grayscale(1); }
-.poker-meter__bar i { position: absolute; top: 0; bottom: 0; left: 0; width: calc(var(--fill) * 100%); border-radius: inherit; background: var(--brass); transition: width 160ms cubic-bezier(0.16, 1, 0.3, 1), left 160ms cubic-bezier(0.16, 1, 0.3, 1); }
-.poker-meter__bar i + i { left: calc(var(--one) * 100%); width: 0; background: #e2614f; }
+.poker-meter__bar i { position: absolute; top: 0; bottom: 0; left: 0; width: 100%; transform-origin: left center; transform: scaleX(var(--fill)); border-radius: inherit; background: var(--brass); transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1); }
+.poker-meter__bar i + i { transform: translateX(calc(var(--one) * 100%)) scaleX(0); background: #e2614f; }
 .poker-meter__bar.is-over i:first-child { border-radius: 0.55rem 0 0 0.55rem; }
-.poker-meter__bar.is-over i + i { width: calc((1 - var(--one)) * 100%); border-radius: 0 0.55rem 0.55rem 0; animation: poker-overbet 0.69s ease-in-out infinite alternate; }
+.poker-meter__bar.is-over i + i { transform: translateX(calc(var(--one) * 100%)) scaleX(calc(1 - var(--one))); border-radius: 0 0.55rem 0.55rem 0; }
 /* With each peak of the glow, one soft ring leaves the overbet and fades. */
 .poker-meter__bar.is-over i + i::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: rgb(226 97 79 / 0.5); filter: blur(0.3rem); opacity: 0; animation: poker-overbet-ring 1.38s ease-out -0.69s infinite; }
 @keyframes poker-overbet-ring { from { opacity: 1; transform: scale(1, 1); } to { opacity: 0; transform: scale(1.03, 2.1); } }
 /* The one-pot mark, where the overbet begins. */
-.poker-meter__bar.is-over i + i::before { content: ''; position: absolute; left: -1px; top: -0.25rem; bottom: -0.25rem; width: 2px; border-radius: 1px; background: #f0a24a; }
-@keyframes poker-overbet { from { box-shadow: 0 0 0 rgb(226 97 79 / 0); } to { box-shadow: 0 0 0.6rem rgb(226 97 79 / 0.75); } }
+.poker-meter__bar.is-over::before { content: ''; position: absolute; z-index: 1; left: calc(var(--one) * 100% - 1px); top: -0.25rem; bottom: -0.25rem; width: 2px; border-radius: 1px; background: #f0a24a; }
+.poker-meter__bar.is-over i + i::before { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: 0 0 0.6rem rgb(226 97 79 / 0.75); animation: poker-overbet 0.69s ease-in-out infinite alternate; }
+@keyframes poker-overbet { from { opacity: 0; } to { opacity: 1; } }
 /* A bigger share of the stack warms toward red. */
 .poker-meter--stack .poker-meter__bar i { background: color-mix(in oklab, #e2614f calc(var(--fill) * 100%), var(--brass)); }
 /* Over each notch its stop's name, on the slider's own spacing: `--i` of `--stops`, inset half a thumb. */

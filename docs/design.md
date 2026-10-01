@@ -1041,6 +1041,25 @@ disagree, the code is what gets renamed.
 
 ---
 
+### Poker motion costs
+
+Keep table facts separate from local time: the shot ring and blind-level readout
+advance between state pushes, and the table rerenders when the game changes.
+Deal and showdown trajectories are retained for the hand and table dimensions.
+A peek measures the settled pair once, redraws on pointer changes and sleeps
+while the finger rests.
+
+Cards travel with direct transforms, hinged flips and shade opacity. Their
+contact, ambient and airborne shadow silhouettes are prepainted and transformed
+or crossfaded, keeping blur and printed faces stable. Chip stacks use their
+arrival lighting throughout a push. Meter fills transform, and the overbet glow
+crossfades a fixed shadow. Static felt fibres and masks retain their established
+appearance; they do not need animation clocks.
+
+The motion kit's “Eight-seat table stress” and “Phone gesture stress” scenarios
+use real components with synthetic frames, including selectable duplicate frame
+cadence. They never connect to or mutate the room.
+
 ## 10. Seeing it move
 
 Static screens lie about a design that only exists over time. `npm run sim`

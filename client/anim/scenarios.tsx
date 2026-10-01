@@ -21,6 +21,7 @@
  * properties on a wrapper and the real rules pick them up, so a scenario cannot
  * drift from what the board actually does.
  */
+import { PokerStress } from './PokerStress.tsx'
 import { COLLECT_MS } from '../../shared/protocol.ts'
 import type { Cue } from '../sound.ts'
 import { NUMERIC, type NumericField } from '../cues.ts'
@@ -869,6 +870,12 @@ export const SCENARIOS: Scenario[] = [
       </Piece>)
     },
   },
+  { id: 'poker-table-stress', label: 'Eight-seat table stress', family: 'Poker', subject: '.poker-stress__surface', dials: [],
+    note: 'Real table: deal, bets, gather and payout. Compare state pushes with duplicate 16ms frames. Retrigger to start.',
+    render: (lead) => <PokerStress lead={lead} surface="board" /> },
+  { id: 'poker-phone-stress', label: 'Phone gesture stress', family: 'Poker', subject: '.poker-stress__surface', dials: [],
+    note: 'Real phone: peek, flick and countdown. Synthetic frames only; the room is untouched.',
+    render: (lead) => <PokerStress lead={lead} surface="phone" /> },
   foldScenario('poker-fold-hard', 'Fold, hard flick, one card gets away', { dx: 0.2, dy: -0.98, speed: 1 }, 1),
   foldScenario('poker-fold-soft', 'Fold, soft flick', { dx: -0.3, dy: -0.95, speed: 0.2 }),
   foldScenario('poker-fold-timeout', 'Fold, timed out', null),

@@ -1,0 +1,242 @@
+[
+  {
+    "label": "Deal",
+    "fixed": false,
+    "Paint": {
+      "count": 56,
+      "ms": 5.29
+    },
+    "UpdateLayoutTree": {
+      "count": 39,
+      "ms": 7.13
+    },
+    "Layout": {
+      "count": 6,
+      "ms": 1.48
+    },
+    "PrePaint": {
+      "count": 60,
+      "ms": 4.03
+    }
+  },
+  {
+    "label": "Deal",
+    "fixed": true,
+    "Paint": {
+      "count": 61,
+      "ms": 4.63
+    },
+    "UpdateLayoutTree": {
+      "count": 34,
+      "ms": 7.75
+    },
+    "Layout": {
+      "count": 4,
+      "ms": 0.77
+    },
+    "PrePaint": {
+      "count": 57,
+      "ms": 6.12
+    }
+  },
+  {
+    "label": "Flop",
+    "fixed": false,
+    "Paint": {
+      "count": 96,
+      "ms": 7.9
+    },
+    "UpdateLayoutTree": {
+      "count": 230,
+      "ms": 55.87
+    },
+    "Layout": {
+      "count": 6,
+      "ms": 2.32
+    },
+    "PrePaint": {
+      "count": 246,
+      "ms": 34.78
+    }
+  },
+  {
+    "label": "Flop",
+    "fixed": true,
+    "Paint": {
+      "count": 97,
+      "ms": 5.86
+    },
+    "UpdateLayoutTree": {
+      "count": 224,
+      "ms": 48.58
+    },
+    "Layout": {
+      "count": 4,
+      "ms": 1.41
+    },
+    "PrePaint": {
+      "count": 244,
+      "ms": 33.67
+    }
+  },
+  {
+    "label": "Showdown",
+    "fixed": false,
+    "Paint": {
+      "count": 62,
+      "ms": 8.43
+    },
+    "UpdateLayoutTree": {
+      "count": 64,
+      "ms": 10.41
+    },
+    "Layout": {
+      "count": 6,
+      "ms": 3.04
+    },
+    "PrePaint": {
+      "count": 86,
+      "ms": 5.64
+    }
+  },
+  {
+    "label": "Showdown",
+    "fixed": true,
+    "Paint": {
+      "count": 56,
+      "ms": 8.46
+    },
+    "UpdateLayoutTree": {
+      "count": 58,
+      "ms": 13.41
+    },
+    "Layout": {
+      "count": 4,
+      "ms": 1.64
+    },
+    "PrePaint": {
+      "count": 79,
+      "ms": 8.32
+    }
+  },
+  {
+    "label": "Chip stacks under the centre lamp",
+    "fixed": false,
+    "Paint": {
+      "count": 49,
+      "ms": 9.85
+    },
+    "UpdateLayoutTree": {
+      "count": 26,
+      "ms": 5.07
+    },
+    "Layout": {
+      "count": 6,
+      "ms": 2.76
+    },
+    "PrePaint": {
+      "count": 51,
+      "ms": 2.87
+    }
+  },
+  {
+    "label": "Chip stacks under the centre lamp",
+    "fixed": true,
+    "Paint": {
+      "count": 49,
+      "ms": 5.76
+    },
+    "UpdateLayoutTree": {
+      "count": 21,
+      "ms": 3.79
+    },
+    "Layout": {
+      "count": 4,
+      "ms": 1.27
+    },
+    "PrePaint": {
+      "count": 47,
+      "ms": 2.81
+    }
+  },
+  {
+    "label": "The pot: a corral of stacks",
+    "fixed": false,
+    "Paint": {
+      "count": 254,
+      "ms": 20.6
+    },
+    "UpdateLayoutTree": {
+      "count": 25,
+      "ms": 10.82
+    },
+    "Layout": {
+      "count": 6,
+      "ms": 3.7
+    },
+    "PrePaint": {
+      "count": 52,
+      "ms": 3.9
+    }
+  },
+  {
+    "label": "The pot: a corral of stacks",
+    "fixed": true,
+    "Paint": {
+      "count": 278,
+      "ms": 15.32
+    },
+    "UpdateLayoutTree": {
+      "count": 20,
+      "ms": 5.85
+    },
+    "Layout": {
+      "count": 4,
+      "ms": 2.02
+    },
+    "PrePaint": {
+      "count": 45,
+      "ms": 3.76
+    }
+  },
+  {
+    "label": "board reload",
+    "counts": {
+      "S": 3420,
+      "PokerBoard": 180,
+      "PaintPile": 180,
+      "FeltMark": 360,
+      "Piece": 3780,
+      "DealerPuck": 180,
+      "Corral": 180,
+      "ChipStack": 720,
+      "PlayingCard": 2880,
+      "ShotRing": 193,
+      "LevelClock": 193
+    },
+    "renderMs": 285.5000014305115,
+    "scriptMs": 12.917000000000005,
+    "styleMs": 17.464000000000034,
+    "layoutMs": 0.795999999999998
+  },
+  {
+    "label": "board after new deal",
+    "counts": {
+      "S": 3438,
+      "PokerBoard": 181,
+      "PaintPile": 181,
+      "FeltMark": 362,
+      "Piece": 3801,
+      "DealerPuck": 181,
+      "Corral": 181,
+      "ChipStack": 724,
+      "PlayingCard": 2896,
+      "ShotRing": 194,
+      "LevelClock": 194
+    },
+    "renderMs": 202.29999828338623,
+    "scriptMs": 19.314999999999998,
+    "styleMs": 50.60500000000001,
+    "layoutMs": 0.7370000000000015
+  }
+]

@@ -1,5 +1,5 @@
 import type { ComponentChildren } from 'preact'
-import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
 import type { Card } from '../shared/protocol.ts'
 import { pokerClockCue, pokerCues, type PokerView } from './poker.ts'
 import { useSecondsLeft } from './useSocket.ts'
@@ -71,6 +71,9 @@ export function PlayingCard({ card, up, hinge, peek, class: cls = '' }: { card: 
     role="img"
     aria-label={showing ? `${rank} of ${SUIT_NAME[suit]}` : 'face-down card'}
   >
+    <span class="poker-card__shadow poker-card__shadow--contact" aria-hidden="true" />
+    <span class="poker-card__shadow poker-card__shadow--ambient" aria-hidden="true" />
+    <span class="poker-card__shadow poker-card__shadow--air" aria-hidden="true" />
     <span class="poker-card__turn">
       <span class={`poker-card__face ${red ? 'poker-card__face--red' : ''}`}>
         {card && <>
@@ -84,8 +87,9 @@ export function PlayingCard({ card, up, hinge, peek, class: cls = '' }: { card: 
             ? <CourtPortrait rank={rank} />
             : <SuitPip suit={suit} class={card[0] === 'A' ? 'poker-card__ace' : 'poker-card__centre'} />}
         </>}
+        <span class="poker-card__shade" />
       </span>
-      <span class="poker-card__back"><span class="poker-card__lattice" /></span>
+      <span class="poker-card__back"><span class="poker-card__lattice" /><span class="poker-card__shade" /></span>
     </span>
   </span>
 }
@@ -106,7 +110,7 @@ export function ChipStack({ amount = 0, chips = chipStack(amount), held = 0, pen
   if (!chips.length) return null
   const shaded = !held && standing > 0 && part !== 'chips'
   return <span class={`poker-stack ${shaded ? '' : 'poker-stack--unshaded'} ${cls}`} style={{ '--n': chips.length, '--standing': Math.max(1, standing) }} aria-hidden="true">
-    {part !== 'shade' && chips.map((value, i) => <span key={i} class={`poker-chip poker-chip--${value}`} style={{ '--i': i, visibility: i < held || i >= standing ? 'hidden' : undefined }}>
+    {part !== 'shade' && chips.map((value, i) => i < held || i >= standing ? null : <span key={i} class={`poker-chip poker-chip--${value}`} style={{ '--i': i }}>
       {i === standing - 1 && shades.length > 0 && <span class="poker-chip__shades">
         {/* A caster's column where it meets this top, drawn out along its cast: a disc stretched into an oval. */}
         {shades.map(({ x, y, dx, dy }, k) => <span key={k} class="poker-chip__shade" style={{
@@ -129,8 +133,11 @@ export function ChipStack({ amount = 0, chips = chipStack(amount), held = 0, pen
 export function Corral({ stacks, at, lamp, chipW }: {
   stacks: { x: number; y: number; chips: number[]; pending?: number }[]; at: { x: number; y: number }; lamp: { x: number; y: number }; chipW: number
 }) {
-  const shades = topShades(stacks.map((stack) => ({ x: at.x + stack.x, y: at.y + stack.y, n: stack.chips.length - (stack.pending ?? 0) })), lamp, chipW)
-  const order = [...stacks.keys()].sort((a, b) => stacks[a].y - stacks[b].y)
+  const signature = stacks.map((s) => `${s.x}:${s.y}:${s.chips.length}:${s.pending ?? 0}`).join('|')
+  const { shades, order } = useMemo(() => ({
+    shades: topShades(stacks.map((stack) => ({ x: at.x + stack.x, y: at.y + stack.y, n: stack.chips.length - (stack.pending ?? 0) })), lamp, chipW),
+    order: [...stacks.keys()].sort((a, b) => stacks[a].y - stacks[b].y),
+  }), [signature, at.x, at.y, lamp.x, lamp.y, chipW])
   return <span class="poker-corral">
     {(['shade', 'chips'] as const).map((part) => order.map((k) =>
       <span key={`${k}-${part}`} class="poker-corral__stack" style={{ transform: `translate(${stacks[k].x}px, ${stacks[k].y}px) translate(-50%, -50%)` }}>
@@ -205,18 +212,66 @@ export function Piece({ pose, frames, delay = 0, done, class: cls = '', children
     const node = el.current
     if (!node || !frames?.length || reducedMotion()) { done?.(); return }
     const total = frames[frames.length - 1].t || 1
-    const run = node.animate(
-      // Place, height and rotation also go to the card's shadow, which falls from the lamp rather than turning with the card, and a turn over to a hinged card.
-      frames.map((f) => ({
-        transform: transformOf(f, f.lift), '--piece-x': f.x, '--piece-y': f.y, '--piece-lift': f.lift, '--piece-rot': f.rot,
-        ...(f.turn === undefined ? {} : { '--piece-turn': f.turn }),
-        ...(f.z === undefined ? {} : { zIndex: f.z }),
-        offset: f.t / total,
-      })),
-      { duration: total, delay, fill: 'backwards', easing: 'linear' },
-    )
+    const timing = { duration: total, delay, fill: 'backwards' as const, easing: 'linear' }
+    const runs: Animation[] = []
+    const launch = (target: Element, keyframes: Keyframe[], easing = 'linear') => {
+      const run = target.animate(keyframes, { ...timing, easing })
+      runs.push(run)
+      return run
+    }
+    const run = launch(node, frames.map((f) => ({ transform: transformOf(f, f.lift), offset: f.t / total })))
+    // Stacking changes only at landing or when a turned pair crosses edge-on.
+    const levels = frames.filter((f, i) => f.z !== undefined && (i === 0 || f.z !== frames[i - 1].z))
+    if (levels.length) launch(node, [...levels.map((f) => ({ zIndex: f.z!, offset: f.t / total })),
+      { zIndex: levels.at(-1)!.z!, offset: 1 }], 'steps(1, end)')
+    const light = getComputedStyle(node)
+    const number = (style: CSSStyleDeclaration, name: string, fallback: number) => {
+      const value = parseFloat(style.getPropertyValue(name))
+      return Number.isFinite(value) ? value : fallback
+    }
+    const lampX = parseFloat(light.getPropertyValue('--lamp-x'))
+    const lampY = parseFloat(light.getPropertyValue('--lamp-y'))
+    const reach = number(light, '--lamp-reach', 1000)
+    for (const card of node.querySelectorAll<HTMLElement>('.poker-card')) {
+      const style = getComputedStyle(card)
+      const width = card.offsetWidth
+      const rest = number(style, '--card-shadow-rest', 0.055)
+      const drop = number(style, '--card-shadow-drop', 0.12)
+      const contact = number(style, '--card-shadow-contact', 0.45)
+      const ambient = number(style, '--card-shadow-ambient', 0.12)
+      const dark = number(style, '--card-shadow-dark', 0.18)
+      const spread = number(style, '--card-shadow-spread', 0.08)
+      const shade = number(style, '--card-turn-shade', 0.5)
+      const hinge = number(style, '--hinge', 0.5)
+      const geometry = frames.map((f) => {
+        const dx = Number.isFinite(lampX) ? f.x - lampX : 0
+        const dy = Number.isFinite(lampY) ? f.y - lampY : 1000
+        const dist = Math.max(1, Math.hypot(dx, dy))
+        const a = f.rot * Math.PI / 180
+        const height = Math.max(0, f.lift) * 20
+        const fall = width * Math.min(1.2, dist / reach) * (rest + drop * height)
+        const projected = Math.cos((f.turn ?? 0) * Math.PI / 180)
+        return { offset: f.t / total, height, projected: Math.max(0.08, Math.abs(projected)), hingeShift: (hinge - 0.5) * width * (1 - projected),
+          x: (dx * Math.cos(a) + dy * Math.sin(a)) / dist * fall,
+          y: (dy * Math.cos(a) - dx * Math.sin(a)) / dist * fall }
+      })
+      // Tight, ambient and airborne silhouettes are painted once. Flight only
+      // transforms/crossfades them; blur and the printed card never change.
+      for (const [kind, distance, opacity] of [['contact', 1, contact], ['ambient', 2, ambient], ['air', 2, ambient + dark]] as const) {
+        const shadow = card.querySelector(`.poker-card__shadow--${kind}`)!
+        launch(shadow, geometry.map((g) => ({ offset: g.offset,
+          transform: `translate(${g.x * distance + g.hingeShift}px, ${g.y * distance}px) scale(${g.projected * (1 + spread * g.height)}, ${1 + spread * g.height})`,
+          opacity: kind === 'air' ? opacity * Math.min(1, g.height) : opacity * (1 - Math.min(1, g.height) * (kind === 'contact' ? 0.6 : 1)),
+        })))
+      }
+      if (frames.some((f) => f.turn !== undefined)) {
+        launch(card.querySelector('.poker-card__turn')!, frames.map((f) => ({ transform: `rotateY(${f.turn ?? 0}deg)`, offset: f.t / total })))
+        for (const overlay of card.querySelectorAll('.poker-card__shade')) launch(overlay,
+          frames.map((f) => ({ opacity: Math.abs(Math.sin((f.turn ?? 0) * Math.PI / 180)) * shade, offset: f.t / total })))
+      }
+    }
     run.onfinish = () => done?.()
-    return () => run.cancel()
+    return () => { for (const animation of runs) animation.cancel() }
   }, [])
   // At rest it keeps the place in the pile its move ended in.
   const z = frames?.[frames.length - 1]?.z
