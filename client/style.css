@@ -3310,14 +3310,18 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 /* Ready to peek: one quick ring of lamplight round each card, out and gone. */
 .poker-hole__card.fx-ripple { --fx-dur: 800ms; --fx-amp: 1.06; }
 .poker-hole__card.fx-ripple::after { box-shadow: 0 0 calc(var(--card-w) * 0.1) calc(var(--card-w) * 0.02) var(--_c); }
-/* The corner peek: the base is clipped to what still lies flat, the flap is the face turned over the fold (both set from script). */
+/* The peek keeps its base on the cloth; affine face samples follow a rounded bend above a soft cast shadow. */
 .poker-peel__base, .poker-peel__base > .poker-card, .poker-peel__sheet > .poker-card { display: block; }
 /* The pair turns over as one at showdown; its cards never turn on their own. */
 .poker-peel__base .poker-card__turn { transition: none; }
-.poker-peel__flap { visibility: hidden; position: absolute; top: 0; left: 0; transform-origin: 0 0; pointer-events: none; filter: drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.28)); }
+.poker-peel__flap { visibility: hidden; position: absolute; top: 0; left: 0; transform-origin: 0 0; pointer-events: none; }
 /* A turned-over face lies on its own card: only its printed edge, none of the table shadows, whose hard offset would show past the rounded corners. */
 .poker-peel__sheet .poker-card__face, .poker-peel__sheet .poker-card__back { box-shadow: inset 0 0 0 1px rgb(70 52 30 / 0.2), inset 0 1px 0 rgb(255 255 255 / 0.8); }
-.poker-peel__sheet { position: absolute; inset: 0; clip-path: polygon(0 0, 0 0, 0 0); }
+.poker-peel__cast { position: absolute; inset: 0; filter: blur(5px); transform: translate(2px, 3px); }
+.poker-peel__cast i { position: absolute; inset: 0; background: rgb(0 0 0); }
+.poker-peel__sheet .poker-card__turn { transition: none; }
+.poker-peel__sheet.is-back .poker-card__turn { transform: rotateY(180deg); }
+.poker-peel__sheet { transform-origin: 0 0; position: absolute; inset: 0; clip-path: polygon(0 0, 0 0, 0 0); }
 .poker-peel__shade { position: absolute; inset: 0; border-radius: calc(var(--card-w) * 0.056); }
 .poker-hole { align-items: flex-start; z-index: 1; }
 /* On the phone the pair lies close to the cloth: barely a shadow, until a finger picks it up (`--piece-lift`, set from script). */

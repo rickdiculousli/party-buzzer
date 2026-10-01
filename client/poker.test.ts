@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { PokerFeedEntry, PokerSeatView } from '../shared/protocol.ts'
-import { classifyGesture, dealTimes, peekTip, peelCard, pokerClockCue, pokerCues, raiseStops, seatPositions, ELLIPSE, type PokerView, type TracePoint } from './poker.ts'
+import { classifyGesture, dealTimes, peekTip, peelCard, bendCard, pokerClockCue, pokerCues, raiseStops, seatPositions, ELLIPSE, type PokerView, type TracePoint } from './poker.ts'
 
 /** A straight trace from (0,0) to (dx,dy) over ms, one point every 10 ms. */
 function line(dx: number, dy: number, ms: number, t0 = 0): TracePoint[] {
@@ -151,4 +151,34 @@ test('raise stops run min and the standard sizes short of all in', () => {
   // An unopened pot preflop opens in big blinds.
   const open = raiseStops({ minTo: 40, maxTo: 1500, highBet: 20, pot: 30, call: 20, sb: 10, bb: 20, unopened: true })
   assert.deepEqual(open.map((s) => s.to), [40, 50, 60, 80, 100])
+})
+
+
+test('bent peek stays finite from a tiny lift through the maximum pull, at either card tilt', () => {
+  for (const rot of [0, -24]) for (const rise of [1.1, 5, 40, 120, 250]) {
+    const bend = bendCard(120, 168, { x: 100, y: 168 }, { x: 100 - rise * 0.2, y: 168 - rise }, rot)!
+    assert.equal(bend.strips.length, 12)
+    assert.ok(bend.strips.every((s) => s.matrix.every(Number.isFinite) && Number.isFinite(s.light)))
+    assert.ok(bend.shadow.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y)))
+    assert.ok(bend.strips.some((s) => s.back))
+    assert.ok(bend.strips.some((s) => !s.back))
+    assert.ok(bend.opacity >= 0 && bend.opacity <= 0.34)
+  }
+  assert.equal(bendCard(120, 168, { x: 100, y: 168 }, { x: 100, y: 168 }), null)
+})
+
+test('adjacent bend strips meet at their shared material boundary', () => {
+  const bend = bendCard(120, 168, { x: 100, y: 168 }, { x: 80, y: 68 })!
+  // The overlap clips enclose each boundary; projected positions must agree there.
+  const nx = -20 / Math.hypot(20, 100), ny = -100 / Math.hypot(20, 100)
+  const mid = { x: 90, y: 118 }
+  const depthOf = (p: { x: number; y: number }) => -((120 - p.x - mid.x) * nx + (p.y - mid.y) * ny)
+  const depth = Math.max(...peelCard(120, 168, { x: 100, y: 168 }, { x: 80, y: 68 })!.lifted.map(depthOf))
+  const at = (m: number[], x: number, y: number) => ({ x: m[0] * x + m[2] * y + m[4], y: m[1] * x + m[3] * y + m[5] })
+  for (let i = 1; i < 12; i++) {
+    const s = depth * i / 12
+    const x = 120 - mid.x + nx * s, y = mid.y - ny * s
+    const a = at(bend.strips[i - 1].matrix, x, y), b = at(bend.strips[i].matrix, x, y)
+    assert.ok(Math.hypot(a.x - b.x, a.y - b.y) < 1e-8)
+  }
 })

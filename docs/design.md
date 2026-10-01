@@ -1047,7 +1047,9 @@ Keep table facts separate from local time: the shot ring and blind-level readout
 advance between state pushes, and the table rerenders when the game changes.
 Deal and showdown trajectories are retained for the hand and table dimensions.
 A peek measures the settled pair once, redraws on pointer changes and sleeps
-while the finger rests.
+while the finger rests. The raised edge follows a rounded bend into an elevated
+plane, with angle-dependent light and shade and a soft cast shadow on the cloth.
+Its twelve face samples are created on first peek and reused for that hand.
 
 Cards travel with direct transforms, hinged flips and shade opacity. Uploaded
 paths are thinned within 0.3px of position, 0.25° of rotation/turn and 0.0006

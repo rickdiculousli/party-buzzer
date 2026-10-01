@@ -6,7 +6,7 @@ import type { MinigamePlayerProps } from './minigames.tsx'
 import { matchFrame } from './minigame-info.ts'
 import { nextBowSequence } from './bow-control.ts'
 import { FeltArc, FeltMark, PlayingCard, ShotRing, reducedMotion, usePokerCues } from './PokerParts.tsx'
-import { classifyGesture, dealTimes, peekTip, peelCard, raiseStops, showsRight, GESTURE, PEEK, type Point, type TracePoint } from './poker.ts'
+import { classifyGesture, dealTimes, peekTip, bendCard, raiseStops, showsRight, GESTURE, PEEK, type Point, type TracePoint } from './poker.ts'
 import { pitch, simplifyFrames } from './toss.ts'
 import { colorForPlayer, ordinal, playerName } from './ui.ts'
 
@@ -90,35 +90,35 @@ const screenPoint = (g: CardGeometry, p: Point): Point => {
 
 const polygon = (points: Point[]) => `polygon(${points.map((p) => `${p.x}px ${p.y}px`).join(', ')})`
 
-/**
- * Draws hole card `index` peeled at `corner` toward `finger`, straight onto its elements; a finger
- * on the corner lays it flat. The flap lives in a layer above both cards, as a bent pair folds over
- * the top of its own stack, so it is placed and tilted to match its card before it is folded.
- */
+/** Draw the cylindrical bend directly; cached geometry keeps pointer frames free of layout reads. */
 function drawPeel(card: HTMLElement, flap: HTMLElement, g: CardGeometry, index: number, corner: Point, finger: Point, reach?: number) {
   const base = card.firstElementChild as HTMLElement
-  const sheet = flap.firstElementChild as HTMLElement
-  const shade = sheet.lastElementChild as HTMLElement
-  const { w, h } = g
-  // A fold that misses the card leaves no flap; an empty clip would show the whole face mirrored below it.
-  const fold = peelCard(w, h, corner, finger, reach)
-  const peel = fold && fold.lifted.length >= 3 ? fold : null
-  base.style.clipPath = peel ? polygon(peel.flat) : ''
-  // The flap is never taken out of the page, only hidden and clipped to nothing: a browser can draw a
-  // newly shown element for a frame before its clip, which flashed the whole face below the cards.
-  if (!peel) {
-    flap.style.visibility = ''
-    sheet.style.clipPath = ''
-    return
+  const bend = bendCard(g.w, g.h, corner, finger, REST[index], reach)
+  base.style.clipPath = bend ? polygon(bend.flat) : ''
+  if (!bend) { flap.style.visibility = ''; return }
+  flap.style.width = `${g.w}px`
+  flap.style.height = `${g.h}px`
+  flap.style.transform = `translate(${g.left + g.w / 2}px, ${g.top + g.h / 2}px) rotate(${REST[index]}deg) translate(${-g.w / 2}px, ${-g.h / 2}px)`
+  const shadow = flap.firstElementChild as HTMLElement
+  (shadow.firstElementChild as HTMLElement).style.clipPath = polygon(bend.shadow)
+  shadow.style.opacity = String(bend.opacity)
+  // Stamp the face samples only on the first peek, rather than mounting 24 printed cards at deal.
+  const layers = flap.lastElementChild as HTMLElement
+  if (layers.children.length === 1) {
+    const original = layers.firstElementChild!
+    for (let i = 1; i < bend.strips.length; i++) layers.appendChild(original.cloneNode(true))
   }
-  flap.style.width = `${w}px`
-  flap.style.height = `${h}px`
-  flap.style.transform = `translate(${g.left + w / 2}px, ${g.top + h / 2}px) rotate(${REST[index]}deg) translate(${-w / 2}px, ${-h / 2}px) matrix(${peel.matrix.join(', ')})`
-  sheet.style.clipPath = polygon(peel.lifted)
+  const sheets = layers.querySelectorAll<HTMLElement>('.poker-peel__sheet')
+  bend.strips.forEach((strip, i) => {
+    const sheet = sheets[i]
+    sheet.style.clipPath = polygon(strip.clip)
+    sheet.style.transform = `matrix(${strip.matrix.join(',')})`
+    sheet.classList.toggle('is-back', strip.back)
+    const shade = sheet.lastElementChild as HTMLElement
+    shade.style.background = strip.light > 0
+      ? `rgb(255 255 255 / ${strip.light})` : `rgb(0 0 0 / ${-strip.light})`
+  })
   flap.style.visibility = 'visible'
-  const { angle, foldAt, depth } = peel.shade
-  // Paper bends at the fold: a bright band where it turns over, then the flat face, a little darker at the tip.
-  shade.style.background = `linear-gradient(${angle}deg, rgb(255 255 255 / 0.45) ${foldAt}px, rgb(255 255 255 / 0) ${foldAt + depth * 0.45}px, rgb(0 0 0 / 0.14) ${foldAt + depth}px)`
 }
 
 /**
@@ -539,10 +539,10 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
         >
           {([0, 1] as const).map((k) => <DealtCard key={`${hand}-${k}`} card={poker.hole![k]} up={faceUp && !!mine?.cards} turned={faceUp && shown} squared={shown} index={k}
             delay={dealing ? [first, second][k] : null} seed={hand * 2 + k} />)}
-          {/* The peeked flaps fold over the pair. Bent round one crease, the bottom card wraps the outside, so
-              its flap lies on top; the lower right card's flap reaches one index further, so both indices show. */}
+          {/* Both cards bend together; the bottom card wraps the outside and its raised face lies on top. */}
           {([1, 0] as const).map((k) => <span key={`${hand}-flap-${k}`} class="poker-peel__flap" data-card={k}>
-            <span class="poker-peel__sheet"><PlayingCard card={poker.hole![k]} up peek /><span class="poker-peel__shade" /></span>
+            <span class="poker-peel__cast"><i /></span>
+            <span class="poker-peel__layers"><span class="poker-peel__sheet"><PlayingCard card={poker.hole![k]} up peek /><span class="poker-peel__shade" /></span></span>
           </span>)}
         </div>}
         {inHand && !shown && <svg ref={lineRef} class="poker-peek-line" viewBox="0 0 100 6" preserveAspectRatio="none" aria-hidden="true">

@@ -85,6 +85,67 @@ export function peelCard(w: number, h: number, corner: Point, finger: Point, rea
   }
 }
 
+/** A rounded bend followed by a raised plane, sampled into twelve affine strips.
+ * The cloth tangent starts flat; the paper turns through 143°, rather than reflecting
+ * abruptly at a crease. Screen elevation foreshortens the bend toward the top of the phone.
+ */
+export function bendCard(w: number, h: number, corner: Point, finger: Point, rot = 0, reach = PEEK.reach * w) {
+  const fold = peelCard(w, h, corner, finger, reach)
+  if (!fold || fold.lifted.length < 3) return null
+  const d = Math.hypot(fold.tip.x - corner.x, fold.tip.y - corner.y)
+  const n = { x: (fold.tip.x - corner.x) / d, y: (fold.tip.y - corner.y) / d }
+  const mid = { x: (corner.x + fold.tip.x) / 2, y: (corner.y + fold.tip.y) / 2 }
+  const depthOf = (p: Point) => -((w - p.x - mid.x) * n.x + (p.y - mid.y) * n.y)
+  const depth = Math.max(...fold.lifted.map(depthOf))
+  const bendLength = Math.min(w * 0.3, depth * 0.85)
+  const angle = 2.5, radius = bendLength / angle
+  const rad = rot * Math.PI / 180
+  const elevation = { x: -Math.sin(rad) * 0.55, y: -Math.cos(rad) * 0.55 }
+  const sample = (s: number) => {
+    const theta = Math.min(angle, s / radius)
+    const tail = Math.max(0, s - bendLength)
+    return { q: -radius * Math.sin(theta) - tail * Math.cos(theta),
+      z: radius * (1 - Math.cos(theta)) + tail * Math.sin(theta), theta }
+  }
+  const clipDepth = (points: Point[], threshold: number, above: boolean) => {
+    const out: Point[] = []
+    points.forEach((p, i) => {
+      const q = points[(i + 1) % points.length]
+      const a = depthOf(p) - threshold, b = depthOf(q) - threshold
+      if (above ? a >= 0 : a <= 0) out.push(p)
+      if ((a < 0) !== (b < 0)) {
+        const t = a / (a - b)
+        out.push({ x: p.x + (q.x - p.x) * t, y: p.y + (q.y - p.y) * t })
+      }
+    })
+    return out
+  }
+  const strips = Array.from({ length: 12 }, (_, i) => {
+    const lo = depth * i / 12, hi = depth * (i + 1) / 12
+    const s = (lo + hi) / 2
+    const a = sample(lo), b = sample(hi), centre = sample(s)
+    // Secants meet exactly at strip boundaries, avoiding hairline gaps along the bend.
+    const dq = (b.q - a.q) / (hi - lo), dz = (b.z - a.z) / (hi - lo)
+    const vx = n.x * (dq + 1) + elevation.x * dz
+    const vy = n.y * (dq + 1) + elevation.y * dz
+    const interceptQ = a.q + lo - (dq + 1) * lo, interceptZ = a.z - dz * lo
+    const originS = -(w - mid.x) * n.x + mid.y * n.y
+    const matrix = [-1 + vx * n.x, vy * n.x, -vx * n.y, 1 - vy * n.y,
+      w + vx * originS + n.x * interceptQ + elevation.x * interceptZ,
+      vy * originS + n.y * interceptQ + elevation.y * interceptZ]
+    const clip = clipDepth(clipDepth(fold.lifted, Math.max(0, lo - 0.65), true), hi + 0.65, false)
+    const back = centre.theta < Math.PI / 2
+    // The crown catches the lamp; the near-upright paper falls into shade.
+    const light = 0.22 * Math.sin(centre.theta) - 0.32 * Math.sin(centre.theta) ** 4 - 0.1 * (s / depth)
+    return { clip, matrix, back, light }
+  })
+  const shadow = fold.lifted.map((p) => {
+    const s = depthOf(p), { q, z } = sample(Math.max(0, s))
+    return { x: w - p.x + n.x * (s + q) + z * 0.22, y: p.y + n.y * (s + q) + z * 0.3 }
+  })
+  return { flat: fold.flat, strips, shadow, opacity: Math.min(0.34, depth / w * 0.4) }
+}
+
 /**
  * Where a peek pulls the held point `corner` of the bottom edge, in screen px for a card `w` wide,
  * once the finger has moved from `from` to `finger`: up `lever` times the finger's rise, at most
