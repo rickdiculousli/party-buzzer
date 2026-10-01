@@ -3,6 +3,7 @@ import { POKER_DEAL, pokerDealSpan } from '../shared/protocol.ts'
 import { mulberry32 } from '../shared/random.ts'
 import type { Cue } from './sound.ts'
 import { dealSchedule } from './toss.ts'
+import { bendAngle, bendArc, BEND_ELEVATION } from './poker-bend.ts'
 import { ordinal } from './ui.ts'
 
 /** A board or phone frame, as far as cues and wording need one. */
@@ -99,31 +100,10 @@ export function bendCard(w: number, h: number, corner: Point, finger: Point, rot
   const depthOf = (p: Point) => -((w - p.x - mid.x) * n.x + (p.y - mid.y) * n.y)
   const depth = profile?.depth ?? Math.max(...fold.lifted.map(depthOf))
   const bendLength = profile?.length ?? Math.min(w * 0.3, depth * 0.85)
-  const angle = 2.5
   const rad = rot * Math.PI / 180
-  const elevation = { x: -Math.sin(rad) * 0.55, y: -Math.cos(rad) * 0.55 }
-  const angleAt = (s: number) => {
-    const u = Math.max(0, Math.min(1, s / bendLength))
-    return angle * u ** 3 * (u * (6 * u - 15) + 10)
-  }
-  // Integrate the paper tangent: curvature starts and ends at zero instead of kinking at the cloth.
-  const arcAt = (s: number) => {
-    const step = s / 12
-    let q = 0, z = 0
-    for (let i = 0; i <= 12; i++) {
-      const theta = angleAt(i * step)
-      const weight = i === 0 || i === 12 ? 1 : i % 2 ? 4 : 2
-      q -= weight * Math.cos(theta)
-      z += weight * Math.sin(theta)
-    }
-    return { q: q * step / 3, z: z * step / 3 }
-  }
-  const end = arcAt(bendLength)
-  const sample = (s: number) => {
-    if (s < bendLength) return arcAt(Math.max(0, s))
-    const tail = s - bendLength
-    return { q: end.q - tail * Math.cos(angle), z: end.z + tail * Math.sin(angle) }
-  }
+  const elevation = { x: -Math.sin(rad) * BEND_ELEVATION, y: -Math.cos(rad) * BEND_ELEVATION }
+  const angleAt = (s: number) => bendAngle(s, bendLength)
+  const sample = (s: number) => bendArc(s, bendLength)
   const lightAt = (s: number) => {
     const theta = angleAt(s)
     return 0.22 * Math.sin(theta) - 0.32 * Math.sin(theta) ** 4 - 0.1 * (s / depth)

@@ -8,6 +8,7 @@ import { nextBowSequence } from './bow-control.ts'
 import { FeltArc, FeltMark, PlayingCard, ShotRing, reducedMotion, usePokerCues } from './PokerParts.tsx'
 import { classifyGesture, dealTimes, peekTip, bendCard, raiseStops, showsRight, GESTURE, PEEK, type Point, type TracePoint, type BendProfile } from './poker.ts'
 import { pitch, simplifyFrames } from './toss.ts'
+import { PokerPeekRenderer } from './poker-peek-renderer.ts'
 import { colorForPlayer, ordinal, playerName } from './ui.ts'
 
 const AUTO_NOTE_MS = 2_000
@@ -196,6 +197,8 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
   const flight = useRef<Animation | null>(null)
   const foldSeq = useRef(-1)
   const hole = useRef<HTMLDivElement>(null)
+  const peekCanvas = useRef<HTMLCanvasElement>(null)
+  const peekRenderer = useRef<PokerPeekRenderer | null>(null)
   // The dashed line on the felt where peeking begins: one rank above the pair's lowest point. It is
   // placed from the pair's layout, which only changes with the screen, so it is measured when it
   // appears and on resize, never per frame.
@@ -239,6 +242,7 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
     cancelAnimationFrame(peel.current?.raf ?? 0)
     peel.current = null
     trace.current = []
+    hole.current?.classList.remove('poker-hole--gpu-peek', 'poker-hole--peek-fallback')
     hole.current?.querySelectorAll<HTMLElement>('.poker-peel__base, .poker-peel__sheet').forEach((node) => node.style.removeProperty('clip-path'))
     hole.current?.querySelectorAll<HTMLElement>('.poker-peel__flap').forEach((node) => node.style.removeProperty('visibility'))
   }, [])
@@ -255,6 +259,20 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
   // down mirrored, the card that was underneath on top. A phone that arrives with the cards already
   // shown just shows them.
   const shown = !!poker?.seats.find((seat) => seat.player === me)?.cards
+  const privatePair = poker?.hole?.join(',') ?? ''
+  useEffect(() => {
+    const canvas = peekCanvas.current
+    if (!canvas || !privatePair || shown) return
+    const renderer = PokerPeekRenderer.create(canvas, privatePair.split(','), () => {
+      const node = hole.current
+      if (node?.classList.contains('poker-hole--gpu-peek')) {
+        node.classList.remove('poker-hole--gpu-peek')
+        node.classList.add('poker-hole--peek-fallback')
+      }
+    })
+    peekRenderer.current = renderer
+    return () => { stopPeel(); renderer?.dispose(); peekRenderer.current = null }
+  }, [hand, privatePair, shown, retired, stopPeel])
   const [faceUp, setFaceUp] = useState(shown)
   const wasShown = useRef(shown)
   useEffect(() => {
@@ -394,6 +412,27 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
     // The pair is held at its bottom edge, right under the finger: the same spot on both cards,
     // even past a card's own side, so the two bend up as one stack.
     const geometry = cards.map(geometryOf)
+    const node = hole.current!
+    const origin = node.getBoundingClientRect()
+    const table = node.closest('.poker-phone__table')!.getBoundingClientRect()
+    const renderer = peekRenderer.current
+    const gpu = !!renderer?.ready
+    if (gpu) {
+      const corners = geometry.flatMap(g => [{ x: 0, y: 0 }, { x: g.w, y: 0 }, { x: g.w, y: g.h }, { x: 0, y: g.h }].map(q => screenPoint(g, q)))
+      const pad = geometry[0].w * 0.4
+      const left = Math.max(table.left, Math.min(...corners.map(p => p.x)) - pad)
+      const right = Math.min(table.right, Math.max(...corners.map(p => p.x)) + pad)
+      const top = Math.max(table.top, Math.min(...corners.map(p => p.y)) - pad)
+      const bottom = Math.min(table.bottom, Math.max(...corners.map(p => p.y)) + pad * 0.4)
+      renderer.configure(geometry, { x: left - origin.left, y: top - origin.top, w: right - left, h: bottom - top })
+    }
+    let mode = ''
+    const display = (next: string) => {
+      if (next === mode) return
+      node.classList.remove('poker-hole--gpu-peek', 'poker-hole--peek-fallback')
+      if (next) node.classList.add(next)
+      mode = next
+    }
     const anchors = geometry.map((g) => ({ x: cardPoint(g, x, y).x, y: g.h }))
     // The lower card's edge leads, levered up by the finger's rise, bending it over a crease. Bent
     // together the pair shares that crease: the other card is picked up when the crease reaches its edge
@@ -426,21 +465,15 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
       const depth = Math.max(0, ...geometry.flatMap((g) =>
         [{ x: 0, y: 0 }, { x: g.w, y: 0 }, { x: g.w, y: g.h }, { x: 0, y: g.h }]
           .map((q) => -side(screenPoint(g, q)))))
-      const profile = { depth, length: Math.min(geometry[lead].w * 0.3, depth * 0.85) }
-      cards.forEach((card, k) => {
-        // `peekTip` already bounds the pull; nothing clamps it again here, so the edge stays with the finger.
-        // The leading card folds from where the finger holds it. The other folds from whichever bottom
-        // corner the crease has reached furthest, the moment it reaches either: turned over the crease,
-        // that corner lands as far beyond it. Same line, any point on the edge.
-        const g = geometry[k]
-        const { w, h } = g
-        const from = k === lead ? anchors[k] : [{ x: 0, y: h }, { x: w, y: h }].reduce((a, b) => side(screenPoint(g, a)) <= side(screenPoint(g, b)) ? a : b)
-        const past = Math.min(0, side(screenPoint(g, from)))
-        const v = { x: -2 * past * n.x, y: -2 * past * n.y }
-        // The pull is on screen; the card lies at its own tilt.
-        const a = (-REST[k] * Math.PI) / 180
-        drawPeel(card, flaps[k]!, g, k, from, { x: from.x + v.x * Math.cos(a) - v.y * Math.sin(a), y: from.y + v.x * Math.sin(a) + v.y * Math.cos(a) }, Infinity, profile)
-      })
+      const profile = { depth: d < 1 ? 0 : depth, length: Math.min(geometry[lead].w * 0.3, depth * 0.85) }
+      if (d < 1 || (p.dropping && t >= 1)) {
+        display('')
+      } else if (gpu && renderer?.draw({ x: crease.x - origin.left, y: crease.y - origin.top }, n, profile)) {
+        display('poker-hole--gpu-peek')
+      } else {
+        // A deliberate simple fallback while textures load or GPU rendering is unavailable.
+        display('poker-hole--peek-fallback')
+      }
       if (p.dropping && t >= 1) { peel.current = null; return }
       if (t < 1) p.wake()
     }
@@ -560,6 +593,7 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
         >
           {([0, 1] as const).map((k) => <DealtCard key={`${hand}-${k}`} card={poker.hole![k]} up={faceUp && !!mine?.cards} turned={faceUp && shown} squared={shown} index={k}
             delay={dealing ? [first, second][k] : null} seed={hand * 2 + k} />)}
+          <canvas ref={peekCanvas} class="poker-peek-canvas" aria-hidden="true" />
           {/* Both cards bend together; the bottom card wraps the outside and its raised face lies on top. */}
           {([1, 0] as const).map((k) => <span key={`${hand}-flap-${k}`} class="poker-peel__flap" data-card={k}>
             <span class="poker-peel__cast"><i /></span>

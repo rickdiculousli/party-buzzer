@@ -3473,3 +3473,9 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .poker-phone__foot { transform: translateY(0.6rem); }
 /* The tap line keeps a little air under the call's bars. */
 .poker-phone__foot > .felt-arc { transform: translateY(0.4rem); }
+
+/* Peek owns the whole pair in one GPU surface, preserving the native cards' hit boxes. */
+.poker-peek-canvas { position: absolute; visibility: hidden; pointer-events: none; z-index: 5; }
+.poker-hole--gpu-peek > .poker-peek-canvas { visibility: visible; }
+.poker-hole--gpu-peek > .poker-hole__card > .poker-peel__base { visibility: hidden; }
+.poker-hole--peek-fallback .poker-card__turn { transform: rotateY(0deg); }

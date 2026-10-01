@@ -6,11 +6,12 @@ import { chromium } from '@playwright/test'
 import { writeFile } from 'node:fs/promises'
 const label = process.argv[2] ?? 'peek'
 const base = process.argv[3] ?? 'http://127.0.0.1:5173'
-const browser = await chromium.launch({ headless: true })
+const browser = await chromium.launch({ headless: true, args: process.env.POKER_GL ? [`--use-angle=${process.env.POKER_GL}`] : [] })
 try {
   const page = await browser.newPage({ viewport: { width: 393, height: 844 }, deviceScaleFactor: 2.75, isMobile: true, hasTouch: true })
-  const errors = []
+  const errors = [], warnings = []
   page.on('pageerror', error => errors.push(error.message))
+  page.on('console', msg => { if (msg.type() === 'warning') warnings.push(msg.text()) })
   await page.goto(`${base}/anim.html`)
   await page.evaluate(async () => {
     const runtime = performance.getEntriesByType('resource').find(entry => /\/preact\.js(?:\?|$)/.test(entry.name))
@@ -65,11 +66,14 @@ try {
     const intervals = times.slice(1).map((t, i) => t - times[i]).sort((a, b) => a - b)
     return { frames: times.length, medianMs: intervals[Math.floor(intervals.length * .5)], p95Ms: intervals[Math.floor(intervals.length * .95)], slowFrames: intervals.filter(t => t > 25).length }
   }, { x, y }))
+  const owner = await page.locator('.poker-hole').getAttribute('class')
   await page.screenshot({ path: `/tmp/poker-${label}.png` })
   await trace('stationary, 1 second', () => page.waitForTimeout(1000))
   await trace('release', async () => { await page.mouse.up(); await page.waitForTimeout(400) })
   for (const result of results) result.events = { count: result.events.length } // keep the report compact
-  const report = { label, viewport: { width: 393, dpr: 2.75, cpuThrottle: 4 }, errors, results }
+  const system = await (await browser.newBrowserCDPSession()).send('SystemInfo.getInfo')
+  const gpu = { devices: system.gpu.devices, renderer: system.gpu.auxAttributes?.glRenderer }
+  const report = { label, gpu, viewport: { width: 393, dpr: 2.75, cpuThrottle: 4 }, owner, errors, warnings, results }
   await writeFile(`/tmp/poker-${label}.json`, JSON.stringify(report, null, 2))
   console.log(JSON.stringify(report, null, 2))
   if (errors.length) throw new Error(errors.join('\n'))
