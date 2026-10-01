@@ -23,6 +23,7 @@ uniform float u_layer;
 uniform float u_shadow;
 varying vec2 v_uv;
 varying float v_depth;
+varying float v_material;
 void main() {
   vec2 tangent = vec2(-u_normal.y, u_normal.x);
   float material = a_uv.y < 0.0 ? u_span.z : (a_uv.y > 1.0 ? u_span.w : a_uv.y * u_profile.y);
@@ -40,13 +41,12 @@ void main() {
   vec2 projected = rest + u_normal * (s + arc.x);
   float height = arc.y + u_layer * cos(theta);
   if (u_shadow > 0.5) {
-    // A soft footprint on the cloth: no folded shadow geometry or self-overdraw at the crease.
-    vec2 size = vec2(u_size.x * 1.4, max(14.0, u_profile.x * 0.5));
-    // Centre along the card, not the finger's arbitrary position along the crease.
-    // Extend onto exposed cloth rather than hiding the entire footprint below the print.
-    vec2 centre = u_crease + tangent * dot(u_pose.xy - u_crease, tangent)
-      - u_normal * (u_profile.x * 0.1) + vec2(4.0, 6.0);
-    projected = centre + (uv - 0.5) * size;
+    // Project the raised stock toward the lamp's cast direction. An affine silhouette
+    // cannot fold over itself, and its soft source mask follows the actual card outline.
+    vec2 plane = u_arc[${BEND_TABLE_SEGMENTS}] * length
+      + (material - length) * vec2(${-Math.cos(BEND_ANGLE)}, ${Math.sin(BEND_ANGLE)});
+    projected = u_crease + tangent * dot(rest - u_crease, tangent)
+      + u_normal * plane.x + vec2(0.2, 0.65) * plane.y + vec2(3.0, 4.0);
     height = 0.0;
   } else {
     // Stack separation follows the surface normal, reversing naturally through the turn.
@@ -58,6 +58,7 @@ void main() {
   gl_Position = vec4(screen.x * 2.0 - 1.0, 1.0 - screen.y * 2.0, -height / 1024.0, 1.0);
   v_uv = uv;
   v_depth = s;
+  v_material = material;
 }`
 
 const FRAGMENT = `
@@ -70,10 +71,16 @@ uniform vec2 u_profile;
 uniform float u_shadow;
 varying vec2 v_uv;
 varying float v_depth;
+varying float v_material;
 void main() {
   if (u_shadow > 0.5) {
-    float radius = length((v_uv - 0.5) * 2.0);
-    float alpha = (1.0 - smoothstep(0.0, 1.0, radius)) * min(0.42, u_profile.x / u_size.x * 0.5);
+    float corner = u_size.x * 0.056;
+    vec2 delta = abs((v_uv - 0.5) * u_size) - u_size * 0.5 + corner;
+    float edge = length(max(delta, 0.0)) + min(max(delta.x, delta.y), 0.0) - corner;
+    float blur = u_size.x * 0.055;
+    float outline = 1.0 - smoothstep(-blur, blur, edge);
+    float lifted = smoothstep(u_profile.y * 0.45 - blur, u_profile.y * 0.45 + blur, v_material);
+    float alpha = outline * lifted * min(0.38, u_profile.x / u_size.x * 0.45);
     gl_FragColor = vec4(0.0, 0.0, 0.0, alpha);
     return;
   }
@@ -239,8 +246,7 @@ export class PokerPeekRenderer {
       }
     }
     gl.disable(gl.DEPTH_TEST); gl.depthMask(false); gl.uniform1f(u.shadow, 1)
-    gl.uniform2fv(u.size, this.poses[0].size); gl.uniform4fv(u.pose, this.poses[0].pose)
-    gl.uniform1f(u.layer, 0); gl.drawElements(gl.TRIANGLES, this.count, gl.UNSIGNED_SHORT, 0)
+    pair()
     gl.enable(gl.DEPTH_TEST); gl.depthMask(true); gl.uniform1f(u.shadow, 0); pair()
     return true
   }

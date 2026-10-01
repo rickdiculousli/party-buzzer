@@ -300,7 +300,8 @@ The DOM strips and their clipping/shade machinery are removed. One WebGL canvas
 renders two whole cards with 48 crease-aligned curve bands, one flat band and one
 raised-plane band each (100 triangles per card), shared gradual curvature,
 surface-normal stack separation, correct side/UV selection and continuous lighting.
-A single soft elliptical shadow makes three draw calls per moving frame. There
+The initial GPU boundary used a single soft ellipse (three draw calls). The
+current renderer projects a softened silhouette for each card (four draw calls). There
 are no texture uploads, layout reads or DOM shape/style writes per drag frame.
 The stress scene's independent shot clock still generates some DOM/native paint work.
 
@@ -358,3 +359,17 @@ felt. An isolated shadow-on/off check confirmed visible cloth darkening. A
 phone-sized release check observed ~95ms including frame scheduling; focused
 checks, typecheck and build passed. The renderer still uses three draw calls and
 no moving blur filters or texture uploads.
+
+
+The oval remained too inconspicuous on the phone despite measurable pixel
+darkening. It has been removed, including its placement/strength workaround.
+Each lifted card now projects one affine silhouette toward the lamp's cast
+direction. A rounded source outline and gradual bend mask soften its bounds;
+affine projection avoids the earlier folded-shadow self-overdraw. The resulting
+shadow has a recognizable card edge and extends visibly below the raised pair at
+full peek in the phone-size check. This adds one draw call, with no blur filters,
+texture uploads or DOM animation layers. Focused checks/typecheck/build passed.
+The [silhouette follow-up profile](gpu-silhouette-metal.json) retained near-16.7ms
+rAF cadence under the same local hardware/mobile/4×-CPU probe, with no slow
+intervals, no drag uploads/layout reads, and zero settled draws. This is still
+local rendering evidence rather than a physical-phone frame-rate claim.

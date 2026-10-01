@@ -23,7 +23,9 @@ is deliberately a flat reveal, rather than retaining a second complex bend engin
 The final review found and reproduced an early-refusal/retained-canvas context-loss
 bug; ownership now follows the actual canvas, and connected canvases remain usable
 when renderer resources are refreshed. Oblique print edges have transparent sampling
-padding; a soft ellipse replaces folded shadow geometry that produced a dark strip.
+padding. The first soft ellipse avoided folded-shadow overdraw but remained too
+inconspicuous on the phone; it was replaced with softly masked affine card
+silhouettes, still entirely on the GPU.
 
 ## Where the original investigation stopped
 

@@ -1051,8 +1051,8 @@ redraws on pointer changes and sleeps while the finger rests. One bounded WebGL
 canvas owns both whole cards during peek, including their flat portions. Crease-aligned
 mesh bands share a gradual material curve and elevated plane; depth separation
 reverses the stack naturally through the turn. Printed backs retain their resting
-orientation and faces use mirrored UVs. Continuous shader lighting and a soft
-elliptical footprint on exposed felt suggest flexible stock under the lamp.
+orientation and faces use mirrored UVs. Continuous shader lighting and soft
+projected silhouettes on exposed felt suggest flexible stock under the lamp.
 Released cards spring back immediately and soften their landing, with a shorter
 return than the initial lift.
 
