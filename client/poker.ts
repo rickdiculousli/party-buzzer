@@ -134,6 +134,9 @@ export function bendCard(w: number, h: number, corner: Point, finger: Point, rot
     })
     return out
   }
+  // Overdraw the flat print beneath the tangent: two antialiased clips meeting edge-to-edge leave a hairline.
+  const faceBox = [{ x: 0, y: 0 }, { x: w, y: 0 }, { x: w, y: h }, { x: 0, y: h }]
+  const flat = clipDepth(faceBox, 0.8, false).map((p) => ({ x: w - p.x, y: p.y }))
   const strips = Array.from({ length: 12 }, (_, i) => {
     const lo = depth * i / 12, hi = depth * (i + 1) / 12
     const s = (lo + hi) / 2
@@ -158,7 +161,7 @@ export function bendCard(w: number, h: number, corner: Point, finger: Point, rot
     const s = depthOf(p), { q, z } = sample(Math.max(0, s))
     return { x: w - p.x + n.x * (s + q) + z * 0.22, y: p.y + n.y * (s + q) + z * 0.3 }
   })
-  return { flat: fold.flat, strips, shadow, shade, opacity: Math.min(0.34, depth / w * 0.4) }
+  return { flat, strips, shadow, shade, opacity: Math.min(0.34, depth / w * 0.4) }
 }
 
 /**

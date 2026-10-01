@@ -225,3 +225,13 @@ test('peek samples show the side facing the screen after elevation projection', 
     }
   }
 })
+
+
+test('flat card print overlaps the bend tangent without expanding the card outline', () => {
+  const w = 120, h = 168
+  const bend = bendCard(w, h, { x: 100, y: h }, { x: 80, y: 68 })!
+  const d = Math.hypot(20, 100), nx = -20 / d, ny = -100 / d
+  const side = (p: { x: number; y: number }) => (p.x - 90) * nx + (p.y - 118) * ny
+  assert.ok(Math.abs(Math.min(...bend.flat.map(side)) + 0.8) < 1e-8)
+  assert.ok(bend.flat.every((p) => p.x >= 0 && p.x <= w && p.y >= 0 && p.y <= h))
+})
