@@ -17,8 +17,8 @@ Current source: `client/poker-bend.ts`, `client/poker-peek-renderer.ts`,
 The historical source map and lessons below describe how we arrived here.
 
 Local hardware-backed drag callback CPU decreased from ~143ms to ~22ms over
-1.8 seconds; settled peeks perform zero GPU draws. Real Pixel 10a response remains
-unverified. No touch prediction was added without cadence evidence. The fallback
+1.8 seconds; settled peeks perform zero GPU draws. The user confirmed the Pixel
+peek is now smooth, fast and responsive; physical-device FPS has not been profiled. No touch prediction was added without cadence evidence. The fallback
 is deliberately a flat reveal, rather than retaining a second complex bend engine.
 The final review found and reproduced an early-refusal/retained-canvas context-loss
 bug; ownership now follows the actual canvas, and connected canvases remain usable

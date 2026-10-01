@@ -343,5 +343,8 @@ hand, reduced motion, failed textures, unavailable WebGL and unmount cleanup.
 Focused geometry/gesture checks, typecheck/build and the interface detector passed.
 The final review caught retained-canvas context loss after refusal; the reproducing
 browser check failed before the lifetime fix and passed afterward. No new UI unit
-suite or project-wide test loop was added. The physical Pixel 10a remains unprofiled;
-its actual touch/presented-frame response is the next manual check.
+suite or project-wide test loop was added. The user subsequently confirmed the Pixel peek is “smooth fast and responsive.”
+The physical device remains unprofiled; this is user-observed responsiveness, not
+a measured FPS claim. Maximum peek reach was then increased from 1.2 to 1.4 card
+widths so the suit indices clear the bend; the gradual curve is retained. A
+phone-size full-lift check showed both suits clearly, and focused checks/build passed.
