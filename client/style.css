@@ -2930,15 +2930,19 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
  */
 .felt {
   position: relative;
+  isolation: isolate;
   overflow: hidden;
   background:
     radial-gradient(ellipse 78% 74% at 46% 46%, transparent 38%, rgb(0 0 0 / 0.5) 72%, rgb(0 0 0 / 0.9) 100%),
+    var(--felt-streaks) 0 0 / 160px 160px,
     var(--felt-grain) 0 0 / 220px 220px,
     var(--felt-nap) 0 0 / 420px 420px,
     var(--felt-mottle) 0 0 / 100% 100% no-repeat,
     radial-gradient(ellipse 70% 65% at 46% 44%, var(--felt), var(--felt-deep) 65%, var(--felt-rim));
   background-color: var(--felt-rim);
 }
+/* Under everything on the table, in or out of flow, blending only with the cloth. */
+.felt::before { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: var(--felt-lit) 0 0 / 200px 200px; mix-blend-mode: soft-light; opacity: 0.35; }
 .felt__lamp { position: absolute; pointer-events: none; }
 .felt__lamp--centre { inset: 0; background: radial-gradient(ellipse 48% 44% at 44% 45%, rgb(255 196 120 / 0.1), transparent 72%); }
 .felt__lamp--seat {
@@ -2964,11 +2968,12 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .felt-mark__ink {
   /* The felt's own grain and nap over the paint, at the felt's scale, so painted pile reads as the same cloth. */
   background:
+    var(--felt-streaks) 0 0 / 160px 160px,
     var(--felt-grain) 0 0 / 220px 220px,
     var(--felt-nap) 0 0 / 420px 420px,
     var(--paint-grain) 0 0 / 56px 56px,
     linear-gradient(var(--felt-ink), var(--felt-ink));
-  background-blend-mode: normal, normal, overlay, normal;
+  background-blend-mode: normal, normal, normal, overlay, normal;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
