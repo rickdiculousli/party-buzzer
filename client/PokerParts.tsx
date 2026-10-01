@@ -17,6 +17,8 @@ const RANK: Record<string, string> = { T: '10' }
 const COURT = new Set(['J', 'Q', 'K'])
 const SUIT_NAME: Record<string, string> = { s: 'spades', h: 'hearts', d: 'diamonds', c: 'clubs' }
 
+export function cardName(card: string) { return `${RANK[card[0]] ?? card[0]} of ${SUIT_NAME[card[1]]}` }
+
 export function SuitPip({ suit, class: cls = '' }: { suit: string; class?: string }) {
   return <svg class={`poker-pip ${cls}`} viewBox="0 0 100 100" aria-hidden="true"><path d={PIP[suit]} /></svg>
 }
@@ -69,7 +71,7 @@ export function PlayingCard({ card, up, hinge, peek, class: cls = '' }: { card: 
     class={`poker-card ${showing ? 'poker-card--up' : ''} ${hinge === undefined ? '' : 'poker-card--hinged'} ${cls}`}
     style={hinge === undefined ? undefined : { '--hinge': hinge }}
     role="img"
-    aria-label={showing ? `${rank} of ${SUIT_NAME[suit]}` : 'face-down card'}
+    aria-label={showing ? cardName(card!) : 'face-down card'}
   >
     <span class="poker-card__shadow poker-card__shadow--contact" aria-hidden="true" />
     <span class="poker-card__shadow poker-card__shadow--ambient" aria-hidden="true" />

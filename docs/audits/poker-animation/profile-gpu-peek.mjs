@@ -13,21 +13,25 @@ try {
   page.on('pageerror', error => errors.push(error.message))
   page.on('console', msg => { if (msg.type() === 'warning') warnings.push(msg.text()) })
   await page.goto(`${base}/anim.html`)
-  await page.evaluate(async () => {
+  await page.evaluate(async scene => {
     const runtime = performance.getEntriesByType('resource').find(entry => /\/preact\.js(?:\?|$)/.test(entry.name))
     const { h, render } = await import(runtime.name)
-    const { PokerStress } = await import('/anim/PokerStress.tsx')
+    const { PokerStress } = await import(`/anim/${scene}.tsx`)
     render(null, document.getElementById('app'))
     const style = document.createElement('style')
     style.textContent = '.poker-stress {width:100%;padding:0} .poker-stress > label {display:none} .poker-stress__surface {height:100vh!important;margin:0}'
     document.head.append(style)
     render(h(PokerStress, { lead: true, surface: 'phone' }), document.getElementById('app'))
-    window.peekProbe = { reads: 0, writes: 0, events: [] }
+    window.peekProbe = { reads: 0, writes: 0, draws: 0, uploads: 0, events: [] }
+    for (const [method, counter] of [['drawElements', 'draws'], ['texImage2D', 'uploads']]) {
+      const original = WebGLRenderingContext.prototype[method]
+      WebGLRenderingContext.prototype[method] = function (...args) { window.peekProbe[counter]++; return original.apply(this, args) }
+    }
     const rect = Element.prototype.getBoundingClientRect
     Element.prototype.getBoundingClientRect = function () { window.peekProbe.reads++; return rect.call(this) }
     new MutationObserver(list => window.peekProbe.writes += list.length).observe(document.getElementById('app'), { attributes: true, attributeFilter: ['style', 'class'], subtree: true })
     document.querySelector('.poker-phone__table').addEventListener('pointermove', e => window.peekProbe.events.push(e.timeStamp))
-  })
+  }, process.env.POKER_SCENE ?? 'PokerStress')
   await page.waitForTimeout(800)
   const cdp = await page.context().newCDPSession(page)
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 })
@@ -38,7 +42,7 @@ try {
   const results = []
   async function trace(name, action) {
     const events = [], collect = ({ value }) => events.push(...value)
-    await page.evaluate(() => { window.peekProbe = { reads: 0, writes: 0, events: [] } })
+    await page.evaluate(() => { window.peekProbe = { reads: 0, writes: 0, draws: 0, uploads: 0, events: [] } })
     cdp.on('Tracing.dataCollected', collect)
     await cdp.send('Tracing.start', { categories: 'devtools.timeline,disabled-by-default-devtools.timeline,cc', transferMode: 'ReportEvents' })
     const timing = await action()
@@ -68,6 +72,7 @@ try {
   }, { x, y }))
   const owner = await page.locator('.poker-hole').getAttribute('class')
   await page.screenshot({ path: `/tmp/poker-${label}.png` })
+  await page.waitForTimeout(200)
   await trace('stationary, 1 second', () => page.waitForTimeout(1000))
   await trace('release', async () => { await page.mouse.up(); await page.waitForTimeout(400) })
   for (const result of results) result.events = { count: result.events.length } // keep the report compact

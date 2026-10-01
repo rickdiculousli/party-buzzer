@@ -3,7 +3,6 @@ import { POKER_DEAL, pokerDealSpan } from '../shared/protocol.ts'
 import { mulberry32 } from '../shared/random.ts'
 import type { Cue } from './sound.ts'
 import { dealSchedule } from './toss.ts'
-import { bendAngle, bendArc, BEND_ELEVATION } from './poker-bend.ts'
 import { ordinal } from './ui.ts'
 
 /** A board or phone frame, as far as cues and wording need one. */
@@ -38,126 +37,6 @@ export const GESTURE = {
 export const PEEK = { line: 0.25, lever: 2.5, tilt: 15, flex: 7, reach: 1.2, liftMs: 140, dropMs: 120 }
 
 export type Point = { x: number; y: number }
-
-/**
- * A card peeled at `corner` so the corner's tip touches `finger`, in the card's own px
- * (origin top left, y down, `w` × `h`). The card folds along the perpendicular bisector of
- * corner and tip: `flat` is the part still lying down, in card px; `lifted` is the flap,
- * in the face's px (the face is the back mirrored left to right), and `matrix` (CSS
- * `matrix()`, origin top left) carries the face onto the felt, which flips it over the
- * fold. `shade` lays a highlight along the fold on the face's own gradient line, so the
- * flat flap reads as curved paper. Null when the finger sits on the corner itself.
- */
-export function peelCard(w: number, h: number, corner: Point, finger: Point, reach = PEEK.reach * w) {
-  const far = Math.hypot(finger.x - corner.x, finger.y - corner.y)
-  if (far < 1) return null
-  const n = { x: (finger.x - corner.x) / far, y: (finger.y - corner.y) / far }
-  const d = Math.min(far, reach)
-  const tip = { x: corner.x + n.x * d, y: corner.y + n.y * d }
-  const mid = { x: (corner.x + tip.x) / 2, y: (corner.y + tip.y) / 2 }
-  const side = (p: Point) => (p.x - mid.x) * n.x + (p.y - mid.y) * n.y
-  const box = [{ x: 0, y: 0 }, { x: w, y: 0 }, { x: w, y: h }, { x: 0, y: h }]
-  const lifted: Point[] = []
-  const flat: Point[] = []
-  box.forEach((p, i) => {
-    const q = box[(i + 1) % 4]
-    const sp = side(p)
-    const sq = side(q)
-    ;(sp < 0 ? lifted : flat).push(p)
-    if ((sp < 0) !== (sq < 0)) {
-      const t = sp / (sp - sq)
-      const cut = { x: p.x + (q.x - p.x) * t, y: p.y + (q.y - p.y) * t }
-      lifted.push(cut)
-      flat.push(cut)
-    }
-  })
-  const reflect = (p: Point) => ({ x: p.x - 2 * side(p) * n.x, y: p.y - 2 * side(p) * n.y })
-  const origin = reflect({ x: w, y: 0 })
-  // On the face (mirrored left to right), the way from the fold toward the corner.
-  const v = { x: n.x, y: -n.y }
-  const length = Math.abs(w * v.x) + Math.abs(h * v.y)
-  const foldAt = (w - mid.x - w / 2) * v.x + (mid.y - h / 2) * v.y + length / 2
-  return {
-    tip,
-    flat,
-    lifted: lifted.map((p) => ({ x: w - p.x, y: p.y })),
-    matrix: [-(1 - 2 * n.x * n.x), 2 * n.x * n.y, -2 * n.x * n.y, 1 - 2 * n.y * n.y, origin.x, origin.y] as const,
-    shade: { angle: (Math.atan2(v.x, -v.y) * 180) / Math.PI, foldAt, depth: d / 2 },
-  }
-}
-
-/** A rounded bend followed by a raised plane, sampled into eight affine strips.
- * Curvature eases out of the flat cloth tangent; the paper turns through 143°, rather than reflecting
- * abruptly at a crease. Screen elevation foreshortens the bend toward the top of the phone.
- */
-export type BendProfile = { depth: number; length: number }
-export function bendCard(w: number, h: number, corner: Point, finger: Point, rot = 0, reach = PEEK.reach * w, profile?: BendProfile) {
-  const fold = peelCard(w, h, corner, finger, reach)
-  if (!fold || fold.lifted.length < 3) return null
-  const d = Math.hypot(fold.tip.x - corner.x, fold.tip.y - corner.y)
-  const n = { x: (fold.tip.x - corner.x) / d, y: (fold.tip.y - corner.y) / d }
-  const mid = { x: (corner.x + fold.tip.x) / 2, y: (corner.y + fold.tip.y) / 2 }
-  const depthOf = (p: Point) => -((w - p.x - mid.x) * n.x + (p.y - mid.y) * n.y)
-  const depth = profile?.depth ?? Math.max(...fold.lifted.map(depthOf))
-  const bendLength = profile?.length ?? Math.min(w * 0.3, depth * 0.85)
-  const rad = rot * Math.PI / 180
-  const elevation = { x: -Math.sin(rad) * BEND_ELEVATION, y: -Math.cos(rad) * BEND_ELEVATION }
-  const angleAt = (s: number) => bendAngle(s, bendLength)
-  const sample = (s: number) => bendArc(s, bendLength)
-  const lightAt = (s: number) => {
-    const theta = angleAt(s)
-    return 0.22 * Math.sin(theta) - 0.32 * Math.sin(theta) ** 4 - 0.1 * (s / depth)
-  }
-  // One continuous gradient in the face's source coordinates, shared by every affine sample.
-  const gradientLength = Math.abs(w * n.x) + Math.abs(h * n.y)
-  const centreDepth = -(w / 2 - mid.x) * n.x - (h / 2 - mid.y) * n.y
-  const shade = {
-    angle: Math.atan2(n.x, n.y) * 180 / Math.PI,
-    stops: [...Array.from({ length: 17 }, (_, i) => bendLength * i / 16), depth].map((s) => ({
-      at: s - centreDepth + gradientLength / 2, light: lightAt(s),
-    })),
-  }
-  const clipDepth = (points: Point[], threshold: number, above: boolean) => {
-    const out: Point[] = []
-    points.forEach((p, i) => {
-      const q = points[(i + 1) % points.length]
-      const a = depthOf(p) - threshold, b = depthOf(q) - threshold
-      if (above ? a >= 0 : a <= 0) out.push(p)
-      if ((a < 0) !== (b < 0)) {
-        const t = a / (a - b)
-        out.push({ x: p.x + (q.x - p.x) * t, y: p.y + (q.y - p.y) * t })
-      }
-    })
-    return out
-  }
-  // Spend samples on the curve, with a fine first tangent; the raised plane needs only one.
-  const boundaries = [...[0, 0.025, 0.125, 0.3, 0.5, 0.7, 0.9, 1].map((u) => bendLength * u), depth]
-  const faceBox = [{ x: 0, y: 0 }, { x: w, y: 0 }, { x: w, y: h }, { x: 0, y: h }]
-  const samples = boundaries.map(sample)
-  const strips = Array.from({ length: boundaries.length - 1 }, (_, i) => {
-    const lo = boundaries[i], hi = boundaries[i + 1]
-    const a = samples[i], b = samples[i + 1]
-    // Secants meet exactly at strip boundaries, avoiding hairline gaps along the bend.
-    const dq = (b.q - a.q) / (hi - lo), dz = (b.z - a.z) / (hi - lo)
-    const vx = n.x * (dq + 1) + elevation.x * dz
-    const vy = n.y * (dq + 1) + elevation.y * dz
-    const interceptQ = a.q + lo - (dq + 1) * lo, interceptZ = a.z - dz * lo
-    const originS = -(w - mid.x) * n.x + mid.y * n.y
-    const matrix = [-1 + vx * n.x, vy * n.x, -vx * n.y, 1 - vy * n.y,
-      w + vx * originS + n.x * interceptQ + elevation.x * interceptZ,
-      vy * originS + n.y * interceptQ + elevation.y * interceptZ]
-    // Continue the same sample overlap through the tangent; clamping it there exposes an AA seam.
-    const clip = clipDepth(clipDepth(faceBox, lo - 0.65, true), hi + 0.65, false)
-    // Elevation shifts the apparent edge-on point; use projected winding, not the 3D bend angle.
-    const back = matrix[0] * matrix[3] - matrix[1] * matrix[2] < 0
-    return { clip, matrix, back, fromDepth: lo, toDepth: hi }
-  })
-  const shadow = fold.lifted.map((p) => {
-    const s = depthOf(p), { q, z } = sample(Math.max(0, s))
-    return { x: w - p.x + n.x * (s + q) + z * 0.22, y: p.y + n.y * (s + q) + z * 0.3 }
-  })
-  return { flat: fold.flat, strips, shadow, shade, opacity: Math.min(0.34, depth / w * 0.4) }
-}
 
 /**
  * Where a peek pulls the held point `corner` of the bottom edge, in screen px for a card `w` wide,

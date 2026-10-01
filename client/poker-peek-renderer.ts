@@ -1,4 +1,6 @@
-import type { BendProfile, Point } from './poker.ts'
+import { POKER_PRINT_GEOMETRY, POKER_PRINT_VERSIONS } from './poker-prints.generated.ts'
+import type { Point } from './poker.ts'
+import type { BendProfile } from './poker-bend.ts'
 import { BEND_ANGLE, BEND_ELEVATION, BEND_TABLE_SEGMENTS, bendTable } from './poker-bend.ts'
 
 export type PeekPose = { w: number; h: number; left: number; top: number; cos: number; sin: number }
@@ -38,7 +40,9 @@ void main() {
   vec2 projected = rest + u_normal * (s + arc.x);
   float height = arc.y + u_layer * cos(theta);
   if (u_shadow > 0.5) {
-    projected += vec2(0.22, 0.3) * arc.y + vec2(1.0, 3.0);
+    // A soft footprint on the cloth: no folded shadow geometry or self-overdraw at the crease.
+    vec2 size = vec2(u_size.x * 1.25, max(10.0, u_profile.x * 0.4));
+    projected = u_crease + u_normal * (u_profile.x * 0.15) + vec2(2.0, 5.0) + (uv - 0.5) * size;
     height = 0.0;
   } else {
     // Stack separation follows the surface normal, reversing naturally through the turn.
@@ -54,6 +58,7 @@ void main() {
 
 const FRAGMENT = `
 precision highp float;
+uniform vec4 u_print;
 uniform sampler2D u_face;
 uniform sampler2D u_back;
 uniform vec2 u_size;
@@ -63,17 +68,15 @@ varying vec2 v_uv;
 varying float v_depth;
 void main() {
   if (u_shadow > 0.5) {
-    vec2 halfSize = u_size * 0.5;
-    float radius = u_size.x * 0.056;
-    vec2 delta = abs((v_uv - 0.5) * u_size) - halfSize + radius;
-    float edge = length(max(delta, 0.0)) + min(max(delta.x, delta.y), 0.0) - radius;
-    float alpha = (1.0 - smoothstep(-u_size.x * 0.02, u_size.x * 0.08, edge)) * 0.20;
+    float radius = length((v_uv - 0.5) * 2.0);
+    float alpha = (1.0 - smoothstep(0.0, 1.0, radius)) * min(0.30, u_profile.x / u_size.x * 0.35);
     gl_FragColor = vec4(0.0, 0.0, 0.0, alpha);
     return;
   }
-  if (v_uv.x < 0.0 || v_uv.x > 1.0 || v_uv.y < 0.0 || v_uv.y > 1.0) discard;
+  vec2 texUV = v_uv * u_print.xy + u_print.zw;
+  if (texUV.x < 0.0 || texUV.x > 1.0 || texUV.y < 0.0 || texUV.y > 1.0) discard;
   // At rest the printed back faces the viewer. Its opposite uses mirrored face UVs.
-  vec4 print = gl_FrontFacing ? texture2D(u_back, v_uv) : texture2D(u_face, vec2(1.0 - v_uv.x, v_uv.y));
+  vec4 print = gl_FrontFacing ? texture2D(u_back, texUV) : texture2D(u_face, vec2(1.0 - texUV.x, texUV.y));
   if (print.a < 0.01) discard;
   float t = clamp(v_depth / max(0.001, u_profile.y), 0.0, 1.0);
   float theta = ${BEND_ANGLE} * t*t*t * (t*(6.0*t-15.0)+10.0);
@@ -117,7 +120,7 @@ export class PokerPeekRenderer {
     try {
       const images = await Promise.all([...cards, 'back'].map(async (card) => {
         const image = new Image()
-        image.src = `/poker/prints/${card}.webp`
+        image.src = `/poker/prints/${card}.webp?v=${POKER_PRINT_VERSIONS[card]}`
         await image.decode()
         return image
       }))
@@ -147,7 +150,7 @@ export class PokerPeekRenderer {
       gl.attachShader(this.program, vertex); gl.attachShader(this.program, fragment); gl.linkProgram(this.program)
       if (!gl.getProgramParameter(this.program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(this.program) ?? 'Link failed')
       gl.useProgram(this.program)
-      for (const name of ['box', 'pose', 'size', 'crease', 'normal', 'profile', 'span', 'arc', 'layer', 'shadow', 'face', 'back']) {
+      for (const name of ['box', 'pose', 'size', 'crease', 'normal', 'profile', 'span', 'arc', 'layer', 'shadow', 'print', 'face', 'back']) {
         this.uniforms[name] = gl.getUniformLocation(this.program, `u_${name === 'arc' ? 'arc[0]' : name}`)
       }
       // Crease-aligned bands: only material depth bends. Flat and raised planes need one band each.
@@ -177,6 +180,8 @@ export class PokerPeekRenderer {
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image)
       }
       gl.uniform2fv(this.uniforms.arc, bendTable())
+      const { width, height, padding } = POKER_PRINT_GEOMETRY
+      gl.uniform4f(this.uniforms.print, (width - padding * 2) / width, (height - padding * 2) / height, padding / width, padding / height)
       gl.uniform1i(this.uniforms.face, 0); gl.uniform1i(this.uniforms.back, 1)
       gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.textures[2])
       gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
@@ -229,7 +234,9 @@ export class PokerPeekRenderer {
         gl.drawElements(gl.TRIANGLES, this.count, gl.UNSIGNED_SHORT, 0)
       }
     }
-    gl.disable(gl.DEPTH_TEST); gl.depthMask(false); gl.uniform1f(u.shadow, 1); pair()
+    gl.disable(gl.DEPTH_TEST); gl.depthMask(false); gl.uniform1f(u.shadow, 1)
+    gl.uniform2fv(u.size, this.poses[0].size); gl.uniform4fv(u.pose, this.poses[0].pose)
+    gl.uniform1f(u.layer, 0); gl.drawElements(gl.TRIANGLES, this.count, gl.UNSIGNED_SHORT, 0)
     gl.enable(gl.DEPTH_TEST); gl.depthMask(true); gl.uniform1f(u.shadow, 0); pair()
     return true
   }
@@ -257,6 +264,8 @@ export class PokerPeekRenderer {
     this.canvas.removeEventListener('webglcontextlost', this.lost)
     this.canvas.removeEventListener('webglcontextrestored', this.restored)
     this.release(); this.images = []
-    this.gl.getExtension('WEBGL_lose_context')?.loseContext()
+    // Connected canvases may be reused when artwork/showdown state changes. Keep their context usable.
+    if (!this.canvas.isConnected) this.gl.getExtension('WEBGL_lose_context')?.loseContext()
+    else { this.canvas.width = 1; this.canvas.height = 1 }
   }
 }

@@ -278,6 +278,7 @@ npm run typecheck
 npm test
 npm run build
 npm run motion         # standalone visual/audio workbench at /anim.html
+npm run poker:prints   # regenerate peek prints after card art/token/font changes (Chromium + cwebp)
 npm run review         # frozen board/phone review workbench at /review.html
 npm run review:serve   # same workbench on 127.0.0.1:4174, without opening a browser
 npm run dev            # Vite HMR; see proxy limitation below

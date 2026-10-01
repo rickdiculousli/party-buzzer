@@ -5,10 +5,11 @@ import { mulberry32 } from '../shared/random.ts'
 import type { MinigamePlayerProps } from './minigames.tsx'
 import { matchFrame } from './minigame-info.ts'
 import { nextBowSequence } from './bow-control.ts'
-import { FeltArc, FeltMark, PlayingCard, ShotRing, reducedMotion, usePokerCues } from './PokerParts.tsx'
-import { classifyGesture, dealTimes, peekTip, bendCard, raiseStops, showsRight, GESTURE, PEEK, type Point, type TracePoint, type BendProfile } from './poker.ts'
+import { FeltArc, FeltMark, PlayingCard, ShotRing, cardName, reducedMotion, usePokerCues } from './PokerParts.tsx'
+import { classifyGesture, dealTimes, peekTip, raiseStops, showsRight, GESTURE, PEEK, type Point, type TracePoint } from './poker.ts'
 import { pitch, simplifyFrames } from './toss.ts'
 import { PokerPeekRenderer } from './poker-peek-renderer.ts'
+import { bendProfile } from './poker-bend.ts'
 import { colorForPlayer, ordinal, playerName } from './ui.ts'
 
 const AUTO_NOTE_MS = 2_000
@@ -94,50 +95,6 @@ const screenPoint = (g: CardGeometry, p: Point): Point => {
   return { x: dx * g.cos - dy * g.sin + g.cx, y: dx * g.sin + dy * g.cos + g.cy }
 }
 
-const polygon = (points: Point[]) => `polygon(${points.map((p) => `${p.x}px ${p.y}px`).join(', ')})`
-
-/** Draw the flexed bend directly; cached geometry keeps pointer frames free of layout reads. */
-function drawPeel(card: HTMLElement, flap: HTMLElement, g: CardGeometry, index: number, corner: Point, finger: Point, reach?: number, profile?: BendProfile) {
-  const base = card.firstElementChild as HTMLElement
-  const bend = bendCard(g.w, g.h, corner, finger, REST[index], reach, profile)
-  base.style.clipPath = bend ? polygon(bend.flat) : ''
-  if (!bend) { flap.style.visibility = ''; return }
-  flap.style.width = `${g.w}px`
-  flap.style.height = `${g.h}px`
-  const placement = `translate(${g.left + g.w / 2}px, ${g.top + g.h / 2}px) rotate(${REST[index]}deg) translate(${-g.w / 2}px, ${-g.h / 2}px)`
-  const shadow = flap.firstElementChild as HTMLElement
-  const xs = bend.shadow.map((p) => p.x), ys = bend.shadow.map((p) => p.y)
-  const left = Math.min(...xs), top = Math.min(...ys)
-  const width = Math.max(...xs) - left, height = Math.max(...ys) - top
-  shadow.style.opacity = String(bend.opacity)
-  // A prepainted soft footprint: scaling and opacity avoid refiltering a moving polygon mask.
-  shadow.style.transform = `${placement} translate(${left + width / 2 + 2}px, ${top + height / 2 + 3}px) scale(${width / g.w}, ${(height + 4) / g.h}) translate(${-g.w / 2}px, ${-g.h / 2}px)`
-  // Stamp the samples only on the first peek, rather than cloning prints at deal.
-  const layers = flap.lastElementChild as HTMLElement
-  if (layers.children.length === 1) {
-    const original = layers.firstElementChild!
-    for (let i = 1; i < bend.strips.length; i++) layers.appendChild(original.cloneNode(true))
-  }
-  const stops = bend.shade.stops.map(({ at, light }) =>
-    `${light > 0 ? `rgb(255 255 255 / ${light})` : `rgb(0 0 0 / ${-light})`} ${at}px`)
-  const shade = `linear-gradient(${bend.shade.angle}deg, ${stops.join(',')})`
-  const sheets = layers.querySelectorAll<HTMLElement>('.poker-peel__sheet')
-  bend.strips.forEach((strip, i) => {
-    const sheet = sheets[i]
-    // A shared sample may miss this card entirely; polygon() is invalid and would retain an old clip.
-    sheet.style.visibility = strip.clip.length >= 3 ? '' : 'hidden'
-    if (strip.clip.length < 3) return
-    sheet.style.clipPath = polygon(strip.clip)
-    sheet.style.transform = `${placement} matrix(${strip.matrix.join(',')})`
-    sheet.style.zIndex = String(strip.back ? index + 1 : 4 - index)
-    sheet.classList.toggle('is-back', strip.back)
-    // Keep changing light on this one leaf; inherited variables invalidate every cloned card descendant.
-    const overlay = sheet.lastElementChild as HTMLElement
-    overlay.style.background = shade
-  })
-  flap.style.visibility = 'visible'
-}
-
 /**
  * One hole card. On a fresh deal it is pitched in from above the top edge of the phone after
  * `delay`, straight into its place in the pair: no landing loose and gathering, so the pair can
@@ -162,10 +119,10 @@ function DealtCard({ card, up, turned, squared, index, delay, seed }: {
     )
     return () => run.cancel()
   }, [])
-  // The base lies on the felt, clipped to what still lies flat while the card is peeked.
+  // Native print owns deal, rest, throw and showdown; the canvas owns the whole pair during peek.
   // Turned over, the pair lies mirrored, so each card leans the other way.
   return <span ref={el} class="poker-hole__card" style={{ transform: `rotate(${(turned ? -1 : 1) * (squared ? SQUARE : REST)[index]}deg)` }}>
-    <span class="poker-peel__base"><PlayingCard card={card} up={up} /></span>
+    <PlayingCard card={card} up={up} />
   </span>
 }
 
@@ -197,7 +154,7 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
   const flight = useRef<Animation | null>(null)
   const foldSeq = useRef(-1)
   const hole = useRef<HTMLDivElement>(null)
-  const peekCanvas = useRef<HTMLCanvasElement>(null)
+  const [peekCanvas, setPeekCanvas] = useState<HTMLCanvasElement | null>(null)
   const peekRenderer = useRef<PokerPeekRenderer | null>(null)
   // The dashed line on the felt where peeking begins: one rank above the pair's lowest point. It is
   // placed from the pair's layout, which only changes with the screen, so it is measured when it
@@ -243,13 +200,12 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
     peel.current = null
     trace.current = []
     hole.current?.classList.remove('poker-hole--gpu-peek', 'poker-hole--peek-fallback')
-    hole.current?.querySelectorAll<HTMLElement>('.poker-peel__base, .poker-peel__sheet').forEach((node) => node.style.removeProperty('clip-path'))
-    hole.current?.querySelectorAll<HTMLElement>('.poker-peel__flap').forEach((node) => node.style.removeProperty('visibility'))
+    hole.current?.setAttribute('aria-label', 'Your cards')
   }, [])
   useEffect(() => {
     addEventListener('resize', stopPeel)
     return () => { removeEventListener('resize', stopPeel); stopPeel(); flight.current?.cancel(); flight.current = null }
-  }, [hand, stopPeel])
+  }, [session.matchId, hand, stopPeel])
   useEffect(() => {
     if (ack?.seq === foldSeq.current && ack.status === 'refused') {
       flight.current?.cancel(); flight.current = null; setThrown(null); setRetired(null)
@@ -261,7 +217,7 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
   const shown = !!poker?.seats.find((seat) => seat.player === me)?.cards
   const privatePair = poker?.hole?.join(',') ?? ''
   useEffect(() => {
-    const canvas = peekCanvas.current
+    const canvas = peekCanvas
     if (!canvas || !privatePair || shown) return
     const renderer = PokerPeekRenderer.create(canvas, privatePair.split(','), () => {
       const node = hole.current
@@ -272,7 +228,7 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
     })
     peekRenderer.current = renderer
     return () => { stopPeel(); renderer?.dispose(); peekRenderer.current = null }
-  }, [hand, privatePair, shown, retired, stopPeel])
+  }, [peekCanvas, session.matchId, privatePair, shown, stopPeel])
   const [faceUp, setFaceUp] = useState(shown)
   const wasShown = useRef(shown)
   useEffect(() => {
@@ -403,8 +359,7 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
   const holeCards = () => [...hole.current?.querySelectorAll<HTMLElement>(':scope > .poker-hole__card') ?? []]
   const startPeel = (x: number, y: number) => {
     const cards = holeCards()
-    const flaps = ([0, 1] as const).map((k) => hole.current?.querySelector<HTMLElement>(`:scope > .poker-peel__flap[data-card="${k}"]`))
-    if (cards.length !== 2 || !flaps[0] || !flaps[1]) return
+    if (cards.length !== 2) return
     // Settle the pair where it lies, so each card is where its tilt says it is.
     hole.current!.style.removeProperty('transition')
     hole.current!.style.removeProperty('transform')
@@ -417,8 +372,8 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
     const table = node.closest('.poker-phone__table')!.getBoundingClientRect()
     const renderer = peekRenderer.current
     const gpu = !!renderer?.ready
+    const corners = geometry.flatMap(g => [{ x: 0, y: 0 }, { x: g.w, y: 0 }, { x: g.w, y: g.h }, { x: 0, y: g.h }].map(q => screenPoint(g, q)))
     if (gpu) {
-      const corners = geometry.flatMap(g => [{ x: 0, y: 0 }, { x: g.w, y: 0 }, { x: g.w, y: g.h }, { x: 0, y: g.h }].map(q => screenPoint(g, q)))
       const pad = geometry[0].w * 0.4
       const left = Math.max(table.left, Math.min(...corners.map(p => p.x)) - pad)
       const right = Math.min(table.right, Math.max(...corners.map(p => p.x)) + pad)
@@ -426,11 +381,12 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
       const bottom = Math.min(table.bottom, Math.max(...corners.map(p => p.y)) + pad * 0.4)
       renderer.configure(geometry, { x: left - origin.left, y: top - origin.top, w: right - left, h: bottom - top })
     }
-    let mode = ''
+    let mode = node.classList.contains('poker-hole--gpu-peek') ? 'poker-hole--gpu-peek' : node.classList.contains('poker-hole--peek-fallback') ? 'poker-hole--peek-fallback' : ''
     const display = (next: string) => {
-      if (next === mode) return
+      if (next === mode && (!next || node.classList.contains(next))) return
       node.classList.remove('poker-hole--gpu-peek', 'poker-hole--peek-fallback')
       if (next) node.classList.add(next)
+      node.setAttribute('aria-label', next ? `Your cards: ${privatePair.split(',').map(cardName).join(', ')}` : 'Your cards')
       mode = next
     }
     const anchors = geometry.map((g) => ({ x: cardPoint(g, x, y).x, y: g.h }))
@@ -460,12 +416,7 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
       const d = Math.hypot(pull.x, pull.y)
       const n = d ? { x: pull.x / d, y: pull.y / d } : { x: 0, y: -1 }
       const crease = { x: at[lead].x + pull.x / 2, y: at[lead].y + pull.y / 2 }
-      const side = (q: Point) => (q.x - crease.x) * n.x + (q.y - crease.y) * n.y
-      // A shared bend in screen space: tilted cards must not choose independent profiles or samples.
-      const depth = Math.max(0, ...geometry.flatMap((g) =>
-        [{ x: 0, y: 0 }, { x: g.w, y: 0 }, { x: g.w, y: g.h }, { x: 0, y: g.h }]
-          .map((q) => -side(screenPoint(g, q)))))
-      const profile = { depth: d < 1 ? 0 : depth, length: Math.min(geometry[lead].w * 0.3, depth * 0.85) }
+      const profile = bendProfile(corners, crease, n, geometry[lead].w)
       if (d < 1 || (p.dropping && t >= 1)) {
         display('')
       } else if (gpu && renderer?.draw({ x: crease.x - origin.left, y: crease.y - origin.top }, n, profile)) {
@@ -589,16 +540,13 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
         {((inHand && retired !== hand) || flying) && poker.hole && <div
           key={hand}
           ref={hole}
+          role="group" aria-label="Your cards"
           class={`poker-hole ${shown ? 'poker-hole--square' : ''} ${faceUp && shown ? 'poker-hole--turned' : ''}`}
         >
           {([0, 1] as const).map((k) => <DealtCard key={`${hand}-${k}`} card={poker.hole![k]} up={faceUp && !!mine?.cards} turned={faceUp && shown} squared={shown} index={k}
             delay={dealing ? [first, second][k] : null} seed={hand * 2 + k} />)}
-          <canvas ref={peekCanvas} class="poker-peek-canvas" aria-hidden="true" />
-          {/* Both cards bend together; the bottom card wraps the outside and its raised face lies on top. */}
-          {([1, 0] as const).map((k) => <span key={`${hand}-flap-${k}`} class="poker-peel__flap" data-card={k}>
-            <span class="poker-peel__cast"><i /></span>
-            <span class="poker-peel__layers"><span class="poker-peel__sheet"><PlayingCard card={poker.hole![k]} up peek /><span class="poker-peel__shade" /></span></span>
-          </span>)}
+          <canvas ref={setPeekCanvas} class="poker-peek-canvas" aria-hidden="true" />
+
         </div>}
         {inHand && !shown && <svg ref={lineRef} class="poker-peek-line" viewBox="0 0 100 6" preserveAspectRatio="none" aria-hidden="true">
           <line class="felt-line__shade" x1="0" y1="3.5" x2="100" y2="3.5" />

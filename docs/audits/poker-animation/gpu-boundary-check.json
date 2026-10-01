@@ -1,0 +1,128 @@
+{
+  "results": [
+    {
+      "check": "shallow/medium/deep, bounded canvas, sleeping held peek",
+      "draws": 39,
+      "uploads": 3,
+      "deletes": 0,
+      "sent": [],
+      "raf": 18,
+      "canvas": [
+        1073,
+        1397
+      ]
+    },
+    {
+      "check": "context loss, fallback, restore and clean release",
+      "draws": 66,
+      "uploads": 6,
+      "deletes": 0,
+      "sent": [],
+      "raf": 28,
+      "canvas": [
+        1073,
+        1397
+      ]
+    },
+    {
+      "check": "resize and stale hand cancellation",
+      "draws": 93,
+      "uploads": 9,
+      "deletes": 3,
+      "sent": [],
+      "raf": 41,
+      "canvas": [
+        300,
+        150
+      ]
+    },
+    {
+      "check": "showdown cancels peek and preserves native flip",
+      "draws": 123,
+      "uploads": 9,
+      "deletes": 6,
+      "sent": [],
+      "raf": 53,
+      "canvas": [
+        1,
+        1
+      ]
+    },
+    {
+      "check": "refused fold restores native pair",
+      "draws": 123,
+      "uploads": 15,
+      "deletes": 9,
+      "sent": [
+        "fold",
+        "fold"
+      ],
+      "raf": 58,
+      "canvas": [
+        300,
+        150
+      ]
+    },
+    {
+      "check": "reduced motion release",
+      "draws": 180,
+      "uploads": 15,
+      "deletes": 9,
+      "sent": [
+        "fold",
+        "fold"
+      ],
+      "raf": 80,
+      "canvas": [
+        1073,
+        1397
+      ]
+    },
+    {
+      "check": "failed texture fallback and same-canvas recovery",
+      "draws": 183,
+      "uploads": 18,
+      "deletes": 12,
+      "sent": [
+        "fold",
+        "fold"
+      ],
+      "raf": 86,
+      "canvas": [
+        1073,
+        1397
+      ]
+    },
+    {
+      "check": "unavailable WebGL has a reversible flat reveal",
+      "draws": 183,
+      "uploads": 18,
+      "deletes": 15,
+      "sent": [
+        "fold",
+        "fold"
+      ],
+      "raf": 89,
+      "canvas": [
+        300,
+        150
+      ]
+    },
+    {
+      "check": "unmount disposes textures and canvas",
+      "draws": 183,
+      "uploads": 18,
+      "deletes": 15,
+      "sent": [
+        "fold",
+        "fold"
+      ],
+      "raf": 89,
+      "canvas": [
+        null,
+        null
+      ]
+    }
+  ],
+  "errors": []
+}

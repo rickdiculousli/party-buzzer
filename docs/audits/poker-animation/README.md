@@ -290,5 +290,58 @@ experiments did not improve the result and were discarded.
 The [rendering lessons and session handoff](rendering-handoff.md) records the full
 curve/seam/performance investigation, discarded experiments and remaining Pixel
 sluggishness. The [GPU peek task outline](../../superpowers/plans/2026-10-01-poker-gpu-peek.md)
-carries the next rendering direction into a fresh session; that renderer is not
-yet implemented.
+records the implemented rendering direction; physical Pixel verification remains
+pending. See the implementation results below.
+
+
+### GPU peek implementation
+
+The DOM strips and their clipping/shade machinery are removed. One WebGL canvas
+renders two whole cards with 48 crease-aligned curve bands, one flat band and one
+raised-plane band each (100 triangles per card), shared gradual curvature,
+surface-normal stack separation, correct side/UV selection and continuous lighting.
+A single soft elliptical shadow makes three draw calls per moving frame. There
+are no texture uploads, layout reads or DOM shape/style writes per drag frame.
+The stress scene's independent shot clock still generates some DOM/native paint work.
+
+Prints are captured from the real component/font/tokens, losslessly encoded locally,
+alpha-padded and versioned. Only three active-hand images are uploaded (~9.4 MiB of
+RGBA texture storage, no mipmaps). Canvas backing size is capped at 3× and 1.5M
+pixels; its colour/depth/MSAA allocations are additional and driver-dependent.
+Buffers/program/textures are reused; held peeks draw nothing. A simple flat reveal
+covers unavailable/loading GPU resources. Native deal/throw/showdown remain intact.
+
+Matched local hardware ANGLE Metal comparison, 393 CSS px, DPR 2.75, CPU throttle 4×,
+1.8-second synthetic drag:
+
+| CPU window sum | Original DOM | Final GPU |
+| --- | ---: | ---: |
+| Animation callbacks (including the input driver) | 143.18ms | 21.56ms |
+| Style updates | 41.92ms | 7.55ms |
+| Paint | 60.04ms | 14.37ms |
+| Raster workers | 21.79ms | 3.53ms |
+
+Both runs had near-16.7ms rAF cadence. These measurements demonstrate less browser
+CPU work, **not increased physical-phone FPS**. Saved reports:
+[matched DOM](gpu-dom-metal.json), [final GPU](gpu-mesh-final-metal.json),
+[initial default-backend DOM](gpu-dom-baseline.json),
+[grouped browser boundary results](gpu-boundary-check.json).
+The early mesh report is retained as [GPU proof](gpu-mesh-metal.json).
+
+The [profile script](profile-gpu-peek.mjs) mounts the real phone stress component.
+Run the motion server, then `POKER_GL=metal node docs/audits/poker-animation/profile-gpu-peek.mjs label`
+on a Mac with hardware Metal; use the suitable ANGLE backend elsewhere or omit
+`POKER_GL` for the browser default. Always inspect the recorded GPU backend.
+Default software WebGL ran much more slowly despite tiny DOM raster cost; CPU
+throttling and software GL are not a Pixel GPU model. Do not compare the initial
+457ms default-backend raster baseline with the hardware GPU report as a matched gain.
+
+Grouped checks covered shallow/medium/deep peeks at phone density, another phone
+width, stationary sleep, context loss/restoration, resize, hand changes, native
+showdown, successful fold retirement, early refused fold after a retired prior
+hand, reduced motion, failed textures, unavailable WebGL and unmount cleanup.
+Focused geometry/gesture checks, typecheck/build and the interface detector passed.
+The final review caught retained-canvas context loss after refusal; the reproducing
+browser check failed before the lifetime fix and passed afterward. No new UI unit
+suite or project-wide test loop was added. The physical Pixel 10a remains unprofiled;
+its actual touch/presented-frame response is the next manual check.

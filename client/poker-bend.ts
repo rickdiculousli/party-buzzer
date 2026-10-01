@@ -32,3 +32,11 @@ export function bendTable() {
   }
   return out
 }
+
+export type BendProfile = { depth: number; length: number }
+/** One profile for both resting cards, measured in the same screen coordinates as the crease. */
+export function bendProfile(corners: readonly { x: number; y: number }[], crease: { x: number; y: number }, normal: { x: number; y: number }, width: number): BendProfile {
+  let depth = 0
+  for (const p of corners) depth = Math.max(depth, -((p.x - crease.x) * normal.x + (p.y - crease.y) * normal.y))
+  return { depth, length: Math.min(width * 0.3, depth * 0.85) }
+}

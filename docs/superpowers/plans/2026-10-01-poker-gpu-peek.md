@@ -1,8 +1,16 @@
 # Poker GPU peek: high-level task outline
 
-**Status:** Direction for a fresh session; not implemented. This is the high-level
-outline requested by the user, not a detailed API contract. Read the actual code
-and validate the renderer choice before filling in implementation details.
+**Status:** Implemented on `feat/poker` on 2026-10-01. Physical Pixel 10a
+verification remains pending. This is the original high-level outline; actual
+code and [implementation results](../../audits/poker-animation/README.md#gpu-peek-implementation)
+are the current reference.
+
+Completed in three boundaries: generated real prints and baseline; whole-pair
+GPU bands and gestures; removal of DOM slices, alpha padding/cache versions,
+soft shadow, canvas-lifetime recovery and final grouped checks. No new dependency
+or input prediction. Hardware ANGLE Metal comparison supports the representation;
+software headless GL is a poor phone proxy. Future work starts with the physical
+phone observation, not reimplementation of these tasks.
 
 **Goal:** Preserve the flexible-card peek and acceptable seams while making the
 pair substantially more responsive on the user's Pixel 10a in Chrome.
@@ -125,7 +133,7 @@ server/rules/publication changes.
 - Texture readiness, memory/resolution bounds, context loss and resource cleanup.
 - Stale hand/match work, reduced motion, gestures and stopping the resting loop.
 
-## Suggested fresh-session opening
+## Original suggested fresh-session opening (historical)
 
 > Read `docs/audits/poker-animation/rendering-handoff.md` and
 > `docs/superpowers/plans/2026-10-01-poker-gpu-peek.md`, verify the current code,

@@ -1,8 +1,31 @@
 # Poker “3D-adjacent” rendering: lessons and session handoff
 
-Recorded 2026-10-01 on `feat/poker`, after `5680780`.
+Recorded 2026-10-01 on `feat/poker`, originally after `5680780`; GPU follow-up implemented later that day.
 
-## Where we stopped
+## Current implementation update
+
+The GPU direction below is now implemented on `feat/poker`: real generated prints,
+a bounded whole-pair mesh renderer and existing gesture integration. See
+[implementation results](README.md#gpu-peek-implementation) and the updated
+[task outline](../../superpowers/plans/2026-10-01-poker-gpu-peek.md).
+`b620b7d` prepares prints/baseline; `b23257f` introduces the GPU pair; the final
+boundary removes superseded slices and fixes retained-canvas lifecycle.
+
+Current source: `client/poker-bend.ts`, `client/poker-peek-renderer.ts`,
+`client/PokerPlayer.tsx`, `tools/poker-prints.ts` and generated local print assets.
+`peelCard`, `bendCard`, slice cloning/masks/shade CSS and the old flap DOM are gone.
+The historical source map and lessons below describe how we arrived here.
+
+Local hardware-backed drag callback CPU decreased from ~143ms to ~22ms over
+1.8 seconds; settled peeks perform zero GPU draws. Real Pixel 10a response remains
+unverified. No touch prediction was added without cadence evidence. The fallback
+is deliberately a flat reveal, rather than retaining a second complex bend engine.
+The final review found and reproduced an early-refusal/retained-canvas context-loss
+bug; ownership now follows the actual canvas, and connected canvases remain usable
+when renderer resources are refreshed. Oblique print edges have transparent sampling
+padding; a soft ellipse replaces folded shadow geometry that produced a dark strip.
+
+## Where the original investigation stopped
 
 The initial poker animation sweep is implemented. The phone peek now resembles
 flexible card stock: shared gradual curvature, continuous lighting, aligned

@@ -24,3 +24,15 @@ test('GPU arc table stays within a fraction of a phone pixel across the shared b
     assert.ok(Math.hypot(q - exact.q, z - exact.z) < 0.03)
   }
 })
+
+test('the pair shares one material extent despite fractional placement and different exposed depths', async () => {
+  const { bendProfile } = await import('./poker-bend.ts')
+  const corners = [{ x: 0.188, y: 110.125 }, { x: 30.321, y: 150.75 }]
+  const crease = { x: 12.125, y: 90.625 }, normal = { x: 0, y: -1 }
+  const profile = bendProfile(corners, crease, normal, 226.188)
+  assert.equal(profile.depth, 60.125)
+  assert.equal(profile.length, 60.125 * 0.85)
+  const translated = bendProfile(corners.map(p => ({ x: p.x + 25.5, y: p.y - 11.25 })), { x: crease.x + 25.5, y: crease.y - 11.25 }, normal, 226.188)
+  assert.deepEqual(translated, profile)
+  assert.deepEqual(bendProfile(corners, { x: 0, y: 300 }, normal, 226.188), { depth: 0, length: 0 })
+})

@@ -1047,20 +1047,22 @@ Keep table facts separate from local time: the shot ring and blind-level readout
 advance between state pushes, and the table rerenders when the game changes.
 Deal and showdown trajectories are retained for the hand and table dimensions.
 A peek measures the settled pair once with fractional pixel dimensions and placement,
-redraws on pointer changes and sleeps
-while the finger rests. The raised edge follows a rounded bend into an elevated
-plane, with angle-dependent light and shade and a soft cast shadow on the cloth.
-Both cards share the crease, bend profile and sample boundaries in screen space;
-stacking reverses together where the backs turn into faces. A continuous lighting
-gradient spans the samples so the crease shade has no stepped bands. Apply changing
-light directly to shade leaves, avoiding inherited variables that invalidate the
-printed card subtrees. The underside
-print retains its resting orientation, curvature eases gradually out of the cloth,
-and fine samples at the tangent overlap the
-flat print through the join. The cast shadow moves and scales a prepainted soft
-footprint, avoiding a refiltered polygon while dragging. Seven samples describe the curve and one the raised
-plane; the eight face
-samples are created on first peek and reused for that hand.
+redraws on pointer changes and sleeps while the finger rests. One bounded WebGL
+canvas owns both whole cards during peek, including their flat portions. Crease-aligned
+mesh bands share a gradual material curve and elevated plane; depth separation
+reverses the stack naturally through the turn. Printed backs retain their resting
+orientation and faces use mirrored UVs. Continuous shader lighting and a soft
+elliptical footprint suggest flexible stock under the lamp.
+
+The active hand's two faces and shared back are generated from the real card
+component, local font and tokens, decoded and uploaded before use, then reused.
+Transparent texture padding keeps oblique edges clean. Regenerate with
+`npm run poker:prints` after print changes; generated content versions prevent stale
+cached artwork. Canvas resolution is capped at 3× and 1.5 million pixels. Context
+loss, hand/match changes, resize and unmount cancel or release the right work.
+Native cards own deal, rest, throw and showdown. If GPU rendering or textures are
+unavailable, holding a peek gives a simple flat reveal until release. There is no
+parallel DOM bend renderer or continuous resting animation loop.
 
 Cards travel with direct transforms, hinged flips and shade opacity. Uploaded
 paths are thinned within 0.3px of position, 0.25° of rotation/turn and 0.0006

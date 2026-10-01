@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { PokerFeedEntry, PokerSeatView } from '../shared/protocol.ts'
-import { classifyGesture, dealTimes, peekTip, peelCard, bendCard, pokerClockCue, pokerCues, raiseStops, seatPositions, ELLIPSE, type PokerView, type TracePoint } from './poker.ts'
+import { classifyGesture, dealTimes, peekTip, pokerClockCue, pokerCues, raiseStops, seatPositions, ELLIPSE, type PokerView, type TracePoint } from './poker.ts'
 
 /** A straight trace from (0,0) to (dx,dy) over ms, one point every 10 ms. */
 function line(dx: number, dy: number, ms: number, t0 = 0): TracePoint[] {
@@ -108,25 +108,6 @@ test('dealTimes deals clockwise from left of the button, skipping busted seats, 
   assert.deepEqual(dealTimes([seat(false), seat(true), seat(false, true), seat(false)], 7), times)
 })
 
-test('peelCard lands the corner on the finger and splits the card along the fold', () => {
-  const [w, h] = [100, 140]
-  const apply = (m: readonly number[], p: { x: number; y: number }) => ({ x: m[0] * p.x + m[2] * p.y + m[4], y: m[1] * p.x + m[3] * p.y + m[5] })
-  const close = (a: { x: number; y: number }, b: { x: number; y: number }) => assert.ok(Math.hypot(a.x - b.x, a.y - b.y) < 1e-6, `${JSON.stringify(a)} ≠ ${JSON.stringify(b)}`)
-  const peel = peelCard(w, h, { x: 0, y: h }, { x: 30, y: 110 })!
-  // The corner, seen on the face, is carried onto the finger.
-  close(apply(peel.matrix, { x: w, y: h }), { x: 30, y: 110 })
-  // Every flap point lands on the flat side of the fold: it is turned over, not slid.
-  const area = (ps: { x: number; y: number }[]) => Math.abs(ps.reduce((a, p, i) => a + p.x * ps[(i + 1) % ps.length].y - ps[(i + 1) % ps.length].x * p.y, 0)) / 2
-  assert.ok(Math.abs(area(peel.flat) + area(peel.lifted) - w * h) < 1e-6)
-  assert.equal(peel.lifted.length, 3)
-  // Out of reach, the tip stops short along the same line.
-  const far = peelCard(w, h, { x: w, y: h }, { x: w - 300, y: h - 400 })!
-  assert.ok(Math.abs(Math.hypot(far.tip.x - w, far.tip.y - h) - 120) < 1e-6)
-  // Pulled straight up, the bottom edge bends up as a band across the card.
-  assert.equal(peelCard(w, h, { x: 0, y: h }, { x: 0, y: h - 60 })!.lifted.length, 4)
-  assert.equal(peelCard(w, h, { x: 0, y: h }, { x: 0.2, y: h }), null)
-})
-
 test('peekTip levers the finger rise and locks the lean up and to the left', () => {
   const p = { line: 0.25, lever: 3, tilt: 10, flex: 2, reach: 1, liftMs: 0, dropMs: 0 }
   const corner = { x: 0, y: 300 }
@@ -151,88 +132,4 @@ test('raise stops run min and the standard sizes short of all in', () => {
   // An unopened pot preflop opens in big blinds.
   const open = raiseStops({ minTo: 40, maxTo: 1500, highBet: 20, pot: 30, call: 20, sb: 10, bb: 20, unopened: true })
   assert.deepEqual(open.map((s) => s.to), [40, 50, 60, 80, 100])
-})
-
-
-test('bent peek stays finite from a tiny lift through the maximum pull, at either card tilt', () => {
-  for (const rot of [0, -24]) for (const rise of [1.1, 5, 40, 120, 250]) {
-    const bend = bendCard(120, 168, { x: 100, y: 168 }, { x: 100 - rise * 0.2, y: 168 - rise }, rot)!
-    assert.equal(bend.strips.length, 8)
-    assert.ok(bend.strips.every((s) => s.matrix.every(Number.isFinite)))
-    assert.ok(bend.shade.stops.every(({ at, light }) => Number.isFinite(at) && Number.isFinite(light)))
-    assert.ok(bend.shadow.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y)))
-    assert.ok(bend.strips.some((s) => s.back))
-    assert.ok(bend.strips.some((s) => !s.back))
-    assert.ok(bend.opacity >= 0 && bend.opacity <= 0.34)
-  }
-  assert.equal(bendCard(120, 168, { x: 100, y: 168 }, { x: 100, y: 168 }), null)
-})
-
-test('adjacent bend strips meet at their shared material boundary', () => {
-  const bend = bendCard(120, 168, { x: 100, y: 168 }, { x: 80, y: 68 })!
-  // The overlap clips enclose each boundary; projected positions must agree there.
-  const nx = -20 / Math.hypot(20, 100), ny = -100 / Math.hypot(20, 100)
-  const mid = { x: 90, y: 118 }
-  const at = (m: number[], x: number, y: number) => ({ x: m[0] * x + m[2] * y + m[4], y: m[1] * x + m[3] * y + m[5] })
-  for (let i = 1; i < bend.strips.length; i++) {
-    const s = bend.strips[i].fromDepth
-    const x = 120 - mid.x + nx * s, y = mid.y - ny * s
-    const a = at(bend.strips[i - 1].matrix, x, y), b = at(bend.strips[i].matrix, x, y)
-    assert.ok(Math.hypot(a.x - b.x, a.y - b.y) < 1e-8)
-  }
-})
-
-
-test('stacked peeks share the bend despite different exposed card depths', () => {
-  const profile = { depth: 80, length: 36 }
-  const a = bendCard(120, 168, { x: 100, y: 168 }, { x: 100, y: 68 }, 0, Infinity, profile)!
-  const b = bendCard(120, 148, { x: 100, y: 148 }, { x: 100, y: 88 }, 0, Infinity, profile)!
-  // Both folds lie on y=118; source depth and bend position are therefore identical.
-  a.strips.forEach((strip, i) => {
-    assert.deepEqual(strip.matrix, b.strips[i].matrix)
-    assert.equal(strip.back, b.strips[i].back)
-  })
-  assert.deepEqual(a.shade.stops.map((s) => s.light), b.shade.stops.map((s) => s.light))
-})
-
-test('tilted cards project the shared bend onto the same screen surface', () => {
-  const profile = { depth: 90, length: 36 }
-  const rotate = (p: { x: number; y: number }, degrees: number) => {
-    const a = degrees * Math.PI / 180
-    return { x: p.x * Math.cos(a) - p.y * Math.sin(a), y: p.x * Math.sin(a) + p.y * Math.cos(a) }
-  }
-  const corner = { x: 85, y: 165 }, finger = { x: 65, y: 65 }
-  const bends = [0, -24].map((rot) => bendCard(120, 168, rotate(corner, -rot), rotate(finger, -rot), rot, Infinity, profile)!)
-  for (let i = 0; i < bends[0].strips.length; i++) {
-    const p = { x: 70, y: 120 + i * 2 }
-    const projected = [0, -24].map((rot, k) => {
-      const local = rotate(p, -rot), x = 120 - local.x, y = local.y
-      const m = bends[k].strips[i].matrix
-      return rotate({ x: m[0] * x + m[2] * y + m[4], y: m[1] * x + m[3] * y + m[5] }, rot)
-    })
-    assert.ok(Math.hypot(projected[0].x - projected[1].x, projected[0].y - projected[1].y) < 1e-8)
-  }
-})
-
-test('peek samples show the side facing the screen after elevation projection', () => {
-  for (const rot of [0, -24]) {
-    const bend = bendCard(120, 168, { x: 100, y: 168 }, { x: 80, y: 68 }, rot)!
-    for (const strip of bend.strips) {
-      const [a, b, c, d] = strip.matrix
-      // Source face coordinates are mirrored: a negative determinant exposes the back.
-      assert.equal(strip.back, a * d - b * c < 0)
-    }
-  }
-})
-
-
-test('bend starts nearly tangent to the flat underside and spends its samples on the curve', () => {
-  const bend = bendCard(120, 168, { x: 100, y: 168 }, { x: 100, y: 68 })!
-  const first = bend.strips[0]
-  assert.ok(Math.abs(first.matrix[3] - 1) < 0.001)
-  assert.ok(first.toDepth < 1)
-  assert.ok(Math.abs(Math.min(...first.clip.map((p) => p.y - 118)) + 0.65) < 1e-8)
-  const last = bend.strips.at(-1)!
-  assert.ok(last.toDepth - last.fromDepth > 10)
-  assert.deepEqual(bend.flat, peelCard(120, 168, { x: 100, y: 168 }, { x: 100, y: 68 })!.flat)
 })

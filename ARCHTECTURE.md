@@ -139,6 +139,14 @@ private phone data only for that player. Poker's browser shot ring, level clock
 and final-second tick cues run locally between pushes; they never rerender the
 table to advance time. Definitions without a key retain continuous frames.
 
+The phone's local peek is owned by `PokerPlayer.tsx` (gestures and rAF lifecycle),
+`poker-bend.ts` (shared material curve/profile) and `poker-peek-renderer.ts`
+(two whole textured meshes and bounded WebGL resources). Native cards retain
+other motion. `tools/poker-prints.ts` generates local textures from `PlayingCard`
+and its real stylesheet/font via a development-only print page; only the active
+hand is uploaded. GPU loss/loading failure has a simple flat reveal fallback.
+
+
 A long minigame can opt out of losing its world. Four optional definition hooks
 serve it, and Poker is the one user. `checkpoint` returns a small durable
 summary with a version; after each pump the runtime stores a new version in

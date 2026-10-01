@@ -8,6 +8,9 @@ Regenerate with `npm run poker:prints` after editing card art, print CSS, tokens
 or the font. The command uses Playwright Chromium, a temporary local Vite server
 and `cwebp` (install Chromium with `npx playwright install chromium`).
 
-Logical print size is 252 × 352 CSS px, captured at 3× (756 × 1056). The renderer
+Logical print size is 252 × 352 CSS px, captured at 3× with 2 CSS px of transparent
+padding on each side (768 × 1068 total; 756 × 1056 printed area). The command also
+writes `client/poker-prints.generated.ts` with sampling geometry and content versions
+for cache-safe image URLs. The renderer
 loads/uploads only the active hand's two faces and the shared back, not the deck.
 The print page is development-only and is not a production build entry.
