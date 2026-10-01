@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import type { PlayerId, PokerFeedEntry } from '../shared/protocol.ts'
-import { POKER_DEAL, REACT_LABEL, pokerDealSpan } from '../shared/protocol.ts'
+import { REACT_LABEL } from '../shared/protocol.ts'
 import { mulberry32 } from '../shared/random.ts'
 import type { MinigameBoardProps } from './minigames.tsx'
 import { matchFrame } from './minigame-info.ts'
 import { Burst, Letters } from './fx.tsx'
-import { ChipStack, DealerPuck, FeltMark, PaintPile, Piece, PlayingCard, ShotRing, reducedMotion, usePokerCues, useSize } from './PokerParts.tsx'
-import { ELLIPSE, feedLine, seatPositions, POKER_RULES } from './poker.ts'
-import { chain, chipStack, dealSchedule, gather, potOf, topShades, CHIP_FACE, flop, turnUp, pitch, receive, scatter, slide, street, sweep, toss, wildCard, RECEIVE, type Frame, type Pose, type PotStack } from './toss.ts'
+import { ChipStack, Corral, DealerPuck, FeltMark, PaintPile, Piece, PlayingCard, ShotRing, reducedMotion, usePokerCues, useSize } from './PokerParts.tsx'
+import { ELLIPSE, dealTimes, feedLine, holeRest, lie, seatPositions, seedOf, POKER_RULES } from './poker.ts'
+import { chain, chipStack, gather, potOf, CHIP_FACE, flop, turnUp, pitch, receive, scatter, slide, street, sweep, toss, wildCard, RECEIVE, type Frame, type Pose, type PotStack } from './toss.ts'
 import { colorForPlayer, ordinal, playerName, setlistPosition } from './ui.ts'
 
 type Point = { x: number; y: number }
@@ -27,14 +27,6 @@ const BET_BEYOND = 1.6
 const KEEP_CLEAR = { across: 4, along: 1.6 }
 
 const toward = (p: Point, c: Point, by: number): Point => ({ x: p.x + (c.x - p.x) * by, y: p.y + (c.y - p.y) * by })
-/** A stable seed for one card's throw, so a re-render never re-rolls its path. */
-const seedOf = (...parts: (string | number)[]) => {
-  let h = 2166136261
-  for (const ch of parts.join('|')) h = Math.imul(h ^ ch.charCodeAt(0), 16777619)
-  return h >>> 0
-}
-/** How far off square a card comes to rest, in degrees, fixed for that card so it never moves after landing. */
-const lie = (spread: number, ...parts: (string | number)[]) => (mulberry32(seedOf('lie', ...parts))() * 2 - 1) * spread
 
 /** Entries newer than the last frame's. The first frame only sets the baseline, so a reload replays nothing. */
 function useFresh<T extends { id: number }>(list: T[] | undefined, matchId: string): T[] {
@@ -50,7 +42,7 @@ function useFresh<T extends { id: number }>(list: T[] | undefined, matchId: stri
   return fresh
 }
 
-type Ghost = { key: string; pose: Pose; frames: Frame[]; kind: 'fold' | 'chips' | 'bet'; amount?: number; chips?: number[]; held?: number; pending?: number; seat?: number; popping?: boolean }
+type Ghost = { key: string; pose: Pose; frames: Frame[]; kind: 'fold' | 'chips' | 'bet'; amount?: number; chips?: number[]; corral?: { x: number; y: number; chips: number[] }[]; held?: number; pending?: number; seat?: number; popping?: boolean; stay?: boolean }
 
 /**
  * The board is the table under one lamp: felt to every edge, seats printed
@@ -103,19 +95,27 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
   const potStackAt = (stack: PotStack): Pose => ({ x: potAt.x + stack.x * chipW, y: potAt.y + stack.y * chipW * CHIP_FACE, rot: 0 })
   /**
    * The pot pushed to its winners as the stacks it stands in, keeping their
-   * shape: each stack goes to whoever is still owed the most. Empties the pot.
+   * shape: each stack goes to whoever is still owed the most, and lies there
+   * through the verdict until the next hand. Empties the pot.
    */
   const pushPot = (): Ghost[] => {
     const { wins, stacks } = pot.current
     if (!wins.length) return []
     const owed = wins.map((win) => win.amount)
     const worth = (stack: PotStack) => stack.chips.reduce((a, b) => a + b, 0)
-    const ghosts = [...stacks].sort((a, b) => worth(b) - worth(a)).map((stack, k) => {
+    const shares = wins.map((): PotStack[] => [])
+    for (const stack of [...stacks].sort((a, b) => worth(b) - worth(a))) {
       const w = owed.indexOf(Math.max(...owed))
       owed[w] -= worth(stack)
+      shares[w].push(stack)
+    }
+    const ghosts = shares.flatMap((share, w) => {
+      if (!share.length) return []
       const bet = betOf(wins[w].seat)
-      const to = { x: bet.x + stack.x * chipW * 0.8, y: bet.y + stack.y * chipW * 0.8, rot: 0 }
-      return { key: `w${wins[w].id}-${k}`, kind: 'chips' as const, chips: stack.chips, pose: to, frames: slide(potStackAt(stack), to, mulberry32(seedOf(wins[w].id, k)), { hand: 0.35, lift: 0, wobble: 0.03, skidTau: 200 }) }
+      const to = { x: bet.x, y: bet.y, rot: 0 }
+      const offset = (stack: PotStack) => ({ x: (stack.x - share[0].x) * chipW, y: (stack.y - share[0].y) * chipW * CHIP_FACE })
+      const from = potStackAt(share[0])
+      return [{ key: `w${wins[w].id}`, kind: 'chips' as const, stay: true, corral: share.map((stack) => ({ ...offset(stack), chips: stack.chips })), pose: to, frames: slide(from, to, mulberry32(seedOf(wins[w].id)), { hand: 0.35, lift: 0, wobble: 0.03, skidTau: 200 }) }]
     })
     pot.current.wins = []
     pot.current.stacks = []
@@ -138,7 +138,7 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
     const at = { x: spots[i].x + u.x * reach, y: spots[i].y + u.y * reach }
     const tilt = ((spots[i].x - centre.x) / w) * -18
     // A collected pair: squared up, the second card just offset over the first.
-    return { x: at.x + (k ? 0.14 : -0.14) * cardW, y: at.y + (k ? 2 : 0), rot: tilt + (k ? 3 : -2) + lie(2, poker?.handNo ?? 0, i, k) }
+    return { x: at.x + (k ? 0.14 : -0.14) * cardW, y: at.y + (k ? 2 : 0), rot: tilt + holeRest(poker?.handNo ?? 0, i, k) }
   }
   const betOf = (i: number) => {
     const u = inward(i)
@@ -190,7 +190,9 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
       add.push({ key: land.key, kind: 'chips', chips: stack.chips, held: land.base, pending: stack.chips.length - land.base - land.count, pose: potStackAt(stack), frames: sweep({ ...betOf(land.seat), rot: 0 }, potStackAt(stack)) })
     }
     if (!pot.current.landing.length) add.push(...pushPot())
-    if (add.length) setGhosts((all) => [...all, ...add])
+    // A new hand clears the last pot from in front of its winner.
+    const newHand = before && before.handNo !== poker.handNo
+    if (add.length || newHand) setGhosts((all) => [...(newHand ? all.filter((g) => !g.stay) : all), ...add])
     if (freshReacts.length) {
       const items = freshReacts.map((r) => ({ key: `r${r.id}`, player: r.player, text: REACT_LABEL[r.kind] }))
       setFloats((all) => [...all, ...items])
@@ -310,14 +312,13 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
   const actor = seatIndex(poker.actor)
   const buttonAt = seats.findIndex((seat) => seat.button)
 
-  // The deal: clockwise from the seat left of the button, one card each, then the second.
-  const live = seats.map((seat, i) => ({ seat, i })).filter(({ seat }) => !seat.busted)
-  const start = Math.max(0, live.findIndex(({ i }) => i > buttonAt))
-  const order = [...live.slice(start), ...live.slice(0, start)].map(({ i }) => i)
-  const schedule = dealSchedule(order.length, POKER_DEAL.gapMs, POKER_DEAL.roundMs, pokerDealSpan(order.length), mulberry32(seedOf(poker.handNo, 'deal')))
+  const times = dealTimes(seats, poker.handNo)
+  const pitches = [...times.values()].flat().sort((a, b) => a - b)
   const dealtAt = deal.current?.at ?? null
-  const dealDelay = (i: number, k: 0 | 1) =>
-    dealtAt === null ? null : Math.max(0, dealtAt + schedule[k * order.length + order.indexOf(i)] - performance.now())
+  const dealDelay = (i: number, k: 0 | 1) => {
+    const at = times.get(i)?.[k]
+    return dealtAt === null || at === undefined ? null : Math.max(0, dealtAt + at - performance.now())
+  }
   /**
    * One seat's deal: both cards land loose where the pitches leave them, and
    * once the second is down the player takes a moment, gathers the pair and
@@ -329,8 +330,14 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
     const flights = ([0, 1] as const).map((k) => pitch(dealer, scatter(holeOf(i, k), cardW, mulberry32(seedOf(poker.handNo, i, k, 'land'))), mulberry32(seedOf(poker.handNo, i, k))))
     const react = RECEIVE.reactMs[0] + (RECEIVE.reactMs[1] - RECEIVE.reactMs[0]) * mulberry32(seedOf(poker.handNo, i, 'react'))()
     const collect = delays[1]! + flights[1][flights[1].length - 1].t + react
-    // One tap rhythm per player: both cards of the pair move as one.
-    return [0, 1].map((k) => receive(flights[k], holeOf(i, k as 0 | 1), collect - delays[k]!, mulberry32(seedOf(poker.handNo, i, 'tap')))) as [Frame[], Frame[]]
+    // One tap rhythm per player: both cards of the pair move as one. In the air a card flies over every card
+    // already down, later pitches over earlier ones; landed, it lies with the rest.
+    return ([0, 1] as const).map((k) => {
+      const lands = flights[k][flights[k].length - 1].t
+      const pitched = pitches.indexOf(times.get(i)![k])
+      return receive(flights[k], holeOf(i, k), collect - delays[k]!, mulberry32(seedOf(poker.handNo, i, 'tap')))
+        .map((f) => ({ ...f, z: f.t < lands ? 10 + pitched : 2 }))
+    }) as [Frame[], Frame[]]
   }
   const incomingBet = new Set(ghosts.filter((g) => g.kind === 'bet').map((g) => g.seat))
   const pushing = poker.phase === 'showdown' || poker.phase === 'muck'
@@ -367,21 +374,13 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
 
         {potTotal > 0 && (!pushing || pot.current.landing.length > 0 || fresh.some((entry) => entry.kind === 'win')) && <>
           {/* Every shadow first, then every stack, back to front: a shadow falls on the felt, never over a chip. */}
-          {(() => {
-            const standing = pot.current.stacks.map((stack, k) => {
+          <Piece key={`pot-${poker.handNo}`} pose={{ ...potAt, rot: 0 }}>
+            <Corral at={potAt} lamp={centre} chipW={chipW} stacks={pot.current.stacks.map((stack, k) => {
               const landing = pot.current.landing.filter((land) => land.stack === k)
-              return landing.length ? Math.min(...landing.map((land) => land.base)) : stack.chips.length
-            })
-            const shades = topShades(pot.current.stacks.map((stack, k) => ({ ...potStackAt(stack), n: standing[k] })), centre, chipW)
-            const order = [...pot.current.stacks.keys()].sort((a, b) => pot.current.stacks[a].y - pot.current.stacks[b].y)
-            // Every shadow on the felt first, then every stack back to front: a nearer, taller stack covers the ones behind.
-            return (['shade', 'chips'] as const).map((part) => order.map((k) => {
-              const stack = pot.current.stacks[k]
-              return <Piece key={`pot-${poker.handNo}-${k}-${part}`} pose={potStackAt(stack)}>
-                <ChipStack chips={stack.chips} pending={stack.chips.length - standing[k]} part={part} shades={shades[k]} />
-              </Piece>
-            }))
-          })()}
+              const { x, y } = potStackAt(stack)
+              return { x: x - potAt.x, y: y - potAt.y, chips: stack.chips, pending: landing.length ? stack.chips.length - Math.min(...landing.map((land) => land.base)) : 0 }
+            })} />
+          </Piece>
           <Piece key="pot" pose={{ x: potAt.x, y: potAt.y + chipW * 1.9, rot: 0 }}>
             <span class="poker-pot">
               <span class="poker-pot__amount">{potTotal.toLocaleString()}</span>
@@ -403,7 +402,8 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
               <PlayingCard card={card} up hinge={shown.hinge} class={five.size ? (won && five.has(card) ? 'poker-card--win' : won ? '' : 'poker-card--dim') : ''} />
             </Piece>
           }
-          return <Piece key={`${poker.handNo}-${i}-${k}`} pose={holeOf(i, k)} frames={frames} delay={delay ?? 0}>
+          // A dealt card flies above the chips and the button it passes.
+          return <Piece key={`${poker.handNo}-${i}-${k}`} pose={holeOf(i, k)} frames={frames} delay={delay ?? 0} class={frames ? 'poker-piece--dealt' : ''}>
             <PlayingCard card={card} up={!!card} class={card && five.size ? (won && five.has(card) ? 'poker-card--win' : won ? '' : 'poker-card--dim') : ''} />
           </Piece>
         }))}
@@ -416,7 +416,7 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
         {ghosts.map((g) => {
           const gone = () => setGhosts((all) => all.filter((other) => other.key !== g.key))
           // Folded cards pop away after lying still; chips have arrived where the table shows them.
-          const arrived = g.kind === 'fold' ? () => setGhosts((all) => all.map((other) => other.key === g.key ? { ...other, popping: true } : other)) : () => {
+          const arrived = g.kind === 'fold' ? () => setGhosts((all) => all.map((other) => other.key === g.key ? { ...other, popping: true } : other)) : g.stay ? undefined : () => {
             pot.current.landing = pot.current.landing.filter((land) => land.key !== g.key)
             const pushed = pot.current.landing.length ? [] : pushPot()
             setGhosts((all) => [...all.filter((other) => other.key !== g.key), ...pushed])
@@ -426,7 +426,9 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
               ? <span class={`poker-fold ${g.popping ? 'fx-poof' : ''}`} onAnimationEnd={g.popping ? gone : undefined}><PlayingCard card={null} up={false} /></span>
               : g.kind === 'bet'
                 ? <span class="poker-bet"><ChipStack chips={g.chips} held={g.held} /><span class="poker-bet__amount" style={{ visibility: 'hidden' }}>{seats[g.seat!]?.bet.toLocaleString()}</span></span>
-                : <ChipStack amount={g.amount} chips={g.chips} held={g.held} pending={g.pending} />}
+                : g.corral
+                  ? <Corral stacks={g.corral} at={g.pose} lamp={centre} chipW={chipW} />
+                  : <ChipStack amount={g.amount} chips={g.chips} held={g.held} pending={g.pending} />}
           </Piece>
         })}
       </div>}

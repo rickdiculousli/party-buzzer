@@ -1517,6 +1517,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   --card-shadow-drop: 0.12;
   --card-shadow-spread: 0.08;
   --card-shadow-dark: 0.18;
+  --card-shadow-ambient: 0.12;
   --card-turn-shade: 0.5;
 
   /* No cue's sound lives here any more. A cue's gain, offset and envelope are
@@ -3048,7 +3049,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
     inset 0 1px 0 rgb(255 255 255 / 0.8),
     calc(var(--sx) * var(--far) * 1px) calc(var(--sy) * var(--far) * 1px) 0 var(--card-edge),
     calc(var(--sx) * var(--fall)) calc(var(--sy) * var(--fall)) calc(var(--w) * (0.006 + 0.16 * var(--h))) rgb(0 0 0 / var(--card-shadow-contact)),
-    calc(var(--sx) * var(--fall) * 2) calc(var(--sy) * var(--fall) * 2) calc(var(--w) * (0.06 + 0.3 * var(--h))) calc(var(--w) * var(--card-shadow-spread) * var(--h)) rgb(0 0 0 / calc(0.12 + var(--card-shadow-dark) * var(--h)));
+    calc(var(--sx) * var(--fall) * 2) calc(var(--sy) * var(--fall) * 2) calc(var(--w) * (0.06 + 0.3 * var(--h))) calc(var(--w) * var(--card-shadow-spread) * var(--h)) rgb(0 0 0 / calc(var(--card-shadow-ambient) + var(--card-shadow-dark) * var(--h)));
 }
 .poker-card__face { color: var(--card-ink); }
 .poker-card__face--red { color: var(--suit-red); }
@@ -3069,6 +3070,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .poker-pip { display: block; fill: currentColor; }
 .poker-card__index { position: absolute; top: calc(var(--w) * 0.05); left: calc(var(--w) * 0.055); display: grid; justify-items: center; gap: calc(var(--w) * 0.01); }
 .poker-card__index--foot { top: auto; left: auto; bottom: calc(var(--w) * 0.05); right: calc(var(--w) * 0.055); rotate: 180deg; }
+.poker-card__index--right { left: auto; right: calc(var(--w) * 0.055); }
+.poker-card__index--foot-left { top: auto; bottom: calc(var(--w) * 0.05); rotate: 180deg; }
 .poker-card__rank { font-family: var(--display); font-weight: 800; font-size: calc(var(--w) * 0.25); line-height: 0.86; letter-spacing: -0.03em; }
 .poker-card__index .poker-pip { width: calc(var(--w) * 0.15); height: calc(var(--w) * 0.15); }
 .poker-card__centre, .poker-card__ace { position: absolute; left: 50%; top: 50%; translate: -50% -50%; }
@@ -3201,10 +3204,15 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 /* The board: felt to every edge, a HUD in the dark top-left, the log in the dark right. */
 .poker-room { display: block; position: relative; padding: 0; }
 .felt--board { position: absolute; inset: 0; }
-.poker-layer { position: absolute; inset: 0; }
+/* Its own layer: pieces order among themselves (a dealt card over chips) but never rise above seats, floats or banners. */
+.poker-layer { position: absolute; inset: 0; isolation: isolate; }
 .poker-piece { position: absolute; left: 0; top: 0; }
 .poker-fold { display: block; }
 .poker-piece--glide { transition: transform 640ms cubic-bezier(0.16, 1, 0.3, 1); }
+.poker-piece--dealt { z-index: 2; }
+/* A corral is a point: its stacks stand around it. */
+.poker-corral { position: relative; display: block; width: 0; height: 0; }
+.poker-corral__stack { position: absolute; left: 0; top: 0; }
 .poker-logo { position: absolute; left: 0; top: 0; display: grid; justify-items: center; gap: var(--s2); pointer-events: none; }
 .poker-logo__name { font-size: clamp(2.2rem, 4.6vw, 5.4rem); letter-spacing: 0.24em; }
 .poker-logo__game { font-size: clamp(0.8rem, 1.1vw, 1.25rem); letter-spacing: 0.5em; }
@@ -3290,10 +3298,41 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .poker-phone .poker-ring { width: 1.75rem; height: 1.75rem; flex: none; }
 .poker-phone__table { position: relative; z-index: 1; flex: 1; min-height: 0; display: grid; grid-template-rows: auto 1fr auto; align-items: center; padding: var(--s2) var(--s3); touch-action: none; }
 .poker-phone__spot { position: relative; display: grid; place-items: center; min-height: 0; }
-.poker-hole { --card-w: min(38vw, 10.5rem); display: flex; transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease; }
-.poker-hole__card { display: block; }
-.poker-hole__card + .poker-hole__card { margin-left: calc(var(--card-w) * -0.6); }
-.poker-hole--fly { transform: translateY(-130vh) rotate(-16deg); opacity: 0; transition: transform 300ms cubic-bezier(0.4, 0, 1, 0.6), opacity 300ms linear; }
+.poker-hole { --card-w: min(58vw, 16rem); position: relative; display: flex; transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease; }
+/* Where peeking begins, painted on the felt like the board's betting line, dashed. Placed from script. */
+.poker-peek-line { z-index: 0; position: absolute; left: 6%; width: 88%; height: 6px; margin-top: -3px; overflow: visible; pointer-events: none; -webkit-mask: var(--paint-fibre) 0 0 / 48px 48px; mask: var(--paint-fibre) 0 0 / 48px 48px; }
+.poker-peek-line line { stroke-dasharray: 10 8; vector-effect: non-scaling-stroke; stroke-width: 2.5; }
+.poker-hole__card { display: block; position: relative; border-radius: calc(var(--card-w) * 0.056); }
+/* Ready to peek: one quick ring of lamplight round each card, out and gone. */
+.poker-hole__card.fx-ripple { --fx-dur: 800ms; --fx-amp: 1.06; }
+.poker-hole__card.fx-ripple::after { box-shadow: 0 0 calc(var(--card-w) * 0.1) calc(var(--card-w) * 0.02) var(--_c); }
+/* The corner peek: the base is clipped to what still lies flat, the flap is the face turned over the fold (both set from script). */
+.poker-peel__base, .poker-peel__base > .poker-card, .poker-peel__sheet > .poker-card { display: block; }
+/* The pair turns over as one at showdown; its cards never turn on their own. */
+.poker-peel__base .poker-card__turn { transition: none; }
+.poker-peel__flap { visibility: hidden; position: absolute; top: 0; left: 0; transform-origin: 0 0; pointer-events: none; filter: drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.28)); }
+/* A turned-over face lies on its own card: only its printed edge, none of the table shadows, whose hard offset would show past the rounded corners. */
+.poker-peel__sheet .poker-card__face, .poker-peel__sheet .poker-card__back { box-shadow: inset 0 0 0 1px rgb(70 52 30 / 0.2), inset 0 1px 0 rgb(255 255 255 / 0.8); }
+.poker-peel__sheet { position: absolute; inset: 0; clip-path: polygon(0 0, 0 0, 0 0); }
+.poker-peel__shade { position: absolute; inset: 0; border-radius: calc(var(--card-w) * 0.056); }
+.poker-hole { align-items: flex-start; z-index: 1; }
+/* On the phone the pair lies close to the cloth: barely a shadow, until a finger picks it up (`--piece-lift`, set from script). */
+.poker-hole { --card-shadow-rest: 0.02; --card-shadow-contact: 0.22; --card-shadow-ambient: 0.04; transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease, --piece-lift 140ms ease; }
+/* The second card lies turned across the first (its tilt is set from script), its centre down and to
+   the right. Turned, it reaches past its box to the right and below; the margins centre what shows. */
+.poker-hole__card + .poker-hole__card { margin-left: calc(var(--card-w) * -0.85); margin-top: calc(var(--card-w) * 0.145); }
+.poker-hole { margin: 0 calc(var(--card-w) * 0.15) calc(var(--card-w) * 0.14) 0; }
+/* Turned over at showdown the pair lies mirrored: the cards swap sides and the one that was underneath is on top. */
+.poker-hole--turned { flex-direction: row-reverse; }
+.poker-hole--turned .poker-hole__card + .poker-hole__card { margin-left: 0; margin-right: calc(var(--card-w) * -0.85); }
+.poker-hole--turned { margin: 0 0 calc(var(--card-w) * 0.14) calc(var(--card-w) * 0.15); }
+.poker-hole--turned .poker-hole__card:first-child { z-index: 1; }
+/* Squared up for the showdown, the pair lies side by side in a slight fan (tilts set from script), slid
+   into place before it turns over; turned, it lands mirrored at once. */
+.poker-hole--square, .poker-hole--square.poker-hole--turned { margin: 0; }
+.poker-hole--square .poker-hole__card + .poker-hole__card { margin-top: 0; margin-left: calc(var(--card-w) * -0.72); }
+.poker-hole--square.poker-hole--turned .poker-hole__card + .poker-hole__card { margin-left: 0; margin-right: calc(var(--card-w) * -0.72); }
+.poker-hole--square:not(.poker-hole--turned), .poker-hole--square:not(.poker-hole--turned) .poker-hole__card { transition: margin 280ms cubic-bezier(0.16, 1, 0.3, 1), transform 280ms cubic-bezier(0.16, 1, 0.3, 1); }
 .poker-phone__note { position: absolute; bottom: -0.5rem; margin: 0; font-family: var(--display); font-weight: 800; font-size: var(--t-lg); letter-spacing: 0.08em; text-transform: uppercase; color: var(--tally); text-shadow: 0 2px 8px rgb(0 0 0 / 0.8); }
 .poker-phone__still { position: relative; z-index: 1; flex: 1; display: grid; place-content: center; justify-items: center; gap: var(--s3); text-align: center; }
 .poker-phone__big { font-size: var(--t-mega); }
@@ -3346,6 +3385,78 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .poker-plaque--go { background: linear-gradient(180deg, #dcb84c, #a8841c); color: #1a1206; border-color: #6d5410; }
 .poker-plaque--quiet { background: transparent; box-shadow: none; border-color: rgb(236 223 196 / 0.25); }
 .poker-plaque:focus-visible, .poker-token:focus-visible { outline: 2px solid var(--tungsten); outline-offset: 2px; }
-.poker-sheet__amount { margin: 0; font-family: var(--display); font-size: var(--t-lg); letter-spacing: 0.06em; text-transform: uppercase; text-align: center; color: #ecdfc4; }
-.poker-sheet__amount b { font-family: var(--mono); font-weight: 400; font-variant-numeric: tabular-nums; }
-.poker-sheet__slider { width: 100%; accent-color: var(--brass); }
+/* Fixed rows: a fraction glyph the display face lacks comes from a fallback font with taller lines, which would nudge the slider. */
+.poker-sheet__amount { display: grid; grid-template-rows: 1.3em auto; justify-items: center; line-height: 1.1; margin: 0; font-family: var(--display); font-size: var(--t-lg); letter-spacing: 0.1em; text-transform: uppercase; text-align: center; color: var(--brass); }
+.poker-sheet__amount b { font-family: var(--mono); font-weight: 400; font-size: calc(var(--t-mega) * 1.25); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; line-height: 1; color: #f6ead0; text-shadow: 0 2px 10px rgb(0 0 0 / 0.5); }
+/* What a step changed bumps once: up a size, then settles. */
+.poker-bump { display: inline-block; animation: poker-bump 220ms cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes poker-bump { from { transform: scale(1.18); filter: brightness(1.35); } }
+/* A bet as thick bars, name and number printed inside. The print is laid twice; the inverse copy is
+   clipped to `--cover`, the share the fill covers, so the words flip colour exactly at the fill's edge. */
+.poker-meter { --edge: 1.75rem; width: calc(100% - 2 * var(--edge)); justify-self: center; transition: opacity 200ms ease; }
+.poker-meter__bar { position: relative; display: block; height: 1.9rem; border-radius: 0.55rem; background: rgb(0 0 0 / 0.4); box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.55); }
+.poker-meter__print { position: absolute; inset: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 0.4rem; font-family: var(--display); font-weight: 800; font-size: var(--t-md); letter-spacing: 0.06em; text-transform: uppercase; color: #f6ead0; }
+.poker-meter__print b { font-family: var(--mono); font-weight: 700; font-size: var(--t-lg); letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.poker-meter__print.is-inv { color: #24170c; clip-path: inset(0 calc((1 - var(--cover)) * 100%) 0 0); transition: clip-path 160ms cubic-bezier(0.16, 1, 0.3, 1); }
+.poker-meter.is-off { opacity: 0.35; filter: grayscale(1); }
+.poker-meter__bar i { position: absolute; top: 0; bottom: 0; left: 0; width: calc(var(--fill) * 100%); border-radius: inherit; background: var(--brass); transition: width 160ms cubic-bezier(0.16, 1, 0.3, 1), left 160ms cubic-bezier(0.16, 1, 0.3, 1); }
+.poker-meter__bar i + i { left: calc(var(--one) * 100%); width: 0; background: #e2614f; }
+.poker-meter__bar.is-over i:first-child { border-radius: 0.55rem 0 0 0.55rem; }
+.poker-meter__bar.is-over i + i { width: calc((1 - var(--one)) * 100%); border-radius: 0 0.55rem 0.55rem 0; animation: poker-overbet 0.69s ease-in-out infinite alternate; }
+/* With each peak of the glow, one soft ring leaves the overbet and fades. */
+.poker-meter__bar.is-over i + i::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: rgb(226 97 79 / 0.5); filter: blur(0.3rem); opacity: 0; animation: poker-overbet-ring 1.38s ease-out -0.69s infinite; }
+@keyframes poker-overbet-ring { from { opacity: 1; transform: scale(1, 1); } to { opacity: 0; transform: scale(1.03, 2.1); } }
+/* The one-pot mark, where the overbet begins. */
+.poker-meter__bar.is-over i + i::before { content: ''; position: absolute; left: -1px; top: -0.25rem; bottom: -0.25rem; width: 2px; border-radius: 1px; background: #f0a24a; }
+@keyframes poker-overbet { from { box-shadow: 0 0 0 rgb(226 97 79 / 0); } to { box-shadow: 0 0 0.6rem rgb(226 97 79 / 0.75); } }
+/* A bigger share of the stack warms toward red. */
+.poker-meter--stack .poker-meter__bar i { background: color-mix(in oklab, #e2614f calc(var(--fill) * 100%), var(--brass)); }
+/* Over each notch its stop's name, on the slider's own spacing: `--i` of `--stops`, inset half a thumb. */
+.poker-sheet__stops { --thumb: 2.4rem; position: relative; height: 1.4rem; margin: 0 0 -0.5rem; padding: 0; list-style: none; }
+.poker-sheet__stops li { position: absolute; bottom: 0; left: calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--i) / var(--stops)); transform: translateX(-50%); padding: 0 0.1rem; font-family: var(--display); font-size: var(--t-sm); letter-spacing: 0.04em; white-space: nowrap; text-transform: uppercase; color: var(--felt-ink); transition: color 120ms ease, transform 120ms ease; }
+.poker-sheet__stops li.is-on { color: var(--brass); transform: translateX(-50%) scale(1.15); }
+/* The slider and its stops keep clear of the screen's sides, where an edge swipe changes apps. */
+.poker-sheet__stops, .poker-sheet__slider { --edge: 1.75rem; width: calc(100% - 2 * var(--edge)); justify-self: center; }
+/* The raise sheet rises over the rail rather than replacing it, so the table above never moves. */
+.poker-rail--sheet { position: absolute; z-index: 3; left: 0; right: 0; bottom: 0; }
+/* The raise slider: a groove cut in the leather, brass filled up to a chip that clicks stop to stop over pip notches. */
+.poker-sheet__slider { --thumb: 2.4rem; --groove: 0.6rem; height: 2.8rem; margin: 0; -webkit-appearance: none; appearance: none; background: transparent; touch-action: none; }
+.poker-sheet__slider::-webkit-slider-runnable-track { --at: calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--pos)); --pip: radial-gradient(circle at 0.2rem 50%, rgb(246 234 208 / 0.4) 0 0.12rem, transparent 0.15rem); height: 100%; background:
+  /* Landmark dots on the 1/2 pot and pot notches (`--half`, `--whole`: their stop numbers, or off the rail when absent). */
+  radial-gradient(circle at calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--half) / var(--stops)) 50%, #f6ead0 0 0.24rem, transparent 0.28rem),
+  radial-gradient(circle at calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--whole) / var(--stops)) 50%, #f6ead0 0 0.24rem, transparent 0.28rem),
+  var(--pip) calc(var(--thumb) / 2 - 0.2rem) center / calc((100% - var(--thumb)) / var(--stops)) 0.4rem repeat-x,
+  linear-gradient(90deg, #8a6a32, var(--brass)) calc(var(--thumb) / 2 - var(--groove) / 2) center / calc(var(--at) - var(--thumb) / 2 + var(--groove) / 2) var(--groove) no-repeat,
+  linear-gradient(rgb(0 0 0 / 0.5), rgb(0 0 0 / 0.25)) calc(var(--thumb) / 2 - var(--groove) / 2) center / calc(100% - var(--thumb) + var(--groove)) var(--groove) no-repeat;
+  border-radius: 99px; }
+/* The thumb is a chip: a red body, a cream inlay, and the edge spots chips have. */
+.poker-sheet__slider::-webkit-slider-thumb { -webkit-appearance: none; width: var(--thumb); height: var(--thumb); margin-top: calc((2.8rem - var(--thumb)) / 2); border-radius: 50%; background:
+  radial-gradient(circle, #b8322c 0 38%, #f2e6c9 39% 44%, #b8322c 45% 66%, transparent 67%),
+  repeating-conic-gradient(#f2e6c9 0 12deg, #b8322c 12deg 45deg);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35), 0 4px 8px rgb(0 0 0 / 0.5), inset 0 1px 1px rgb(255 255 255 / 0.4); transition: transform 120ms ease; }
+.poker-sheet__slider:active::-webkit-slider-thumb { transform: scale(1.1); }
+.poker-sheet__slider::-moz-range-thumb { width: var(--thumb); height: var(--thumb); border: 0; border-radius: 50%; background: #b8322c; }
+
+/* Facing a bet, the call is painted on the felt above the tap line, in the felt's own ink: what it
+   costs, what it wins, and the same two bars as raising, side by side and drawn as paint. Its room is
+   always kept, so the cards sit clear of it and never move when it comes and goes. */
+.poker-call { display: grid; gap: 0.3rem; justify-items: stretch; padding: 0 var(--s3); pointer-events: none; color: var(--felt-ink); -webkit-mask: var(--paint-fibre) 0 0 / 48px 48px; mask: var(--paint-fibre) 0 0 / 48px 48px; transition: opacity 240ms ease; }
+.poker-call.is-off { opacity: 0; }
+/* The headline stands clear below the turned card's low tip. */
+.poker-call { margin-top: 1.25rem; }
+.poker-call__arc { max-width: 22rem; margin-bottom: -0.4rem; }
+.poker-call__arc text { font-size: 24px; }
+.poker-call__meters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s4); width: min(100%, 24rem); justify-self: center; }
+/* On the felt the bars are painted: an inked outline filled with the same ink, the overbet in red
+   paint, and the words where the fill covers them left bare, the baize showing through. */
+.poker-call .poker-meter { width: auto; justify-self: stretch; }
+.poker-call .poker-meter__bar { background: transparent; box-shadow: inset 0 0 0 1.5px rgb(from var(--felt-ink) r g b / 0.55), 0 1.2px 1px var(--felt-press); }
+.poker-call .poker-meter__bar i { background: var(--felt-ink); opacity: 0.9; }
+.poker-call .poker-meter__bar i + i { background: #d9574a; }
+.poker-call .poker-meter--stack .poker-meter__bar i { background: color-mix(in oklab, #d9574a calc(var(--fill) * 100%), var(--felt-ink)); }
+.poker-call .poker-meter__print { color: var(--felt-ink); text-shadow: 0 1.2px 1px var(--felt-press); }
+.poker-call .poker-meter__print.is-inv { color: var(--felt); text-shadow: none; }
+/* The table words at the foot of the felt and the call between them sit low, into the table's bottom padding. */
+.poker-phone__foot { transform: translateY(0.6rem); }
+/* The tap line keeps a little air under the call's bars. */
+.poker-phone__foot > .felt-arc { transform: translateY(0.4rem); }

@@ -28,8 +28,8 @@ import { Votes } from '../Votes.tsx'
 import { Spoken } from '../Spoken.tsx'
 import { Burst, CountUp, Glitch, Letters } from '../fx.tsx'
 import { FaceOff, Finale } from '../Board.tsx'
-import { ChipStack, Piece, PlayingCard } from '../PokerParts.tsx'
-import { chain, flop, gather, pitch, receive, scatter, street, sweep, toss, topShades, turnUp, CHIP_FACE, FOLD, RECEIVE, REVEAL, TOSS, type PotStack } from '../toss.ts'
+import { ChipStack, Corral, Piece, PlayingCard } from '../PokerParts.tsx'
+import { chain, flop, gather, pitch, receive, scatter, street, sweep, toss, turnUp, CHIP_FACE, FOLD, RECEIVE, REVEAL, TOSS } from '../toss.ts'
 import { mulberry32 } from '../../shared/random.ts'
 import type { BurstFrom } from '../fx.ts'
 import type { Recipe } from '../synth.ts'
@@ -853,19 +853,20 @@ export const SCENARIOS: Scenario[] = [
     id: 'poker-pot',
     label: 'The pot: a corral of stacks',
     family: 'Poker',
-    note: 'Stacks of mixed heights packed round the middle, right of the lamp. Nearer, taller stacks cover the tops of the ones behind, and a taller stack nearer the lamp shades the tops of lower ones beyond it, longer for a bigger drop.',
+    note: 'Stacks of mixed heights packed round the middle, right of the lamp, pushed as one to a winner below. Nearer, taller stacks cover the tops of the ones behind, and a taller stack nearer the lamp shades the tops of lower ones beyond it, longer for a bigger drop.',
     subject: '.poker-piece',
     dials: [],
-    render: () => {
+    render: (lead) => {
       const chipW = 56 * 0.64
-      const at = { x: PATCH.w / 2 + 110, y: PATCH.h / 2 }
+      const pot = { x: PATCH.w / 2 + 110, y: PATCH.h / 2 - 20, rot: 0 }
+      const winner = { x: PATCH.w / 2 - 150, y: PATCH.h / 2 + 70, rot: 0 }
       const heights = [10, 3, 8, 1, 6, 10, 2, 5, 9, 4, 7, 2, 10]
       const stacks = gather([], heights.map((n, k) => Array<number>(n).fill(k % 2 ? 25 : 100)), () => 0.99).pot
-      const place = (stack: PotStack) => ({ x: at.x + stack.x * chipW, y: at.y + stack.y * chipW * CHIP_FACE })
-      const shades = topShades(stacks.map((stack) => ({ ...place(stack), n: stack.chips.length })), { x: PATCH.w / 2, y: PATCH.h / 2 }, chipW)
-      const order = [...stacks.keys()].sort((a, b) => stacks[a].y - stacks[b].y)
-      return pokerStage((['shade', 'chips'] as const).map((part) => order.map((k) =>
-        <Piece key={`${k}-${part}`} pose={{ ...place(stacks[k]), rot: 0 }}><ChipStack chips={stacks[k].chips} part={part} shades={shades[k]} /></Piece>)))
+        .map((stack) => ({ x: stack.x * chipW, y: stack.y * chipW * CHIP_FACE, chips: stack.chips }))
+      const lamp = { x: PATCH.w / 2, y: PATCH.h / 2 }
+      return pokerStage(<Piece key={`pot-${lead}`} pose={lead ? pot : winner} frames={lead ? null : sweep(pot, winner)}>
+        <Corral stacks={stacks} at={lead ? pot : winner} lamp={lamp} chipW={chipW} />
+      </Piece>)
     },
   },
   foldScenario('poker-fold-hard', 'Fold, hard flick, one card gets away', { dx: 0.2, dy: -0.98, speed: 1 }, 1),

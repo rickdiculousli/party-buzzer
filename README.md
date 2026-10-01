@@ -161,7 +161,11 @@ player's two cards, face down until pressed:
   toward the middle, lie where they stop for a beat, and pop away.
 - **Check or call:** double tap the felt. The line at the bottom says which,
   and how much.
-- **Peek:** press and hold the cards.
+- **Peek:** drag up from below the dashed line on the felt (just above the
+  bottom of your cards) and the pair's bottom edge bends up from under your
+  finger, both cards together, levered: a short drag lifts it a long way. Let go
+  to lay it down. These drags always peek and never fold, so you can look again
+  and again; flick from above the line.
 - **Raise** and **All in** are buttons; Raise opens a slider with ½ pot, pot and
   all-in presets.
 - **Reactions** (Nice hand, Ouch, Bluff?, Wow) float up from your seat, one
@@ -184,8 +188,11 @@ Poker again from the Games tab starts a new tournament.
 
 `npm run sim-poker` plays a fast tournament with six bots against the running
 server (Fay never acts, so her shot clock plays her hands) and checks that no
-chip appears or vanishes; `npm run sim-poker -- 150` speeds them up. Run it
-again after stopping it to resume.
+chip appears or vanishes; `npm run sim-poker -- 150` speeds them up. Ctrl-C
+clears the Poker session, checkpoint included. `npm run sim-poker -- solo` plays heads-up
+against your phone: join first, then one bot takes the other seat at the default
+options and bets and raises often, from half the pot to two and a half pots, so overbets
+come up; `npm run sim-poker -- solo 3000` slows it down.
 
 ## Question packs and spoken play
 

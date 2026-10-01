@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import type { Card } from '../shared/protocol.ts'
 import { pokerCues, type PokerView } from './poker.ts'
 import { play } from './sound.ts'
-import { chipStack, type Frame, type Pose } from './toss.ts'
+import { chipStack, topShades, type Frame, type Pose } from './toss.ts'
 
 /** Suit pips drawn on a 100-unit square, so every card prints the same shapes at any size. */
 const PIP: Record<string, string> = {
@@ -56,9 +56,10 @@ function CourtPortrait({ rank }: { rank: string }) {
  * A poker-size card (63 × 88 mm) with its face and back on either side, so
  * turning it over is a real flip. Corner indices read when cards overlap.
  * Given a `hinge` (a share of its width from its left edge), it is turned over
- * by the `Piece` carrying it, about that hinge, rather than by `up`.
+ * by the `Piece` carrying it, about that hinge, rather than by `up`. `peek` prints
+ * an index in all four corners, as peek decks do, so any lifted corner reads.
  */
-export function PlayingCard({ card, up, hinge, class: cls = '' }: { card: Card | null; up: boolean; hinge?: number; class?: string }) {
+export function PlayingCard({ card, up, hinge, peek, class: cls = '' }: { card: Card | null; up: boolean; hinge?: number; peek?: boolean; class?: string }) {
   const suit = card?.[1] ?? 's'
   const rank = card ? RANK[card[0]] ?? card[0] : ''
   const red = suit === 'h' || suit === 'd'
@@ -74,6 +75,10 @@ export function PlayingCard({ card, up, hinge, class: cls = '' }: { card: Card |
         {card && <>
           <span class="poker-card__index"><span class="poker-card__rank">{rank}</span><SuitPip suit={suit} /></span>
           <span class="poker-card__index poker-card__index--foot"><span class="poker-card__rank">{rank}</span><SuitPip suit={suit} /></span>
+          {peek && <>
+            <span class="poker-card__index poker-card__index--right"><span class="poker-card__rank">{rank}</span><SuitPip suit={suit} /></span>
+            <span class="poker-card__index poker-card__index--foot-left"><span class="poker-card__rank">{rank}</span><SuitPip suit={suit} /></span>
+          </>}
           {COURT.has(card[0])
             ? <CourtPortrait rank={rank} />
             : <SuitPip suit={suit} class={card[0] === 'A' ? 'poker-card__ace' : 'poker-card__centre'} />}
@@ -112,6 +117,27 @@ export function ChipStack({ amount = 0, chips = chipStack(amount), held = 0, pen
   </span>
 }
 
+/**
+ * Stacks standing together, as the pot or a winner's share of it: `x`, `y`
+ * place each in pixels from the corral's middle, `at` places that middle on
+ * the table and `lamp` is the lamp, both in table pixels. Every shadow goes on
+ * the felt first, then every stack back to front, so a nearer, taller stack
+ * covers the ones behind and shades their tops. `pending` chips on a stack are
+ * still sliding in.
+ */
+export function Corral({ stacks, at, lamp, chipW }: {
+  stacks: { x: number; y: number; chips: number[]; pending?: number }[]; at: { x: number; y: number }; lamp: { x: number; y: number }; chipW: number
+}) {
+  const shades = topShades(stacks.map((stack) => ({ x: at.x + stack.x, y: at.y + stack.y, n: stack.chips.length - (stack.pending ?? 0) })), lamp, chipW)
+  const order = [...stacks.keys()].sort((a, b) => stacks[a].y - stacks[b].y)
+  return <span class="poker-corral">
+    {(['shade', 'chips'] as const).map((part) => order.map((k) =>
+      <span key={`${k}-${part}`} class="poker-corral__stack" style={{ transform: `translate(${stacks[k].x}px, ${stacks[k].y}px) translate(-50%, -50%)` }}>
+        <ChipStack chips={stacks[k].chips} pending={stacks[k].pending} part={part} shades={shades[k]} />
+      </span>))}
+  </span>
+}
+
 export function DealerPuck() {
   return <span class="poker-puck" role="img" aria-label="dealer button"><span class="poker-puck__word">Dealer</span></span>
 }
@@ -130,12 +156,12 @@ export function FeltMark({ text, class: cls = '' }: { text: string; class?: stri
 /**
  * Painted words along an arc, the way a table carries "insurance pays 2 to 1".
  * The paint's broken fibres come from the `--paint-fibre` mask. `bow` up is a
- * frown, down a smile.
+ * frown, down a smile; `bend` is how deep, 80 for the table's own lines.
  */
-export function FeltArc({ text, bow, class: cls = '' }: { text: string; bow: 'up' | 'down'; class?: string }) {
+export function FeltArc({ text, bow, bend = 80, class: cls = '' }: { text: string; bow: 'up' | 'down'; bend?: number; class?: string }) {
   const id = useRef(`arc-${Math.random().toString(36).slice(2)}`).current
-  const d = bow === 'up' ? 'M24 78 Q200 -2 376 78' : 'M24 10 Q200 90 376 10'
-  return <svg class={`felt-arc ${cls}`} viewBox="0 0 400 88" role="img" aria-label={text}>
+  const d = bow === 'up' ? `M24 ${bend - 2} Q200 -2 376 ${bend - 2}` : `M24 10 Q200 ${10 + bend} 376 10`
+  return <svg class={`felt-arc ${cls}`} viewBox={`0 0 400 ${bend + 8}`} role="img" aria-label={text}>
     <PaintPile id={`${id}-pile`} />
     <path id={id} d={d} fill="none" />
     <text class="felt-arc__press"><textPath href={`#${id}`} startOffset="50%" text-anchor="middle">{text}</textPath></text>

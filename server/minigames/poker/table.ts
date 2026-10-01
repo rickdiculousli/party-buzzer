@@ -378,9 +378,11 @@ export function stepTable(w: PokerWorld): void {
       dealStreet(w)
       return setActor(w, w.button)
     case 'runout':
-      dealStreet(w)
+      // The river gets its own beat to land and turn before anyone is called the winner; the odds stay
+      // as the turn left them, since a full board's odds would name the winner while the river is still down.
       if (w.board.length === 5) return showdown(w)
-      updateEquity(w)
+      dealStreet(w)
+      if (w.board.length < 5) updateEquity(w)
       w.phase = { at: 'runout', until: w.tick + ticks(PACE.runoutMs) }
       return
     case 'showdown':
