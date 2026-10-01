@@ -38,6 +38,8 @@ export type MinigameDefinition<W> = {
   /** Runs after each broadcast so per-frame accumulators can reset. */
   afterFrame?(world: W): void
   tick(world: W): number
+  /** Opt into state-driven publication: unchanged keys need no frame. Exclude simulation ticks. */
+  frameKey?(world: W): string | number
   boardFrame(world: W, clock: Clock): object
   /** Null for a spectator. */
   playerFrame(world: W, playerId: string, clock: Clock): object | null

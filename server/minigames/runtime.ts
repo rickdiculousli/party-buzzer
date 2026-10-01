@@ -39,6 +39,7 @@ export class MinigameRuntime {
   private pending: Pending[] = []
   private dispositions = new Map<string, MinigameInputAck>()
   private completed = false
+  private published: { key: string | number; phase: string; skippedMs: number } | null = null
 
   constructor(state: State, hooks: Hooks) {
     this.state = state
@@ -197,7 +198,6 @@ export class MinigameRuntime {
       this.skippedMs += this.accumulator - remainder
       this.accumulator = remainder
     }
-    this.saveProgress(definition)
     this.broadcast(definition)
     const over = definition.untimed ? definition.finished?.(this.world) === true : now >= session.endsAt! + LANDING_GRACE_MS
     if (!this.completed && over) {
@@ -273,6 +273,13 @@ export class MinigameRuntime {
   }
 
   private broadcast(definition: MinigameDefinition<unknown>): void {
+    const key = definition.frameKey?.(this.world)
+    if (key !== undefined) {
+      const phase = this.state.minigame!.phase
+      if (this.published?.key === key && this.published.phase === phase && this.published.skippedMs === this.skippedMs) return
+      this.published = { key, phase, skippedMs: this.skippedMs }
+    }
+    if (this.state.minigame!.phase === 'playing') this.saveProgress(definition)
     this.hooks.onFrame()
     definition.afterFrame?.(this.world)
   }
@@ -282,6 +289,7 @@ export class MinigameRuntime {
     this.pending = []
     this.dispositions.clear()
     this.accumulator = 0
+    this.published = null
     this.skippedMs = 0
     if (clearCompleted) this.completed = false
   }

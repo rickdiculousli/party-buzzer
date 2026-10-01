@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { PokerFeedEntry, PokerSeatView } from '../shared/protocol.ts'
-import { classifyGesture, dealTimes, peekTip, peelCard, pokerCues, raiseStops, seatPositions, ELLIPSE, type PokerView, type TracePoint } from './poker.ts'
+import { classifyGesture, dealTimes, peekTip, peelCard, pokerClockCue, pokerCues, raiseStops, seatPositions, ELLIPSE, type PokerView, type TracePoint } from './poker.ts'
 
 /** A straight trace from (0,0) to (dx,dy) over ms, one point every 10 ms. */
 function line(dx: number, dy: number, ms: number, t0 = 0): TracePoint[] {
@@ -79,11 +79,15 @@ test('feed entries play their cue once; an auto fold plays on that phone', () =>
   assert.deepEqual(pokerCues(after, after, 'board'), [])
 })
 
-test('the last seconds of your clock tick', () => {
-  const before = view({ actBy: 15_500, serverTime: 10_000 })
-  const after = view({ actBy: 15_500, serverTime: 11_000 })
-  assert.deepEqual(pokerCues(before, after, 'a'), [{ cue: 'poker-tick' }])
-  assert.deepEqual(pokerCues(before, after, 'b'), [])
+test('local countdown ticks once per changed second, never on mount or zero', () => {
+  assert.equal(pokerClockCue(null, 4), null)
+  assert.equal(pokerClockCue(7, 6), null)
+  assert.equal(pokerClockCue(6, 5), 'poker-tick')
+  assert.equal(pokerClockCue(5, 5), null)
+  assert.equal(pokerClockCue(5, 4), 'poker-tick')
+  assert.equal(pokerClockCue(1, 0), null)
+  assert.equal(pokerClockCue(4, 5), null)
+  assert.deepEqual(pokerCues(view({ serverTime: 10_000 }), view({ serverTime: 11_000 }), 'a'), [])
 })
 
 test('a first frame or another match only sets the baseline', () => {

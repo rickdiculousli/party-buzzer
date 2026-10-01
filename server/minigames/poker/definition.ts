@@ -105,6 +105,10 @@ export const poker: MinigameDefinition<PokerWorld> = {
   },
   step: stepTable,
   tick: (w) => w.tick,
+  // Feed ids cover actions/reactions/awards; the remaining facts cover timed
+  // streets, presence, turn deadlines and the next blind-level clock.
+  frameKey: (w) => [w.handNo, w.nextFeedId, w.phase.at, w.board.length, w.actor, w.actBy,
+    levelOf(w).nextAtTick, ...w.seats.map((seat) => Number(seat.connected))].join('|'),
   boardFrame: (w, clock) => shared(w, clock),
   playerFrame(w, player, clock) {
     const mine = personal(w, player)

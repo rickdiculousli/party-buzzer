@@ -466,3 +466,24 @@ test('no view carries a minigame checkpoint beyond its label', () => {
   }
   assert.deepEqual(state.minigame.checkpoint?.data, { deckSeed: 99 })
 })
+
+
+test('hello sends a current private or board frame even when poker is quiet', () => {
+  const state = newState()
+  state.players = [{ id: 'ada', name: 'Ada', connected: true }, { id: 'bo', name: 'Bo', connected: true }]
+  const hub = new Hub(state)
+  const runtime = new MinigameRuntime(state, { onState() {}, onFrame() {}, onAck() {}, onComplete() {} })
+  hub.setMinigameRuntime(runtime)
+  runtime.host({ a: 'prepareMinigame', id: 'poker', options: {} })
+  runtime.host({ a: 'startMinigame' })
+  const messages: ServerMsg[] = []
+  const conn: Conn = { id: 'late', role: 'board', send: (msg) => messages.push(msg) }
+  hub.add(conn)
+  hub.handle(conn, { t: 'hello', role: 'board' })
+  const board = messages.findLast((msg) => msg.t === 'minigameFrame')
+  assert.ok(board?.t === 'minigameFrame' && board.frame.role === 'board')
+  assert.equal('hole' in board.frame, false)
+  hub.handle(conn, { t: 'hello', role: 'player', playerId: 'ada' })
+  const phone = messages.findLast((msg) => msg.t === 'minigameFrame')
+  assert.ok(phone?.t === 'minigameFrame' && phone.frame.id === 'poker' && phone.frame.role === 'player' && phone.frame.hole?.length === 2)
+})

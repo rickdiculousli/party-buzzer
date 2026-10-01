@@ -1,7 +1,8 @@
 import type { ComponentChildren } from 'preact'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import type { Card } from '../shared/protocol.ts'
-import { pokerCues, type PokerView } from './poker.ts'
+import { pokerClockCue, pokerCues, type PokerView } from './poker.ts'
+import { useSecondsLeft } from './useSocket.ts'
 import { play } from './sound.ts'
 import { chipStack, topShades, type Frame, type Pose } from './toss.ts'
 
@@ -255,13 +256,36 @@ export function usePokerCues(frame: PokerView | null, who: string | null) {
 }
 
 /** A thin ring that empties as a shot clock runs down; the last seconds beat. */
-export function ShotRing({ until, total, now, class: cls = '' }: { until: number; total: number; now: number; class?: string }) {
-  const left = Math.max(0, until - now)
+export function ShotRing({ until, total, now, tick = false, class: cls = '' }: { until: number; total: number; now: () => number; tick?: boolean; class?: string }) {
+  const seconds = useSecondsLeft(until, now)
+  const clock = useRef(now)
+  clock.current = now
+  const arc = useRef<SVGCircleElement>(null)
+  const previous = useRef<{ until: number; seconds: number } | null>(null)
+  const left = Math.max(0, until - now())
   const share = Math.min(1, left / total)
   const r = 45
   const around = 2 * Math.PI * r
-  return <svg class={`poker-ring ${left <= 5_000 ? 'fx-heartbeat' : ''} ${cls}`} viewBox="0 0 100 100" role="img" aria-label={`${Math.ceil(left / 1000)} seconds to act`}>
+  useLayoutEffect(() => {
+    const remaining = Math.max(0, until - clock.current())
+    if (!remaining || reducedMotion()) return
+    const run = arc.current?.animate([{ strokeDashoffset: around * (1 - Math.min(1, remaining / total)) }, { strokeDashoffset: around }],
+      { duration: remaining, easing: 'linear', fill: 'forwards' })
+    return () => run?.cancel()
+  }, [until, total])
+  useEffect(() => {
+    const cue = pokerClockCue(previous.current?.until === until ? previous.current.seconds : null, seconds)
+    previous.current = { until, seconds }
+    if (tick && cue) play(cue)
+  }, [until, seconds, tick])
+  return <svg class={`poker-ring ${seconds > 0 && seconds <= 5 ? 'fx-heartbeat' : ''} ${cls}`} viewBox="0 0 100 100" role="img" aria-label={`${seconds} seconds to act`}>
     <circle class="poker-ring__track" cx="50" cy="50" r={r} />
-    <circle class="poker-ring__left" cx="50" cy="50" r={r} transform="rotate(-90 50 50)" style={{ strokeDasharray: around, strokeDashoffset: around * (1 - share) }} />
+    <circle ref={arc} class="poker-ring__left" cx="50" cy="50" r={r} transform="rotate(-90 50 50)" style={{ strokeDasharray: around, strokeDashoffset: around * (1 - share) }} />
   </svg>
+}
+
+/** Only this small readout rerenders as the blind-level deadline approaches. */
+export function LevelClock({ until, now }: { until: number; now: () => number }) {
+  const left = useSecondsLeft(until, now)
+  return <span class="readout">{Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}</span>
 }

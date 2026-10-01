@@ -146,6 +146,12 @@ export class Hub {
         conn.role = msg.role
         if (msg.role === 'player') this.join(conn, msg.playerId, msg.name)
         else conn.send({ t: 'state', state: this.viewFor(conn) })
+        // A state-driven minigame may stay quiet for an entire turn. A join or
+        // reconnect gets its own current role projection immediately.
+        if (this.minigame) {
+          const frame = this.minigame.frameFor(conn.role, conn.playerId)
+          if (frame) conn.send({ t: 'minigameFrame', frame })
+        }
         return
 
       case 'ping':

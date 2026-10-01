@@ -130,6 +130,15 @@ the runtime then ignores `durationSec` and completes when the definition's
 `finished` hook reports true. Touches are relayed to the audience the
 definition names and never stored.
 
+Simulation cadence and publication are separate. Definitions may supply a cheap
+semantic `frameKey`; unchanged keys suppress broadcasts while fixed steps and
+input acknowledgements continue. Poker uses this for actions, streets, presence,
+reactions and level/turn deadlines. Dropped catch-up time also forces a frame to
+rebase browser deadlines. Every hello receives its current role frame, including
+private phone data only for that player. Poker's browser shot ring, level clock
+and final-second tick cues run locally between pushes; they never rerender the
+table to advance time. Definitions without a key retain continuous frames.
+
 A long minigame can opt out of losing its world. Four optional definition hooks
 serve it, and Poker is the one user. `checkpoint` returns a small durable
 summary with a version; after each pump the runtime stores a new version in

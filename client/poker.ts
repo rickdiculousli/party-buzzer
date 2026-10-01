@@ -187,7 +187,9 @@ export function seatPositions(n: number): { x: number; y: number }[] {
 
 /** The shot clock's last seconds tick. */
 const TICK_FROM = 5
-const secondsLeft = (until: number, now: number) => Math.max(0, Math.ceil((until - now) / 1000))
+/** Tick from the local deadline clock; sparse state pushes do not carry countdown cues. */
+export const pokerClockCue = (before: number | null, after: number): Cue | null =>
+  before !== null && after < before && after >= 1 && after <= TICK_FROM ? 'poker-tick' : null
 const STREET_CUE: Record<number, Cue> = { 3: 'poker-flop', 4: 'poker-turn', 5: 'poker-river' }
 
 /**
@@ -219,11 +221,6 @@ export function pokerCues(prev: PokerView | null, next: PokerView, who: 'board' 
   }
 
   if (next.actor === who && prev.actor !== who) add('poker-yours')
-  if (next.actor === who && prev.actor === who && next.actBy !== null && next.actBy === prev.actBy) {
-    const before = secondsLeft(prev.actBy, prev.serverTime)
-    const after = secondsLeft(next.actBy, next.serverTime)
-    if (after < before && after >= 1 && after <= TICK_FROM) add('poker-tick')
-  }
   if (fresh.some((entry) => entry.player === who && entry.auto)) add('poker-auto')
   return out.map((cue) => ({ cue }))
 }

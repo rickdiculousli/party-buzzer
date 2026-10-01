@@ -5,7 +5,7 @@ import { mulberry32 } from '../shared/random.ts'
 import type { MinigameBoardProps } from './minigames.tsx'
 import { matchFrame } from './minigame-info.ts'
 import { Burst, Letters } from './fx.tsx'
-import { ChipStack, Corral, DealerPuck, FeltMark, PaintPile, Piece, PlayingCard, ShotRing, reducedMotion, usePokerCues, useSize } from './PokerParts.tsx'
+import { ChipStack, Corral, DealerPuck, LevelClock, FeltMark, PaintPile, Piece, PlayingCard, ShotRing, reducedMotion, usePokerCues, useSize } from './PokerParts.tsx'
 import { ELLIPSE, dealTimes, feedLine, holeRest, lie, seatPositions, seedOf, POKER_RULES } from './poker.ts'
 import { chain, chipStack, gather, potOf, CHIP_FACE, flop, turnUp, pitch, receive, scatter, slide, street, sweep, toss, wildCard, RECEIVE, type Frame, type Pose, type PotStack } from './toss.ts'
 import { colorForPlayer, ordinal, playerName, setlistPosition } from './ui.ts'
@@ -318,7 +318,6 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
   const five = new Set(poker.showdown?.[0]?.five ?? [])
   const handName = poker.showdown?.[0]?.name
   const potTotal = poker.pots.reduce((a, b) => a + b, 0)
-  const nextLevel = Math.max(0, Math.ceil((poker.nextLevelAt - now()) / 1000))
   const actor = seatIndex(poker.actor)
   const buttonAt = seats.findIndex((seat) => seat.button)
 
@@ -469,7 +468,7 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
             </p>
             {won && <Burst kind="stars" />}
           </div>
-          {actor === i && poker.actBy && <ShotRing class="poker-seat__ring" until={poker.actBy} total={(seat.away ? 2 : session.options.shotSec) * 1000} now={now()} />}
+          {actor === i && poker.actBy && <ShotRing class="poker-seat__ring" until={poker.actBy} total={(seat.away ? 2 : session.options.shotSec) * 1000} now={now} />}
           {last && !seat.busted && (last.kind === 'allIn'
             ? <span key={last.id} class="poker-allin fx-zoom">All in</span>
             : <span key={last.id} class="poker-seat__said fx-fade">{capital(feedLine(last, () => '').trim())}</span>)}
@@ -491,7 +490,7 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
     <header class="poker-hud">
       <span class="chip">{place}</span>
       <p class="poker-hud__blinds">Blinds <span class="poker-hud__num">{poker.sb} / {poker.bb}</span></p>
-      <p class="poker-hud__next">Next level <span class="readout">{Math.floor(nextLevel / 60)}:{String(nextLevel % 60).padStart(2, '0')}</span></p>
+      <p class="poker-hud__next">Next level <LevelClock until={poker.nextLevelAt} now={now} /></p>
       <p class="poker-hud__hand">Hand {poker.handNo}</p>
     </header>
     <aside class="poker-log" aria-label="Table log">

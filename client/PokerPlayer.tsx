@@ -325,7 +325,7 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
       <span>Stack <b>{(mine?.stack ?? 0).toLocaleString()}</b></span>
       <span>Pot <b>{pot.toLocaleString()}</b></span>
     </p>
-    {legal && poker.actBy && <ShotRing until={poker.actBy} total={session.options.shotSec * 1000} now={now()} />}
+    {legal && poker.actBy && <ShotRing until={poker.actBy} total={session.options.shotSec * 1000} now={now} tick />}
   </header>
 
   if (poker.place !== null) {

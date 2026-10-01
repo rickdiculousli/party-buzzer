@@ -351,3 +351,54 @@ test('prepare starts fresh, without an earlier checkpoint', () => {
     assert.equal(r.state.minigame?.checkpoint, undefined)
   })
 })
+
+
+function pokerRig() {
+  const r = rig()
+  r.runtime.host({ a: 'prepareMinigame', id: 'poker', options: { shotSec: 30 } })
+  r.runtime.host({ a: 'startMinigame' })
+  r.advance(3_000)
+  for (let i = 0; i < 200 && r.runtime.frameFor('board')?.id === 'poker'; i++) {
+    const frame = r.runtime.frameFor('board')
+    if (frame?.id === 'poker' && frame.role === 'board' && frame.actor) break
+    r.advance(50)
+  }
+  return r
+}
+
+test('poker stays quiet while a player thinks; actions and presence publish', () => {
+  const r = pokerRig()
+  const frame = r.runtime.frameFor('board')
+  assert.ok(frame?.id === 'poker' && frame.role === 'board' && frame.actor)
+  const before = r.frames.length
+  for (let i = 0; i < 60; i++) r.advance(16)
+  assert.equal(r.frames.length, before)
+  r.runtime.input(frame.actor, { t: 'minigameInput', matchId: frame.matchId, seq: 1, input: { kind: 'raise', to: -1, at: 0 } })
+  r.advance(50)
+  assert.equal(r.acks.at(-1)?.status, 'refused')
+  assert.equal(r.frames.length, before, 'a refused action does not publish')
+  r.runtime.input(frame.actor, { t: 'minigameInput', matchId: frame.matchId, seq: 2, input: { kind: 'call', at: 0 } })
+  r.advance(50)
+  assert.equal(r.acks.at(-1)?.status, 'accepted')
+  assert.equal(r.frames.length, before + 1)
+  r.state.players[0].connected = false
+  r.advance(16)
+  assert.equal(r.frames.length, before + 2)
+  r.advance(16)
+  assert.equal(r.frames.length, before + 2)
+  r.state.players[0].connected = true
+  r.advance(16)
+  assert.equal(r.frames.length, before + 3)
+})
+
+test('poker publishes a rebased deadline after dropped catch-up time', () => {
+  const r = pokerRig()
+  const before = r.runtime.frameFor('board')
+  assert.ok(before?.id === 'poker' && before.role === 'board' && before.actBy)
+  const count = r.frames.length
+  r.advance(1_000)
+  const after = r.frames.at(-1)
+  assert.ok(after?.id === 'poker' && after.role === 'board' && after.actBy)
+  assert.equal(r.frames.length, count + 1)
+  assert.equal(after.actBy - before.actBy, 600)
+})
