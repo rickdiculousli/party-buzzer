@@ -3,8 +3,9 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/ho
 import type { Card } from '../shared/protocol.ts'
 import { pokerClockCue, pokerCues, type PokerView } from './poker.ts'
 import { useSecondsLeft } from './useSocket.ts'
-import { play } from './sound.ts'
-import { chipStack, simplifyFrames, topShades, type Frame, type Pose } from './toss.ts'
+import { play, type Cue } from './sound.ts'
+import { recipeFor, span } from './cues.ts'
+import { chipStack, soundPlan, simplifyFrames, type PieceSound, topShades, type Frame, type Pose } from './toss.ts'
 
 /** Suit pips drawn on a 100-unit square, so every card prints the same shapes at any size. */
 const PIP: Record<string, string> = {
@@ -199,15 +200,26 @@ export function PaintPile({ id }: { id: string }) {
 }
 
 export const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+export type { PieceSound }
+
+/**
+ * The rate that makes a whoosh last exactly as long as its flight. A quicker
+ * throw is a faster card, so it whooshes shorter and higher, as air does.
+ */
+export const fitFlight = (cue: Cue, airMs: number) => {
+  const recipe = recipeFor(cue)
+  return recipe && airMs > 0 ? Math.min(1.2, Math.max(0.85, span(recipe) / airMs)) : 1
+}
 const transformOf = (p: Pose, lift = 0) => `translate(${p.x}px, ${p.y}px) translate(-50%, -50%) rotate(${p.rot}deg) scale(${1 + lift})`
 
 /**
  * Something lying on the felt at a pose, in table pixels. Given `frames`, it
  * first travels them after `delay`, holding the first frame until then, and
- * calls `done` on arrival. Reduced motion puts it straight at rest.
+ * calls `done` on arrival. Reduced motion puts it straight at rest. `sound`
+ * names the cue each of the move's contacts plays, on the frame it happens.
  */
-export function Piece({ pose, frames, delay = 0, done, class: cls = '', children }: {
-  pose: Pose; frames?: Frame[] | null; delay?: number; done?: () => void; class?: string; children: ComponentChildren
+export function Piece({ pose, frames, delay = 0, done, sound, class: cls = '', children }: {
+  pose: Pose; frames?: Frame[] | null; delay?: number; done?: () => void; sound?: PieceSound; class?: string; children: ComponentChildren
 }) {
   const el = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
@@ -273,6 +285,8 @@ export function Piece({ pose, frames, delay = 0, done, class: cls = '', children
           samples.map((f) => ({ opacity: Math.abs(Math.sin((f.turn ?? 0) * Math.PI / 180)) * shade, offset: f.t / total })))
       }
     }
+    if (sound) for (const hit of soundPlan(sound, frames))
+      play(hit.cue, { offsetMs: delay + hit.at, rateScale: hit.airMs ? fitFlight(hit.cue, hit.airMs) : 1 })
     run.onfinish = () => done?.()
     return () => { for (const animation of runs) animation.cancel() }
   }, [])

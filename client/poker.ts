@@ -143,13 +143,13 @@ const TICK_FROM = 5
 /** Tick from the local deadline clock; sparse state pushes do not carry countdown cues. */
 export const pokerClockCue = (before: number | null, after: number): Cue | null =>
   before !== null && after < before && after >= 1 && after <= TICK_FROM ? 'poker-tick' : null
-const STREET_CUE: Record<number, Cue> = { 3: 'poker-flop', 4: 'poker-turn', 5: 'poker-river' }
 
 /**
  * The cues one surface plays for the change from `prev` to `next`. `who` is
  * `'board'` or the phone's player id. Room cues play on the board, a player's
  * own cues on their phone. A first frame, or one from another match, only sets
- * the baseline.
+ * the baseline. Cards and chips that move sound as they move (`Piece`), so
+ * only what has no motion of its own is here.
  */
 export function pokerCues(prev: PokerView | null, next: PokerView, who: 'board' | PlayerId): { cue: Cue }[] {
   if (!prev || prev.matchId !== next.matchId) return []
@@ -159,21 +159,21 @@ export function pokerCues(prev: PokerView | null, next: PokerView, who: 'board' 
   const fresh = next.feed.filter((entry) => entry.id > seen)
 
   if (who === 'board') {
-    if (next.handNo > prev.handNo) add('poker-deal')
-    if (next.board.length > prev.board.length && STREET_CUE[next.board.length]) add(STREET_CUE[next.board.length])
+    const button = (view: PokerView) => view.seats.find((seat) => seat.button)?.player
+    if (next.handNo > prev.handNo && button(next) !== button(prev)) add('poker-puck')
     if (next.runout && !prev.runout) add('poker-drumroll')
     for (const entry of fresh) {
       if (entry.kind === 'check') add('poker-check')
-      else if (entry.kind === 'call' || entry.kind === 'bet' || entry.kind === 'raise' || entry.kind === 'blind') add('poker-chips')
       else if (entry.kind === 'allIn') add('poker-allin')
       else if (entry.kind === 'win') add('poker-win')
       else if (entry.kind === 'bust') add('poker-bust')
       else if (entry.kind === 'level') add('poker-level')
     }
+    const reacted = Math.max(0, ...prev.reactions.map((r) => r.id))
+    if (next.reactions.some((r) => r.id > reacted)) add('poker-react')
     return out.map((cue) => ({ cue }))
   }
 
-  if (next.actor === who && prev.actor !== who) add('poker-yours')
   if (fresh.some((entry) => entry.player === who && entry.auto)) add('poker-auto')
   return out.map((cue) => ({ cue }))
 }

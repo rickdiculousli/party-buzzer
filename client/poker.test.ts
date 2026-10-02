@@ -55,26 +55,32 @@ function view(over: Partial<PokerView> = {}, feed: Omit<PokerFeedEntry, 'id'>[] 
   }
 }
 
-test('the flop plays once, on the board only', () => {
-  const before = view()
-  const after = view({ board: ['As', 'Kd', '2c'], street: 'flop' })
-  assert.deepEqual(pokerCues(before, after, 'board'), [{ cue: 'poker-flop' }])
+test('the button moving to a new hand plays once, on the board only', () => {
+  const before = view({ seats: [{ ...seat('a'), button: true }, seat('b')] })
+  const after = view({ handNo: 2, seats: [seat('a'), { ...seat('b'), button: true }] })
+  assert.deepEqual(pokerCues(before, after, 'board'), [{ cue: 'poker-puck' }])
   assert.deepEqual(pokerCues(before, after, 'a'), [])
   assert.deepEqual(pokerCues(after, after, 'board'), [])
 })
 
-test('your turn plays only on your phone', () => {
+test('a reaction pops once on the board', () => {
+  const before = view()
+  const after = view({ reactions: [{ id: 1, player: 'a', kind: 'nice' as const }] })
+  assert.deepEqual(pokerCues(before, after, 'board'), [{ cue: 'poker-react' }])
+  assert.deepEqual(pokerCues(after, after, 'board'), [])
+})
+
+test('your turn is silent on every surface', () => {
   const before = view({ actor: 'b' })
   const after = view({ actor: 'a' })
-  assert.deepEqual(pokerCues(before, after, 'a'), [{ cue: 'poker-yours' }])
-  assert.deepEqual(pokerCues(before, after, 'b'), [])
+  assert.deepEqual(pokerCues(before, after, 'a'), [])
   assert.deepEqual(pokerCues(before, after, 'board'), [])
 })
 
 test('feed entries play their cue once; an auto fold plays on that phone', () => {
   const before = view()
   const after = view({}, [{ player: 'a', kind: 'fold', auto: true }, { player: 'b', kind: 'check' }, { player: 'b', kind: 'raise', amount: 60 }])
-  assert.deepEqual(pokerCues(before, after, 'board'), [{ cue: 'poker-check' }, { cue: 'poker-chips' }])
+  assert.deepEqual(pokerCues(before, after, 'board'), [{ cue: 'poker-check' }])
   assert.deepEqual(pokerCues(before, after, 'a'), [{ cue: 'poker-auto' }])
   assert.deepEqual(pokerCues(after, after, 'board'), [])
 })

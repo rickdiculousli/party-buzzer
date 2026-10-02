@@ -1,4 +1,5 @@
 import type { PokerFlick } from '../shared/protocol.ts'
+import type { Cue } from './sound.ts'
 
 /**
  * Cards and chips moving across felt, as pure kinematics in two phases.
@@ -472,8 +473,11 @@ export function toss(from: Pose, aim: { x: number; y: number }, flick: PokerFlic
   const frames = slide(from, target, rand, thrown
     ? { spin: turn, airShare: 0.3, lift: 0.025, wobble }
     : { hand: 0.35, lift: 0, wobble, spin: turn })
-  const last = frames[frames.length - 1]
-  return { frames, rest: { x: last.x, y: last.y, rot: last.rot } }
+  // A fold leaves the felt, not a hand held above it: its lift rises from nothing and comes back down.
+  const air = contacts(frames).air
+  const lifted = thrown && air ? frames.map((f) => f.t < air ? { ...f, lift: frames[0].lift * Math.sin((Math.PI * f.t) / air) } : f) : frames
+  const last = lifted[lifted.length - 1]
+  return { frames: lifted, rest: { x: last.x, y: last.y, rot: last.rot } }
 }
 
 /** Which card of a folded pair spins away, if either: -1 for neither (most folds), else 0 or 1. */
@@ -485,6 +489,41 @@ export function wildCard(rand: () => number): -1 | 0 | 1 {
 /** The dealer drawing something in along the cloth, such as bets into the pot: flat, straight, unhurried. */
 export function sweep(from: Pose, pile: Pose): Frame[] {
   return slide(from, pile, () => 0.5, { hand: 0.5, lift: 0, wobble: 0, skidTau: 110 })
+}
+
+/**
+ * When a move makes a sound, in ms from its start: `air`, how long it flies
+ * before it first touches down (0 if it never leaves the cloth), `tap` as a
+ * fingertip presses it into the cloth, `flip` as a card starts to turn over,
+ * and `stop` at its last frame. A card landing on felt makes none.
+ */
+export function contacts(frames: Frame[]): { air: number; tap: number[]; flip: number[]; stop: number } {
+  const tap: number[] = [], flip: number[] = []
+  let air = 0
+  for (let i = 1; i < frames.length; i++) {
+    const a = frames[i - 1], b = frames[i]
+    if (!air && a.lift > 0 && b.lift <= 0) air = b.t
+    if (a.lift >= 0 && b.lift < 0) tap.push(b.t)
+    if (Math.abs(a.turn ?? 0) === 180 && b.turn !== undefined && Math.abs(b.turn) < 180) flip.push(a.t)
+  }
+  return { air, tap, flip, stop: frames.at(-1)?.t ?? 0 }
+}
+
+/** The cue a moving piece plays at each kind of contact. `air` plays only if it flies. */
+export type PieceSound = Partial<Record<'start' | 'air' | 'tap' | 'flip' | 'stop', Cue>>
+
+/**
+ * When each of a move's sounds plays, in ms from its start. The `air` whoosh
+ * starts at release and carries the flight's length, so it can be fitted to
+ * end as the card touches down.
+ */
+export function soundPlan(sound: PieceSound, frames: Frame[]): { cue: Cue; at: number; airMs?: number }[] {
+  const at = contacts(frames)
+  const out: { cue: Cue; at: number; airMs?: number }[] = []
+  if (sound.air && at.air) out.push({ cue: sound.air, at: 0, airMs: at.air })
+  const hits: [Cue | undefined, number[]][] = [[sound.start, [0]], [sound.tap, at.tap], [sound.flip, at.flip], [sound.stop, [at.stop]]]
+  for (const [cue, times] of hits) if (cue) for (const t of times) out.push({ cue, at: t })
+  return out
 }
 
 /** A frame list that travels `a`, holds its end for `holdMs`, then travels `b`. */

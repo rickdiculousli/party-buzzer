@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mulberry32 } from '../shared/random.ts'
-import { chipStack, simplifyFrames, dealSchedule, gather, potOf, topShades, flop, turnUp, pitch, receive, scatter, slide, street, sweep, toss, wildCard, RECEIVE, REVEAL, TOSS, type Frame, type Pose } from './toss.ts'
+import { chipStack, contacts, soundPlan, simplifyFrames, dealSchedule, gather, potOf, topShades, flop, turnUp, pitch, receive, scatter, slide, street, sweep, toss, wildCard, RECEIVE, REVEAL, TOSS, type Frame, type Pose } from './toss.ts'
 
 const along = (frames: Frame[], dx: number, dy: number) => {
   const len = Math.hypot(dx, dy)
@@ -503,4 +503,40 @@ test('sample thinning retains exact touchdown, linger, tap and stacking landmark
       assert.ok(thin.includes(card.frames[i - 1])); assert.ok(thin.includes(card.frames[i]))
     }
   }
+})
+
+test('a dealt card sounds at each tap, and a street once as it starts to turn over', () => {
+  const rand = mulberry32(5)
+  const flight = pitch({ x: 0, y: -200 }, { x: 0, y: 100, rot: 0 }, rand)
+  const dealt = contacts(receive(flight, { x: 0, y: 100, rot: 0 }, 900, rand))
+  assert.equal(dealt.tap.length, 2)
+  assert.ok(dealt.air > 0 && dealt.air < flight[flight.length - 1].t)
+  assert.ok(dealt.tap[0] > 900 && dealt.tap[1] > dealt.tap[0])
+  assert.equal(dealt.flip.length, 0)
+  const laid = street({ x: 0, y: -200 }, { x: 0, y: 0, rot: 0 }, 56, mulberry32(6))
+  const turned = contacts(laid.frames)
+  assert.deepEqual(turned.flip, [laid.turnAt])
+  assert.equal(turned.tap.length, 0)
+  assert.equal(contacts(sweep({ x: 0, y: 0, rot: 0 }, { x: 50, y: 0, rot: 0 })).air, 0)
+})
+
+test('a thrown fold rises off the felt and comes back down, never jumping up at release', () => {
+  for (let seed = 1; seed < 20; seed++) {
+    const { frames } = toss({ x: 500, y: 700, rot: 0 }, { x: 500, y: 300 }, { dx: 0, dy: -1, speed: 1 }, mulberry32(seed))
+    const air = contacts(frames).air
+    assert.equal(frames[0].lift, 0)
+    assert.ok(air > 0, 'a hard flick leaves the cloth')
+    const mid = frames.find((f) => f.t >= air / 2)!
+    assert.ok(mid.lift > 0.02 && mid.lift <= 0.03, `lift ${mid.lift} mid-flight`)
+  }
+})
+
+test('a whoosh starts at release and lasts the flight; contact sounds land on their contacts', () => {
+  const flight = pitch({ x: 0, y: -200 }, { x: 0, y: 100, rot: 0 }, mulberry32(5))
+  const frames = receive(flight, { x: 0, y: 100, rot: 0 }, 900, mulberry32(5))
+  const at = contacts(frames)
+  const plan = soundPlan({ air: 'poker-deal', tap: 'poker-tap' }, frames)
+  assert.deepEqual(plan[0], { cue: 'poker-deal', at: 0, airMs: at.air })
+  assert.deepEqual(plan.slice(1).map((h) => h.at), at.tap)
+  assert.deepEqual(soundPlan({ air: 'poker-fold' }, sweep({ x: 0, y: 0, rot: 0 }, { x: 50, y: 0, rot: 0 })), [])
 })

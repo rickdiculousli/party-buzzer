@@ -5,9 +5,10 @@ import { mulberry32 } from '../shared/random.ts'
 import type { MinigamePlayerProps } from './minigames.tsx'
 import { matchFrame } from './minigame-info.ts'
 import { nextBowSequence } from './bow-control.ts'
-import { FeltArc, FeltMark, PlayingCard, ShotRing, cardName, reducedMotion, usePokerCues } from './PokerParts.tsx'
+import { FeltArc, FeltMark, PlayingCard, ShotRing, cardName, fitFlight, reducedMotion, usePokerCues } from './PokerParts.tsx'
 import { classifyGesture, dealTimes, peekTip, raiseStops, showsRight, GESTURE, PEEK, type Point, type TracePoint } from './poker.ts'
-import { pitch, simplifyFrames } from './toss.ts'
+import { contacts, pitch, simplifyFrames } from './toss.ts'
+import { play } from './sound.ts'
 import { PokerPeekRenderer } from './poker-peek-renderer.ts'
 import { bendProfile } from './poker-bend.ts'
 import { colorForPlayer, ordinal, playerName } from './ui.ts'
@@ -111,8 +112,10 @@ function DealtCard({ card, up, turned, squared, index, delay, seed }: {
     const box = node.getBoundingClientRect()
     const wide = (mulberry32(seed * 7 + 1)() - 0.5) * box.width * 0.8
     const from = { x: innerWidth / 2 - (box.left + box.width / 2) + wide, y: -(box.top + box.height * 1.2) }
-    const frames = simplifyFrames(pitch(from, { x: 0, y: 0, rot: REST[index] }, mulberry32(seed)))
+    const flight = pitch(from, { x: 0, y: 0, rot: REST[index] }, mulberry32(seed))
+    const frames = simplifyFrames(flight)
     const total = frames[frames.length - 1].t
+    play('poker-deal', { offsetMs: delay, rateScale: fitFlight('poker-deal', contacts(flight).air) })
     const run = node.animate(
       frames.map((f) => ({ transform: `translate(${f.x}px, ${f.y}px) rotate(${f.rot}deg) scale(${1 + f.lift})`, offset: f.t / total })),
       { duration: total, delay, fill: 'backwards', easing: 'linear' },
@@ -263,7 +266,7 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
   useEffect(() => { if (myTurn) navigator.vibrate?.(60) }, [myTurn, hand, poker?.street])
   useEffect(() => { if (!myTurn) setSheet(false) }, [myTurn])
   useEffect(() => {
-    if (ack && ack.seq === reactSeq.current && ack.status === 'refused') setReactRefused((n) => n + 1)
+    if (ack && ack.seq === reactSeq.current && ack.status === 'refused') { play('poker-nope'); setReactRefused((n) => n + 1) }
   }, [ack])
   useEffect(() => {
     if (!poker) return
@@ -307,7 +310,7 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
   const actorName = poker.actor ? playerName(state, poker.actor) : null
   const pot = poker.pots.reduce((a, b) => a + b, 0) + poker.seats.reduce((a, seat) => a + seat.bet, 0)
   const reactions = <div key={reactRefused} class={`poker-tokens ${reactRefused ? 'fx-shake' : ''}`}>
-    {REACTS.map((kind) => <button key={kind} class="poker-token" onClick={() => { reactSeq.current = input({ kind: 'react', react: kind }) }}>{REACT_LABEL[kind]}</button>)}
+    {REACTS.map((kind) => <button key={kind} class="poker-token" onClick={() => { play('poker-react'); reactSeq.current = input({ kind: 'react', react: kind }) }}>{REACT_LABEL[kind]}</button>)}
   </div>
   const top = <header class="poker-phone__top">
     {name}
@@ -465,6 +468,8 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
     // Letting go of a peel only lays the corner back down: it is never a fold or a tap.
     if (peel.current && !peel.current.dropping) {
       Object.assign(peel.current, { dropping: true, at: performance.now() })
+      // The bent edge lands back on the cloth as the drop ends.
+      play('poker-puft', { offsetMs: reducedMotion() ? 0 : PEEK.dropMs })
       peel.current.wake()
       trace.current = []
       return
@@ -481,11 +486,14 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
       if (!legal) {
         // Restart the shake in place; re-mounting the pair would replay its deal.
         const node = hole.current
+        play('poker-nope')
         node?.classList.remove('fx-shake')
         void node?.offsetWidth
         node?.classList.add('fx-shake')
         return
       }
+      // A harder flick is a faster pair: a shorter, higher whoosh.
+      play('poker-fold', { rateScale: 0.9 + 0.2 * gesture.flick!.speed })
       setThrown(hand)
       foldSeq.current = input({ kind: 'fold', flick: gesture.flick })
       if (node && !reducedMotion()) {
@@ -495,7 +503,10 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
       } else setRetired(hand)
     } else if (gesture.kind === 'doubleTap') {
       lastTap.current = null
-      if (legal) input({ kind: legal.canCheck ? 'check' : 'call' })
+      if (legal) {
+        play(legal.canCheck ? 'poker-check' : 'poker-chips')
+        input({ kind: legal.canCheck ? 'check' : 'call' })
+      }
     } else if (gesture.kind === 'tap') {
       lastTap.current = end
     }
@@ -520,10 +531,11 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
   // A landmark's stop number, or far off the rail when this street has no such stop.
   const landmark = (label: string) => { const i = stops.findIndex((s) => s.label === label); return i < 0 ? -99 : i }
   // Each stop clicks under the thumb like a detent.
-  const toStop = (i: number) => { if (stops[i] && stops[i].to !== raiseTo) { navigator.vibrate?.(8); setRaiseTo(stops[i].to) } }
+  const toStop = (i: number) => { if (stops[i] && stops[i].to !== raiseTo) { navigator.vibrate?.(8); play('poker-detent'); setRaiseTo(stops[i].to) } }
   const openSheet = () => { if (legal) { setRaiseTo(legal.minTo); setSheet(true) } }
   const confirmRaise = () => {
     if (!legal) return
+    play('poker-chips')
     input(raiseTo >= legal.maxTo ? { kind: 'allIn' } : { kind: 'raise', to: raiseTo })
     setSheet(false)
   }
@@ -591,8 +603,8 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
     <div class="poker-rail">
       <div class="poker-rail__row">
         <button class="poker-plaque" disabled={!legal?.canRaise} onClick={openSheet}>{highBet > 0 ? 'Raise' : 'Bet'}</button>
-        <button class="poker-plaque" disabled={!legal?.canAllIn} onClick={() => input({ kind: 'allIn' })}>All in</button>
-        {poker.canShow && <button class="poker-plaque poker-plaque--go fx-pop" onClick={() => input({ kind: 'show' })}>Show</button>}
+        <button class="poker-plaque" disabled={!legal?.canAllIn} onClick={() => { play('poker-chips'); input({ kind: 'allIn' }) }}>All in</button>
+        {poker.canShow && <button class="poker-plaque poker-plaque--go fx-pop" onClick={() => { play('poker-flip'); input({ kind: 'show' }) }}>Show</button>}
       </div>
     </div>
   </main>

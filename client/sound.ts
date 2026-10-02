@@ -22,8 +22,7 @@ import { onset, render, schedule, type Recipe } from './synth.ts'
 export type Cue = 'stamp' | 'leader' | 'welcome' | 'type' | 'award' | 'penalty'
   | 'sketch-turn' | 'sketch-yours' | 'sketch-go' | 'sketch-miss' | 'sketch-close' | 'sketch-got'
   | 'sketch-right' | 'sketch-hint' | 'sketch-tick' | 'sketch-all' | 'sketch-timeup' | 'sketch-pass' | 'sketch-over'
-  | 'poker-deal' | 'poker-flop' | 'poker-turn' | 'poker-river' | 'poker-check' | 'poker-chips' | 'poker-allin'
-  | 'poker-drumroll' | 'poker-win' | 'poker-bust' | 'poker-level' | 'poker-yours' | 'poker-tick' | 'poker-auto'
+  | 'poker-deal' | 'poker-tap' | 'poker-flip' | 'poker-chips' | 'poker-sweep' | 'poker-push' | 'poker-fold' | 'poker-poof' | 'poker-puft' | 'poker-check' | 'poker-allin' | 'poker-drumroll' | 'poker-win' | 'poker-bust' | 'poker-level' | 'poker-tick' | 'poker-auto' | 'poker-nope' | 'poker-detent' | 'poker-react' | 'poker-puck'
 
 /**
  * The sample path's files. A cue that is a recipe names its files in its
@@ -219,12 +218,22 @@ export type PlayOpts = {
 export function playRecipe(recipe: Recipe, rateScale = 1, offsetMs = 0): () => void {
   const ac = unlock()
   const t0 = Math.max(ac.currentTime, ac.currentTime + offsetMs / 1000)
-  const stop = render(ac, schedule(recipe, Math.max(0.05, rateScale)), t0, 1, files)
+  const stop = render(ac, schedule(recipe, Math.max(0.05, rateScale)), t0, surfaceGain, files)
   // `render` skips a file layer with nothing decoded for it, so start the
   // decode and let the next trigger have it. One silent cue, not a silent night.
   for (const l of recipe)
     if (typeof l.source === 'object' && !files.has(l.source.file)) void primeFile(l.source.file)
   return stop
+}
+
+/**
+ * Every cue's level on this surface. Cue levels follow the standard in
+ * `tools/loudness.ts`, set for the board across the room; a phone is held a
+ * foot from the ear, so it plays everything 6dB down.
+ */
+let surfaceGain = 1
+export function setSurfaceGain(gain: number): void {
+  surfaceGain = gain
 }
 
 /**

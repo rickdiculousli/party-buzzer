@@ -513,11 +513,12 @@ function foldScenario(id: string, label: string, flick: { dx: number; dy: number
     note: `${label}: thrown with friction and spin, left to lie for a beat, then popped away. Tune FOLD and TOSS in client/toss.ts.`,
     subject: '.poker-piece',
     dials: FOLD_DIALS,
+    tune: ['poker-fold'],
     render: (lead) => pokerStage(([0, 1] as const).map((k) => {
       // The pair lies side by side before the throw, where each card's throw starts.
       const held = { ...from, x: from.x + (k ? 16 : -16) }
       const thrown = toss(held, aim, flick, mulberry32(k + 3), 0, k === wild)
-      return <Piece key={`${k}-${lead}`} pose={lead ? held : thrown.rest} frames={lead ? null : chain(thrown.frames, 800 + k * 60, [thrown.frames[thrown.frames.length - 1]])}>
+      return <Piece key={`${k}-${lead}`} pose={lead ? held : thrown.rest} frames={lead ? null : chain(thrown.frames, 800 + k * 60, [thrown.frames[thrown.frames.length - 1]])} sound={k ? undefined : { air: 'poker-fold' }}>
         <PlayingCard card={null} up={false} />
       </Piece>
     })),
@@ -531,6 +532,7 @@ const dealScenario: Scenario = {
   family: 'Poker',
   note: 'Two cards pitched from the dealer land loose; the player gathers the pair and taps it square. Tune TOSS and RECEIVE in client/toss.ts.',
   subject: '.poker-piece',
+  tune: ['poker-deal', 'poker-tap'],
   dials: [
     { motion: 'RECEIVE.scatter', label: 'Lands off its place', min: 0, max: 1, step: 0.01, unit: '' },
     { motion: 'RECEIVE.scatterRot', label: 'Lands off square', min: 0, max: 45, step: 1, unit: '°' },
@@ -547,7 +549,7 @@ const dealScenario: Scenario = {
     const flights = neat.map((spot, k) => pitch({ x: PATCH.w / 2, y: -90 }, scatter(spot, 56, mulberry32(k + 21)), mulberry32(k + 11)))
     const collect = 150 + flights[1][flights[1].length - 1].t + 300
     return pokerStage(neat.map((spot, k) =>
-      <Piece key={`${k}-${lead}`} pose={spot} frames={lead ? null : receive(flights[k], spot, collect - k * 150, mulberry32(31))} delay={k * 150}>
+      <Piece key={`${k}-${lead}`} pose={spot} frames={lead ? null : receive(flights[k], spot, collect - k * 150, mulberry32(31))} delay={k * 150} sound={k ? { air: 'poker-deal' } : { air: 'poker-deal', tap: 'poker-tap' }}>
         <PlayingCard card={null} up={false} />
       </Piece>))
   },
@@ -562,6 +564,7 @@ const flopScenario: Scenario = {
   family: 'Poker',
   note: 'The flop lands as one face-down stack, is turned over, and spread left to right with one push. Tune REVEAL in client/toss.ts.',
   subject: '.poker-piece',
+  tune: ['poker-deal', 'poker-flip'],
   dials: [
     ...range('REVEAL.stackIn', 'Stack lands right of slot 1', 0, 0.8, 0.01),
     ...range('REVEAL.stackRot', 'Stack lands off square', 0, 20, 0.5, '°'),
@@ -577,7 +580,7 @@ const flopScenario: Scenario = {
   render: (lead) => {
     const laid = flop({ x: PATCH.w / 2, y: -90 }, BOARD_SLOTS.slice(0, 3), 56, mulberry32(41))
     return pokerStage(['Ah', 'Kd', '7c'].map((card, k) =>
-      <Piece key={`${k}-${lead}`} pose={BOARD_SLOTS[k]} frames={lead ? null : laid.frames[k]}>
+      <Piece key={`${k}-${lead}`} pose={BOARD_SLOTS[k]} frames={lead ? null : laid.frames[k]} sound={k ? undefined : { air: 'poker-deal', flip: 'poker-flip' }}>
         <PlayingCard card={card} up hinge={lead ? undefined : laid.hinge} />
       </Piece>))
   },
@@ -590,6 +593,7 @@ const streetScenario: Scenario = {
   family: 'Poker',
   note: 'A turn or river card lands face down off its slot, is turned over, and drawn into line. Tune REVEAL in client/toss.ts.',
   subject: '.poker-piece',
+  tune: ['poker-deal', 'poker-flip'],
   dials: [
     ...range('REVEAL.offSlot', 'Lands off its slot', 0, 0.8, 0.01),
     ...range('REVEAL.offRot', 'Lands off square', 0, 25, 0.5, '°'),
@@ -602,7 +606,7 @@ const streetScenario: Scenario = {
     const laid = street({ x: PATCH.w / 2, y: -90 }, BOARD_SLOTS[3], 56, mulberry32(43))
     return pokerStage(['Ah', 'Kd', '7c', 'Qs'].map((card, i) => i < 3
       ? <Piece key={i} pose={BOARD_SLOTS[i]}><PlayingCard card={card} up /></Piece>
-      : lead ? null : <Piece key={i} pose={BOARD_SLOTS[i]} frames={laid.frames}><PlayingCard card={card} up hinge={laid.hinge} /></Piece>))
+      : lead ? null : <Piece key={i} pose={BOARD_SLOTS[i]} frames={laid.frames} sound={{ air: 'poker-deal', flip: 'poker-flip' }}><PlayingCard card={card} up hinge={laid.hinge} /></Piece>))
   },
 }
 
@@ -614,6 +618,7 @@ const showdownScenario: Scenario = {
   note: 'A player shows their pair: it turns over as one on the edge nearer the middle and comes down mirrored there. Tune REVEAL in client/toss.ts.',
   subject: '.poker-piece',
   dials: [...TURN, ...SHADOW],
+  tune: 'poker-flip',
   render: (lead) => {
     const middle = { x: PATCH.w / 2, y: PATCH.h / 2 }
     const pair = ([0, 1] as const).map((k) => ({ x: PATCH.w * 0.2 + (k ? 8 : -8), y: PATCH.h * 0.5 + (k ? 2 : 0), rot: 8 + (k ? 3 : -2) }))
@@ -621,7 +626,7 @@ const showdownScenario: Scenario = {
     return pokerStage(pair.map((faceDown, k) => {
       return lead
         ? <Piece key={`${k}-down`} pose={faceDown}><PlayingCard card={null} up={false} /></Piece>
-        : <Piece key={`${k}-up`} pose={shown[k].rest} frames={shown[k].frames}><PlayingCard card={k ? 'Kh' : 'Ks'} up hinge={shown[k].hinge} /></Piece>
+        : <Piece key={`${k}-up`} pose={shown[k].rest} frames={shown[k].frames} sound={k ? undefined : { flip: 'poker-flip' }}><PlayingCard card={k ? 'Kh' : 'Ks'} up hinge={shown[k].hinge} /></Piece>
     }))
   },
 }
