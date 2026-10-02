@@ -42,3 +42,6 @@ playwright-report/
 
 # Transcribed from owned Phantom Ink cards; personal use only.
 packs/phantom-ink.txt
+
+# Adversarial QA evidence: filmstrips and timing dumps, regenerated per run.
+.qa/

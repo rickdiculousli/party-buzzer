@@ -1,0 +1,41 @@
+{
+  "skill_name": "adversarial-qa",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I made the deal whoosh airier so it cuts through the room on the TV (poker-deal in client/cues.ts). QA it before I ship please",
+      "expected_output": "Finds that poker-deal is now a bright, held, hissy noise (static), contradicting the low-whoosh ruling, and reverts or reshapes it.",
+      "files": [],
+      "assertions": [
+        "Identifies the planted defect specifically: names what is wrong and its cause in the diff",
+        "Backs the finding with concrete evidence: a measured number, a frame, or a file:line, not opinion alone",
+        "Does not hand over the defect as ready to ship: it is fixed in the copy or explicitly blocked",
+        "States what the evidence could not verify and what Rick should check by eye or ear"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "gave the thrown fold more air so it reads like a real toss (the thrown branch of toss() in client/toss.ts). sanity check it",
+      "expected_output": "Finds the thrown fold's lift is 10x (0.25), so a fold balloons toward the camera; a real flicked fold barely leaves the cloth. Reverts or reduces it.",
+      "files": [],
+      "assertions": [
+        "Identifies the planted defect specifically: names what is wrong and its cause in the diff",
+        "Backs the finding with concrete evidence: a measured number, a frame, or a file:line, not opinion alone",
+        "Does not hand over the defect as ready to ship: it is fixed in the copy or explicitly blocked",
+        "States what the evidence could not verify and what Rick should check by eye or ear"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "tidied up how Piece schedules its sounds in client/PokerParts.tsx. make sure the poker card sounds are still right",
+      "expected_output": "Finds the air whoosh now plays at touchdown (delay + at.air) instead of at release, so cards whoosh after landing. Restores release timing.",
+      "files": [],
+      "assertions": [
+        "Identifies the planted defect specifically: names what is wrong and its cause in the diff",
+        "Backs the finding with concrete evidence: a measured number, a frame, or a file:line, not opinion alone",
+        "Does not hand over the defect as ready to ship: it is fixed in the copy or explicitly blocked",
+        "States what the evidence could not verify and what Rick should check by eye or ear"
+      ]
+    }
+  ]
+}

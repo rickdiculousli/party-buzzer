@@ -54,7 +54,7 @@ are objects in the same process as `Hub`. The composition root is
 | Shared presentation | `shared/wall.ts` | Pure semantic moments and wall/phone projections |
 | Browser runtime | `client/useSocket.ts`, `useReveal.ts`, `sound.ts` | Connection/clock lifecycle, reveal timing and browser audio |
 | Browser surfaces | `client/Host.tsx`, `Player.tsx`, `Board.tsx` | Role-specific controls and rendering |
-| Local instruments | `tools/`, `client/anim/`, `client/review/`, `vite.config.ts`, `vite.review.config.ts` | Simulations, trace analysis, visual/audio tuning, frozen-state review and Codex delivery |
+| Local instruments | `tools/`, `client/anim/`, `client/review/`, `vite.config.ts`, `vite.review.config.ts` | Simulations, trace analysis, visual/audio tuning, loudness standard, QA evidence (`tools/qa/`: kinematics, sound character, filmstrips), frozen-state review and Codex delivery |
 
 ## Startup and change propagation
 
@@ -137,7 +137,9 @@ reactions and level/turn deadlines. Dropped catch-up time also forces a frame to
 rebase browser deadlines. Every hello receives its current role frame, including
 private phone data only for that player. Poker's browser shot ring, level clock
 and final-second tick cues run locally between pushes; they never rerender the
-table to advance time. Definitions without a key retain continuous frames.
+table to advance time. Moving cards and chips sound from their own frames: `Piece`
+takes a cue per contact (`soundPlan` over `contacts` in `toss.ts`: start, air, tap, flip,
+stop), so `pokerCues` keeps only moments with no motion of their own. Definitions without a key retain continuous frames.
 
 The phone's local peek is owned by `PokerPlayer.tsx` (gestures and rAF lifecycle),
 `poker-bend.ts` (shared material curve/profile) and `poker-peek-renderer.ts`
@@ -344,7 +346,11 @@ rebound, undo, or another question are discarded.
 
 Question voice comes from the server machine. Browser cue audio is a separate
 system: `cues.ts` defines recipes, `sound.ts` schedules them and reads scoped
-tunables, and `synth.ts` supplies synthesis primitives. Browser microphone
+tunables, and `synth.ts` supplies synthesis primitives. Cue levels follow one
+standard: `tools/loudness.ts` renders each recipe offline, measures its loudest
+100ms (K-weighted LUFS) and holds it to a tier (hero, event, signal, foley,
+air); `npm run loudness -- --apply` rescales a cue onto its tier. Levels are set
+for the board; the phone surface plays everything 6dB down. Browser microphone
 recording is handled by `Talk.tsx`, `recorder.ts`, and `wav.ts`.
 
 ## Undo versus restart
@@ -425,7 +431,7 @@ microphone, network, or multi-device behavior.
 | Judging and stale answers | `server/judge.test.ts` |
 | Mode boundaries and composed rules | `server/modes/*.test.ts`, `server/game-modes.integration.test.ts`, duel/setlist integration tests |
 | Presentation and scoring | `shared/wall.test.ts`, `shared/scoring.test.ts`, `client/*.test.ts` |
-| Tooling and audio asset processing | `tools/*.test.ts` |
+| Tooling, audio asset processing, loudness tiers and QA probes | `tools/*.test.ts`, `tools/qa/*.test.ts` |
 | Frozen preview isolation, annotations and delivery bundles | `client/review.test.ts`, `tools/review.test.ts`, `npm run test:review` |
 | Physical phones, microphones and room audio | `docs/manual-checklist.md` |
 

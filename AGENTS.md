@@ -68,6 +68,10 @@ JavaScript defaults, and cue recipes consistent. Workbench save/adopt endpoints
 write source files; inspect their diff. Adopted audio belongs in
 `client/public/sounds/` with credits, never in ignored `sounds/raw/`.
 
+Before calling motion, visuals or sound done, run the repository
+`adversarial-qa` skill: evidence from `tools/qa/` (kinematics, filmstrips,
+sound character) goes to fresh critic agents, whose verified findings are fixed or reported.
+
 For frozen board or phone review, use the repository `review-workbench` skill.
 It owns launch, annotation-batch handling, and the boundary between static visual
 evidence and live behavior. When a normal review desire requires repeated ad hoc
@@ -107,7 +111,8 @@ room for them. Validate microphone, playback, and multi-device behavior with
 
 - `README.md`: installation, running, gameplay, and practical limitations.
 - `ARCHTECTURE.md`: current component ownership, wiring, invariants, extension paths.
-- `AGENTS.md`: common working instructions; `CLAUDE.md` points here.
+- `AGENTS.md`: common working instructions for every agent, Claude Code included.
+  Keep it the only one: Claude Code reads it only while no `CLAUDE.md` exists.
 - `docs/design.md`: visual language and terminology.
 - `docs/question-styles/`: writing rules per question style, plus shared accepted-answer rules.
 

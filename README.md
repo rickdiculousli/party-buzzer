@@ -281,8 +281,16 @@ npm run motion         # standalone visual/audio workbench at /anim.html
 npm run poker:prints   # regenerate peek prints after card art/token/font changes (Chromium + cwebp)
 npm run review         # frozen board/phone review workbench at /review.html
 npm run review:serve   # same workbench on 127.0.0.1:4174, without opening a browser
+npm run loudness       # every cue against the loudness tiers; -- --apply rescales off-tier cues
+npm run qa:motion      # Poker moves as numbers (card widths/s, spin, air time) with physics flags
+npm run qa:sound       # each cue's loudness, envelope, spectrum and phone-speaker share
+npm run qa:film -- poker-flop   # motion-harness scenario as a contact sheet in .qa/ (--list for ids)
 npm run dev            # Vite HMR; see proxy limitation below
 ```
+
+The `qa:*` commands are the evidence for the `adversarial-qa` skill
+(`.agents/skills/adversarial-qa/`), which sends critic agents at motion, visual
+and sound changes before they are called done.
 
 The server runs native TypeScript directly. Relative source imports use `.ts`.
 `npm start` serves `dist/`, so rebuild after client changes and restart after
@@ -355,5 +363,4 @@ on actual phones and the room's audio setup.
 
 - [ARCHTECTURE.md](ARCHTECTURE.md): components, wiring, state ownership, and extension points.
 - [AGENTS.md](AGENTS.md): shared instructions for coding agents.
-- [CLAUDE.md](CLAUDE.md): Claude entrypoint to the same guidance.
 - [Design system and vocabulary](docs/design.md): visual rules and canonical terminology.
