@@ -73,8 +73,8 @@ feel, a 65-inch TV at three metres, multiple devices. Critics must say so instea
 ## 3. Attack
 
 Spawn one critic per selected module **in the same turn**, so they run in
-parallel and cannot anchor on each other. Use the Agent tool with
-`general-purpose` agents and a fresh context. Each gets:
+parallel and cannot anchor on each other. Use general-purpose subagents with
+a fresh context (in Claude Code, the Agent tool with `general-purpose`). Each gets:
 
 - the module brief path (`.agents/skills/adversarial-qa/references/<module>.md`)
   and `references/rulings.md`;
@@ -83,7 +83,8 @@ parallel and cannot anchor on each other. Use the Agent tool with
 - **not** your opinion of the work. Tell them only that the builder thinks it
   is finished.
 
-If you cannot spawn agents (you are yourself a subagent), play each critic in
+If you cannot spawn agents (you are yourself a subagent, or your harness has
+no subagents), play each critic in
 turn: write the critique from the brief and the evidence alone, before you
 reopen the implementation, and keep it written down so you cannot quietly
 soften it later. It is weaker than fresh eyes, so say in the report that this happened.
