@@ -595,3 +595,23 @@ test('a fresh setlist over a retained verdict or choice reveal shows only the in
     assert.ok(!JSON.stringify(wall).includes('Old'), `${leftover}: no old content on the wall`)
   }
 })
+
+test('Next on a pending introduction over a played retained round keeps the first question', () => {
+  const { state, hub } = lobbyRig()
+  Object.assign(state.round, { questionId: 'old', armedAt: 1, phase: 'IDLE' })
+  hub.dispatch({ a: 'setSetlist', blocks: [{ game: 'trivia', options: {}, count: 2 }] })
+  assert.equal(state.arrival?.kind, 'introduction')
+  hub.dispatch({ a: 'next' })
+  assert.equal(state.arrival, undefined)
+  assert.deepEqual([state.setlist?.at, state.setlist?.done], [0, 0], 'block 0 has not spent a question')
+})
+
+test('a kept-cursor setlist edit keeps the pending introduction; an identical one is unchanged', () => {
+  const { state, hub } = lobbyRig()
+  hub.dispatch({ a: 'setSetlist', blocks: [{ game: 'trivia', options: {}, count: 2 }, { game: 'trivia', options: {}, count: 1 }] })
+  const id = state.arrival?.id
+  assert.ok(id)
+  assert.equal(hub.dispatch({ a: 'setSetlist', blocks: [{ game: 'trivia', options: {}, count: 2 }, { game: 'trivia', options: {}, count: 4 }] }).status, 'applied')
+  assert.equal(state.arrival?.id, id)
+  assert.equal(hub.dispatch({ a: 'setSetlist', blocks: [{ game: 'trivia', options: {}, count: 2 }, { game: 'trivia', options: {}, count: 4 }] }).status, 'unchanged')
+})

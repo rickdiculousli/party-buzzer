@@ -578,9 +578,9 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
           screen as its own timeline assembled would undo the point of stamping
           the marks down in the first place.
         */}
-        {w.arrival && (
+        {w.arrival ? (
           <ArrivalBoard state={state} arrival={w.arrival} feedback={practice} pulseNow={pulseNow} />
-        )}
+        ) : (<>
         <div class="board__above">
           {/* Three lanes — what was said, the stamp, the answer — each held open
               by an invisible stand-in while the others are up, so one arriving
@@ -712,6 +712,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
           {w.choices && <Choices c={w.choices} now={now} colorOf={(id) => colorForPlayer(state, id)} />}
           {w.timeline && <Timeline state={state} round={round} enter={enter.current} />}
         </div>
+        </>)}
 
         {/* The stakes, dim in the corner for the whole question: the card
             between questions said it large, and the stage is the question's now. */}
@@ -721,7 +722,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
 
         {/* Status, not stage content — parked at the foot of the stage so a
             rebound's lockout chips never move the timeline above them. */}
-        {barred.length > 0 && (
+        {!w.arrival && barred.length > 0 && (
           <div class="board__barred" data-review-id="board:lockouts">
             {barred.map((n) => (
               <span key={n} class="chip chip--barred">{n} out</span>

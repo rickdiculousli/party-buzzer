@@ -350,6 +350,8 @@ export class Hub {
       if (this.state.round.phase !== 'IDLE') return
       this.reader?.select(data).catch((e) => console.warn(`[hub] selectPack failed: ${e}`))
     } else if (name === 'read') {
+      // An introduction holds play: nothing starts, so nothing changed.
+      if (arrivalBlocksPlay(this.state)) return
       this.reader?.start()
     } else if (name === 'pauseRead') {
       this.reader?.pause()

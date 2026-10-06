@@ -257,8 +257,10 @@ function mutateHostAction(state: State, action: HostAction): void {
     case 'next':
     case 'resetRound': {
       // Captured before the reset clears it: this is what tells a finished
-      // question from a double-tap on N or a stale award being cleared.
-      const played = round.armedAt > 0
+      // question from a double-tap on N or a stale award being cleared. A
+      // retained round under a pending introduction was not played: Next there
+      // only dismisses the introduction.
+      const played = round.armedAt > 0 && !arrivalBlocksPlay(state)
       round.phase = 'IDLE'
       round.questionId = ''
       round.attemptId = ''
