@@ -653,6 +653,24 @@ export type InkPrivate = {
 }
 
 /**
+ * The opening of a game night: a lobby where joined players test their
+ * buzzers, or the introduction to a fresh setlist's first block. Every entry
+ * gets a fresh id, so a control or receipt from an older arrival cannot act on
+ * a newer one. Runtime only: undo keeps an introduction, never a lobby, and
+ * neither reaches disk.
+ */
+export type Arrival =
+  | { kind: 'lobby'; id: string; testedPlayerIds: PlayerId[] }
+  | { kind: 'introduction'; id: string; blockAt: 0 }
+
+/** The server's echo of one accepted practice press. `seq` rises within a lobby. */
+export type PracticeReceipt = {
+  lobbyId: string
+  seq: number
+  playerId: PlayerId
+}
+
+/**
  * Autoplay: the two beats a human host provides by instinct and the reader
  * otherwise waits on forever. `on` only removes keypresses — the host still
  * judges, unless the spoken-answer judge is doing that too.
@@ -710,6 +728,8 @@ export type State = {
   reading?: ReadingState
   /** Durable lifecycle only. The live world travels in role-specific frames. */
   minigame?: MinigameState
+  /** A lobby or first-block introduction covering the room. */
+  arrival?: Arrival
 }
 
 export type HostAction =
@@ -750,6 +770,10 @@ export type HostAction =
   | { a: 'startMinigame' }
   | { a: 'cancelMinigame' }
   | { a: 'closeMinigame' }
+  /** Open the practice lobby. Runtime only: no undo step. */
+  | { a: 'openLobby' }
+  /** Close the arrival with this id: a lobby without an undo step, an introduction with one. */
+  | { a: 'closeArrival'; arrivalId: string }
 
 export type ClientMsg =
   | { t: 'hello'; role: Role; playerId?: PlayerId; name?: string }
@@ -761,6 +785,8 @@ export type ClientMsg =
   | MinigameInputMsg
   | { t: 'minigameLobby'; change: LobbyChange }
   | { t: 'minigameTouch'; matchId: string; target: string; x: number; y: number }
+  /** A buzzer test in the open lobby. Never a buzz. */
+  | { t: 'practiceBuzz'; lobbyId: string }
 
 export type ServerMsg =
   | { t: 'welcome'; playerId: PlayerId; serverTime: number }
@@ -770,6 +796,7 @@ export type ServerMsg =
   | { t: 'minigameFrame'; frame: MinigameFrame }
   | { t: 'minigameAck'; ack: MinigameInputAck }
   | { t: 'minigameTouch'; touch: MinigameTouch }
+  | { t: 'practiceBuzz'; receipt: PracticeReceipt }
 
 /** A command outcome, distinct from the state updates it may produce. */
 export type ActionResult =
