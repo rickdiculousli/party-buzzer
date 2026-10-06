@@ -9,6 +9,7 @@ import { duelAct, duelCatalog } from './duel.ts'
 import { listPacks, packSizes } from './packs.ts'
 import { listSetlists, readSetlist, writeSetlist } from './setlists.ts'
 import { refuses } from '../shared/legality.ts'
+import { arrivalBlocksPlay, practiceAllowed } from '../shared/arrival.ts'
 import { COLLECT_MS } from '../shared/protocol.ts'
 import { makeTracer, type Tracer } from './trace.ts'
 import { gameSnapshot, restoreGame, type GameSnapshot } from './snapshot.ts'
@@ -87,6 +88,8 @@ export class Hub {
   private trace: Tracer
   private restoring = false
   private minigame: MinigameRuntime | undefined
+  /** Practice receipts in the current lobby. Private, never in State; restarts per lobby. */
+  private practiceSeq = 0
 
   constructor(state: State, opts: HubOpts = {}) {
     this.state = state
@@ -172,6 +175,10 @@ export class Hub {
         this.act(conn, msg.act, msg.data)
         return
 
+      case 'practiceBuzz':
+        this.practice(conn, msg.lobbyId)
+        return
+
       case 'minigameInput':
         if (conn.role === 'player' && conn.playerId) this.minigame?.input(conn.playerId, msg)
         return
@@ -201,6 +208,12 @@ export class Hub {
 
   /** The single commit path for the host, reader, judge and setlist loader. */
   dispatch(action: HostAction): ActionResult {
+    // The lobby is runtime: entering and leaving it is broadcast directly, with
+    // no undo step and no change notification. An introduction closes below,
+    // through the normal applier.
+    if (action.a === 'openLobby' || (action.a === 'closeArrival' && this.state.arrival?.kind === 'lobby')) {
+      return this.lobby(action)
+    }
     let result: ActionResult
     if (action.a === 'undo') {
       result = { status: this.undo() ? 'applied' : 'unchanged' }
@@ -219,12 +232,9 @@ export class Hub {
           applyHostAction(this.state, { a: 'setlistJump', at: setlist.at + 1 })
         }
         if (action.a === 'prepareMinigame') {
-          this.restoring = true
-          try {
-            this.reader?.stop()
-          } finally {
-            this.restoring = false
-          }
+          // A minigame launch ends the lobby, as an arm does.
+          if (this.state.arrival?.kind === 'lobby') delete this.state.arrival
+          this.stopReaderQuietly()
         }
         this.history.push(before)
         if (this.history.length > UNDO_DEPTH) this.history.shift()
@@ -235,6 +245,10 @@ export class Hub {
       if (result.status === 'applied') {
         this.history.push(before)
         if (this.history.length > UNDO_DEPTH) this.history.shift()
+        // A new introduction holds the room, so a reader mid-dwell or
+        // mid-preparation stops here rather than arming over it.
+        const intro = this.state.arrival
+        if (intro?.kind === 'introduction' && intro.id !== before.arrival?.id) this.stopReaderQuietly()
       }
     }
     if (result.status === 'applied') {
@@ -271,9 +285,10 @@ export class Hub {
       }
       return
     }
-    // Duel entry belongs to players, like items.
+    // Duel entry belongs to players, like items. An introduction covers the
+    // nomination window, so entries wait until the host continues.
     if (name.startsWith('duel')) {
-      if (!conn.playerId) return
+      if (!conn.playerId || arrivalBlocksPlay(this.state)) return
       if (duelAct(this.state, conn.playerId, name, data)) this.changed('duel')
       return
     }
@@ -328,6 +343,8 @@ export class Hub {
       const update = data as ReadingUpdate | undefined
       this.state.reading = update?.progress
       this.state.readingActive = update?.active ?? false
+      // Reading accepted is real play starting: the lobby is over.
+      if (this.state.readingActive && this.state.arrival?.kind === 'lobby') delete this.state.arrival
     } else if (name === 'selectPack' && typeof data === 'string') {
       // Mid-question would cut the room off; refuse it the way setMode does.
       if (this.state.round.phase !== 'IDLE') return
@@ -367,6 +384,41 @@ export class Hub {
       }
     }
     this.changed(`act:${name}`)
+  }
+
+  /** Lobby entry and exit. Same refusals as any host action; no history, no `changed()`. */
+  private lobby(action: HostAction): ActionResult {
+    const reason = refuses(this.state, action)
+    if (reason) return { status: 'refused', reason }
+    if (action.a === 'openLobby') {
+      if (this.state.arrival?.kind === 'lobby') return { status: 'unchanged' }
+      this.state.arrival = { kind: 'lobby', id: randomUUID(), testedPlayerIds: [] }
+      this.practiceSeq = 0
+    } else {
+      delete this.state.arrival
+    }
+    this.trace(`host:${action.a}`, this.state)
+    this.broadcast()
+    return { status: 'applied' }
+  }
+
+  /**
+   * A buzzer test. Only a registered player connection whose roster identity
+   * may practice in this lobby; quiz lockouts and mode rules do not apply. The
+   * first press marks the player tested and republishes views; every press
+   * relays a receipt. Never `changed()`: practice is not gameplay.
+   */
+  private practice(conn: Conn, lobbyId: unknown): void {
+    const playerId = conn.playerId
+    const lobby = this.state.arrival
+    if (conn.role !== 'player' || !playerId || !this.conns.has(conn) || typeof lobbyId !== 'string') return
+    if (lobby?.kind !== 'lobby' || !practiceAllowed(this.state, playerId, lobbyId)) return
+    if (!lobby.testedPlayerIds.includes(playerId)) {
+      lobby.testedPlayerIds = [...lobby.testedPlayerIds, playerId]
+      this.broadcast()
+    }
+    const out: ServerMsg = { t: 'practiceBuzz', receipt: { lobbyId, seq: ++this.practiceSeq, playerId } }
+    for (const other of this.conns) other.send(out)
   }
 
   private loadSetlist(name: string): ActionResult {
@@ -526,6 +578,16 @@ export class Hub {
       this.restoring = false
     }
     return true
+  }
+
+  /** Stop playback without publishing its intermediate frames; the caller publishes once. */
+  private stopReaderQuietly(): void {
+    this.restoring = true
+    try {
+      this.reader?.stop()
+    } finally {
+      this.restoring = false
+    }
   }
 
   private clearWindow(): void {

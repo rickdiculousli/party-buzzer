@@ -33,6 +33,9 @@ test('a setlist saves, loads, and walks the room from block to block', async () 
     const loaded = host.last
     assert.equal(loaded.setlist?.blocks.length, 2)
     assert.equal(loaded.round.value, 200, 'block 1 set the value')
+    assert.equal(loaded.arrival?.kind, 'introduction', 'a loaded setlist opens on its first block')
+    host.send({ t: 'host', action: { a: 'closeArrival', arrivalId: loaded.arrival!.id } })
+    await sleep(60)
 
     // Play block 1's one question, and roll into the duel block.
     host.send({ t: 'host', action: { a: 'arm' } })
@@ -60,6 +63,8 @@ test('a mid-setlist undo restores the position and the mode together', async () 
     await sleep(60)
     assert.equal(host.last.setlist?.at, 0)
     assert.equal(host.last.game.id, 'trivia')
+    host.send({ t: 'host', action: { a: 'closeArrival', arrivalId: host.last.arrival!.id } })
+    await sleep(60)
 
     // Cross the block boundary: block 1 is one question long, so this one
     // `next` is both the mode switch and the position advance — one

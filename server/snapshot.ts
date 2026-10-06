@@ -6,6 +6,8 @@ export function gameSnapshot(state: State) {
   const { reading, readingActive, games, duelRules, packs, packSizes, packCost, setlists, ...game } = state
   const snapshot = structuredClone(game)
   delete snapshot.round.judge
+  // An introduction is part of the game an undo returns to; a lobby is runtime.
+  if (snapshot.arrival?.kind === 'lobby') delete snapshot.arrival
   return {
     ...snapshot,
     players: snapshot.players.map(({ connected, ...player }) => player),
@@ -38,6 +40,8 @@ export function restoreGame(state: State, snapshot: GameSnapshot): void {
   }
   delete state.round.held
   delete state.round.judge
+  // A restored introduction is a new arrival: controls for the old id stay dead.
+  if (state.arrival) state.arrival = { ...state.arrival, id: randomUUID() }
   if (state.round.questionId) {
     state.round.attemptId = randomUUID()
     for (const effect of state.effects) {
@@ -59,7 +63,7 @@ export function restoreGame(state: State, snapshot: GameSnapshot): void {
   }
 }
 
-/** Versioned disk data intentionally excludes the question and all runtime state. */
+/** Versioned disk data intentionally excludes the question, the arrival and all runtime state. */
 export function persistedSnapshot(state: State) {
   return {
     version: 1 as const,

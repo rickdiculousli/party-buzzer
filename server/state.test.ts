@@ -244,6 +244,8 @@ const setlistBlocks: SetlistBlock[] = [
 
 /** A round that was actually played, so `next` counts it. */
 function playRound(state: State): void {
+  // A fresh setlist opens on its introduction; the host continues before playing.
+  if (state.arrival) applyHostAction(state, { a: 'closeArrival', arrivalId: state.arrival.id })
   applyHostAction(state, { a: 'arm' })
   applyHostAction(state, { a: 'next' })
 }

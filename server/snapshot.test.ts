@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Hub, type Conn } from './hub.ts'
 import { newState, saveState, flushSave, loadState } from './state.ts'
+import { gameSnapshot, persistedSnapshot } from './snapshot.ts'
 
 const host: Conn = { id: 'host', role: 'host', send() {} }
 
@@ -118,4 +119,50 @@ test('a restart drops a playing minigame\'s host lines', (t) => {
   saveState(file, state)
   flushSave()
   assert.equal(loadState(file).minigame?.status, undefined)
+})
+
+test('undo keeps an introduction under a fresh id and never a lobby', () => {
+  const state = newState()
+  const hub = new Hub(state)
+  // Read through a function: `assert.equal(x, undefined)` narrows a property for good.
+  const arrival = () => state.arrival
+  hub.dispatch({ a: 'setSetlist', blocks: [{ game: 'trivia', options: {}, count: 2 }] })
+  const intro = arrival()!
+  assert.equal(intro.kind, 'introduction')
+  assert.deepEqual(gameSnapshot(state).arrival, intro, 'an introduction is game data')
+
+  hub.dispatch({ a: 'closeArrival', arrivalId: intro.id })
+  assert.equal(arrival(), undefined)
+  hub.dispatch({ a: 'undo' })
+  assert.equal(arrival()?.kind, 'introduction', 'undo brings the introduction back')
+  assert.notEqual(arrival()?.id, intro.id, 'under a new id, so the old Continue stays dead')
+  assert.deepEqual(hub.dispatch({ a: 'closeArrival', arrivalId: intro.id }), { status: 'refused', reason: 'arrival-changed' })
+
+  hub.dispatch({ a: 'closeArrival', arrivalId: arrival()!.id })
+  hub.dispatch({ a: 'openLobby' })
+  assert.equal(gameSnapshot(state).arrival, undefined, 'a lobby is runtime')
+  hub.dispatch({ a: 'setValue', value: 300 })
+  assert.equal(arrival()?.kind, 'lobby', 'settings do not close the lobby')
+  hub.dispatch({ a: 'undo' })
+  assert.equal(state.arrival, undefined, 'applied undo cancels the lobby')
+})
+
+test('arrival never reaches disk, and loading strips a crafted one from either format', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'buzzer-snapshot-'))
+  t.after(() => rmSync(dir, { recursive: true, force: true }))
+  const state = newState()
+  state.setlist = { blocks: [{ game: 'trivia', options: {}, count: 2 }], at: 0, done: 0 }
+  state.arrival = { kind: 'introduction', id: 'i', blockAt: 0 }
+  assert.equal('arrival' in persistedSnapshot(state).state, false)
+
+  const file = join(dir, 'crafted.json')
+  const versioned = persistedSnapshot(state)
+  writeFileSync(file, JSON.stringify({ ...versioned, state: { ...versioned.state, arrival: state.arrival } }))
+  const fromVersioned = loadState(file)
+  assert.equal(fromVersioned.arrival, undefined)
+  assert.deepEqual([fromVersioned.setlist?.at, fromVersioned.setlist?.done], [0, 0], 'no intro recreated from at/done')
+
+  state.arrival = { kind: 'lobby', id: 'l', testedPlayerIds: [] }
+  writeFileSync(file, JSON.stringify(state))
+  assert.equal(loadState(file).arrival, undefined, 'the legacy spread is stripped too')
 })

@@ -49,7 +49,7 @@ function foldsFor(): Aligner {
   }
 }
 
-function rig(align?: Aligner) {
+function rig(align?: Aligner, nextCardMs?: number) {
   const packDir = mkdtempSync(pathJoin(tmpdir(), 'pb-joined-'))
   writeFileSync(pathJoin(packDir, 'one.txt'), PACK)
   const state = newState()
@@ -60,6 +60,7 @@ function rig(align?: Aligner) {
     cacheDir: pathJoin(packDir, '.cache'),
     speech,
     align,
+    nextCardMs,
   })
   hub.setOnChange((s) => reader.onStateChange(s))
   return { hub, state, reader, plays }
@@ -257,4 +258,41 @@ test('a performing voice prices in R: lines and the quip pools', () => {
   })
   reader.priceUp()
   assert.equal(state.packCost['one.txt'], join(FRAGMENTS).text.length + 'Nice.'.length + 'Wow.'.length)
+})
+
+const introBlocks = [{ game: 'trivia', options: {}, count: 2, pack: 'one.txt' }]
+
+test('Read during an introduction never activates the reader, and Continue does not start it', { timeout: 3000 }, async () => {
+  const { hub, state, reader, plays } = rig(foldsFor())
+  const host = { id: 'h', role: 'host' as const, send() {} }
+  hub.dispatch({ a: 'setSetlist', blocks: introBlocks })
+  assert.equal(state.arrival?.kind, 'introduction')
+
+  hub.handle(host, { t: 'act', act: 'read' })
+  assert.equal(state.readingActive, false, 'not activated')
+  assert.equal(state.reading, undefined, 'no progress published')
+
+  hub.dispatch({ a: 'closeArrival', arrivalId: state.arrival!.id })
+  await reader.settled()
+  assert.equal(state.readingActive, false, 'Read was refused, not queued')
+  assert.equal(state.round.phase, 'IDLE')
+  assert.equal(plays.length, 0)
+})
+
+test('an introduction arriving during the card dwell refuses the arm and the loop ends rather than waiting', { timeout: 3000 }, async () => {
+  // The hub is not wired to stop this reader, so the dwell runs out into the
+  // introduction and the arm itself is refused.
+  const { hub, state, reader, plays } = rig(foldsFor(), 40)
+  await reader.select('one.txt')
+  reader.start()
+  // The pack's value lands immediately before the card dwell.
+  while (state.round.value !== 300) await settle(1)
+  hub.dispatch({ a: 'setSetlist', blocks: introBlocks })
+  assert.equal(state.arrival?.kind, 'introduction')
+
+  await reader.settled()
+  assert.equal(state.round.phase, 'IDLE', 'never armed')
+  assert.equal(state.readingActive, false, 'the session ended')
+  assert.equal(state.arrival?.kind, 'introduction', 'and left the introduction up')
+  assert.equal(plays.length, 0)
 })

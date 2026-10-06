@@ -418,6 +418,7 @@ test('a setlist reads each block from its own pack, and keeps each pack its plac
       ],
     },
   })
+  hub.dispatch({ a: 'closeArrival', arrivalId: state.arrival!.id })
   autoplay(hub, 0.1, 0)
   reader.start()
   await reader.settled()
@@ -438,6 +439,7 @@ test('a block with no pack ends the reading rather than reading the wrong one', 
       ],
     },
   })
+  hub.dispatch({ a: 'closeArrival', arrivalId: hub.state.arrival!.id })
   autoplay(hub, 0.1, 0)
   reader.start()
   await reader.settled()
@@ -479,6 +481,7 @@ test('Read starts every spent pack over, not only the one it left off in', async
       ],
     },
   })
+  hub.dispatch({ a: 'closeArrival', arrivalId: state.arrival!.id })
   autoplay(hub, 0.1, 0)
 
   reader.start()

@@ -39,6 +39,10 @@ export const REFUSAL_TEXT: Record<Refusal, string> = {
   'sketch-words': 'Sketch needs packs/sketch-words.txt with at least three words per player.',
   'no-choice': 'No choice question is taking picks.',
   'not-open': 'The buzzers are not open with nobody in.',
+  'arrival-changed': 'That lobby or introduction has already moved on.',
+  'introduction-active': 'The introduction is up — press Continue first.',
+  'reading-active': 'The reader is running — stop it first.',
+  'duel-active': 'A duel is open — finish or cancel it first.',
 }
 
 /** Accepted changes already explain themselves through the state update. */

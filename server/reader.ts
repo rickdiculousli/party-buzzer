@@ -29,6 +29,7 @@ import { allPicked, optionsText } from '../shared/choice.ts'
 import type { Judge } from './judge.ts'
 import { Picker, poolScript, type Pools, type Span, type Verdict } from './quips.ts'
 import { isPenalty } from '../shared/protocol.ts'
+import { arrivalBlocksPlay } from '../shared/arrival.ts'
 
 /**
  * Where the fragments and clauses fall inside a clip of the whole question.
@@ -388,6 +389,9 @@ export class Reader {
 
   start(): void {
     if (this.running) return
+    // An introduction holds play. Read is refused outright, never queued for
+    // after Continue, and nothing is activated or prepared.
+    if (arrivalBlocksPlay(this.hub.state)) return
     // Read means read. A pack played to its end keeps its position past the
     // last question — that is what makes a setlist stop there rather than wrap
     // — so pressing Read is the boundary where every spent pack starts over.
@@ -531,7 +535,10 @@ export class Reader {
         }
         // The room reads what the next one is worth before it starts.
         if (this.opts.nextCardMs) await sleep(this.opts.nextCardMs, this.session.signal)
-        this.hub.dispatch({ a: 'arm', ...(q.kind && { kind: q.kind }) })
+        // A refused arm (an introduction arrived during the dwell) will never
+        // reach ARMED, so the session ends here instead of waiting on it, the
+        // way an abort does: autoplay and the position stay as they are.
+        if (this.hub.dispatch({ a: 'arm', ...(q.kind && { kind: q.kind }) }).status !== 'applied') return
         // Answer variants, memory only — this is the one path by which the judge
         // ever learns what the room is about to be asked.
         if (q.kind !== 'choice') this.opts.judge?.prime(q.answers)

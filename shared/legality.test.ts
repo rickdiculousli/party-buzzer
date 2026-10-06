@@ -46,6 +46,12 @@ function locked(s: State): State {
   return s
 }
 
+/** A fresh setlist's introduction, holding play until the host continues. */
+function intro(s: State): State {
+  s.arrival = { kind: 'introduction', id: 'intro-1', blockAt: 0 }
+  return s
+}
+
 /**
  * Every `HostAction` kind in a shape that is legal, so the table is checked in
  * both directions. A code that never returns null is a button nobody can press;
@@ -112,6 +118,8 @@ const LEGAL: Record<HostAction['a'], [State, HostAction]> = {
   })(), { a: 'startMinigame' }],
   cancelMinigame: [room(), { a: 'cancelMinigame' }],
   closeMinigame: [room(), { a: 'closeMinigame' }],
+  openLobby: [room(), { a: 'openLobby' }],
+  closeArrival: [intro(room()), { a: 'closeArrival', arrivalId: 'intro-1' }],
 }
 
 test('every action kind has a shape it is legal in', () => {
@@ -196,6 +204,24 @@ const REFUSED: [Refusal, State, HostAction][] = [
     s.minigame = { id: 'bow', matchId: 'm', phase: 'ready', options: { durationSec: 40, reloadMs: 700, seed: 1 }, participants: [] }
     return s
   })(), { a: 'arm' }],
+
+  // An introduction holds play; a lobby opens only on a quiet quiz room.
+  ['introduction-active', intro(room()), { a: 'arm' }],
+  ['introduction-active', intro(room()), { a: 'prepareMinigame', id: 'bow', options: {} }],
+  ['introduction-active', intro(room()), { a: 'openLobby' }],
+  ['reading-active', (() => {
+    const s = room()
+    s.readingActive = true
+    return s
+  })(), { a: 'openLobby' }],
+  ['duel-active', (() => {
+    const s = room()
+    s.duel = { rule: 'vote', pool: [], missed: [] }
+    return s
+  })(), { a: 'openLobby' }],
+  ['not-idle', locked(room()), { a: 'openLobby' }],
+  ['arrival-changed', intro(room()), { a: 'closeArrival', arrivalId: 'intro-0' }],
+  ['arrival-changed', room(), { a: 'closeArrival', arrivalId: 'intro-1' }],
 ]
 
 test('each code comes back from the shape that earns it', () => {
@@ -223,6 +249,7 @@ test('every code in the union is covered by a case', () => {
   const codes: Refusal[] = [
     'not-idle', 'no-leader', 'already-scored', 'nothing-held',
     'no-duel', 'duel-seated', 'unknown-mode', 'unknown-duel-rule', 'no-setlist', 'no-players', 'minigame-active',
+    'arrival-changed', 'introduction-active', 'reading-active', 'duel-active',
   ]
   const seen = new Set(REFUSED.map(([code]) => code))
   for (const code of codes) assert.ok(seen.has(code), `no case refuses ${code}`)

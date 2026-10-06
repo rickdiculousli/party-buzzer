@@ -38,6 +38,7 @@
  * `viewFor` question first, not a change here.
  */
 import { isPenalty } from './protocol.ts'
+import { arrivalBlocksPlay } from './arrival.ts'
 import type { HostAction, State } from './protocol.ts'
 
 /**
@@ -71,6 +72,10 @@ export type Refusal =
   | 'sketch-words'
   | 'no-choice'
   | 'not-open'
+  | 'arrival-changed'
+  | 'introduction-active'
+  | 'reading-active'
+  | 'duel-active'
 
 export function refuses(s: State, a: HostAction): Refusal | null {
   const r = s.round
@@ -94,8 +99,10 @@ export function refuses(s: State, a: HostAction): Refusal | null {
     // `useOpen` counting down to `armedAt`, which this file may not read. So it
     // stays the surface's rule (`Host.tsx`'s `disabled={open}`) rather than the
     // table's. A refusal this file cannot express is one it must not claim.
+    // An introduction holds play until the host continues; a lobby does not
+    // refuse an arm, the arm closes it.
     case 'arm':
-      return null
+      return arrivalBlocksPlay(s) ? 'introduction-active' : null
 
     // Judging waits for the window: a provisional leader is on the board from
     // 150ms in, but scoring during COLLECTING would strand every buzz still in
@@ -173,6 +180,7 @@ export function refuses(s: State, a: HostAction): Refusal | null {
       return null
 
     case 'prepareMinigame':
+      if (arrivalBlocksPlay(s)) return 'introduction-active'
       return idle ?? (s.minigame?.phase === 'playing' || s.minigame?.phase === 'countdown' ? 'not-idle' : null)
 
     case 'startMinigame':
@@ -180,6 +188,18 @@ export function refuses(s: State, a: HostAction): Refusal | null {
     case 'cancelMinigame':
     case 'closeMinigame':
       return null
+
+    // A lobby opens only on a quiet quiz room, players or not. A minigame is
+    // already refused above; repeating an open lobby is the hub's `unchanged`.
+    case 'openLobby':
+      if (arrivalBlocksPlay(s)) return 'introduction-active'
+      if (s.readingActive) return 'reading-active'
+      if (s.duel) return 'duel-active'
+      return idle
+
+    // Scoped by id: a Close or Continue rendered for an older arrival does nothing to this one.
+    case 'closeArrival':
+      return s.arrival?.id === a.arrivalId ? null : 'arrival-changed'
 
     // The round moves. `next` and `resetRound` are how a host gets *out* of a
     // stuck question, so a phase guard on either would be the one thing that

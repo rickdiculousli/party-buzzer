@@ -4,7 +4,8 @@ import { Hub, type Conn } from './hub.ts'
 import { newState } from './state.ts'
 import { MinigameRuntime } from './minigames/runtime.ts'
 import { ARM_DELAY_MS, COLLECT_MS, type Role, type ServerMsg, type State } from '../shared/protocol.ts'
-import { momentOf, type Local } from '../shared/wall.ts'
+import { momentOf, wallOf, type Local } from '../shared/wall.ts'
+import { arrivalPresentation, introductionFor } from '../shared/arrival.ts'
 
 function rig() {
   const state = newState()
@@ -446,6 +447,8 @@ test('closing the minigame a setlist block names moves to the next block in one 
   const host = conn('host')
   const act = (action: import('../shared/protocol.ts').HostAction) => hub.handle(host, { t: 'host', action })
   act({ a: 'setSetlist', blocks: [{ game: 'bow', options: {}, count: 1 }, { game: 'trivia', options: {}, count: 3 }] })
+  // The first block's introduction holds the minigame until the host continues.
+  act({ a: 'closeArrival', arrivalId: state.arrival!.id })
   act({ a: 'prepareMinigame', id: 'bow', options: {} })
   act({ a: 'closeMinigame' })
   assert.equal(state.minigame?.id, undefined)
@@ -486,4 +489,109 @@ test('hello sends a current private or board frame even when poker is quiet', ()
   hub.handle(conn, { t: 'hello', role: 'player', playerId: 'ada' })
   const phone = messages.findLast((msg) => msg.t === 'minigameFrame')
   assert.ok(phone?.t === 'minigameFrame' && phone.frame.id === 'poker' && phone.frame.role === 'player' && phone.frame.hole?.length === 2)
+})
+
+/** A room with Ada and Bo joined and a lobby open, plus a spy on `onChange`. */
+function lobbyRig() {
+  const state = newState()
+  let changes = 0
+  const hub = new Hub(state, { onChange: () => changes++ })
+  const boxes: ServerMsg[][] = []
+  const conn = (role: Role): Conn => {
+    const box: ServerMsg[] = []
+    boxes.push(box)
+    const c: Conn = { id: Math.random().toString(36).slice(2), role, send: (m) => box.push(m) }
+    hub.add(c)
+    return c
+  }
+  const ada = conn('player')
+  const bo = conn('player')
+  joinAs(hub, ada, 'Ada')
+  joinAs(hub, bo, 'Bo')
+  const host = conn('host')
+  const before = changes
+  assert.equal(hub.dispatch({ a: 'openLobby' }).status, 'applied')
+  const lobby = state.arrival!
+  assert.equal(lobby.kind, 'lobby')
+  const receipts = (i: number) => boxes[i].flatMap((m) => (m.t === 'practiceBuzz' ? [m.receipt] : []))
+  return { state, hub, ada, bo, host, lobbyId: lobby.id, receipts, changes: () => changes - before, boxes }
+}
+
+test('practice marks tested once, relays every press, and never touches gameplay or history', () => {
+  const { state, hub, ada, lobbyId, receipts, changes } = lobbyRig()
+  state.scores[ada.playerId!] = 300
+  const round = structuredClone(state.round)
+  const scores = structuredClone(state.scores)
+
+  hub.handle(ada, { t: 'practiceBuzz', lobbyId })
+  hub.handle(ada, { t: 'practiceBuzz', lobbyId })
+  hub.handle(ada, { t: 'practiceBuzz', lobbyId })
+
+  assert.deepEqual(state.arrival, { kind: 'lobby', id: lobbyId, testedPlayerIds: [ada.playerId] })
+  assert.deepEqual(receipts(1).map((r) => r.seq), [1, 2, 3], 'every connection sees each press')
+  assert.ok(receipts(0).every((r) => r.playerId === ada.playerId && r.lobbyId === lobbyId))
+  assert.deepEqual(state.round, round)
+  assert.deepEqual(state.scores, scores)
+  assert.equal(changes(), 0, 'opening and practising never notify persistence, reader or judge')
+  assert.equal(hub.dispatch({ a: 'undo' }).status, 'unchanged', 'nothing entered history')
+  assert.equal(state.arrival?.id, lobbyId, 'empty undo keeps the lobby')
+
+  assert.equal(hub.dispatch({ a: 'closeArrival', arrivalId: lobbyId }).status, 'applied')
+  assert.equal(state.arrival, undefined)
+  assert.equal(changes(), 0, 'closing is runtime too')
+})
+
+test('a stale practice press or stale close has no effect on the current arrival', () => {
+  const { state, hub, ada, host, lobbyId: oldId, receipts } = lobbyRig()
+  hub.dispatch({ a: 'closeArrival', arrivalId: oldId })
+  hub.dispatch({ a: 'openLobby' })
+  const current = structuredClone(state.arrival)
+
+  hub.handle(ada, { t: 'practiceBuzz', lobbyId: oldId })
+  hub.handle(host, { t: 'practiceBuzz', lobbyId: current!.id })
+  assert.deepEqual(receipts(0), [], 'old lobby and wrong role emit nothing')
+  assert.deepEqual(state.arrival, current)
+
+  assert.deepEqual(hub.dispatch({ a: 'closeArrival', arrivalId: oldId }), { status: 'refused', reason: 'arrival-changed' })
+  assert.deepEqual(state.arrival, current)
+
+  // The same for an introduction: an old Continue cannot dismiss a newer one.
+  hub.dispatch({ a: 'setSetlist', blocks: [{ game: 'trivia', options: {}, count: 2 }] })
+  const intro = structuredClone(state.arrival)
+  assert.equal(intro?.kind, 'introduction')
+  assert.deepEqual(hub.dispatch({ a: 'closeArrival', arrivalId: current!.id }), { status: 'refused', reason: 'arrival-changed' })
+  assert.deepEqual(state.arrival, intro)
+  assert.equal(hub.dispatch({ a: 'closeArrival', arrivalId: intro!.id }).status, 'applied')
+  assert.equal(state.arrival, undefined)
+  assert.equal(state.round.phase, 'IDLE', 'Continue does not arm')
+})
+
+test('a fresh setlist over a retained verdict or choice reveal shows only the introduction', () => {
+  for (const leftover of ['verdict', 'choice'] as const) {
+    const { state, hub, ada } = lobbyRig()
+    Object.assign(state.round, {
+      questionId: 'old', armedAt: 1, phase: 'IDLE', answer: 'Old answer', fragments: ['Old clue'], whole: 'Old clue',
+      spoken: { name: 'Ada', transcript: 'old guess', hit: true },
+      ...(leftover === 'verdict'
+        ? { award: { name: 'Ada', points: 100 } }
+        : { kind: 'choice', choices: ['Old A', 'Old B'], correct: 0, picks: { [ada.playerId!]: 0 } }),
+    })
+    hub.dispatch({ a: 'setSetlist', blocks: [{ game: 'quizbowl', options: {}, count: 2 }] })
+
+    const local: Local = { open: false, settled: true, retired: false }
+    const board = hub.viewFor({ id: 'b', role: 'board', send() {} })
+    const phone = hub.viewFor(ada)
+    assert.equal(momentOf(board, local), 'arrival:introduction', leftover)
+    assert.equal(momentOf(phone, local), 'arrival:introduction', leftover)
+
+    const wall = wallOf(board, local)
+    assert.deepEqual(wall.arrival, { kind: 'introduction', ...introductionFor('quizbowl') })
+    for (const lane of ['hero', 'clue', 'nominations', 'faceoff', 'call', 'finale', 'next',
+      'unanswered', 'transcript', 'award', 'value', 'choices'] as const) {
+      assert.equal(wall[lane], null, `${leftover}: ${lane}`)
+    }
+    assert.equal(wall.timeline, false)
+    assert.deepEqual(arrivalPresentation(phone), wall.arrival, 'the phone gets the same copy and nothing else')
+    assert.ok(!JSON.stringify(wall).includes('Old'), `${leftover}: no old content on the wall`)
+  }
 })

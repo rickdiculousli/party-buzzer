@@ -3,6 +3,7 @@ import { ARM_DELAY_MS } from '../shared/protocol.ts'
 import type { MinigameInputAck, ClientMsg, MinigameFrame, Role, ServerMsg, State } from '../shared/protocol.ts'
 import { actionFeedback } from './ui.ts'
 import { freshTouches, type TimedTouch } from './ink.ts'
+import { emptyPractice, practiceLobbyId, prunePractice, recordPractice, type PracticeFeedback } from './arrival-feedback.ts'
 
 const SAMPLES = 7
 const RESYNC_MS = 30_000
@@ -13,6 +14,8 @@ export type SocketFixture = {
   connected?: boolean
   now: number
   frame?: MinigameFrame
+  /** Frozen pulses; review fixtures pair them with `usePracticeTime`'s `frozenNow`. */
+  practice?: PracticeFeedback
 }
 
 /**
@@ -92,6 +95,9 @@ export function useSocket(role: Role, fixture?: SocketFixture) {
   const [minigameFrame, setMinigameFrame] = useState<MinigameFrame | null>(fixture?.frame ?? null)
   const [minigameAck, setMinigameAck] = useState<MinigameInputAck | null>(null)
   const [minigameTouches, setMinigameTouches] = useState<TimedTouch[]>([])
+  const [practice, setPractice] = useState<PracticeFeedback>(() => fixture?.practice ?? emptyPractice())
+  // The lobby receipts are checked against, read inside the message handler.
+  const lobbyId = useRef<string | undefined>(undefined)
 
   const socket = useRef<WebSocket | null>(null)
   // Seeded from this device's own wall clock so `now()` is in the server's
@@ -149,6 +155,14 @@ export function useSocket(role: Role, fixture?: SocketFixture) {
         if (msg.t === 'state') {
           setState(msg.state)
           if (!msg.state.minigame) setMinigameFrame(null)
+          // A new or closed lobby clears pulses; a departed player loses theirs.
+          lobbyId.current = practiceLobbyId(msg.state)
+          const ids = msg.state.players.map((p) => p.id)
+          setPractice((f) => prunePractice(f, lobbyId.current, ids))
+        }
+        else if (msg.t === 'practiceBuzz') {
+          const at = performance.now()
+          setPractice((f) => recordPractice(f, msg.receipt, lobbyId.current, at))
         }
         else if (msg.t === 'actionResult') setActionMessage(actionFeedback(msg.action, msg.result))
         else if (msg.t === 'minigameFrame') setMinigameFrame(msg.frame)
@@ -174,6 +188,9 @@ export function useSocket(role: Role, fixture?: SocketFixture) {
 
       const reconnect = () => {
         setConnected(false)
+        // A pulse is never replayed: the next connection starts from tested marks alone.
+        lobbyId.current = undefined
+        setPractice(emptyPractice())
         clearInterval(resync)
         if (closed) return
         setTimeout(connect, retry)
@@ -200,6 +217,7 @@ export function useSocket(role: Role, fixture?: SocketFixture) {
     minigameFrame,
     minigameAck,
     minigameTouches,
+    practice,
     now: () => fixture?.now ?? performance.now() + offset.current,
     send,
   }

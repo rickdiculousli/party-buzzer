@@ -115,6 +115,11 @@ function notesFor(
   const played = 'Press N for next round. Arm to redo (score not reverted)'
 
   switch (m) {
+    case 'arrival:lobby':
+      return { judge: null, arm: 'Arming closes the lobby.' }
+    case 'arrival:introduction':
+      return { judge: null, arm: REFUSAL_TEXT['introduction-active'] }
+
     case 'choice:listening':
       return { judge: 'Everyone picks on their phone once the question is read.', arm: null }
     case 'choice:picking':

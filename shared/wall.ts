@@ -25,12 +25,15 @@
  */
 import { isPenalty } from './protocol.ts'
 import { pickers } from './choice.ts'
+import { arrivalPresentation, type ArrivalPresentation } from './arrival.ts'
 import type { Award, State } from './protocol.ts'
 
 /**
- * The eighteen states, in priority order — `momentOf` returns the first that
- * matches, and that ordering is the load-bearing part. The three `choice`
- * states come first because a choice question never reaches any of the others.
+ * The twenty states, in priority order — `momentOf` returns the first that
+ * matches, and that ordering is the load-bearing part. The two `arrival`
+ * states come first because an arrival covers whatever the idle round still
+ * holds, a prior payoff or choice reveal included. The three `choice` states
+ * come next because a choice question never reaches any of the others.
  *
  * Reordering within a family is safe. Reordering across one is a behaviour
  * change. Two pairs are ordered the way they are for a reason that is not
@@ -43,6 +46,8 @@ import type { Award, State } from './protocol.ts'
  *   the transcript before it reads the result.
  */
 export type Moment =
+  | 'arrival:lobby'
+  | 'arrival:introduction'
   | 'choice:listening'
   | 'choice:picking'
   | 'choice:reveal'
@@ -72,7 +77,7 @@ export type Moment =
  */
 export type Local = { open: boolean; settled: boolean; retired: boolean }
 
-export type Family = 'choice' | 'answer' | 'verdict' | 'duel' | 'buzz' | 'idle'
+export type Family = 'arrival' | 'choice' | 'answer' | 'verdict' | 'duel' | 'buzz' | 'idle'
 /** Typed prefix matching, so a family question stays one line and stays checked. */
 export function isFamily<F extends Family>(m: Moment, f: F): m is Extract<Moment, `${F}:${string}`> {
   return m.startsWith(`${f}:`)
@@ -84,6 +89,9 @@ const scorelessOf = (state: State) => !!state.games?.find((g) => g.id === state.
 
 export function momentOf(state: State, local: Local): Moment {
   const r = state.round
+
+  // `arrival` reaches every role unredacted, so the phones agree with the wall.
+  if (state.arrival) return state.arrival.kind === 'lobby' ? 'arrival:lobby' : 'arrival:introduction'
 
   // The whole room answers a choice question at once: there is no leader, no
   // transcript and no verdict, so none of the moments below apply to it.
@@ -209,6 +217,13 @@ export type Wall = {
    * host and board receive; phones never call `wallOf`.
    */
   choices: ChoiceWall | null
+  /**
+   * The lobby or introduction, during the `arrival` moments only. It replaces
+   * every other band: the seven occupants and the ancillary lanes are null,
+   * `timeline` is false and `value` is null. Phones read the same object from
+   * `arrivalPresentation`, never from here.
+   */
+  arrival: ArrivalPresentation | null
 }
 
 export type ChoiceWall = {
@@ -309,6 +324,10 @@ function middleOf(state: State, m: Moment): Middle {
   const scorer = hero(r.award?.name, isPenalty(r.award) ? 'penalised' : 'answering')
 
   switch (m) {
+    // `wallOf` answers these itself, with no middle occupant at all.
+    case 'arrival:lobby':
+    case 'arrival:introduction':
+      return { call: 'ready' }
     // The question holds the middle through the reveal; the grid below is the answer.
     case 'choice:listening':
     case 'choice:picking':
@@ -400,6 +419,22 @@ export function wallOf(state: State, local: Local): Wall {
   const r = state.round
   const m = momentOf(state, local)
 
+  // Nothing from the round shows through an arrival: not the last transcript,
+  // award, answer or choices a fresh setlist left in an idle round.
+  if (isFamily(m, 'arrival')) {
+    return {
+      moment: m,
+      ...EMPTY_MIDDLE,
+      unanswered: null,
+      transcript: null,
+      award: null,
+      timeline: false,
+      value: null,
+      choices: null,
+      arrival: arrivalPresentation(state),
+    }
+  }
+
   // A payoff stays until the next arm; a penalty is a beat, and the room goes
   // back to the question after it. A held rebound overrides that dwell, because
   // the server is showing the miss until it opens the buzzers and the board
@@ -431,6 +466,7 @@ export function wallOf(state: State, local: Local): Wall {
     // Not beside the card, which says the same number large.
     value: 'next' in middle || scoreless ? null : r.phase !== 'IDLE' || isFamily(m, 'answer') || isFamily(m, 'verdict') || isFamily(m, 'choice') ? r.value : null,
     choices: choiceWall(state, m),
+    arrival: null,
   }
 }
 
@@ -493,6 +529,14 @@ export type Mine = {
  * even if it wanted to.
  */
 export function phoneOf(m: Moment, f: Mine): Phone {
+  // Above every personal state: nothing is live under an arrival. The phone's
+  // arrival copy comes from `arrivalPresentation`; these are its fallback words.
+  if (m === 'arrival:lobby') {
+    return { label: 'Test buzzer', sub: 'Practice only · no points', mood: 'waiting', talk: false }
+  }
+  if (m === 'arrival:introduction') {
+    return { label: 'Wait', sub: 'Waiting for the host', mood: 'waiting', talk: false }
+  }
   if (m === 'idle:finale') {
     return f.place === 1
       ? { label: 'Winner', sub: 'Top of the standings', mood: 'first', talk: false }

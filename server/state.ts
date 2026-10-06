@@ -9,6 +9,7 @@ import { advanceSetlist, applySetup, enterBlock, sanitizeBlocks } from './setlis
 import { refuses } from '../shared/legality.ts'
 import { persistedSnapshot } from './snapshot.ts'
 import { bump, scoreKey } from '../shared/scoring.ts'
+import { arrivalBlocksPlay } from '../shared/arrival.ts'
 
 export { bump, scoreKey, lockedPlayerIds } from '../shared/scoring.ts'
 export { buzzBlockReason } from './eligibility.ts'
@@ -113,6 +114,11 @@ function clearQuestion(round: State['round']): void {
   delete round.correct
 }
 
+/** Next, reset, jump and clear move past the first block, so its introduction goes. */
+function dropIntroduction(state: State): void {
+  if (arrivalBlocksPlay(state)) delete state.arrival
+}
+
 /** Validate before mutation and report whether anything actually changed. */
 export function applyHostAction(state: State, action: HostAction): ActionResult {
   const reason = refuses(state, action)
@@ -161,6 +167,9 @@ function mutateHostAction(state: State, action: HostAction): void {
       for (const e of state.effects) e.attemptId = round.attemptId
       moduleFor(state.game.id).onArm?.(state)
       duelOnArm(state)
+      // Real play begins: the lobby is over. `refuses` has already kept an
+      // introduction from reaching here.
+      delete state.arrival
       return
     }
 
@@ -264,6 +273,7 @@ function mutateHostAction(state: State, action: HostAction): void {
       // A duel is one question. The host re-opens (or rematches by arming
       // before next) rather than the pair leaking into the next round.
       delete state.duel
+      dropIntroduction(state)
       // After the reset, never before: the block's `openDuel` needs an IDLE
       // round and a cleared duel to land on. `resetRound` is the host taking a
       // question back, so it spends nothing.
@@ -280,6 +290,16 @@ function mutateHostAction(state: State, action: HostAction): void {
     case 'cancelMinigame':
     case 'closeMinigame':
       // Owned by MinigameRuntime through Hub.dispatch.
+      return
+
+    // The lobby is runtime, opened and closed by the hub without an undo step.
+    case 'openLobby':
+      return
+
+    // Reached for an introduction; `refuses` has matched the id. Nothing else
+    // moves: no question, block, arm, read, seat or match.
+    case 'closeArrival':
+      delete state.arrival
       return
 
     case 'setMode': {
@@ -343,6 +363,9 @@ function mutateHostAction(state: State, action: HostAction): void {
     case 'kick':
       state.players = state.players.filter((p) => p.id !== action.playerId)
       delete state.scores[action.playerId]
+      if (state.arrival?.kind === 'lobby') {
+        state.arrival.testedPlayerIds = state.arrival.testedPlayerIds.filter((id) => id !== action.playerId)
+      }
       return
 
     case 'setGrouping':
@@ -390,6 +413,8 @@ function mutateHostAction(state: State, action: HostAction): void {
       const rule = duelRule(action.rule)
       if (!rule) return
       state.duel = { rule: rule.id, pool: [], missed: [] }
+      // A duel launch ends the lobby the way an arm does.
+      if (state.arrival?.kind === 'lobby') delete state.arrival
       // Instant rules (no entry gate — 'random') seat now, against everyone
       // eligible. Entry rules wait for the host to close, however they
       // resolve: 'volunteer-random' still needs its volunteer window open
@@ -426,6 +451,7 @@ function mutateHostAction(state: State, action: HostAction): void {
       const blocks = sanitizeBlocks(action.blocks, knownGame, (id) => !!duelRule(id))
       if (blocks.length === 0) {
         delete state.setlist
+        dropIntroduction(state)
         return
       }
       const prev = state.setlist
@@ -444,8 +470,13 @@ function mutateHostAction(state: State, action: HostAction): void {
       // and firing it on a settings tweak would wipe an in-flight vote pool.
       const changed = keep && !sameSetup(prev.blocks[at], blocks[at])
       state.setlist = { blocks, at, done }
-      if (!keep) enterBlock(state, apply, true)
-      else if (changed) applySetup(state, apply)
+      if (!keep) {
+        enterBlock(state, apply, true)
+        // A fresh start introduces its first block, after setup and any duel
+        // window are in place, and replaces a lobby. A kept position leaves
+        // a pending introduction and its id alone.
+        state.arrival = { kind: 'introduction', id: randomUUID(), blockAt: 0 }
+      } else if (changed) applySetup(state, apply)
       return
     }
 
@@ -457,6 +488,7 @@ function mutateHostAction(state: State, action: HostAction): void {
       const at = Number.isFinite(action.at) ? Math.round(action.at) : 0
       setlist.at = Math.min(Math.max(0, at), setlist.blocks.length)
       setlist.done = 0
+      dropIntroduction(state)
       enterBlock(state, apply, true)
       return
     }
@@ -465,6 +497,7 @@ function mutateHostAction(state: State, action: HostAction): void {
       // The setlist goes; the game in progress stays. Clearing a plan is not a
       // reason to change the mode or cancel a duel the room is already voting on.
       delete state.setlist
+      dropIntroduction(state)
       return
   }
 }
@@ -545,6 +578,9 @@ export function loadState(path: string): State {
     // for a reason nobody can see anymore.
     delete loaded.duel
     delete loaded.round.buzzable
+    // Arrival is runtime only. A crafted or older file carrying one must not
+    // resume it, and nothing recreates an introduction from `at`/`done`.
+    delete loaded.arrival
     if (!Array.isArray(loaded.packs)) loaded.packs = []
     if (typeof loaded.mirrorFragments !== 'boolean') loaded.mirrorFragments = false
     if (typeof loaded.answerWindowSec !== 'number') loaded.answerWindowSec = 10

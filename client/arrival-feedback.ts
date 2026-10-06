@@ -4,11 +4,16 @@
  * testable with injected times; `useSocket` feeds it and one surface tick reads it.
  */
 import { PRACTICE_PULSE_MS } from '../shared/arrival.ts'
-import type { PlayerId, PracticeReceipt } from '../shared/protocol.ts'
+import type { PlayerId, PracticeReceipt, State } from '../shared/protocol.ts'
 
 export type PracticeFeedback = {
   lobbyId?: string
   pulses: Record<PlayerId, { seq: number; receivedAt: number }>
+}
+
+/** The open lobby's id, the scope every receipt and pulse is checked against. */
+export function practiceLobbyId(state: State | null | undefined): string | undefined {
+  return state?.arrival?.kind === 'lobby' ? state.arrival.id : undefined
 }
 
 export function emptyPractice(lobbyId?: string): PracticeFeedback {
