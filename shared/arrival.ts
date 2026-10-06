@@ -41,6 +41,21 @@ const INTRODUCTIONS: Record<string, IntroductionCopy> = {
     goal: 'Help your team find the secret word',
     phone: 'Choose a team when the host opens the game.',
   },
+  buzzer: {
+    title: 'Pure buzzer',
+    goal: 'Buzz first to answer',
+    phone: 'Buzz when you know it.',
+  },
+  sketch: {
+    title: 'Sketch',
+    goal: 'Draw the word, or guess it fast',
+    phone: 'Draw when it is your turn; otherwise type guesses.',
+  },
+  poker: {
+    title: 'Poker',
+    goal: 'Win every stack at the table',
+    phone: 'Your cards and bets appear when the host starts the match.',
+  },
 }
 
 /** Correct lobby, connected roster member, and nothing else running. */
@@ -54,6 +69,11 @@ export function practiceAllowed(state: State, playerId: PlayerId, lobbyId: strin
 /** An introduction holds play until the host continues. A lobby never refuses play: play ends it. */
 export function arrivalBlocksPlay(state: State): boolean {
   return state.arrival?.kind === 'introduction'
+}
+
+/** Arm, accepted reading, and duel or minigame launches end the lobby; an introduction stays. */
+export function endLobby(state: State): void {
+  if (state.arrival?.kind === 'lobby') delete state.arrival
 }
 
 export function introductionFor(gameId: string): IntroductionCopy {

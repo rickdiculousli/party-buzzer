@@ -513,7 +513,13 @@ async function main() {
             }
           })
           host.send({ t: 'host', action: { a: 'setSetlist', blocks } })
-          await host.waitFor((s) => s.setlist?.blocks.length === blocks.length)
+          const loaded = await host.waitFor((s) => s.setlist?.blocks.length === blocks.length)
+          // A fresh setlist opens on its introduction, which holds Arm and
+          // Read; the script plays on, as a host pressing Continue would.
+          if (loaded.arrival?.kind === 'introduction') {
+            host.send({ t: 'host', action: { a: 'closeArrival', arrivalId: loaded.arrival.id } })
+            await host.waitFor((s) => !s.arrival)
+          }
           setlistIsOurs = true
           log(`  setlist ${blocks.length} blocks`)
           break

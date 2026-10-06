@@ -71,8 +71,8 @@ test('introduction copy matches the spec rows and falls back generically', () =>
     goal: 'Help your team find the secret word',
     phone: 'Choose a team when the host opens the game.',
   })
-  assert.deepEqual(introductionFor('sketch'), {
-    title: 'sketch',
+  assert.deepEqual(introductionFor('charades'), {
+    title: 'charades',
     goal: 'The host will explain this game',
     phone: 'Wait for the host to begin',
   })

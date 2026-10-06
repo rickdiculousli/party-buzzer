@@ -9,7 +9,7 @@ import { duelAct, duelCatalog } from './duel.ts'
 import { listPacks, packSizes } from './packs.ts'
 import { listSetlists, readSetlist, writeSetlist } from './setlists.ts'
 import { refuses } from '../shared/legality.ts'
-import { arrivalBlocksPlay, practiceAllowed } from '../shared/arrival.ts'
+import { arrivalBlocksPlay, endLobby, practiceAllowed } from '../shared/arrival.ts'
 import { COLLECT_MS } from '../shared/protocol.ts'
 import { makeTracer, type Tracer } from './trace.ts'
 import { gameSnapshot, restoreGame, type GameSnapshot } from './snapshot.ts'
@@ -233,7 +233,7 @@ export class Hub {
         }
         if (action.a === 'prepareMinigame') {
           // A minigame launch ends the lobby, as an arm does.
-          if (this.state.arrival?.kind === 'lobby') delete this.state.arrival
+          endLobby(this.state)
           this.stopReaderQuietly()
         }
         this.history.push(before)
@@ -344,7 +344,7 @@ export class Hub {
       this.state.reading = update?.progress
       this.state.readingActive = update?.active ?? false
       // Reading accepted is real play starting: the lobby is over.
-      if (this.state.readingActive && this.state.arrival?.kind === 'lobby') delete this.state.arrival
+      if (this.state.readingActive) endLobby(this.state)
     } else if (name === 'selectPack' && typeof data === 'string') {
       // Mid-question would cut the room off; refuse it the way setMode does.
       if (this.state.round.phase !== 'IDLE') return

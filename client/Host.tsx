@@ -6,7 +6,6 @@ import { DuelPanel } from './DuelPanel.tsx'
 import { HostGames, HostPlayers, LobbyTeams } from './HostSetup.tsx'
 import { Spoken } from './Spoken.tsx'
 import { ArrivalHost, readBlockedReason } from './ArrivalHost.tsx'
-import { arrivalBlocksPlay } from '../shared/arrival.ts'
 import { momentOf, type Moment } from '../shared/wall.ts'
 import { isMinigameId, isPenalty } from '../shared/protocol.ts'
 import type { HostAction, MinigameId, State } from '../shared/protocol.ts'
@@ -198,11 +197,13 @@ export function Host() {
   // The handler is bound once but needs the live round to judge against.
   const value = useRef(0)
   value.current = state?.round.value ?? 0
+  // Both arm keys ask the shared rules, so an introduction quiets them too.
+  const armable = !!state && !refuses(state, { a: 'arm' })
   const idleRef = useRef(false)
-  idleRef.current = state?.round.phase === 'IDLE' && !(state && arrivalBlocksPlay(state))
+  idleRef.current = armable && state.round.phase === 'IDLE'
   // A miss is up and nobody has taken the rebound yet.
   const missedRef = useRef(false)
-  missedRef.current = !!state && isPenalty(state.round.award) && state.round.order.length === 0
+  missedRef.current = armable && isPenalty(state.round.award) && state.round.order.length === 0
   const judgeableRef = useRef(false)
   const reopenableRef = useRef(false)
   const keysOffRef = useRef(false)

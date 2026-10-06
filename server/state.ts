@@ -9,7 +9,7 @@ import { advanceSetlist, applySetup, enterBlock, sanitizeBlocks } from './setlis
 import { refuses } from '../shared/legality.ts'
 import { persistedSnapshot } from './snapshot.ts'
 import { bump, scoreKey } from '../shared/scoring.ts'
-import { arrivalBlocksPlay } from '../shared/arrival.ts'
+import { arrivalBlocksPlay, endLobby } from '../shared/arrival.ts'
 
 export { bump, scoreKey, lockedPlayerIds } from '../shared/scoring.ts'
 export { buzzBlockReason } from './eligibility.ts'
@@ -100,6 +100,17 @@ function openRebound(state: State): void {
 }
 
 /** Everything a question put on the round. Cleared whenever a question ends or starts. */
+/** Forget the last question entirely, so nothing about it counts as played. */
+function forgetQuestion(round: State['round']): void {
+  round.questionId = ''
+  round.attemptId = ''
+  round.armedAt = 0
+  round.order = []
+  round.total = 0
+  round.lockedOut = []
+  clearQuestion(round)
+}
+
 function clearQuestion(round: State['round']): void {
   delete round.award
   delete round.held
@@ -169,7 +180,7 @@ function mutateHostAction(state: State, action: HostAction): void {
       duelOnArm(state)
       // Real play begins: the lobby is over. `refuses` has already kept an
       // introduction from reaching here.
-      delete state.arrival
+      endLobby(state)
       return
     }
 
@@ -257,18 +268,10 @@ function mutateHostAction(state: State, action: HostAction): void {
     case 'next':
     case 'resetRound': {
       // Captured before the reset clears it: this is what tells a finished
-      // question from a double-tap on N or a stale award being cleared. A
-      // retained round under a pending introduction was not played: Next there
-      // only dismisses the introduction.
-      const played = round.armedAt > 0 && !arrivalBlocksPlay(state)
+      // question from a double-tap on N or a stale award being cleared.
+      const played = round.armedAt > 0
       round.phase = 'IDLE'
-      round.questionId = ''
-      round.attemptId = ''
-      round.armedAt = 0
-      round.order = []
-      round.total = 0
-      round.lockedOut = []
-      clearQuestion(round)
+      forgetQuestion(round)
       delete round.judge
       delete round.spoken
       delete round.buzzable
@@ -322,13 +325,7 @@ function mutateHostAction(state: State, action: HostAction): void {
       if (!action.keepScores) state.scores = {}
       state.items = {}
       state.effects = []
-      round.questionId = ''
-      round.attemptId = ''
-      round.armedAt = 0
-      round.order = []
-      round.total = 0
-      round.lockedOut = []
-      clearQuestion(round)
+      forgetQuestion(round)
       return
     }
 
@@ -416,7 +413,7 @@ function mutateHostAction(state: State, action: HostAction): void {
       if (!rule) return
       state.duel = { rule: rule.id, pool: [], missed: [] }
       // A duel launch ends the lobby the way an arm does.
-      if (state.arrival?.kind === 'lobby') delete state.arrival
+      endLobby(state)
       // Instant rules (no entry gate — 'random') seat now, against everyone
       // eligible. Entry rules wait for the host to close, however they
       // resolve: 'volunteer-random' still needs its volunteer window open
@@ -473,6 +470,9 @@ function mutateHostAction(state: State, action: HostAction): void {
       const changed = keep && !sameSetup(prev.blocks[at], blocks[at])
       state.setlist = { blocks, at, done }
       if (!keep) {
+        // The last setlist's question is not the first block's: its award
+        // must not resurface after Continue or count toward block 0 on Next.
+        forgetQuestion(round)
         enterBlock(state, apply, true)
         // A fresh start introduces its first block, after setup and any duel
         // window are in place, and replaces a lobby. A kept position leaves

@@ -606,6 +606,16 @@ test('Next on a pending introduction over a played retained round keeps the firs
   assert.deepEqual([state.setlist?.at, state.setlist?.done], [0, 0], 'block 0 has not spent a question')
 })
 
+test('a fresh setlist forgets the old round: Continue shows no old award, then Next spends nothing', () => {
+  const { state, hub } = lobbyRig()
+  Object.assign(state.round, { questionId: 'old', armedAt: 1, phase: 'IDLE', award: { name: 'Ada', points: 100 } })
+  hub.dispatch({ a: 'setSetlist', blocks: [{ game: 'trivia', options: {}, count: 2 }] })
+  hub.dispatch({ a: 'closeArrival', arrivalId: state.arrival!.id })
+  assert.equal(state.round.award, undefined)
+  hub.dispatch({ a: 'next' })
+  assert.deepEqual([state.setlist?.at, state.setlist?.done], [0, 0], 'block 0 has not spent a question')
+})
+
 test('a kept-cursor setlist edit keeps the pending introduction; an identical one is unchanged', () => {
   const { state, hub } = lobbyRig()
   hub.dispatch({ a: 'setSetlist', blocks: [{ game: 'trivia', options: {}, count: 2 }, { game: 'trivia', options: {}, count: 1 }] })
