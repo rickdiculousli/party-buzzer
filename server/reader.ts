@@ -71,6 +71,8 @@ export type ReaderOpts = {
    * `nextSec` if hosts want to tune it.
    */
   nextCardMs?: number
+  /** Said over that card, so a room that drifted off turns back. Absent, the card is silent. */
+  nextCue?: string
 }
 
 /**
@@ -239,7 +241,7 @@ export class Reader {
     // cache path at once, and `speech.render` has no lock of its own to protect
     // that write. Deduped across packs too, so a shared line renders once ever.
     const texts = [...new Set(questions.flatMap((q) => this.textsFor(q)))]
-    for (const text of [...texts, ...this.poolTexts()]) {
+    for (const text of [...texts, ...this.cueTexts(), ...this.poolTexts()]) {
       if (this.ready.has(text)) continue
       this.ready.set(text, new Promise<void>((r) => this.resolvers.set(text, r)))
       this.queue.push(text)
@@ -319,11 +321,15 @@ export class Reader {
       } catch {
         continue
       }
-      const texts = new Set([...questions.flatMap((q) => this.textsFor(q)), ...this.poolTexts()])
+      const texts = new Set([...questions.flatMap((q) => this.textsFor(q)), ...this.cueTexts(), ...this.poolTexts()])
       cost[name] = [...texts].reduce((n, t) => n + (cached(this.opts.cacheDir, t) ? 0 : t.length), 0)
     }
     this.hub.state.packCost = cost
     this.hub.broadcast()
+  }
+
+  private cueTexts(): string[] {
+    return this.opts.nextCue ? [this.opts.nextCue] : []
   }
 
   /** Each quip pool as the one take it renders to. None without a performing voice. */
@@ -364,6 +370,18 @@ export class Reader {
     }
     await pb.done
     clearTimeout(cut)
+    if (this.quipback === pb) this.quipback = undefined
+  }
+
+  /** A fixed line, in the quip slot so pause and stop cut it. Unrendered, it is skipped. */
+  private async cue(text: string | undefined): Promise<void> {
+    if (!text) return
+    await this.ready.get(text)
+    const path = this.clips.get(text)
+    if (!path || !this.running) return
+    const pb = this.speech.play(path)
+    this.quipback = pb
+    await pb.done
     if (this.quipback === pb) this.quipback = undefined
   }
 
@@ -533,8 +551,10 @@ export class Reader {
         if (q.value !== undefined) {
           this.hub.dispatch({ a: 'setValue', value: q.value })
         }
-        // The room reads what the next one is worth before it starts.
-        if (this.opts.nextCardMs) await sleep(this.opts.nextCardMs, this.session.signal)
+        // The room reads what the next one is worth before it starts, and hears
+        // it coming over the same beat.
+        await Promise.all([this.cue(this.opts.nextCue), this.opts.nextCardMs && sleep(this.opts.nextCardMs, this.session.signal)])
+        this.session.signal.throwIfAborted()
         // A refused arm (an introduction arrived during the dwell) will never
         // reach ARMED, so the session ends here instead of waiting on it, the
         // way an abort does: autoplay and the position stay as they are.

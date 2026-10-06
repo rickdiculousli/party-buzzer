@@ -198,6 +198,7 @@ export async function startServer(opts: {
     judge,
     align,
     nextCardMs: 2000,
+    nextCue: 'Next question.',
   })
   hub.setReader(reader)
   reader.priceUp()
