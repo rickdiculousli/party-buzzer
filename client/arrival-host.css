@@ -1,0 +1,3 @@
+.arrival-host .eyebrow { margin-bottom: var(--s2); }
+.arrival-host__row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); }
+.arrival-host__note { margin: 0; flex: 1 1 14rem; min-width: 0; font-size: var(--t-sm); color: var(--dim); }

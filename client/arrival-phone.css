@@ -1,0 +1,38 @@
+/* Fills the space between the identity bar and the standings, like the buzzer
+   it replaces: the button flexes, everything else is one line. */
+.arrival-phone {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  overflow: hidden;
+}
+.arrival-phone .arrival-phone__test {
+  /* A longer label than "Buzz": shrink with the width as well as the height. */
+  font-size: min(clamp(2rem, 11vw, 4.5rem), 8vh);
+  padding: var(--s3);
+  overflow-wrap: anywhere;
+}
+.arrival-phone .arrival-phone__test:active:not(:disabled) { filter: brightness(0.9); }
+.arrival-phone .arrival-phone__test:disabled { opacity: 0.6; }
+.arrival-phone__status { align-self: center; flex: none; margin: 0; }
+
+.arrival-phone__title {
+  margin: 0;
+  font-family: var(--display);
+  font-size: min(clamp(2.5rem, 13vw, 5rem), 9vh);
+  font-weight: 800;
+  line-height: 0.9;
+  text-transform: uppercase;
+  color: var(--chalk);
+  overflow-wrap: anywhere;
+}
+.arrival-phone__text {
+  margin: 0;
+  font-size: var(--t-lg);
+  line-height: 1.3;
+  color: var(--chalk);
+  overflow-wrap: anywhere;
+}
+.arrival-phone__wait { align-self: flex-start; margin: auto 0 0; white-space: normal; }

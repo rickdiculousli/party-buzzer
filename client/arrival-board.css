@@ -1,0 +1,61 @@
+/* The wall's arrival occupant. It spans all three wall rows because the
+   arrival moments empty every lane the wall would otherwise lay out. */
+.arrival-board {
+  grid-row: 1 / -1;
+  align-self: center;
+  width: min(100%, 64rem);
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  gap: var(--s4);
+}
+.arrival-board__label { width: min(100%, 24rem); justify-content: center; margin: 0; }
+.arrival-board__title {
+  margin: 0;
+  max-width: 100%;
+  font-family: var(--display);
+  font-size: var(--t-mega);
+  font-weight: 800;
+  line-height: 0.9;
+  letter-spacing: var(--track-hero);
+  text-transform: uppercase;
+  color: var(--chalk);
+  overflow-wrap: anywhere;
+}
+.arrival-board__goal { margin: 0; font-size: var(--t-xl); color: var(--dim); text-wrap: balance; }
+
+/* Up to a screenful of names at any roster size: columns wrap, names clip. */
+.arrival-board__roster {
+  list-style: none;
+  margin: var(--s4) 0 0;
+  padding: 0;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: var(--s3);
+}
+.arrival-board__player {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  min-width: 0;
+  padding: var(--s3) var(--s4);
+  background: var(--panel);
+  border-left: 4px solid var(--id);
+  text-align: left;
+  transition: background var(--fast) var(--ease);
+}
+.arrival-board__player.is-lit { background: var(--raise); }
+.arrival-board__name {
+  min-width: 0;
+  font-family: var(--display);
+  font-size: var(--t-xl);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--id);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
