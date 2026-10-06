@@ -10,6 +10,10 @@ import type { State } from '../shared/protocol.ts'
 import { scoreKey } from '../shared/scoring.ts'
 import { MINIGAMES } from './minigames.tsx'
 import { LETTERS } from '../shared/choice.ts'
+import { ArrivalPhone } from './ArrivalPhone.tsx'
+import { practiceLobbyId } from './arrival-feedback.ts'
+import { usePracticeTime } from './usePractice.ts'
+import { arrivalPresentation } from '../shared/arrival.ts'
 import { Letters, ScoreChange, useFlip } from './fx.tsx'
 
 /** `phoneOf` names the mood; the stylesheet is where it becomes a colour. */
@@ -72,6 +76,8 @@ export function StandingsDial({ state }: { state: State }) {
 
 export type PlayerPreview = {
   socket: SocketFixture
+  /** The frozen clock the fixture's practice pulses are read against. */
+  practiceNow?: number
   open: boolean
   pressed: boolean
 }
@@ -83,7 +89,8 @@ function PickCountdown({ until, now }: { until: number; now: () => number }) {
 }
 
 export function Player({ preview }: { preview?: PlayerPreview } = {}) {
-  const { state, playerId, connected, now, send, minigameFrame, minigameAck, minigameTouches } = useSocket('player', preview?.socket)
+  const { state, playerId, connected, now, send, minigameFrame, minigameAck, minigameTouches, practice } = useSocket('player', preview?.socket)
+  const pulseNow = usePracticeTime(practice, practiceLobbyId(state), preview?.practiceNow)
   const [name, setName] = useState(() => localStorage.getItem('playerName') ?? '')
   // Always start behind the tap, even for a phone we recognise. Audio only
   // unlocks inside a user gesture, so skipping the tap means silence all game.
@@ -227,6 +234,16 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     navigator.vibrate?.(30)
   }
 
+  // Practice rides the buzzer's own press feel but never touches a round; the
+  // server confirms with a receipt, so nothing is claimed while disconnected.
+  const practiceBuzz = () => {
+    const lobbyId = practiceLobbyId(state)
+    if (preview || !connected || lobbyId === undefined) return
+    send({ t: 'practiceBuzz', lobbyId })
+    navigator.vibrate?.(60)
+    blip(audio.current)
+  }
+
   const buzz = () => {
     if (preview) return
     if (!open || barred || pressed || frozen || spectator || choice) return
@@ -274,6 +291,7 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
   })
 
   const me = state?.players.find((p) => p.id === playerId)
+  const arrival = state ? arrivalPresentation(state) : null
 
   return (
     <main class="player" data-review-id="phone:root">
@@ -291,48 +309,62 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
         <ScoreChange class="player__score readout" score={score} />
       </div>
 
-      {round?.image && <img class="player__image" data-review-id="phone:image" src={round.image} alt="" />}
-      {!!round?.fragments?.length && (
-        <p class="player__question" data-review-id="phone:question">{round.fragments.join(' ')}</p>
-      )}
-
-      {state && <PlayerDuel state={state} playerId={playerId} send={send} />}
-
-      {moment === 'choice:picking' && round?.closesAt !== undefined && (
-        <PickCountdown until={round.closesAt} now={now} />
-      )}
-
-      {moment === 'choice:picking' && myPick === undefined && !frozen && !spectator ? (
-        <div class="player__choices" data-review-id="phone:choices">
-          {round!.choices!.map((c, i) => (
-            <button key={i} class="choice__cell player__choice" onClick={() => pick(i)}>
-              <span class="choice__letter">{LETTERS[i]}</span>
-              <span class="choice__option">{c}</span>
-            </button>
-          ))}
-        </div>
-      ) : talk ? (
-        <Talk
+      {arrival && state ? (
+        <ArrivalPhone
+          state={state}
+          arrival={arrival}
           playerId={playerId}
-          until={round?.judge?.until}
-          capSec={state?.answerWindowSec ?? 0}
-          now={now}
-          ctx={audio.current}
-          micOk={micOk.current}
+          connected={connected}
+          feedback={practice}
+          pulseNow={pulseNow}
+          onPractice={practiceBuzz}
         />
       ) : (
-        <button
-          data-review-id="phone:buzzer"
-          class={`buzzer ${MOOD_CLASS[mood]}`}
-          onPointerDown={buzz}
-          disabled={!open || barred || pressed || frozen || spectator || choice}
-        >
-          {frozen ? <span class="buzzer__hit fx-wobble">{label}</span> : label}
-          {sub && <span class="buzzer__sub">{sub}</span>}
-        </button>
-      )}
+        <>
+        {round?.image && <img class="player__image" data-review-id="phone:image" src={round.image} alt="" />}
+        {!!round?.fragments?.length && (
+          <p class="player__question" data-review-id="phone:question">{round.fragments.join(' ')}</p>
+        )}
 
-      {state && <PlayerItems state={state} playerId={playerId} send={send} />}
+        {state && <PlayerDuel state={state} playerId={playerId} send={send} />}
+
+        {moment === 'choice:picking' && round?.closesAt !== undefined && (
+          <PickCountdown until={round.closesAt} now={now} />
+        )}
+
+        {moment === 'choice:picking' && myPick === undefined && !frozen && !spectator ? (
+          <div class="player__choices" data-review-id="phone:choices">
+            {round!.choices!.map((c, i) => (
+              <button key={i} class="choice__cell player__choice" onClick={() => pick(i)}>
+                <span class="choice__letter">{LETTERS[i]}</span>
+                <span class="choice__option">{c}</span>
+              </button>
+            ))}
+          </div>
+        ) : talk ? (
+          <Talk
+            playerId={playerId}
+            until={round?.judge?.until}
+            capSec={state?.answerWindowSec ?? 0}
+            now={now}
+            ctx={audio.current}
+            micOk={micOk.current}
+          />
+        ) : (
+          <button
+            data-review-id="phone:buzzer"
+            class={`buzzer ${MOOD_CLASS[mood]}`}
+            onPointerDown={buzz}
+            disabled={!open || barred || pressed || frozen || spectator || choice}
+          >
+            {frozen ? <span class="buzzer__hit fx-wobble">{label}</span> : label}
+            {sub && <span class="buzzer__sub">{sub}</span>}
+          </button>
+        )}
+
+        {state && <PlayerItems state={state} playerId={playerId} send={send} />}
+        </>
+      )}
 
       {state && <StandingsDial state={state} />}
     </main>

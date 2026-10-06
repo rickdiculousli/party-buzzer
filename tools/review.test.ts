@@ -203,6 +203,16 @@ test('review scenarios cover the main board and phone moments', async () => {
     'sketch-reveal-time',
     'sketch-reveal-all',
     'sketch-results',
+    'lobby-empty',
+    'lobby-crowd',
+    'lobby-own-pulse',
+    'lobby-simultaneous',
+    'lobby-tested-reconnected',
+    'lobby-disconnected',
+    'intro-trivia',
+    'intro-minigame',
+    'intro-over-verdict',
+    'intro-over-choice',
   ])
 })
 

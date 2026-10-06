@@ -2,6 +2,7 @@ import { Hub } from '../../server/hub.ts'
 import { newState } from '../../server/state.ts'
 import type { Conn } from '../../server/hub.ts'
 import type { State } from '../../shared/protocol.ts'
+import type { PracticeFeedback } from '../../client/arrival-feedback.ts'
 import type { ReviewScenario } from '../../client/review/model.ts'
 import { INK_LONG_NAMES, INK_PLAYERS, InkGame, inkSession } from './ink.ts'
 import { SKETCH_PLAYERS, SketchGame, sketchSession } from './sketch.ts'
@@ -254,6 +255,46 @@ export function makeReviewScenarios(): ReviewScenario[] {
     { playerId: 'eve', points: 95, shots: 0 },
   ]))
 
+  // Arrival. Pulses are frozen against a fixed local clock, so the screen shows a
+  // lit moment without any time passing.
+  const lobby = (players: State['players'], tested: string[]) => {
+    const state = base()
+    state.players = players
+    state.scores = Object.fromEntries(players.map((player) => [player.id, 0]))
+    state.arrival = { kind: 'lobby', id: 'review-lobby', testedPlayerIds: tested }
+    return state
+  }
+  const PULSE_NOW = 5_000
+  const pulses = (...received: [string, number][]): PracticeFeedback => ({
+    lobbyId: 'review-lobby',
+    pulses: Object.fromEntries(received.map(([id, receivedAt], i) => [id, { seq: i + 1, receivedAt }])),
+  })
+  const arrivalScenario = (
+    id: string, label: string, state: State, extra: Partial<ReviewScenario> = {},
+  ): ReviewScenario => ({ ...build(id, label, state, at()), ...extra })
+  const crowd = [
+    'Ada', 'Bo', 'Cy', 'Di', 'Eve', 'Fay', 'Gus', 'Hana', 'Ivo', 'Jun',
+    'Wolfeschlegelsteinhausen', 'Maximiliana Featherstonehaugh',
+  ].map((name, i) => ({ id: `p${i}`, name, connected: true }))
+  const introduction = (state: State, game: string) => {
+    state.setlist = { blocks: [{ game, options: {}, count: 3 }], at: 0, done: 0 }
+    state.arrival = { kind: 'introduction', id: 'review-intro', blockAt: 0 }
+    return state
+  }
+  const introTrivia = introduction(base(), 'trivia')
+  const introMinigame = introduction(base(), 'tank')
+  const introOverVerdict = introduction(structuredClone(correct), 'trivia')
+  const introOverChoice = introduction(structuredClone(revealed), 'trivia')
+  const emptyLobby = lobby([], [])
+  const emptyLobbyScenario = arrivalScenario('lobby-empty', 'Arrival lobby, nobody joined', emptyLobby, {
+    phones: [{
+      playerId: 'guest', label: 'Not joined', state: project(emptyLobby, 'player', 'guest'), pressed: false,
+    }],
+  })
+  const disconnectedLobby = lobby(base().players, ['ada'])
+  const disconnectedScenario = arrivalScenario('lobby-disconnected', 'Arrival lobby, phone disconnected', disconnectedLobby)
+  disconnectedScenario.phones = disconnectedScenario.phones.map((phone) => ({ ...phone, connected: false }))
+
   return [
     build('welcome', 'Welcome', welcome, at()),
     build('waiting', 'Waiting between questions', waiting, at()),
@@ -351,5 +392,21 @@ export function makeReviewScenarios(): ReviewScenario[] {
       for (const [i, id] of game.guessers.entries()) game.wait(2 + i).guess(id, game.word)
     }),
     build('sketch-results', 'Sketch results', sketchResults, at()),
+    emptyLobbyScenario,
+    arrivalScenario('lobby-crowd', 'Arrival lobby, twelve players, long names', lobby(crowd, ['p0', 'p2', 'p3', 'p10', 'p11'])),
+    arrivalScenario('lobby-own-pulse', 'Arrival lobby, own accepted pulse', lobby(base().players, ['ada']), {
+      practice: pulses(['ada', PULSE_NOW - 150]), practiceNow: PULSE_NOW,
+    }),
+    arrivalScenario('lobby-simultaneous', 'Arrival lobby, simultaneous pulses', lobby(base().players, ['ada', 'bo', 'cy']), {
+      practice: pulses(['ada', PULSE_NOW - 200], ['bo', PULSE_NOW - 120], ['cy', PULSE_NOW - 40]), practiceNow: PULSE_NOW,
+    }),
+    arrivalScenario('lobby-tested-reconnected', 'Arrival lobby, tested phone back with no pulse', lobby(base().players, ['ada', 'bo']), {
+      practice: pulses(), practiceNow: PULSE_NOW,
+    }),
+    disconnectedScenario,
+    arrivalScenario('intro-trivia', 'Introduction, Trivia first block', introTrivia),
+    arrivalScenario('intro-minigame', 'Introduction, minigame first block', introMinigame),
+    arrivalScenario('intro-over-verdict', 'Introduction over a retained verdict', introOverVerdict),
+    arrivalScenario('intro-over-choice', 'Introduction over a retained choice reveal', introOverChoice),
   ]
 }

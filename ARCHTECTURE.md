@@ -245,13 +245,25 @@ remain private in Reader/Judge memory; the display answer enters State when
 revealed. Keep those separate when adding content or projections.
 
 `shared/wall.ts` chooses a semantic moment from public gameplay facts plus local
-presentation inputs (`open`, `settled`, `retired`). Its 18 moments belong to six
-families; the `choice` family ranks first while a choice question is up.
+presentation inputs (`open`, `settled`, `retired`). Its 20 moments belong to seven
+families; the `arrival` family (lobby, introduction) ranks above everything and, while
+it is up, empties every other wall lane so retained verdicts and choices cannot show through; the `choice` family ranks first while a choice question is up.
 A choice question keeps the clue in the middle band and puts `Wall.choices`, a
 grid, in the band below, so no hero appears. Wall and phone projections use this shared decision; the wall selects
 one middle occupant, such as a clue or hero. Browser effects supply clock and
 animation progress. Equal inputs yield equal moments, but individual browsers
 can be at different local animation stages.
+
+Arrival state (`State.arrival`: an open lobby or a first-block introduction) is public
+to every role, so `arrivalPresentation` in `shared/arrival.ts` serves the board and
+phone alike. The Hub owns a lobby directly: `openLobby`/`closeArrival` for a lobby bypass
+history and `onChange`, and `practiceBuzz` marks a player tested in State, then relays a
+`PracticeReceipt` (lobby id, per-lobby `practiceSeq`, player) to every connection. The
+sequence counter and pulses are private runtime. Browsers keep the latest receipt per
+player with local receipt time (`client/arrival-feedback.ts`, `usePracticeTime`); the
+pulse lasts `PRACTICE_PULSE_MS` and is lobby-scoped, so a stale lobby's receipt is ignored.
+`ArrivalBoard`, `ArrivalPhone`, and `ArrivalHost` are mounted by their surfaces; the
+host's disabled controls follow `refuses` and `arrivalBlocksPlay` rather than a second ladder.
 
 `client/main.tsx` chooses a surface by pathname. Each surface uses `useSocket`
 for its own connection. That hook handles reconnection, stored player identity,
@@ -362,6 +374,8 @@ recording is handled by `Talk.tsx`, `recorder.ts`, and `wav.ts`.
 | Current round/question and mode memory | Yes, with restore rules | No; retain round value and mode configuration |
 | Playback state and judge window | No | No |
 | Setlist position | Yes | Yes |
+| Arrival introduction | Yes, restored under a fresh id | No |
+| Arrival lobby, tested ids, practice sequence | No; undo cancels a lobby | No |
 | Reader per-pack cursor | No | No |
 | Attempt-bound effects | Restored and restamped | Excluded; unassigned effects can persist |
 

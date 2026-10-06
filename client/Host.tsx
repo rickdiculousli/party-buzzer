@@ -5,6 +5,8 @@ import { refuses } from '../shared/legality.ts'
 import { DuelPanel } from './DuelPanel.tsx'
 import { HostGames, HostPlayers, LobbyTeams } from './HostSetup.tsx'
 import { Spoken } from './Spoken.tsx'
+import { ArrivalHost, readBlockedReason } from './ArrivalHost.tsx'
+import { arrivalBlocksPlay } from '../shared/arrival.ts'
 import { momentOf, type Moment } from '../shared/wall.ts'
 import { isMinigameId, isPenalty } from '../shared/protocol.ts'
 import type { HostAction, MinigameId, State } from '../shared/protocol.ts'
@@ -197,7 +199,7 @@ export function Host() {
   const value = useRef(0)
   value.current = state?.round.value ?? 0
   const idleRef = useRef(false)
-  idleRef.current = state?.round.phase === 'IDLE'
+  idleRef.current = state?.round.phase === 'IDLE' && !(state && arrivalBlocksPlay(state))
   // A miss is up and nobody has taken the rebound yet.
   const missedRef = useRef(false)
   missedRef.current = !!state && isPenalty(state.round.award) && state.round.order.length === 0
@@ -384,8 +386,13 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
   // A mode with no points keeps the three keys and the buzz order, nothing else.
   const scoreless = !!state.games.find((g) => g.id === state.game.id)?.scoreless
 
+  // An introduction refuses play until Continue; the same reason the server gives.
+  const introBlocked = refuses(state, { a: 'arm' }) === 'introduction-active'
+  const readNote = readBlockedReason(state)
+
   return (
     <>
+      <ArrivalHost state={state} act={act} />
       <div class="host__bar">
         {state.game.status && (
           <span class={state.game.status.tone === 'inactive' ? 'chip chip--barred' : 'chip chip--data'}>
@@ -466,9 +473,11 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
             <button
               class="btn btn--major btn--primary"
               onClick={() => act({ a: 'prepareMinigame', id: upNext, options: block?.options ?? {} })}
+              disabled={introBlocked}
             >
               Open {MINIGAMES[upNext].name}
             </button>
+            {introBlocked && <span class="muted">{REFUSAL_TEXT['introduction-active']}</span>}
           </div>
         ) : <>
         {/* Who the keys below act on, big enough to read from across the desk.
@@ -483,7 +492,7 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
         <div class="host__controls">
           {/* On an untaken rebound Arm is live again: it is how the host gives
               up on the question, and Shift is its key there. */}
-          <button class="btn btn--major btn--primary" onClick={() => act({ a: 'arm' })} disabled={open && !missed}>
+          <button class="btn btn--major btn--primary" onClick={() => act({ a: 'arm' })} disabled={(open && !missed) || introBlocked}>
             {open && !missed ? 'Buzzers open' : 'Arm'}<span class="key">{missed ? 'Shift' : 'Space'}</span>
           </button>
           {reopenable ? (
@@ -551,10 +560,11 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
                     {state.reading?.paused ? 'Resume' : 'Pause'}
                   </button>
                 ) : (
-                  <button class="btn btn--primary" disabled={!readable} onClick={() => fire('read')}>
+                  <button class="btn btn--primary" disabled={!readable || !!readNote} onClick={() => fire('read')}>
                     Read
                   </button>
                 )}
+                {!state.readingActive && readNote && <span class="muted">{readNote}</span>}
                 {!state.readingActive && unpaid > 0 && (
                   <span class="chip chip--data">~{credits(unpaid)} credits to read</span>
                 )}

@@ -73,7 +73,8 @@ async function start() {
   if (surface === 'board') {
     render(
       <Board preview={{
-        socket: { state: scenario.board, connected: true, now: presentation.now, frame: scenario.boardFrame },
+        socket: { state: scenario.board, connected: true, now: presentation.now, frame: scenario.boardFrame, practice: scenario.practice },
+        practiceNow: scenario.practiceNow,
         open: presentation.open,
         settled: presentation.settled,
         retired: presentation.retired,
@@ -89,10 +90,12 @@ async function start() {
         socket: {
           state: phone.state,
           playerId: phone.playerId,
-          connected: true,
+          connected: phone.connected ?? true,
           now: presentation.now,
           frame: phone.frame,
+          practice: scenario.practice,
         },
+        practiceNow: scenario.practiceNow,
         open: presentation.open,
         pressed: phone.pressed,
       }} />,

@@ -1,3 +1,4 @@
+import type { PracticeFeedback } from '../arrival-feedback.ts'
 import type { MinigameFrame, State } from '../../shared/protocol.ts'
 
 export type ReviewPhone = {
@@ -6,6 +7,8 @@ export type ReviewPhone = {
   state: State
   pressed: boolean
   frame?: MinigameFrame
+  /** Defaults to connected; a frozen disconnected phone sets it false. */
+  connected?: boolean
 }
 
 export type ReviewPresentation = {
@@ -20,6 +23,9 @@ export type ReviewScenario = {
   label: string
   board: State
   boardFrame?: MinigameFrame
+  /** Frozen practice pulses and the clock they are read against, for arrival lobbies. */
+  practice?: PracticeFeedback
+  practiceNow?: number
   phones: ReviewPhone[]
   presentation: ReviewPresentation
 }

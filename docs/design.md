@@ -876,6 +876,16 @@ never needs it, but the host glancing at the wall does. The standings mark
 the podium with `.rank` medals (1st/2nd/3rd in brass, silver, bronze); below
 third there is no number, because the order already says it.
 
+### Arrival — the lobby and the introduction
+
+Two moments that sit above everything else. The **lobby** is a Test buzzer:
+the phone shows one buzzer ("Test buzzer", sub "Practice only · no points"),
+the board lists the roster with a Tested/Not yet chip, and a press lights the
+name for a moment with the existing `fx-flash`. The **introduction** names the
+first block and its goal; the phone shows a "Waiting for the host" chip and no
+control. Neither is a round: no points, no readiness gate, no new keyframes.
+The board covers its old content while one is up; the QR and identity bars stay.
+
 ### Host — a control desk driven by the keyboard
 
 The host is on a laptop and presses the same five controls all night, so every

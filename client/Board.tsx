@@ -11,6 +11,9 @@ import { isPenalty } from '../shared/protocol.ts'
 import { useReveal } from './useReveal.ts'
 import { COLLECT_MS, type BuzzEntry, type State } from '../shared/protocol.ts'
 import { MINIGAMES } from './minigames.tsx'
+import { ArrivalBoard } from './ArrivalBoard.tsx'
+import { practiceLobbyId } from './arrival-feedback.ts'
+import { usePracticeTime } from './usePractice.ts'
 import { Burst, Letters, ScoreChange, useFlip } from './fx.tsx'
 
 type Mark = BuzzEntry & { lane: number }
@@ -397,13 +400,16 @@ function Question({ whole, shown, image }: { whole?: string; shown: string; imag
 
 export type BoardPreview = {
   socket: SocketFixture
+  /** The frozen clock the fixture's practice pulses are read against. */
+  practiceNow?: number
   open: boolean
   settled: boolean
   retired: boolean
 }
 
 export function Board({ preview }: { preview?: BoardPreview } = {}) {
-  const { state, now, connected, minigameFrame, minigameTouches } = useSocket('board', preview?.socket)
+  const { state, now, connected, minigameFrame, minigameTouches, practice } = useSocket('board', preview?.socket)
+  const pulseNow = usePracticeTime(practice, practiceLobbyId(state), preview?.practiceNow)
   // The big screen is what the room watches, so it must not light up before
   // the phones do. Same countdown to armedAt as every other surface.
   const opening = useOpen(state?.round, now, undefined, !preview)
@@ -572,6 +578,9 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
           screen as its own timeline assembled would undo the point of stamping
           the marks down in the first place.
         */}
+        {w.arrival && (
+          <ArrivalBoard state={state} arrival={w.arrival} feedback={practice} pulseNow={pulseNow} />
+        )}
         <div class="board__above">
           {/* Three lanes — what was said, the stamp, the answer — each held open
               by an invisible stand-in while the others are up, so one arriving

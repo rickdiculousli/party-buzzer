@@ -44,6 +44,19 @@ certificate is a browser convenience, not an access-control boundary.
    play reopens immediately or after a rebound pause.
 4. **Next question** clears the question's lockouts and advances a setlist.
 
+**Open lobby** (host Play desk, in a quiet room) puts a Test buzzer on every
+phone and the board. A press only lights that player's name on the board and
+marks them tested; it scores nothing, never starts a round, and nothing waits on
+it: **Arm** or **Close lobby** moves on whether or not anyone tested. The lobby
+is runtime only, so undo does not bring it back and a restart drops it.
+
+A fresh setlist opens its first block with an introduction (board and phones say
+what the block is, in a line). It appears for the first block only; **Continue**
+dismisses it. While it is up, Arm, Read, and opening a minigame are refused, and
+the host desk says so. Next, reset, jumping, and clearing the setlist also drop
+it. Undo can restore an introduction, under a new id, so a stale Continue is
+refused. A restart does not restore one.
+
 Phones estimate server time and timestamp the press locally. The server clamps
 that timestamp between opening and arrival, then ranks presses. This reduces
 network-jitter effects; it assumes honest clients. Phones receive their own

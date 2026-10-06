@@ -31,6 +31,25 @@ These need real hardware — run them once before a real game night.
 - [ ] Reloading the page keeps the same identity
 - [ ] "Add to Home Screen" produces a working full-screen app
 
+## Arrival (iPhone and Android)
+
+- [ ] Open lobby on the host: the board and every phone show Test buzzer; the
+      join tap has already unlocked audio, so the first test press is audible
+- [ ] Pressing Test buzzer vibrates, plays the press sound, and shows "Buzzer
+      tested" only after the server confirms it
+- [ ] Two or three phones pressing at once all light their names on the board
+- [ ] A phone that loses WiFi shows Disconnected and cannot test; reconnecting
+      keeps it marked tested and replays no old pulse
+- [ ] Renaming or removing a player updates the roster and tested count
+- [ ] Arm, or Close lobby, works with players who never tested
+- [ ] A fresh setlist shows the introduction on the board and phones over any
+      retained verdict or choice reveal; Read, Arm, and Open are disabled with
+      a reason until Continue
+- [ ] Undo after Continue brings the introduction back; the old Continue is
+      refused
+- [ ] A minigame first block shows its introduction, Continue, then Open
+- [ ] The phone arrival screens fit a small phone with no scroll
+
 ## Room
 
 - [ ] `/board` is readable from the far side of the room
