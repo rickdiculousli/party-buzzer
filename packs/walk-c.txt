@@ -4,6 +4,7 @@ A: the Pacific Ocean | Pacific Ocean | the Pacific | Pacific
 
 V: 300
 Born in Warsaw, she moved to Paris to study physics at the Sorbonne. / With her husband she found two new elements. / One of them is named for her homeland. / Name this winner of Nobel Prizes in two sciences.
+S: Born in Warsaw, she moved to Paris to study physics at the Sorbonne. With her husband she found two new elements. One of them is named for her homeland. Name this winner of Nobel Prizes in two sciences. [quick, low aside] Two. Meanwhile you lot can't find your car keys.
 A: Marie Curie | Madame Curie | Marie Sklodowska Curie | Curie
 
 V: 400

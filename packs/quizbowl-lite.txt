@@ -1,5 +1,6 @@
 V: 100
 This thing has a version supposedly named for Queen Margherita on a visit to Naples. / Chicago and New York still argue over how thick it should be. / Name this dish of baked dough, tomato sauce and cheese, often sold by the slice.
+R: [quick, sarcastic] Pizza. The one thing you all have a PhD in.
 A: Pizza | slice
 
 V: 100
@@ -8,6 +9,7 @@ A: The Moon | Luna
 
 V: 200
 This thing has Mercutio curse "a plague o' both your houses." / Its opening Chorus announces "a pair of star-cross'd lovers" from Verona. / Name this Shakespeare tragedy with a balcony scene, about two teenagers from feuding families.
+S: This thing has Mercutio curse "a plague o' both your houses." Its opening Chorus announces "a pair of star-cross'd lovers" from Verona. Name this Shakespeare tragedy with a balcony scene, about two teenagers from feuding families. [quick, dry aside] Three days. They knew each other three days. [sighs] Kids.
 A: Romeo and Juliet | Romeo & Juliet
 
 V: 200
@@ -24,14 +26,17 @@ A: Gravity | gravitation | gravitational
 
 V: 400
 This thing was stolen in 1911 by a Louvre handyman, Vincenzo Peruggia, who hid it in his apartment for two years. / Its sitter is usually identified as Lisa Gherardini, the wife of a Florentine silk merchant. / Name this Leonardo da Vinci portrait, famous for its smile.
+S: This thing was stolen in 1911 by a Louvre handyman, Vincenzo Peruggia, who hid it in his apartment for two years. Its sitter is usually identified as Lisa Gherardini, the wife of a Florentine silk merchant. Name this Leonardo da Vinci portrait, famous for its smile. [fast, gossipy whisper] Two years. In his apartment. [snorts] Honestly? Respect.
 A: Mona Lisa | La Gioconda | La Joconde
 
 V: 400
 This thing had no binoculars for its lookouts, and its older twin was the Olympic. / It carried only twenty lifeboats for more than two thousand people. / Name this White Star Line ship, called unsinkable, that hit an iceberg in April 1912.
+R: [singing badly, off key] My heart will go onnn. [clears throat] [deadpan] Titanic. Correct. Moving on.
 A: Titanic
 
 V: 500
 This group had a Hamburg-era bassist, Stuart Sutcliffe, sometimes called its fifth member. / Its last public performance was an unannounced 1969 concert on a London rooftop. / Name this Liverpool band of John, Paul, George and Ringo.
+R: [woo] The Beatles! [rapid, smug] Real deep cut. Next you'll tell me you've heard of Elvis.
 A: The Beatles | Fab Four
 
 V: 500

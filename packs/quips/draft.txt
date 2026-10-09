@@ -1,0 +1,2 @@
+# Lines not yet agreed. The game never reads this file; `npm run voice -- <pack> --html`
+# shows them on the workbench. Agreed lines move to pools.txt.
