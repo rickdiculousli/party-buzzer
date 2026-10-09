@@ -253,7 +253,7 @@ test('a performing voice prices in R: lines and the quip pools', () => {
     speech: { ...speech, cached: () => false },
     align: foldsFor(),
     perform: true,
-    quips: { pools: { correct: [{ text: 'Wow.', sincere: false }], wrong: [], nobody: [] }, cut: () => [] },
+    quips: { pools: { correct: [{ text: 'Wow.', sincere: false }], wrong: [], nobody: [] } },
   })
   reader.priceUp()
   assert.equal(state.packCost['one.txt'], join(FRAGMENTS).text.length + 'Nice.'.length + 'Wow.'.length)

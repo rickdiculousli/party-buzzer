@@ -272,12 +272,12 @@ a compiled Swift seeking player when available and `afplay` as fallback.
 Without native speech commands, playback degrades to silent text progression.
 
 With `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` set, `server/eleven.ts`
-renders ElevenLabs v3 takes in place of `say`. Each take is cached beside its
+renders ElevenLabs v4 takes in place of `say`. Each take is cached beside its
 per-character timestamps, and folds come from those timestamps rather than from
-transcription. `spans` cuts any number of phrases out of one take. That voice
+transcription. That voice
 also performs: a question's `S:` script is spoken in place of its fragments,
 `R:` plays on a right answer, and `server/quips.ts` picks sparse verdict quips
-from `packs/quips/pools.txt`, each pool rendered as one take. The Reader prices
+from `packs/quips/pools.txt`, each line its own take. The Reader prices
 the unrendered text per pack (`packCost`) for the host screen. A failed take
 falls back to `say`.
 

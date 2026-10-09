@@ -1,9 +1,7 @@
 /**
- * Speech from ElevenLabs v3, one take per script, with a timestamp on every
- * character. The timestamps are the point: a take is not one line but a reel,
- * and any phrase in it — a clause of the question, a choice, a quip — can be
- * cut back out by finding it in the script and reading off its times. One
- * generation, as many pieces as the script holds.
+ * Speech from ElevenLabs v4, one take per script, with a timestamp on every
+ * character. The timestamps are the point: they say when the voice begins
+ * each clause of the question, so the board reveals it in time with the voice.
  *
  * Takes cache like `say` clips, by a hash of script and voice: the mp3 and a
  * `.json` of its character times side by side. A take costs credits, so it
@@ -22,9 +20,11 @@ import { run, parseDuration, type Clip } from './speech.ts'
 
 /** The script as sent, and when each of its characters starts and ends. */
 export type Timed = { text: string; startMs: number[]; endMs: number[] }
-export type Span = { startMs: number; endMs: number }
 
 const API = 'https://api.us.elevenlabs.io/v1'
+
+/** The house voice, Buzzer Host – Dynamic. `ELEVENLABS_VOICE_ID` picks another. */
+export const HOUSE_VOICE = 'zNJaLQEFmbGxVCTumuiK'
 
 export function takePath(cacheDir: string, script: string, voiceId: string): string {
   const hash = createHash('sha256').update(`eleven:${voiceId}\n${script}`).digest('hex')
@@ -51,7 +51,7 @@ export async function synthesize(
     const res = await fetchImpl(`${API}/text-to-speech/${voiceId}/with-timestamps?output_format=mp3_44100_128`, {
       method: 'POST',
       headers: { 'xi-api-key': apiKey, 'content-type': 'application/json' },
-      body: JSON.stringify({ text: script, model_id: 'eleven_v3' }),
+      body: JSON.stringify({ text: script, model_id: 'eleven_v4' }),
       signal: AbortSignal.timeout(60_000),
     })
     if (!res.ok) throw new Error(`elevenlabs ${res.status}: ${(await res.text()).slice(0, 200)}`)
@@ -117,25 +117,6 @@ function match(src: { word: string }[], script: { word: string }[], from = 0): n
     if (hit >= 0) cursor = hit + 1
   }
   return out
-}
-
-/**
- * Where each phrase is spoken in the take, searched in order: a phrase is looked
- * for after the one before it, which is what lets the same word ("A", "the")
- * appear in several phrases. Undefined for a phrase whose first or last word
- * was not found — better no span than one that cuts a word in half.
- */
-export function spans(timed: Timed, phrases: string[]): (Span | undefined)[] {
-  const script = tokens(timed.text)
-  let from = 0
-  return phrases.map((phrase) => {
-    const m = match(tokens(phrase), script, from)
-    const first = m[0]
-    const last = m[m.length - 1]
-    if (first === undefined || first < 0 || last < 0) return undefined
-    from = last + 1
-    return { startMs: timed.startMs[script[first].at], endMs: timed.endMs[script[last].end - 1] }
-  })
 }
 
 /**

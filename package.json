@@ -5,10 +5,12 @@
   "type": "module",
   "scripts": {
     "start": "node server/index.ts",
+    "start:eleven": "node server/index.ts --eleven",
     "kill": "sh -c 'pid=$(lsof -tiTCP:8080 -sTCP:LISTEN); test -z \"$pid\" || kill $pid'",
     "dev": "vite",
     "build": "vite build",
     "sim": "node tools/sim.ts",
+    "voice": "node tools/voice.ts",
     "sim-bow": "node tools/sim-bow.ts",
     "sim-tank": "node tools/sim-tank.ts",
     "sim-ink": "node tools/sim-ink.ts",

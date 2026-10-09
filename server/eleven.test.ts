@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join as pathJoin } from 'node:path'
 import { join } from './align.ts'
-import { folds, spans, synthesize, timedFor, type Timed } from './eleven.ts'
+import { folds, synthesize, timedFor, type Timed } from './eleven.ts'
 
 /** Every character 10ms long, so a time reads back as a character offset. */
 function timed(text: string): Timed {
@@ -12,15 +12,6 @@ function timed(text: string): Timed {
 }
 
 const SCRIPT = '[excited] Right! This physicist, [scoffs] oh come on, won the Nobel Prize. A, Einstein. B, Bohr.'
-
-test('spans pull several phrases out of one take, stepping over tags and ad-libs', () => {
-  const t = timed(SCRIPT)
-  const [q, a, b, missing] = spans(t, ['This physicist, won the Nobel Prize.', 'A, Einstein.', 'B, Bohr.', 'C, Curie.'])
-  assert.deepEqual(q, { startMs: SCRIPT.indexOf('This') * 10, endMs: (SCRIPT.indexOf('Prize.') + 6) * 10 })
-  assert.equal(a?.startMs, SCRIPT.indexOf('A, E') * 10)
-  assert.equal(b?.endMs, SCRIPT.length * 10)
-  assert.equal(missing, undefined)
-})
 
 test('each fold fires as the voice begins the clause it reveals, in the performed script', () => {
   const j = join(['This physicist,', 'won the Nobel Prize.'])
@@ -63,6 +54,6 @@ test("an ad-lib sharing a clause's first word does not take its fold", () => {
 
 test('a stretched or stressed word still matches the plain word it performs', () => {
   const script = 'Known as the REEED Priiiest, for *thirty* years.'
-  const [s] = spans(timed(script), ['the Red Priest,'])
-  assert.equal(s?.startMs, script.indexOf('the') * 10)
+  const f = folds(join(['Known as the', 'Red Priest, for thirty years.']), timed(script))
+  assert.equal(f[1].ms, script.indexOf('REEED') * 10)
 })
