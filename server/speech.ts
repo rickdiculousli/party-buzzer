@@ -40,15 +40,19 @@ export function parseDuration(afinfoOutput: string): number {
   return m ? Math.round(Number(m[1]) * 1000) : 0
 }
 
-export function run(cmd: string, args: string[]): Promise<{ ok: boolean; stdout: string }> {
+export function run(cmd: string, args: string[]): Promise<{ ok: boolean; stdout: string; stderr: string; signal?: string }> {
   return new Promise((resolve) => {
     let stdout = ''
+    let stderr = ''
     const p = spawn(cmd, args)
     p.stdout?.on('data', (d) => {
       stdout += String(d)
     })
-    p.on('close', (code) => resolve({ ok: code === 0, stdout }))
-    p.on('error', () => resolve({ ok: false, stdout: '' }))
+    p.stderr?.on('data', (d) => {
+      stderr += String(d)
+    })
+    p.on('close', (code, signal) => resolve({ ok: code === 0, stdout, stderr, ...(signal && { signal }) }))
+    p.on('error', () => resolve({ ok: false, stdout: '', stderr: '' }))
   })
 }
 

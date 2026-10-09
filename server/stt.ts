@@ -119,7 +119,14 @@ export function transcribePool(bin: string, audioPath: string, width = 4): {
 
 /** One file in, one transcript out. Any failure is a null: the caller scores a miss. */
 export async function transcribe(bin: string, wavPath: string): Promise<string | null> {
-  const { ok, stdout } = await run(bin, [wavPath])
+  const { ok, stdout, stderr, signal } = await run(bin, [wavPath])
+  // The helper says why an answer came back empty: "Siri and Dictation are
+  // disabled" is a settings switch, not a quiet player.
+  if (stderr.trim()) console.warn(`[stt] ${stderr.trim()}`)
+  // Hearing nothing exits 1; being killed is different. macOS kills the helper
+  // when the app that launched the server has no speech-recognition permission
+  // (T3 Code, for one), and every answer then scores as silence.
+  if (signal) console.warn(`[stt] helper killed by ${signal} — start the server from Terminal, whose speech permission it borrows`)
   if (!ok) return null
   return stdout.trim() || null
 }
