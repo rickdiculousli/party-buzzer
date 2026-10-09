@@ -83,8 +83,12 @@ func transcribe(fromMs: Int, toMs: Int) -> String? {
     var out: String?
     var failed = false
     let task = recognizer.recognitionTask(with: request) { result, error in
-        if error != nil {
+        if let error {
             // No speech in the slice is reported as an error,             // that is the informative case, not a broken run.
+            // One file at a time is a judged answer; say why it came back empty.
+            if !sessionMode {
+                FileHandle.standardError.write("stt: \(error.localizedDescription) [\((error as NSError).domain) \((error as NSError).code)]\n".data(using: .utf8)!)
+            }
             out = ""
             failed = true
             return

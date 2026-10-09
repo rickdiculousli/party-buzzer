@@ -1,25 +1,180 @@
 # The host's asides after a verdict, for a performing voice (ElevenLabs).
-# Each pool renders as one take; editing any line re-renders its pool.
+# Each line renders as its own take; editing a line re-renders only that line.
 # ★ marks a sincere line — it plays a quarter as often.
 
 # correct
-[sarcastic] Oh, great, a genius. Just what this room needed.
-[deadpan] Correct. Somebody's mom is so proud.
-[sarcastic] Wow. You read a book once. Incredible.
-[mocking] Hell yeah, nerd. Real proud of you.
-[deadpan] Fine. Correct. Don't let it go to your head.
-★ [impressed] Well, shit. That was actually good.
+[sarcastic, quick] Wooow. A genius here.
+[deadpan, flat] Correct. Somebody's mom is so proud.
+[mock amazed] You read a book. Incredible.
+[mocking, nasal] Hell yeah, nerd. Real proud of you.
+[slow clap] [sarcastic] Good one.
+[game show host, excited] Ding ding ding! [deadpan] GGs.
+[unimpressed] Pointsss... whatever.
+[suspicious, quick] Okay. Who told you?
+[mock gasp] It CAN read!
+[flat] Correct. Don't make it weird.
+[sarcastic, quick] Look at the big brain on you.
+[grudging] Fine. You win this one.
+★ [impressed, quiet] Okay. That was clean.
+★ [genuinely impressed, quiet] Well, shit. That was actually good.
+[mock shock] Wait. Seriously? Okay.
+[deadpan] Huh. Look at that.
+[quick, sarcastic] Somebody studied.
+[mock nasally] Nerd alert.
+[sarcastic, bored] Yay. Points.
+[suspicious] Did you Google that?
+[snickers] Okay, smarty pants.
+[mock proud] My little genius.
+[flat] Fineee. Have your points.
+[quick, mocking] Ooh, look at you.
+[unimpressed] Lucky guess.
+[mock gasp] A brain! In this room!
+[sarcastic] Wow. Clap for yourself.
+[deadpan] Correct. Unfortunately.
+[quick] Yep. Yep. Yep. Neeext.
+[mock tearful] I'm so proud. Truly.
+[deadpan] Even a broken clock.
+[sarcastic, quick] Big brain energy.
+[grumbling] Ugh. Fine. Correct.
+[game show host] And THAT'S a point!
+[mock amazed] It knows things!
+[deadpan] Correct. Don't get cocky.
+[sarcastic] Teacher's pet over here.
+[accusatory] Cheater. [beat] [offhand, quick] Correct, though.
+[slow clap twice] Bravo.
+[unimpressed] Sure. Point.
+[mocking, nasal] Ackshually, that's right.
+[laughs] Okay, okay. You got me.
+[deadpan] Correct. I'm shocked.
+[quick] Ding. Next.
+[smug] Even I knew that one.
+[sarcastic] Stop showing off.
+[sing song, quick] Someone's been reading.
+[mock exasperated] Why are you like this? Correct.
+★ [warmly] Nice. Really nice.
+★ [impressed] Okay, that was smart.
 
 # wrong
-[sarcastic] Wow. Bold. Wrong, but bold.
-[mocking] Oh, buddy. Oh, sweetie. No.
-[deadpan] No. Absolutely not. Sit your ass down.
-[laughs] Confidently wrong. Love that for you.
+[sarcastic, quick] Bold. Wrong, but bold.
+[mocking, sweet] Oh, sweetie. No.
+[stifling a laugh] No. [composing himself, deadpan] Sit yo ass down.
+[trying not to laugh] That's... [clears throat] no.
+[snickers] Okay. [deadpan, quick] Absolutely not.
+[laughs harder] Confidently wrong. Love that for you.
 [strained groan] Jesus. What? Why?
-★ [sighs] Ugh, so close. Damn.
+[scoffs] Fuck outta here.
+[blowing raspberry long] Nah.
+[mocking] Bzzzt. Nope.
+[deadpan] Swing and a miss.
+[quick, disgusted] Ew. No.
+[mock sympathy] Aww. Cute guess.
+[childish mocking] Oooh, pee pee poo poo.
+★ [sighs, sympathetic] Ugh, so close. Damn.
+[deadpan] Nope. Not even close.
+[laughs] No. God, no.
+[mock sympathy] Bless your heart.
+[quick, flat] Wrong. Next.
+[incredulous] Where did that come from?
+[sighs] I'm embarrassed for you.
+[deadpan] That's a no from me.
+[snickers] Okay. [deadpan, quick] Wrong.
+[mock gentle] Aww. No.
+[quick, disgusted] Yikes.
+[sarcastic] Great guess. Wrong, but great.
+[deadpan] Points? None.
+[mocking] Wrong-o.
+[exasperated] Why would you say that.
+[whispering] That was wrong. Everyone saw.
+[laughs] Oh, buddy.
+[deadpan] Incorrect. Sit.
+[mock gasp] How dare you.
+[quick, dismissive] Nah. Next.
+[game show host] Ohhh, so sorry!
+[deadpan] Respectfully? No.
+[scoffs] Pfft. No.
+[mock disappointment] Expected nothing. Still disappointed.
+[quick] Nope. Nope. Nope.
+[sarcastic] Swing big, miss big.
+[groans] Come on duude.
+[mocking, singing] Wrooong.
+[deadpan] That's a bold no.
+[stifling a laugh] No. [clears throat] Next.
+[flat] You tried. Barely.
+[mock concerned] Are you okay?
+[quick] Lol. No.
+[deadpan] Delete that answer.
+★ [gently] Good try. Close one.
+★ [sympathetic] Ah, almost.
 
 # nobody
-[sarcastic] [staccato] No one? Cool. Great. Love the energy.
-[deadpan] Crickets. [sharp inhale] [quick groan] Riveting stuff, people.
-[mocking] Too scared? Yeah. Yeah, I get it.
-★ [sighs] Honestly? Fair. That one was brutal.
+[sarcastic, clipped] No one? Cool. Great. Love the energy.
+[deadpan] Crickets. [quick groan] Riveting.
+[mocking whisper] Too scared? Yeah. Yeah, I get it.
+[exhales] Wow. Okay.
+[whispering] Hello? Anyone?
+[deadpan] Dead silence. Love it.
+[yawns] Somebody. Anybody.
+[quick, scornful] Nobody? Cowards.
+[whistles] Tumbleweed.
+[mock begging] Someone, just shoot my ass.
+★ [gently] Yeah, that one was tough.
+★ [sighs, gentle] Honestly? Fair. That one was brutal.
+[deadpan] Anyone? Bueller?
+[sighs] I'll just talk to myself then.
+[quick, scornful] All of you. Nothing.
+[whispering] Is this thing on?
+[sarcastic] Great. Silence. My favorite.
+[deadpan] Thrilling.
+[yawns] Wake me when someone buzzes.
+[mock hurt] Nobody? Wow. Okay.
+[quick] Zero takers. Cool.
+[sarcastic] Don't all buzz at once.
+[deadpan] The answer was right there.
+[exasperated] It was easy. It was so easy.
+[mock whisper] Cowards, all of you.
+[flat] Riveting crowd tonight.
+[groans] Seriously?
+[deadpan] Silence. Beautiful.
+[sarcastic, quick] Great teamwork, everyone.
+[mock cheerful] Nobody! Fantastic!
+[sighs] Okay. Moving on, I guess.
+[deadpan] Blink if you're alive.
+[laughs] Nobody. Wow.
+[quick, dismissive] Fine. Nobody. Next.
+[mock sad] And I thought we had something.
+[whispering] They're scared of me.
+[deadpan] A room full of geniuses.
+[scoffs] Pathetic. Love you, though.
+[mock concerned] Did everyone die?
+[flat] Okay. Brains off. Got it.
+[sarcastic] Wow, the suspense.
+[quick] Crickets again.
+[deadpan] Even a guess. Anything.
+[exhales] Okay. Okay.
+[mock disappointed] Not mad. Just disappointed.
+[yawns] Next.
+[deadpan] Thoughts and prayers.
+[sarcastic] Bold strategy. Saying nothing.
+★ [gently] Tough one. No shame.
+★ [sympathetic] Yeah, I'd have passed too.
+
+# plain correct
+Correct.
+That's right.
+Yes.
+Got it.
+Right.
+
+# plain wrong
+No.
+Not quite.
+Incorrect.
+Nope.
+That's not it.
+
+# plain nobody
+Time.
+Nobody?
+Time's up.
+No takers.
+Moving on.

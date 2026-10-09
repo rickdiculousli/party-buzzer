@@ -252,13 +252,21 @@ picking**). Every right pick scores the round value; a wrong one costs
 nothing. `A:` must equal one of the choices. Shown and choice text reaches
 phones whatever the mirror setting. See [the mixed pack](packs/mixed.txt).
 
-Set `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` and ElevenLabs v3 reads the
+Export `ELEVENLABS_API_KEY` in your shell and run `npm run start:eleven`, and
+ElevenLabs v4 reads in the house voice (Buzzer Host – Dynamic;
+`ELEVENLABS_VOICE_ID` picks another). Without the flag or a voice id, the key
+alone spends nothing. ElevenLabs reads the
 questions instead of `say`; the host's pack picker shows what each pack still
 costs to render, and a rendered line is cached and never billed again. With it
-set, an `S:` line gives a question a performed read —
-v3 audio tags, CAPS stress, stretched words, ad-libs — spoken in place of the
+on, an `S:` line gives a question a performed read —
+v4 audio tags, CAPS stress, stretched words, ad-libs — spoken in place of the
 fragments, which still go up on the board in time with it. The script must
 say the fragments' words in order; anything around them is stepped over.
+To hear scripts without starting the game, `npm run voice -- <pack.txt>` lists
+each line as new or cached with its length; add `--go` to render the new ones
+(this spends credits) and `--play` to hear the performed lines. Pass a quoted
+line instead of a pack to try one line on its own. Takes land in the same
+cache the game uses.
 `say` ignores it.
 
 Local speech uses macOS tools and optional Swift helpers. Without speech

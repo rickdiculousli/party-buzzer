@@ -7,14 +7,14 @@ import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
 import { WebSocketServer } from 'ws'
 import { Hub, type Conn } from './hub.ts'
-import { Reader } from './reader.ts'
+import { NEXT_CUE, Reader } from './reader.ts'
 import { loadState, saveState, flushSave } from './state.ts'
 import { Judge, type Transcribe } from './judge.ts'
 import { transcribePool, sttBinary, transcribe as sttTranscribe } from './stt.ts'
 import { locate } from './align.ts'
 import type { Aligner } from './reader.ts'
 import { render as renderClip, play as playClip, type Speech } from './speech.ts'
-import { synthesize, timedFor, folds, takePath, spans } from './eleven.ts'
+import { synthesize, timedFor, folds, takePath, HOUSE_VOICE } from './eleven.ts'
 import { parsePools } from './quips.ts'
 import { lanAddresses, pickAddress, banner, link, qrFor, qrSvg } from './net.ts'
 import { PROVIDERS, certHost, ensureCert, type Tls } from './cert.ts'
@@ -153,12 +153,17 @@ export async function startServer(opts: {
       }
     : undefined
 
-  // ElevenLabs reads the questions when both are set. The voice is the opt-in,
-  // not the key: every new line is a paid take, so a key in the shell must not
-  // be enough to start spending. A take that fails falls back to `say`, and its
-  // clip, having no character times, falls back to the speech-recognition fold.
+  // ElevenLabs reads the questions when there is a key and a voice. The voice
+  // is the opt-in, not the key: every new line is a paid take, so a key in the
+  // shell must not be enough to start spending. `--eleven` opts in with the
+  // house voice; ELEVENLABS_VOICE_ID picks another. A take that fails falls
+  // back to `say`, and its clip, having no character times, falls back to the
+  // speech-recognition fold.
   const elevenKey = process.env.ELEVENLABS_API_KEY
-  const elevenVoice = process.env.ELEVENLABS_VOICE_ID
+  const elevenVoice =
+    process.env.ELEVENLABS_VOICE_ID ?? (process.argv.includes('--eleven') ? HOUSE_VOICE : undefined)
+  if (process.argv.includes('--eleven') && !elevenKey) console.warn('[speech] --eleven needs ELEVENLABS_API_KEY; using say')
+  console.log(elevenKey && elevenVoice ? `[speech] ElevenLabs v4, voice ${elevenVoice}` : '[speech] say')
   const speech: Speech | undefined =
     elevenKey && elevenVoice
       ? {
@@ -187,18 +192,12 @@ export async function startServer(opts: {
     speech,
     perform: !!speech,
     quips: speech && existsSync(poolsPath)
-      ? {
-          pools: parsePools(await readFile(poolsPath, 'utf8')),
-          cut: (path, lines) => {
-            const timed = timedFor(path)
-            return timed ? spans(timed, lines) : []
-          },
-        }
+      ? parsePools(await readFile(poolsPath, 'utf8'))
       : undefined,
     judge,
     align,
     nextCardMs: 2000,
-    nextCue: 'Next question.',
+    nextCue: NEXT_CUE,
   })
   hub.setReader(reader)
   reader.priceUp()

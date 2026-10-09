@@ -1,5 +1,6 @@
 V: 200
 This element is the lightest of them all. / Its symbol is a single letter, H. / It is what the sun burns.
+R: [explosion] [coughing, then calm] Hydrogen. Correct. Nobody light a match.
 A: hydrogen | H
 
 V: 300

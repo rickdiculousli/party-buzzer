@@ -16,4 +16,5 @@ A: Saturn
 V: 500
 K: shown
 What is the tallest mountain on Earth above sea level?
+R: [out of breath, wheezing] Everest. [gasps] Correct. I'm winded just saying it.
 A: Mount Everest | Everest | Mt Everest

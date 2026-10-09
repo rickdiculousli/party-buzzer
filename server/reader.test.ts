@@ -612,3 +612,69 @@ test('autoplay moves on from a settled choice question', async () => {
   reader.stop()
   await reader.settled()
 })
+
+test('a quip on a right answer does not stall autoplay', { timeout: 5000 }, async () => {
+  const packDir = mkdtempSync(join(tmpdir(), 'pb-reader-quip-'))
+  writeFileSync(join(packDir, 'one.txt'), 'One.\nR: Nice.\nA: gold\n\nTwo.\nA: silver\n')
+  const state = newState()
+  const hub = new Hub(state)
+  const speech = fakeSpeech()
+  const reader = new Reader(hub, {
+    packDir,
+    cacheDir: join(packDir, '.cache'),
+    speech,
+    perform: true,
+    quips: { pools: { correct: [], wrong: [], nobody: [] } },
+  })
+  hub.setOnChange((s) => reader.onStateChange(s))
+  autoplay(hub, 0.2, 0)
+  await reader.select('one.txt')
+  reader.start()
+
+  const host = { id: 'h', role: 'host' as const, send: () => {} }
+  const ada = { id: 'p', role: 'player' as const, playerId: 'p1', send: () => {} }
+  hub.handle(ada, { t: 'hello', role: 'player', name: 'Ada', playerId: 'p1' })
+  await new Promise((r) => setTimeout(r, ARM_DELAY_MS + 30))
+  hub.handle(ada, { t: 'buzz', at: Date.now() })
+  await new Promise((r) => setTimeout(r, COLLECT_MS + 30))
+  hub.handle(host, { t: 'host', action: { a: 'correct' } })
+
+  while (speech.spoken.length < 3) await new Promise((r) => setTimeout(r, 5))
+  reader.stop()
+  await reader.settled()
+  assert.deepEqual(speech.spoken, ['One.', 'Nice.', 'Two.'], 'the quip played and the next question followed')
+})
+
+test('a pool quip plays its own whole take, not a cut of the pool', { timeout: 5000 }, async (t) => {
+  // The picker always quips and takes the first open line.
+  t.mock.method(Math, 'random', () => 0)
+  const packDir = mkdtempSync(join(tmpdir(), 'pb-reader-pool-'))
+  writeFileSync(join(packDir, 'one.txt'), 'One.\nA: gold\n\nTwo.\nA: silver\n')
+  const state = newState()
+  const hub = new Hub(state)
+  const speech = fakeSpeech()
+  const reader = new Reader(hub, {
+    packDir,
+    cacheDir: join(packDir, '.cache'),
+    speech,
+    perform: true,
+    quips: { pools: { correct: [{ text: '[snickers] Okay.', sincere: false }, { text: 'Fine.', sincere: false }], wrong: [], nobody: [] } },
+  })
+  hub.setOnChange((s) => reader.onStateChange(s))
+  autoplay(hub, 0.2, 0)
+  await reader.select('one.txt')
+  reader.start()
+
+  const host = { id: 'h', role: 'host' as const, send: () => {} }
+  const ada = { id: 'p', role: 'player' as const, playerId: 'p1', send: () => {} }
+  hub.handle(ada, { t: 'hello', role: 'player', name: 'Ada', playerId: 'p1' })
+  await new Promise((r) => setTimeout(r, ARM_DELAY_MS + 30))
+  hub.handle(ada, { t: 'buzz', at: Date.now() })
+  await new Promise((r) => setTimeout(r, COLLECT_MS + 30))
+  hub.handle(host, { t: 'host', action: { a: 'correct' } })
+
+  while (speech.spoken.length < 3) await new Promise((r) => setTimeout(r, 5))
+  reader.stop()
+  await reader.settled()
+  assert.deepEqual(speech.spoken, ['One.', '[snickers] Okay.', 'Two.'], 'the line was its own clip, played whole')
+})

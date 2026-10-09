@@ -27,7 +27,7 @@ import type { Question } from '../shared/pack.ts'
 import type { State } from '../shared/protocol.ts'
 import { allPicked, optionsText } from '../shared/choice.ts'
 import type { Judge } from './judge.ts'
-import { Picker, poolScript, type Pools, type Span, type Verdict } from './quips.ts'
+import { Picker, type Pools, type Verdict } from './quips.ts'
 import { isPenalty } from '../shared/protocol.ts'
 import { arrivalBlocksPlay } from '../shared/arrival.ts'
 
@@ -58,10 +58,10 @@ export type ReaderOpts = {
    */
   perform?: boolean
   /**
-   * The verdict asides, for a performing voice. Each pool renders as one take;
-   * `cut` finds where each of its lines is spoken in it.
+   * The verdict asides, for a performing voice. Each line renders as its own
+   * take and plays whole.
    */
-  quips?: { pools: Pools; cut: (clipPath: string, lines: string[]) => (Span | undefined)[] }
+  quips?: { pools: Pools; plain?: Pools }
   /** Observer for tests: every clip that starts playing, with its start time. */
   onClip?: (clip: Clip, startedAt: number) => void
   /**
@@ -93,6 +93,9 @@ const REVEAL_LAG_MS = -80
  * everyone is in before it is told who was right.
  */
 const LOCK_BEAT_MS = 1000
+
+/** What the reader says over the next-question card. */
+export const NEXT_CUE = 'Next question.'
 
 export class Reader {
   private hub: Hub
@@ -315,27 +318,36 @@ export class Reader {
     if (!cached) return
     const cost: Record<string, number> = {}
     for (const name of this.hub.state.packs) {
-      let questions: Question[]
+      let texts: string[]
       try {
-        questions = loadPack(this.opts.packDir, name).questions
+        texts = this.textsOf(name)
       } catch {
         continue
       }
-      const texts = new Set([...questions.flatMap((q) => this.textsFor(q)), ...this.cueTexts(), ...this.poolTexts()])
-      cost[name] = [...texts].reduce((n, t) => n + (cached(this.opts.cacheDir, t) ? 0 : t.length), 0)
+      cost[name] = texts.reduce((n, t) => n + (cached(this.opts.cacheDir, t) ? 0 : t.length), 0)
     }
     this.hub.state.packCost = cost
     this.hub.broadcast()
+  }
+
+  /**
+   * Every text a read of this pack speaks, cues and quip pools included, each
+   * once. What `priceUp` prices and `tools/voice.ts` renders, so a take made
+   * offline is the same take the game asks for.
+   */
+  textsOf(name: string): string[] {
+    const { questions } = loadPack(this.opts.packDir, name)
+    return [...new Set([...questions.flatMap((q) => this.textsFor(q)), ...this.cueTexts(), ...this.poolTexts()])]
   }
 
   private cueTexts(): string[] {
     return this.opts.nextCue ? [this.opts.nextCue] : []
   }
 
-  /** Each quip pool as the one take it renders to. None without a performing voice. */
+  /** Every quip and plain verdict line, each its own take. None without a performing voice. */
   private poolTexts(): string[] {
-    const pools = this.opts.perform ? this.opts.quips?.pools : undefined
-    return pools ? Object.values(pools).filter((l) => l.length).map(poolScript) : []
+    const q = this.opts.perform ? this.opts.quips : undefined
+    return [q?.pools, q?.plain].flatMap((p) => Object.values(p ?? {})).flat().map((l) => l.text)
   }
 
   /**
@@ -346,30 +358,18 @@ export class Reader {
   private async quip(v: Verdict, q?: Question): Promise<void> {
     if (!this.opts.perform) return
     let path: string | undefined
-    let span: Span | undefined
     if (v === 'correct' && q?.reaction) {
       path = this.clips.get(q.reaction)
-      this.picker.forced()
     } else {
       const quips = this.opts.quips
-      const lines = quips?.pools[v] ?? []
-      const i = this.picker.pick(v, lines)
-      if (!quips || i === undefined) return
-      path = this.clips.get(poolScript(lines))
-      span = path ? quips.cut(path, lines.map((l) => l.text))[i] : undefined
-      if (!span) return
+      const line = this.picker.pick(v, quips?.pools[v] ?? [], quips?.plain?.[v])
+      if (!line) return
+      path = this.clips.get(line.text)
     }
     if (!path) return
-    const pb = this.speech.play(path, span?.startMs ?? 0)
+    const pb = this.speech.play(path)
     this.quipback = pb
-    let cut: NodeJS.Timeout | undefined
-    if (span) {
-      await pb.started
-      // A little past the last word, so the line's tail is not clipped.
-      cut = setTimeout(() => pb.stop(), span.endMs - span.startMs + 150)
-    }
     await pb.done
-    clearTimeout(cut)
     if (this.quipback === pb) this.quipback = undefined
   }
 

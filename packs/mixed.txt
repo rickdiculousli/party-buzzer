@@ -5,6 +5,7 @@ A: The Moon | Moon
 V: 200
 K: shown
 What country is home to the city of Timbuktu?
+R: [quick, suspicious] Mali. Okay, who here has actually been to Timbuktu? [beat] Nobody. Thought so.
 A: Mali
 
 V: 300
