@@ -118,3 +118,13 @@ room for them. Validate microphone, playback, and multi-device behavior with
 
 Update the relevant guide when changing its contract. Avoid pinning test
 counts or duplicating long source-level API inventories in prose.
+
+<!-- command-center:done -->
+## Definition of done
+A change is done when all of these hold: the repo's verify commands pass (`npm test`); a validation agent that didn't write the change reviewed it against its spec and the findings were fixed; the branch is rebased onto `main` with verify re-run; it is merged fast-forward to `main` and pushed to `rickdiculousli/party-buzzer`. If the rebase conflicts, resolve it: read your spec and the specs that landed since you branched, make every intent hold, widen your spec if a landed one changes what yours must look like, re-validate, then merge. Stop only when the widened scope can't be met from the specs alone; then mark your spec `blocked` with the reason, push, and report. End with one line: what's done (commit on main) and what, if anything, waits on Rick.
+<!-- /command-center:done -->
+
+<!-- command-center:proposals -->
+## Proposals
+Half-page specs live in `docs/proposals/NNN-slug.md` (template and lifecycle in `command-center/templates/proposal.md`). The build thread owns its spec's status: `building` when dispatched, `done` with the merge SHA when merged, `blocked` with a reason if it can't finish. Rejected specs stay so they aren't re-proposed. Bulk work in this repo runs through the `delegation` skill.
+<!-- /command-center:proposals -->
