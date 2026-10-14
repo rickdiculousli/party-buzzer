@@ -75,7 +75,7 @@ test('versioned saves retain durable data and independently flush multiple files
   saveState(second, state)
   flushSave()
   const disk = JSON.parse(readFileSync(first, 'utf8'))
-  assert.equal(disk.version, 1)
+  assert.equal(disk.version, 2)
   assert.equal(disk.state.players[0].connected, undefined)
   assert.equal(disk.state.packs, undefined)
   assert.deepEqual(disk.state.round, { value: 100 })
@@ -188,4 +188,27 @@ test('introSec and the lobby ready list persist, and an older file gets their de
   const upgraded = loadState(file)
   assert.equal(upgraded.autoplay.introSec, 12)
   assert.deepEqual(upgraded.minigame?.lobby?.ready, [])
+})
+
+test('a version 2 file round-trips the ledger, and a version 1 file loads with an empty one', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'buzzer-snapshot-'))
+  t.after(() => rmSync(dir, { recursive: true, force: true }))
+  const state = newState()
+  state.players = [{ id: 'a', name: 'Ada', connected: true }]
+  state.night = {
+    facts: [{ kind: 'verdict', at: 5, questionId: 'q', playerId: 'a', key: 'a', name: 'Ada', points: 100, hit: true, source: 'buzz', reactionMs: 210 }],
+  }
+  const file = join(dir, 'state.json')
+  saveState(file, state)
+  flushSave()
+  assert.equal(JSON.parse(readFileSync(file, 'utf8')).version, 2)
+  assert.deepEqual(loadState(file).night, state.night)
+
+  const old = persistedSnapshot(state)
+  const { night, ...withoutNight } = old.state
+  writeFileSync(file, JSON.stringify({ version: 1, state: withoutNight }))
+  assert.deepEqual(loadState(file).night, { facts: [] })
+  // A version 2 file whose ledger was damaged by hand is no better than none.
+  writeFileSync(file, JSON.stringify({ version: 2, state: { ...withoutNight, night: { facts: 'x' } } }))
+  assert.deepEqual(loadState(file).night, { facts: [] })
 })

@@ -225,6 +225,7 @@ export function refuses(s: State, a: HostAction): Refusal | null {
     case 'assign':
     case 'setMirror':
     case 'setAutoplay':
+    case 'clearNight':
       return null
   }
 }

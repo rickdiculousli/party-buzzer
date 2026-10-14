@@ -9,6 +9,8 @@ import { WebSocketServer } from 'ws'
 import { Hub, type Conn } from './hub.ts'
 import { NEXT_CUE, Reader } from './reader.ts'
 import { loadState, saveState, flushSave } from './state.ts'
+import { flushNights, nightDate, saveNight } from './nights.ts'
+import { nightKeepsake, setlistSpent } from '../shared/recap.ts'
 import { Judge, type Transcribe } from './judge.ts'
 import { transcribePool, sttBinary, transcribe as sttTranscribe } from './stt.ts'
 import { locate } from './align.ts'
@@ -41,7 +43,7 @@ const TYPES: Record<string, string> = {
 }
 
 /** Client routes are served the SPA shell; unknown files 404. */
-const ROUTES = new Set(['/', '/host', '/board'])
+const ROUTES = new Set(['/', '/host', '/board', '/recap'])
 
 /** Question images are served from the pack directory under this prefix. */
 const PACK_MEDIA = '/pack-media/'
@@ -99,12 +101,15 @@ export async function startServer(opts: {
   setlistDir?: string
   /** Serve https so phones get a secure context. False keeps tests off the network. */
   tls?: boolean
+  /** Where the finale's `<date>.json` keepsake is written. */
+  nightsDir?: string
 } = {}) {
   const port = opts.port ?? Number(process.env.PORT ?? 8080)
   const statePath = opts.statePath ?? join(ROOT, 'state.json')
 
   const packDir = opts.packDir ?? join(ROOT, 'packs')
   const setlistDir = opts.setlistDir ?? join(ROOT, 'setlists')
+  const nightsDir = opts.nightsDir ?? join(ROOT, 'nights')
   const state = loadState(statePath)
   const hub = new Hub(state, {
     revealMs: opts.revealMs,
@@ -205,6 +210,7 @@ export async function startServer(opts: {
   // and the judge's window.
   hub.setOnChange((s) => {
     saveState(statePath, s)
+    if (setlistSpent(s)) saveNight(nightsDir, s)
     reader.onStateChange(s)
     judge.onStateChange()
   })
@@ -233,6 +239,18 @@ export async function startServer(opts: {
   const onRequest = (req: IncomingMessage, res: ServerResponse) => {
     if (req.url === '/boot') {
       res.writeHead(200, { 'content-type': 'text/plain' }).end(bootId)
+      return
+    }
+    if ((req.url ?? '').startsWith('/recap.json')) {
+      res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(nightKeepsake(state, nightDate(new Date()))))
+      return
+    }
+    if ((req.url ?? '').startsWith('/recap.svg')) {
+      // The phone's own copy of the cards: the join address with the recap path.
+      qrSvg(`${joinUrl}/recap`).then(
+        (svg) => res.writeHead(200, { 'content-type': 'image/svg+xml' }).end(svg),
+        () => res.writeHead(500).end('qr failed'),
+      )
       return
     }
     if ((req.url ?? '').startsWith('/qr.svg')) {
@@ -359,6 +377,7 @@ export async function startServer(opts: {
       http.closeAllConnections()
       await new Promise<void>((resolve) => http.close(() => resolve()))
       await flushSave()
+      flushNights()
     },
   }
 }

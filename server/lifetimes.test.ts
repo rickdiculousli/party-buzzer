@@ -51,6 +51,7 @@ const lifetimes = {
   reading: { undo: 'no', disk: 'no', phone: 'none' },
   minigame: { undo: 'yes', disk: 'reset', phone: 'full' },
   arrival: { undo: 'yes', disk: 'no', phone: 'full' },
+  night: { undo: 'yes', disk: 'yes', phone: 'none' },
 } satisfies Record<keyof State, Lifetime> as Record<keyof State, Lifetime>
 
 /** A state with every optional field present (the table's type catches one this misses) and something in each to redact or reset. */
@@ -91,6 +92,12 @@ function everyField(): State {
     checkpoint: { version: 1, label: 'Hand 3', data: { deckSeed: 42 } },
   }
   state.arrival = { kind: 'introduction', id: 'arr', blockAt: 0, blockKey: 'k' }
+  state.night = {
+    facts: [{
+      kind: 'verdict', at: 1, questionId: 'q', playerId: 'a', key: 'a', name: 'Ada',
+      points: 100, hit: true, source: 'buzz', reactionMs: 300,
+    }],
+  }
   return state
 }
 

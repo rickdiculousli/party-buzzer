@@ -302,7 +302,9 @@ phones and board; the question voice plays on the server machine.
 ## Saving and undo
 
 `state.json` stores versioned game settings, players, teams, scores, inventories,
-and setlist position. Existing unversioned snapshots are also supported.
+setlist position, and the night's ledger of facts behind the recap. Existing
+unversioned snapshots and version 1 files (which start with an empty ledger) are
+also supported. At the finale the recap is also written to `nights/<date>.json`.
 Restart begins with an idle round and disconnected players until they reconnect.
 It does not resume a question, answer deadline, audio, or the reader's per-pack
 cursor. A saved setlist position is not a complete playback checkpoint.

@@ -1,6 +1,8 @@
 node_modules/
 dist/
 state.json
+# The finale's recap, one file per evening.
+nights/
 packs/.cache/
 
 # Downloads waiting to be auditioned. Deliberately messy and deliberately not

@@ -695,6 +695,26 @@ export type Autoplay = {
   introSec: number
 }
 
+/** One thing that happened tonight. Appended by the Hub on applied actions and minigame completions; never edited. */
+export type NightFact =
+  | {
+      kind: 'verdict'; at: number; questionId: string; block?: number
+      playerId: PlayerId; key: ScoreKey; name: string
+      points: number; hit: boolean
+      /** Buzz verdicts only: ms from the buzzers opening to the leader's press, and ms ahead of the next buzz (absent when alone). */
+      reactionMs?: number; marginMs?: number
+      source: 'buzz' | 'choice'
+    }
+  /** The standings whenever their key order changed or first place stopped being shared (and on the first applied action). Top-of-standings changes and comebacks derive from these. */
+  | { kind: 'standings'; at: number; questionId?: string; matchId?: string; order: { key: ScoreKey; score: number }[] }
+  | {
+      kind: 'minigame'; at: number; id: MinigameId; matchId: string; block?: number
+      results: { playerId: PlayerId; key: ScoreKey; name: string; points: number; place?: number }[]
+    }
+  | { kind: 'item'; at: number; itemId: string; playerId: PlayerId; name: string; targetId?: PlayerId; targetName?: string; questionId?: string }
+
+export type Night = { facts: NightFact[] }
+
 export type State = {
   grouping: Grouping
   players: Player[]
@@ -740,6 +760,11 @@ export type State = {
   minigame?: MinigameState
   /** A lobby or first-block introduction covering the room. */
   arrival?: Arrival
+  /**
+   * What happened since the room was last cleared. Optional only because a
+   * phone's view omits it; `newState` and `loadState` always set it.
+   */
+  night?: Night
 }
 
 export type HostAction =
@@ -784,6 +809,8 @@ export type HostAction =
   | { a: 'openLobby' }
   /** Close the arrival with this id: a lobby without an undo step, an introduction with one. */
   | { a: 'closeArrival'; arrivalId: string }
+  /** Forget the night's ledger. A fresh party on the same room. */
+  | { a: 'clearNight' }
 
 export type ClientMsg =
   | { t: 'hello'; role: Role; playerId?: PlayerId; name?: string }

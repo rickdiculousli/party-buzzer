@@ -14,6 +14,7 @@ import { READY_FALLBACK_MS, beginFor, everyoneReady } from './night.ts'
 import { COLLECT_MS } from '../shared/protocol.ts'
 import { makeTracer, type Tracer } from './trace.ts'
 import { gameSnapshot, restoreGame, type GameSnapshot } from './snapshot.ts'
+import { nightFacts } from './ledger.ts'
 import type { MinigameRuntime } from './minigames/runtime.ts'
 import type {
   ClientMsg, PlayerId, Role, ServerMsg, State, ReadingUpdate, HostAction, ActionResult,
@@ -230,6 +231,8 @@ export class Hub {
       return this.lobby(action)
     }
     let result: ActionResult
+    // Taken before the change, for the history entry and the night's facts.
+    let before: GameSnapshot | undefined
     let dismissedIntro = false
     let raisedIntro = false
     if (action.a === 'undo') {
@@ -238,7 +241,7 @@ export class Hub {
       action.a === 'prepareMinigame' || action.a === 'startMinigame' ||
       action.a === 'cancelMinigame' || action.a === 'closeMinigame'
     ) {
-      const before = gameSnapshot(this.state)
+      before = gameSnapshot(this.state)
       const reason = refuses(this.state, action)
       result = reason ? { status: 'refused', reason } : this.minigame?.host(action) ?? { status: 'unchanged' }
       if (result.status === 'applied') {
@@ -266,7 +269,7 @@ export class Hub {
         if (this.history.length > UNDO_DEPTH) this.history.shift()
       }
     } else {
-      const before = gameSnapshot(this.state)
+      before = gameSnapshot(this.state)
       result = applyHostAction(this.state, action)
       if (result.status === 'applied') {
         this.history.push(before)
@@ -281,6 +284,8 @@ export class Hub {
       }
     }
     if (result.status === 'applied') {
+      // After the history entry, so an undo retracts the facts with the action.
+      if (before && action.a !== 'undo') this.state.night?.facts.push(...nightFacts(before, this.state, { action }, Date.now()))
       // These end whatever the night was waiting on. Nothing here for a
       // refusal or a no-op: those leave every timer alone.
       if (action.a === 'undo' || action.a === 'clearSetlist' || action.a === 'setlistJump') this.nightClear(true)
@@ -321,6 +326,14 @@ export class Hub {
     if (name === 'useItem') {
       if (!conn.playerId) return
       if (useItem(this.state, conn.playerId, data)) {
+        const used = (data ?? {}) as Record<string, unknown>
+        this.state.night?.facts.push(...nightFacts(this.state, this.state, {
+          item: {
+            itemId: String(used.itemId),
+            playerId: conn.playerId,
+            targetId: typeof used.targetId === 'string' ? used.targetId : undefined,
+          },
+        }, Date.now()))
         if (this.revealed) this.publish()
         this.changed('item')
       }
@@ -669,6 +682,7 @@ export class Hub {
       ? { ...session, checkpoint: { version: session.checkpoint.version, label: session.checkpoint.label } }
       : session
     if (conn.role !== 'player') return { ...this.state, game, minigame }
+    // The ledger names who was fastest and who missed; the host and the board tell the room, not each phone.
     const round = this.state.round
     // Shown and choice questions are on the board whole from the arm, so the
     // phone may have the same text; the mirror only governs read questions.
@@ -690,6 +704,7 @@ export class Hub {
         picks: mine === undefined ? undefined : { [conn.playerId!]: mine },
       },
       reading: undefined,
+      night: undefined,
       minigame,
     }
   }
@@ -723,6 +738,8 @@ export class Hub {
     const before = gameSnapshot(this.state)
     if (!this.minigame.finish(matchId, results)) return
     for (const result of results) bump(this.state, scoreKey(this.state, result.playerId), result.points)
+    const id = this.state.minigame?.id
+    if (id) this.state.night?.facts.push(...nightFacts(before, this.state, { results, matchId, id }, Date.now()))
     this.history.push(before)
     if (this.history.length > UNDO_DEPTH) this.history.shift()
     this.changed('minigame:results')

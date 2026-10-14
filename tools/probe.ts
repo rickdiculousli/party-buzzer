@@ -60,7 +60,7 @@
  *   seat[:A,B]       close the window: resolve by rule, or seat those two
  *   cancel           call the duel off
  *   wait:1200        hold, in ms — the only step that exists for your eyes
- *   clear            put the room back: duel off, teams undone, players gone
+ *   clear            put the room back: duel off, teams undone, players gone, the night forgotten
  *   loop             repeat the whole script until Ctrl-C
  *
  * A note on pacing a `loop` script: to sit on the open buzzer before anyone
@@ -201,6 +201,9 @@ async function main() {
     // team, and a room left holding one comes back up mid-game rather than on
     // "Ready".
     for (const key of madeTeams) host.send({ t: 'host', action: { a: 'setScore', key, score: 0 } })
+    // Last, because the kicks and score resets above are applied actions that
+    // would each write standings into a ledger cleared any earlier.
+    host.send({ t: 'host', action: { a: 'clearNight' } })
     log(`  cleared ${gone.length}`)
   }
   // Ctrl-C tidies up the same as `clear`: the bots go and the teams, setlist

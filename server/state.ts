@@ -29,6 +29,7 @@ const secs = (n: number, fallback: number): number =>
 export function newState(): State {
   return {
     grouping: 'solo',
+    night: { facts: [] },
     readingActive: false,
     players: [],
     teams: [],
@@ -353,6 +354,10 @@ function mutateHostAction(state: State, action: HostAction): void {
       state.scores[action.key] = action.score
       return
 
+    case 'clearNight':
+      state.night = { facts: [] }
+      return
+
     case 'rename': {
       const player = state.players.find((p) => p.id === action.playerId)
       if (player) player.name = action.name
@@ -556,9 +561,11 @@ export function loadState(path: string): State {
 
   try {
     const parsed = JSON.parse(raw)
-    if ('version' in parsed && parsed.version !== 1) throw new Error('Unsupported snapshot version')
+    if ('version' in parsed && parsed.version !== 1 && parsed.version !== 2) throw new Error('Unsupported snapshot version')
     // Unversioned files are the original live-State format.
-    const loaded = { ...newState(), ...(parsed.version === 1 ? parsed.state : parsed) } as State
+    const loaded = { ...newState(), ...('version' in parsed ? parsed.state : parsed) } as State
+    // Version 1 files predate the ledger; a damaged one is no better than none.
+    if (!Array.isArray(loaded.night?.facts)) loaded.night = { facts: [] }
     // Snapshots from before game modes — or naming a module this build does
     // not register — must still boot.
     loaded.items ??= {}

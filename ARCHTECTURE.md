@@ -74,8 +74,10 @@ publications. This is explicit wiring, not an event bus or transactional
 observer system. A transcript publication and its subsequent verdict can be
 separate frames.
 
-The HTTP server serves the built SPA at `/`, `/host`, and `/board`, assets from
-`dist/`, the join QR at `/qr.svg`, and WebSocket upgrades at `/ws`.
+The HTTP server serves the built SPA at `/`, `/host`, `/board`, and `/recap`,
+assets from `dist/`, the join QR at `/qr.svg`, the night's recap as
+`/recap.json` (the keepsake) and `/recap.svg` (a QR to `/recap`), and WebSocket
+upgrades at `/ws`.
 `POST /spoken?player=<id>` accepts an answer recording, or text for test tools.
 The Judge decides whether the player currently has a valid answer window.
 
@@ -394,6 +396,7 @@ recording is handled by `Talk.tsx`, `recorder.ts`, and `wav.ts`.
 | Current round/question and mode memory | Yes, with restore rules | No; retain round value and mode configuration |
 | Playback state and judge window | No | No |
 | Setlist position | Yes | Yes |
+| The night's ledger (`night`), never sent to phones | Yes; undo retracts its facts | Yes |
 | Arrival introduction (`blockKey` survives a restore, `id` does not) | Yes, restored under a fresh id | No |
 | Night automation timers and the match autoplay opened | No; undo clears them | No |
 | `autoplay.introSec`, minigame lobby `ready` | Yes | Yes |
@@ -408,12 +411,18 @@ Undo stops reading and unprimes judging. A restored collection or held verdict
 reopens; a settled leader can remain locked for manual judging. A fresh attempt
 identity invalidates old work. Audio and pack position are not rewound.
 
-`persistedSnapshot` defines version 1 disk data. `state.ts` queues writes per
+`persistedSnapshot` defines version 2 disk data (version 2 added `night`; a
+version 1 file loads with an empty ledger). `state.ts` queues writes per
 path with a short debounce and flushes them on close. This is a whole-file
 snapshot, not a journal or database. Loading supports the prior unversioned
 shape, initializes mode memory, and resets the round. Unknown versions or
 unreadable data fall back to a new state with diagnostics. Snapshot support is
 not a universal migration for all historical field or directory renames.
+
+The night's ledger is recorded by `server/ledger.ts` (pure) from `Hub.dispatch`,
+`completeMinigame` and item use, and derived into milestones and recap cards by
+`shared/recap.ts`. Once the setlist is spent, `server/nights.ts` writes the
+keepsake to `nights/<date>.json`; the host's `clearNight` forgets the ledger.
 
 ## Development and validation
 

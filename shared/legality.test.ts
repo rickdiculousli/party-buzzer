@@ -96,6 +96,7 @@ const LEGAL: Record<HostAction['a'], [State, HostAction]> = {
   setMode: [room(), { a: 'setMode', id: 'quizbowl', options: {} }],
   setMirror: [locked(room()), { a: 'setMirror', on: true }],
   setAutoplay: [locked(room()), { a: 'setAutoplay', on: true, nextSec: 5, buzzSec: 5, reboundSec: 4, introSec: 12 }],
+  clearNight: [locked(room()), { a: 'clearNight' }],
   openDuel: [room(), { a: 'openDuel', rule: 'vote' }],
   closeDuel: [(() => {
     const s = room()

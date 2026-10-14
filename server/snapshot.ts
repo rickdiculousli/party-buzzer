@@ -69,9 +69,10 @@ export function restoreGame(state: State, snapshot: GameSnapshot): void {
 /** Versioned disk data intentionally excludes the question, the arrival and all runtime state. */
 export function persistedSnapshot(state: State) {
   return {
-    version: 1 as const,
+    version: 2 as const,
     state: {
       grouping: state.grouping,
+      night: state.night,
       players: state.players.map(({ connected, ...player }) => player),
       teams: state.teams,
       scores: state.scores,

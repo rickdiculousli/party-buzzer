@@ -24,6 +24,7 @@
  *    arrives in `Local`. That is what keeps it runnable under `node:test`.
  */
 import { isPenalty } from './protocol.ts'
+import { setlistSpent } from './recap.ts'
 import { pickers } from './choice.ts'
 import { arrivalPresentation, type ArrivalPresentation } from './arrival.ts'
 import type { Award, State } from './protocol.ts'
@@ -172,8 +173,7 @@ export function momentOf(state: State, local: Local): Moment {
   // Every block of the setlist has been played. Below every verdict, so the
   // last payoff is still read first; it lasts until the host clears or loads
   // another setlist.
-  const s = state.setlist
-  if (s && s.blocks.length > 0 && s.at >= s.blocks.length) return 'idle:finale'
+  if (setlistSpent(state)) return 'idle:finale'
 
   const started = r.armedAt > 0 || Object.values(state.scores).some((n) => n !== 0)
   return started ? 'idle:ready' : 'idle:welcome'

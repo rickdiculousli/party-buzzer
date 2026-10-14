@@ -681,3 +681,32 @@ test('clearSetlist clears a pending ready or results timer', () => {
     mock.timers.reset()
   }
 })
+
+test('the night: a verdict appends a fact, undo retracts it, a refusal appends nothing, a phone never sees it', () => {
+  const { state, hub, conn } = rig()
+  state.players = [{ id: 'a', name: 'Ada', connected: true }, { id: 'b', name: 'Bo', connected: true }]
+  state.round = {
+    ...state.round,
+    questionId: 'q1',
+    phase: 'LOCKED',
+    armedAt: 1_000,
+    order: [{ playerId: 'b', name: 'Bo', at: 1_240, deltaMs: 0 }, { playerId: 'a', name: 'Ada', at: 1_300, deltaMs: 60 }],
+    total: 2,
+  }
+  assert.equal(hub.dispatch({ a: 'correct' }).status, 'applied')
+  const verdict = state.night!.facts.find((f) => f.kind === 'verdict')
+  assert.ok(verdict && verdict.kind === 'verdict')
+  assert.deepEqual([verdict.name, verdict.hit, verdict.reactionMs, verdict.marginMs], ['Bo', true, 240, 60])
+
+  const count = state.night!.facts.length
+  assert.equal(hub.dispatch({ a: 'correct' }).status, 'refused', 'nobody left to score')
+  assert.equal(state.night!.facts.length, count, 'a refusal appends nothing')
+
+  const phone = conn('player')
+  joinAs(hub, phone, 'Cy')
+  assert.equal(hub.viewFor(phone).night, undefined)
+  assert.ok(hub.viewFor(conn('host')).night)
+
+  assert.equal(hub.dispatch({ a: 'undo' }).status, 'applied')
+  assert.deepEqual(state.night!.facts, [], 'undo takes the verdict and its standings back')
+})
