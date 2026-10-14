@@ -45,7 +45,7 @@ export function TugReplay({ lead }: { lead: boolean }) {
       const now = performance.now()
       if (session.phase === 'countdown') {
         if (now >= startsAt) session.phase = 'playing'
-        else { publish(); return }
+        else { last = frame(); publish(); return }
       }
       if (session.phase === 'results') return
       while (world.nowMs + TUG_STEP_MS <= now - startsAt) {

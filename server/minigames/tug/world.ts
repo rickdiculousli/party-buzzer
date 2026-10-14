@@ -11,8 +11,12 @@ export const SPRING = 0.1
 /** How long the crossed or final flag holds the board before the results. */
 export const BEAT_MS = 1500
 
-const RED = { name: 'Red', color: 'var(--id-2)' }
-const BLUE = { name: 'Blue', color: 'var(--id-3)' }
+/** Side colours for a side that is not exactly one team, in order of preference. */
+const PAINTS = [
+  { name: 'Red', color: 'var(--id-2)' }, { name: 'Blue', color: 'var(--id-3)' }, { name: 'Green', color: 'var(--id-6)' },
+  { name: 'Gold', color: 'var(--id-4)' }, { name: 'Pink', color: 'var(--id-5)' }, { name: 'Orange', color: 'var(--id-1)' },
+]
+const [RED, BLUE] = PAINTS
 
 export type Puller = { side: 0 | 1; fatigue: number; lastMs: number; pull: number }
 
@@ -55,11 +59,20 @@ export function splitSides(participants: PlayerId[], room: MinigameRoom): [TugSi
       const size = (h: typeof groups) => h.reduce((n, g) => n + g.ids.length, 0)
       halves[size(halves[1]) < size(halves[0]) ? 1 : 0].push(group)
     }
-    if (halves.every((h) => h.length)) return halves.map((h, s) => {
-      const only = h.length === 1 ? h[0].team : undefined
-      const fallback = s === 0 ? RED : BLUE
-      return { name: only?.name ?? fallback.name, color: only?.color ?? fallback.color, members: joined.filter((id) => h.some((g) => g.ids.includes(id))) }
-    }) as [TugSide, TugSide]
+    if (halves.every((h) => h.length)) {
+      const team = halves.map((h) => h.length === 1 ? h[0].team : undefined)
+      const sides = halves.map((h, s) => ({
+        name: team[s]?.name ?? '', color: team[s]?.color ?? '', members: joined.filter((id) => h.some((g) => g.ids.includes(id))),
+      })) as [TugSide, TugSide]
+      // A side of several teams paints itself in a colour the other side is not using.
+      for (const s of [0, 1] as const) {
+        if (team[s]) continue
+        const other = sides[1 - s].color
+        const paint = [s === 0 ? RED : BLUE, ...PAINTS].find((p) => p.color !== other)!
+        Object.assign(sides[s], paint)
+      }
+      return sides
+    }
   }
   const score = (id: PlayerId) => {
     const key = room.grouping === 'teams' ? room.players.find((p) => p.id === id)?.teamId ?? id : id

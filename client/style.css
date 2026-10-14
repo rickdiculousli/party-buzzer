@@ -48,31 +48,44 @@ body {
 .bow-results__list { min-width: min(80vw, 50rem); display: grid; gap: var(--s3); padding: 0; list-style: none; }
 .bow-results__list li { display: flex; justify-content: space-between; gap: var(--s6); font: 600 var(--t-xl)/1 var(--display); }
 .bow-host__panel { max-width: 48rem; }
-.tug-board { height: 100dvh; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; padding: var(--s4); overflow: hidden; position: relative; background: var(--stage); color: var(--chalk); }
-.tug-field { width: 100%; height: 100%; min-height: 0; }
-.tug-field__centre { stroke: var(--rule); stroke-width: 4; stroke-dasharray: 10 14; }
+.tug-board { height: 100dvh; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; padding: var(--s4) var(--s6); overflow: hidden; position: relative; background: var(--stage); color: var(--chalk); }
+.tug-board__header { display: flex; justify-content: space-between; align-items: flex-start; min-height: var(--t-mega); }
+.tug-board__title { font: 600 var(--t-lg)/1 var(--display); color: var(--dim); }
+.tug-clock { font: 800 var(--t-mega)/1 var(--display); font-variant-numeric: tabular-nums; }
+.tug-clock.is-low { color: var(--tally); }
+.tug-field { width: 100%; height: 100%; min-height: 0; overflow: visible; transition: opacity var(--base); }
+.tug-field__centre { stroke: var(--dim); stroke-width: 3; stroke-dasharray: 10 14; }
 .tug-field__mark { stroke: currentColor; stroke-width: 8; stroke-linecap: round; }
-.tug-field__mark-label { fill: currentColor; text-anchor: middle; font: 600 44px var(--display); }
-.tug-field__rope { stroke: var(--tungsten); stroke-width: 18; stroke-dasharray: 46 14; }
-.tug-flag__pole { stroke: var(--chalk); stroke-width: 6; stroke-linecap: round; }
-.tug-flag__cloth { fill: var(--chalk); }
-.tug-flag__knot { fill: var(--stage); stroke: var(--chalk); stroke-width: 6; }
+/* Rope: a paper-pale cord with a graphite twist that travels with the flag. */
+.tug-field__rope { stroke: var(--paper); stroke-width: 16; }
+.tug-field__twist { stroke: var(--graphite); stroke-width: 16; stroke-dasharray: 5 13; }
+.tug-field__count { fill: var(--chalk); text-anchor: middle; font: 800 220px var(--display); transform-box: fill-box; transform-origin: center; }
+.tug-flag__ribbon { fill: var(--chalk); }
+.tug-flag__knot { fill: var(--paper); stroke: var(--stage); stroke-width: 4; }
+/* The kit's fx-jitter shakes letters; the flag borrows its keyframes, in field units. */
 .tug-flag.is-tense { --_a: 4px; animation: fx-jitter var(--fx-jitter-dur) steps(1) infinite; }
-.tug-board__verdict { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: var(--s3); text-align: center; pointer-events: none; }
-.tug-board__verdict h2 { margin: 0; font: 800 var(--t-hero)/1 var(--display); text-shadow: 0 0 var(--s4) var(--stage); }
-.tug-board__verdict p { margin: 0; font: 600 var(--t-xl)/1.2 var(--display); text-shadow: 0 0 var(--s4) var(--stage); }
-.tug-board__sides { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s6); }
-.tug-side { display: grid; gap: var(--s3); }
+.tug-board.is-decided .tug-field, .tug-board.is-decided .tug-board__sides { opacity: 0.2; transition: opacity var(--base); }
+.tug-board__verdict { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; text-align: center; pointer-events: none; }
+.tug-board__verdict h2 { margin: 0; font: 800 var(--t-hero)/1 var(--display); }
+.tug-board__sides { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s6); transition: opacity var(--base); }
+.tug-side { display: grid; gap: var(--s2); align-content: end; }
 .tug-side:last-child { text-align: right; }
-.tug-side__name { font: 800 var(--t-xl)/1 var(--display); }
-.tug-meter { height: var(--s4); border-radius: var(--s4); background: var(--panel); overflow: hidden; }
-.tug-meter__fill { height: 100%; background: currentColor; transition: width 80ms linear; }
-.tug-side:last-child .tug-meter__fill { margin-left: auto; }
-.tug-results { gap: var(--s4); justify-items: center; }
-.tug-results__verdict { margin: 0; font: 800 var(--t-xl)/1 var(--display); }
-.tug-results__rest { color: var(--dim); }
+.tug-side__name { font: 800 var(--t-mega)/1 var(--display); }
+.tug-side__members { margin: 0; color: var(--chalk); min-height: 1.2em; display: flex; flex-wrap: wrap; gap: 0 var(--s4); font: 600 var(--t-lg)/1.2 var(--display); }
+.tug-side:last-child .tug-side__members { justify-content: flex-end; }
+.tug-meter { height: var(--s3); border-radius: var(--s3); background: var(--panel); overflow: hidden; }
+.tug-meter__fill { height: 100%; background: currentColor; transform-origin: left; }
+.tug-side:last-child .tug-meter__fill { transform-origin: right; }
+.tug-meter__label { font: 600 var(--t-chip-board)/1 var(--display); color: var(--dim); text-transform: uppercase; letter-spacing: 0.08em; }
+.tug-results { min-height: 100dvh; display: grid; align-content: center; justify-items: center; gap: var(--s5); background: var(--stage); color: var(--chalk); }
+.tug-results__verdict { margin: 0; font: 800 var(--t-mega)/1 var(--display); }
+.tug-results__list { min-width: min(80vw, 50rem); display: grid; gap: var(--s3); margin: 0; padding: 0; list-style: none; }
+.tug-results__list li { display: flex; justify-content: space-between; gap: var(--s6); font: 600 var(--t-xl)/1 var(--display); }
+.tug-results__points { color: var(--brass); }
+.tug-results__rest { opacity: 0.5; }
 .tug-phone { min-height: 100dvh; display: grid; grid-template-rows: auto 1fr auto; gap: var(--s3); padding-bottom: var(--s4); background: var(--stage); color: var(--chalk); touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-.tug-handle { margin: 0 var(--s4); min-height: 0; display: grid; place-content: center; border-radius: var(--s5); background: var(--tug-side, var(--dim)); color: var(--stage); font: 800 var(--t-xl)/1 var(--display); opacity: .45; touch-action: none; }
+.tug-press { margin: 0 var(--s4); min-height: 0; display: grid; }
+.tug-handle { min-height: 0; display: grid; place-content: center; border-radius: var(--r-buzzer); background: var(--tug-side, var(--dim)); color: var(--stage); font: 800 var(--t-xl)/1 var(--display); opacity: .45; touch-action: none; }
 .tug-handle.is-active { opacity: 1; }
 .tug-handle__grip { display: block; pointer-events: none; }
 .tug-mini { position: relative; margin: 0 var(--s4); height: var(--s3); border-radius: var(--s3); background: linear-gradient(90deg, var(--tug-left) 50%, var(--tug-right) 50%); }

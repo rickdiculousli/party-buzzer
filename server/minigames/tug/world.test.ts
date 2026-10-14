@@ -140,6 +140,13 @@ test('a teams grouping keeps teams whole and names the sides after them', () => 
   assert.deepEqual(folded.map((s) => s.members), [['a', 'b', 'c'], ['d', 'e']], 'the biggest teams first, each to the smaller side')
   assert.deepEqual(folded.map((s) => s.name), ['Red', 'Cats'])
 
+  const twoAndFour = [...three, { id: 't4', name: 'Dogs', color: 'var(--id-3)' }]
+  const crowd = players('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h').map((p, i) => ({ ...p, teamId: ['t4', 't4', 't4', 't4', 't1', 't1', 't2', 't2'][i] }))
+  const clash = splitSides(crowd.map((p) => p.id), { grouping: 'teams', players: crowd, teams: twoAndFour, scores: {} })
+  assert.equal(clash[0].name, 'Dogs')
+  assert.notEqual(clash[1].color, clash[0].color, 'a mixed side never wears the other side\'s colour')
+  assert.equal(clash[1].name, 'Red')
+
   const oneTeam = players('a', 'b', 'c').map((p) => ({ ...p, teamId: 't1' }))
   const alone = splitSides(['a', 'b', 'c'], { grouping: 'teams', players: oneTeam, teams, scores: {} })
   assert.deepEqual(alone.map((s) => s.members.length), [2, 1], 'one team alone splits like solo')

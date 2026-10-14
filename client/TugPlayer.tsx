@@ -7,7 +7,7 @@ export function TugPlayer({ state, frame, now, send }: MinigamePlayerProps) {
   const mine = matchFrame(frame, 'tug', 'player', session.matchId)
   const spectator = frame?.matchId === session.matchId && frame.role === 'spectator'
   const seq = useRef(Date.now())
-  const handle = useRef<HTMLSpanElement>(null)
+  const handle = useRef<HTMLDivElement>(null)
 
   const countdown = session.startsAt ? Math.max(0, Math.ceil((session.startsAt - now()) / 1000)) : 0
   const stopped = session.phase === 'results' || mine?.winner !== undefined
@@ -19,7 +19,7 @@ export function TugPlayer({ state, frame, now, send }: MinigamePlayerProps) {
     if (!pulling) return
     send({ t: 'minigameInput', matchId: session.matchId, seq: seq.current++, input: { kind: 'pull' } })
     navigator.vibrate?.(30)
-    // Restart the squash for every finger.
+    // Restart the squash on the whole handle for every finger.
     const el = handle.current
     if (el) {
       el.classList.remove('fx-squash')
@@ -28,7 +28,10 @@ export function TugPlayer({ state, frame, now, send }: MinigamePlayerProps) {
     }
   }
 
+  const winner = mine?.winner
   const title = session.phase === 'countdown' ? `Starts in ${countdown}`
+    : winner === null ? 'Draw'
+    : winner !== undefined && mine ? `${mine.sides[winner].name} wins` + (winner === mine.side ? ` · +${session.options.value}` : '')
     : stopped ? 'Rope stopped'
     : session.phase === 'playing' ? 'Tap to pull'
     : 'Waiting for host'
@@ -40,13 +43,15 @@ export function TugPlayer({ state, frame, now, send }: MinigamePlayerProps) {
         <strong>{title}</strong>
         <span>{spectator ? 'Spectating until the next match' : side ? `You're on ${side.name}` : ' '}</span>
       </header>
-      <div
-        class={pulling ? 'tug-handle is-active' : 'tug-handle'}
-        style={{ '--tug-side': side?.color ?? 'var(--dim)' }}
-        onPointerDown={pull}
-        onContextMenu={(event) => event.preventDefault()}
-      >
-        <span ref={handle} class="tug-handle__grip">{pulling ? 'PULL' : ''}</span>
+      <div ref={handle} class="tug-press">
+        <div
+          class={pulling ? 'tug-handle is-active' : 'tug-handle'}
+          style={{ '--tug-side': side?.color ?? 'var(--dim)' }}
+          onPointerDown={pull}
+          onContextMenu={(event) => event.preventDefault()}
+        >
+          <span class="tug-handle__grip">{pulling ? 'PULL' : ''}</span>
+        </div>
       </div>
       {mine && (
         <div
