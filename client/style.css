@@ -3505,5 +3505,18 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   padding: var(--s3) var(--s3) calc(var(--s3) + env(safe-area-inset-bottom));
   background: var(--panel);
 }
-.minigame-ready__btn { width: 100%; }
+/*
+ * While the bar shows, the stage is the screen minus the bar: the game surface
+ * fills what is left and scrolls inside it, so Volunteer, a foot or a stick
+ * never sits under the button. The bar is one button tall plus its padding.
+ */
+.minigame-stage { display: contents; }
+.minigame-stage--ready {
+  display: block;
+  height: 100dvh;
+  padding-bottom: calc(var(--s3) * 2 + 3.5rem + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+.minigame-stage--ready > :first-child { height: 100%; min-height: 0; overflow-y: auto; }
+.minigame-ready__btn { width: 100%; min-height: 3.5rem; }
 .minigame-ready__btn.is-on { border-color: var(--brass); color: var(--brass); }

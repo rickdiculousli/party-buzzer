@@ -46,7 +46,7 @@ test('undo stops playback and reopens collection instead of restoring a missing 
   const state = newState()
   let stopped = 0
   const hub = new Hub(state, { reader: {
-    async select() {}, start() {}, pause() {}, resume() {}, rewind() {}, closeChoice() {}, announce() {}, stop() { stopped++ },
+    async select() {}, start() {}, carryOn() {}, pause() {}, resume() {}, rewind() {}, closeChoice() {}, announce() {}, stop() { stopped++ },
   } })
   state.round.phase = 'COLLECTING'
   state.round.order = [{ playerId: 'a', name: 'Ada', at: 1, deltaMs: 0 }]

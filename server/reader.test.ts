@@ -786,3 +786,66 @@ test('an announcement is spoken only by a performing voice, and never throws', a
   broken.announce('Next: Tank battle.')
   await wait(20)
 })
+
+test('the night carries on without rewinding a pack it already read to the end', async () => {
+  const packDir = mkdtempSync(join(tmpdir(), 'pb-reader-carry-'))
+  writeFileSync(join(packDir, 'a.txt'), 'A one.\nA: a\n')
+  writeFileSync(join(packDir, 'b.txt'), 'B one.\nA: b\n')
+  const state = newState()
+  const hub = new Hub(state)
+  const speech = fakeSpeech()
+  const reader = new Reader(hub, { packDir, cacheDir: join(packDir, '.cache'), speech })
+  hub.setOnChange((s) => reader.onStateChange(s))
+  hub.setReader(reader)
+  const block = (pack: string) => ({ game: 'trivia' as const, options: {}, count: 1, pack })
+  hub.dispatch({ a: 'setSetlist', blocks: [block('a.txt'), block('b.txt'), block('a.txt')] })
+  autoplay(hub, 0.1, 0, 0.1)
+  // Continue is the host's, and under autoplay it begins the night.
+  hub.dispatch({ a: 'closeArrival', arrivalId: state.arrival!.id })
+
+  const deadline = Date.now() + 5_000
+  while (state.autoplay.on && Date.now() < deadline) await wait(5)
+  await settled(reader)
+  assert.equal(state.autoplay.on, false, 'a spent pack still ends the night')
+  assert.deepEqual(speech.spoken, ['A one.', 'B one.'], 'the third block finds a.txt spent and reads nothing')
+})
+
+test('carrying on cuts an introduction announcement that is still rendering or playing', async () => {
+  const packDir = mkdtempSync(join(tmpdir(), 'pb-reader-cut-'))
+  writeFileSync(join(packDir, 'a.txt'), 'A one.\nA: a\n')
+  const state = newState()
+  const hub = new Hub(state)
+  const played: string[] = []
+  let stopped = 0
+  let release: () => void = () => {}
+  const gate = new Promise<void>((resolve) => { release = resolve })
+  const speech: Speech = {
+    render: async (_dir, text) => {
+      if (text === 'Slow.') await gate
+      return { path: `/fake/${text}`, durationMs: 10 }
+    },
+    play: (path) => {
+      played.push(path.replace('/fake/', ''))
+      return { done: new Promise<void>(() => {}), started: Promise.resolve(), stop: () => { stopped++ } }
+    },
+  }
+  const reader = new Reader(hub, { packDir, cacheDir: join(packDir, '.cache'), speech, perform: true })
+  hub.setOnChange((s) => reader.onStateChange(s))
+  hub.setReader(reader)
+  hub.dispatch({ a: 'setSetlist', blocks: [{ game: 'trivia', options: {}, count: 1, pack: 'a.txt' }] })
+  hub.dispatch({ a: 'closeArrival', arrivalId: state.arrival!.id })
+
+  reader.announce('Playing.')
+  await wait(20)
+  assert.deepEqual(played, ['Playing.'])
+  reader.announce('Slow.')
+  await wait(10)
+  await reader.select('a.txt')
+  reader.carryOn()
+  assert.ok(stopped >= 1, 'the announcement that was playing is cut')
+  release()
+  await wait(20)
+  assert.ok(!played.includes('Slow.'), 'and the one still rendering is dropped')
+  reader.stop()
+  await settled(reader)
+})

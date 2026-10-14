@@ -32,8 +32,10 @@ export function beginFor(state: State): Begin | null {
   const setlist = state.setlist
   const block = setlist?.blocks[setlist.at]
   if (!state.autoplay.on || !block) return null
+  // A match still open holds the room: nothing begins beside it, whatever the block is.
+  if (state.minigame) return null
   if (isMinigameId(block.game)) {
-    return block.game === 'poker' || state.minigame ? null : { do: 'prepare', id: block.game, options: block.options }
+    return block.game === 'poker' ? null : { do: 'prepare', id: block.game, options: block.options }
   }
   return block.pack ? { do: 'read' } : null
 }

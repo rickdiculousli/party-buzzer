@@ -59,12 +59,15 @@ restore an introduction, under a new id, so a stale Continue is refused. A
 restart does not restore one.
 
 With **Autoplay** on, every later block is introduced too ("Next: Sketch. ...")
-and a performing voice reads it aloud. The introduction dismisses itself after
-the *Introductions last* setting (12 s by default), then the block begins on its
+and a performing voice reads it aloud. The first block's introduction always
+waits for **Continue**, which is the one press that starts the night under
+autoplay. Each later introduction dismisses itself after the *Introductions
+last* setting (12 s by default), or at Continue, then the block begins on its
 own: a block with a pack starts reading, and a minigame block opens its match.
-Phones tap **Ready**; the match starts when every connected player has, or after
+Phones show a **Ready** button while the match waits; the match starts when every connected player has, or after
 60 s, and the results close after the answer-dwell time and move to the next
-block. Poker is still opened and closed by the host. A host who acts by hand in
+block. A pack read to its end stays spent when a later block returns to it, and
+autoplay switches off there. Poker is still opened and closed by the host. A host who acts by hand in
 the gaps is not fought: undo, jumping, clearing the setlist or turning autoplay
 off cancels whatever was pending.
 

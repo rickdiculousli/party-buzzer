@@ -47,6 +47,8 @@ const REVEAL_MS = 150
 export type ReaderControls = {
   select(name: string): Promise<void>
   start(): void
+  /** Start the loop for the next block of a night: spent packs are not rewound. */
+  carryOn(): void
   pause(): void
   resume(): void
   stop(): void
@@ -762,7 +764,9 @@ export class Hub {
       this.nightClear(false)
       return
     }
-    const intro = s.arrival?.kind === 'introduction' ? s.arrival.id : undefined
+    // The first block's introduction is the host's to dismiss: nothing has started
+    // yet, and Continue is the one press that starts the night.
+    const intro = s.arrival?.kind === 'introduction' && s.arrival.blockAt > 0 ? s.arrival.id : undefined
     this.nightTimer('intro', intro, s.autoplay.introSec * 1000, (key) => {
       this.dispatch({ a: 'closeArrival', arrivalId: key })
     })
@@ -812,10 +816,13 @@ export class Hub {
   private nightBegin(): void {
     const begin = beginFor(this.state)
     if (begin?.do === 'read') {
-      this.reader?.start()
+      this.reader?.carryOn()
     } else if (begin?.do === 'prepare') {
       const result = this.dispatch({ a: 'prepareMinigame', id: begin.id, options: begin.options })
       if (result.status === 'applied') {
+        // The dismissal and the match it opens are one step: a single Undo
+        // restores the introduction, and automation runs again from it.
+        this.history.pop()
         this.nightMatch = this.state.minigame?.matchId
         this.nightEval()
       }

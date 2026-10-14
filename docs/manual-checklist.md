@@ -49,11 +49,15 @@ These need real hardware — run them once before a real game night.
       refused
 - [ ] A minigame first block shows its introduction, Continue, then Open
 - [ ] Autoplay on: between blocks the board and phones show "Next: ..." with the
-      block's count or "Tap Ready", and a performing voice reads it
-- [ ] The introduction dismisses itself after the Introductions-last seconds;
-      pressing Continue earlier dismisses it once, and the block then begins
+      block's count or "Tap Ready when the match opens", and a performing voice reads it
+- [ ] The first block's introduction never dismisses itself, even under
+      autoplay; Continue begins the block. Later introductions dismiss
+      themselves after the Introductions-last seconds; pressing Continue
+      earlier dismisses it once, and the block then begins
 - [ ] A minigame block opens itself after its introduction; Ready on every
-      phone (or 60 s) starts it, and its results close and advance the setlist
+      phone (or 60 s) starts it, and its results close and advance the setlist.
+      The Ready bar sits below the game with nothing hidden under it (Sketch,
+      Ink Volunteer, Tank, Bow), and is absent with autoplay off
 - [ ] The phone arrival screens fit a small phone with no scroll
 
 ## Room

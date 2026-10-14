@@ -447,6 +447,24 @@ export class Reader {
     for (const [name, questions] of this.loaded) {
       if ((this.pos.get(name) ?? 0) >= questions.length) this.pos.set(name, 0)
     }
+    this.begin()
+  }
+
+  /**
+   * The night moves on to the next block: the same loop as `start()`, but spent
+   * packs stay spent. A setlist that returns to a pack it already read to the
+   * end finds it spent, and autoplay stops there as it does without a night.
+   */
+  carryOn(): void {
+    if (this.running) return
+    if (arrivalBlocksPlay(this.hub.state)) return
+    this.begin()
+  }
+
+  private begin(): void {
+    // An introduction announcement still playing or rendering is cut before the cue.
+    this.voiceEpoch += 1
+    this.quipback?.stop()
     this.running = true
     this.paused = false
     this.session = new AbortController()

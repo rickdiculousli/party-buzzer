@@ -246,6 +246,7 @@ test('a selectPack that fails is logged, not thrown — the process must survive
     reader: {
       select: () => Promise.reject(new Error('no such pack')),
       start: () => {},
+      carryOn: () => {},
       announce: () => {},
       pause: () => {},
       resume: () => {},
@@ -633,15 +634,49 @@ test('clearSetlist clears the night\'s pending timers', () => {
     const { state, hub } = rig()
     const held = () => (hub as unknown as { night: Map<string, unknown> }).night.size
     hub.dispatch({ a: 'setAutoplay', on: true, nextSec: 5, buzzSec: 10, reboundSec: 4, introSec: 12 })
-    hub.dispatch({ a: 'setSetlist', blocks: [{ game: 'trivia', options: {}, count: 1 }] })
+    hub.dispatch({ a: 'setSetlist', blocks: [{ game: 'trivia', options: {}, count: 1 }, { game: 'trivia', options: {}, count: 1 }] })
+    hub.dispatch({ a: 'setlistJump', at: 1 })
     assert.equal(held(), 1, 'the introduction is on a clock')
     assert.equal(hub.dispatch({ a: 'clearSetlist' }).status, 'applied')
     assert.equal(state.arrival, undefined)
     assert.equal(held(), 0)
     // A refusal or a no-op touches nothing: a second clear changes no timer.
-    hub.dispatch({ a: 'setSetlist', blocks: [{ game: 'trivia', options: {}, count: 1 }] })
+    hub.dispatch({ a: 'setSetlist', blocks: [{ game: 'trivia', options: {}, count: 1 }, { game: 'trivia', options: {}, count: 1 }] })
+    hub.dispatch({ a: 'setlistJump', at: 1 })
     assert.equal(hub.dispatch({ a: 'closeArrival', arrivalId: 'stale' }).status, 'refused')
     assert.equal(held(), 1)
+  } finally {
+    mock.timers.reset()
+  }
+})
+
+test('clearSetlist clears a pending ready or results timer', () => {
+  mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+  try {
+    const { state, hub } = rig()
+    state.players = [{ id: 'ada', name: 'Ada', connected: true }]
+    hub.setMinigameRuntime(new MinigameRuntime(state, {
+      onState: (cause) => hub.minigameChanged(cause), onFrame() {}, onAck() {},
+      onComplete: (matchId, results) => hub.completeMinigame(matchId, results),
+    }))
+    const held = () => (hub as unknown as { night: Map<string, unknown> }).night
+    hub.dispatch({ a: 'setAutoplay', on: true, nextSec: 5, buzzSec: 10, reboundSec: 4, introSec: 1 })
+    hub.dispatch({ a: 'setSetlist', blocks: [{ game: 'trivia', options: {}, count: 1 }, { game: 'bow', options: { durationSec: 5, seed: 1 }, count: 1 }] })
+    hub.dispatch({ a: 'setlistJump', at: 1 })
+    mock.timers.tick(1_000)
+    assert.equal(state.minigame?.phase, 'ready')
+    assert.ok(held().has('ready'), 'the ready fallback is on a clock')
+    // An open match refuses clearSetlist outright, so its timers can only end by closing it.
+    assert.equal(hub.dispatch({ a: 'clearSetlist' }).status, 'refused', 'an open match holds the setlist')
+    assert.ok(held().has('ready'), 'a refusal leaves the fallback alone')
+    assert.equal(hub.dispatch({ a: 'closeMinigame' }).status, 'applied')
+    assert.ok(!held().has('ready'), 'closing the match ends its fallback')
+    assert.equal(hub.dispatch({ a: 'clearSetlist' }).status, 'applied')
+    assert.equal(held().size, 0)
+    mock.timers.tick(120_000)
+    assert.equal(state.minigame, undefined, 'nothing fires after the fallback has elapsed')
+    assert.equal(state.arrival, undefined)
+    assert.equal(state.setlist, undefined)
   } finally {
     mock.timers.reset()
   }

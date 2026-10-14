@@ -163,7 +163,8 @@ Each minigame's host-settable options are `MINIGAME_OPTIONS` in
 `shared/protocol.ts`, the same `OptionSpec` schema the modes ship: the runtime
 sanitizes `prepareMinigame` against it and the host renders its form from it.
 A setlist block may name a minigame (`isMinigameId`). Entering one leaves the
-quiz mode alone; the host opens the match from the Play tab, and the hub moves
+quiz mode alone; with autoplay off the host opens the match from the Play tab
+(autoplay opens it, as below), and the hub moves
 the setlist to the next block when that minigame closes, in the same undo step.
 
 Under autoplay the Hub also runs the night across blocks (`server/night.ts` holds
@@ -171,10 +172,15 @@ the pure predicates; the timers are private Hub memory beside the collection
 timers). Entering any fresh block raises an introduction (`server/setlist.ts`
 `introduceBlock`, after setup and any duel), spoken by the Reader's `announce`
 when a performing voice is on. One timer keyed by the arrival id dismisses it
-after `autoplay.introSec`; the host's Continue does the same. Dismissal starts
-the block: `prepareMinigame` with the block's options for a minigame other than
-Poker, `reader.start()` for a block with a pack, nothing for Poker or a packless
-block. The match it opened is remembered by `matchId`; while it waits in `ready`,
+after `autoplay.introSec`, for blocks after the first only: the first block's
+introduction waits for the host's Continue, which also dismisses the others.
+Dismissal starts the block: `prepareMinigame` with the block's options for a
+minigame other than Poker (folded into the dismissal's undo step, so one Undo
+restores the introduction with no match), `reader.carryOn()` for a block with a
+pack, nothing for Poker, a packless block, or any block while a minigame is
+still open. `carryOn` is `start()` without the spent-pack rewind, and both cut a
+still-playing announcement. The phone Ready bar renders only under autoplay and
+the surface above it gives up the bar's height. The match it opened is remembered by `matchId`; while it waits in `ready`,
 every connected player tapping Ready (`MinigameLobby.ready`) or a 60 s fallback
 dispatches `startMinigame`, and `nextSec` after results the Hub dispatches
 `closeMinigame`, which advances the setlist and raises the next introduction.

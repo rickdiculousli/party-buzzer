@@ -98,16 +98,16 @@ export function autoPrepares(state: State, block: SetlistBlock): boolean {
   return state.autoplay.on && isMinigameId(block.game) && block.game !== 'poker'
 }
 
-/** "5 questions · 200 points · Duels: Vote" for a quiz block; "Tap Ready" for a minigame that opens itself. */
+/** "5 questions · 200 points · Duels: Vote" for a quiz block; "Tap Ready when the match opens" for a minigame that opens itself. */
 function blockDetail(state: State, block: SetlistBlock): string | undefined {
-  if (isMinigameId(block.game)) return autoPrepares(state, block) ? 'Tap Ready' : undefined
+  if (isMinigameId(block.game)) return autoPrepares(state, block) ? 'Tap Ready when the match opens' : undefined
   const parts = [`${block.count} ${block.count === 1 ? 'question' : 'questions'}`]
   if (block.value !== undefined) parts.push(`${block.value} points`)
   if (block.duel) parts.push(`Duels: ${state.duelRules.find((rule) => rule.id === block.duel)?.name ?? block.duel}`)
   return parts.join(' · ')
 }
 
-/** What the voice says: "Next: Sketch. Draw the word, or guess it fast. Tap Ready." */
+/** What the voice says: "Next: Sketch. Draw the word, or guess it fast. Tap Ready when the match opens." */
 export function introductionLine(p: Extract<ArrivalPresentation, { kind: 'introduction' }>): string {
   const stop = (text: string) => (/[.!?]$/.test(text) ? text : `${text}.`)
   return [...(p.next ? [NEXT_LABEL] : []), `${p.title}.`, stop(p.goal), ...(p.detail ? [stop(p.detail)] : [])].join(' ')

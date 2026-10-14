@@ -138,9 +138,9 @@ test('the composed line names the quiz block\'s count, value and duel rule, and 
   // A minigame promises Ready only when autoplay will open it; Poker never.
   assert.equal(intro(2).detail, undefined)
   s.autoplay.on = true
-  assert.equal(intro(2).detail, 'Tap Ready')
+  assert.equal(intro(2).detail, 'Tap Ready when the match opens')
   assert.equal(intro(2).next, true)
   assert.equal(intro(3).detail, undefined, 'the host opens Poker')
-  assert.equal(introductionLine(intro(2)), 'Next: Sketch. Draw the word, or guess it fast. Tap Ready.')
+  assert.equal(introductionLine(intro(2)), 'Next: Sketch. Draw the word, or guess it fast. Tap Ready when the match opens.')
   assert.equal(introductionLine(intro(0)), 'Trivia. Answer questions to earn points. 5 questions · 200 points · Duels: Vote.')
 })

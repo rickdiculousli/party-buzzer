@@ -2,6 +2,7 @@ import { test as nodeTest, mock } from 'node:test'
 import assert from 'node:assert/strict'
 import { Hub, type Conn, type ReaderControls } from './hub.ts'
 import { newState } from './state.ts'
+import { beginFor } from './night.ts'
 import { MinigameRuntime } from './minigames/runtime.ts'
 import type { HostAction, SetlistBlock } from '../shared/protocol.ts'
 
@@ -32,7 +33,7 @@ function room(opts: { introSec?: number; nextSec?: number; autoplay?: boolean } 
   const reads: number[] = []
   const said: string[] = []
   const reader: ReaderControls = {
-    async select() {}, start() { reads.push(Date.now()) }, pause() {}, resume() {}, stop() {}, rewind() {},
+    async select() {}, start() { reads.push(Date.now()) }, carryOn() { reads.push(Date.now()) }, pause() {}, resume() {}, stop() {}, rewind() {},
     closeChoice() {}, announce(text) { said.push(text) },
   }
   const hub = new Hub(state, { reader })
@@ -47,6 +48,8 @@ function room(opts: { introSec?: number; nextSec?: number; autoplay?: boolean } 
     return [id, conn]
   }))
   const dispatch = (action: HostAction) => hub.dispatch(action)
+  /** The host's Continue on whatever introduction is up. */
+  const go = () => dispatch({ a: 'closeArrival', arrivalId: state.arrival!.id })
   if (opts.autoplay !== false) {
     dispatch({ a: 'setAutoplay', on: true, nextSec: opts.nextSec ?? 3, buzzSec: 10, reboundSec: 4, introSec: opts.introSec ?? 5 })
   }
@@ -60,7 +63,7 @@ function room(opts: { introSec?: number; nextSec?: number; autoplay?: boolean } 
   }
   const timers = () => (hub as unknown as { night: Map<string, unknown> }).night.size
   const arrival = () => state.arrival
-  return { state, hub, arrival, dispatch, ready, conns, reads, said, finishMatch, timers }
+  return { state, hub, arrival, dispatch, go, ready, conns, reads, said, finishMatch, timers }
 }
 
 test('an introduction is raised for each fresh block under autoplay, and only the first without it', () => {
@@ -91,15 +94,25 @@ test('an introduction is raised for each fresh block under autoplay, and only th
   assert.equal(r.arrival(), undefined, 'a spent setlist has no block to introduce')
 })
 
-test('an introduction dismisses itself after introSec and starts the block reading', () => {
+test('the first introduction waits for Continue; later ones dismiss themselves after introSec', () => {
   const r = room({ introSec: 3 })
-  r.dispatch({ a: 'setSetlist', blocks: [QUIZ] })
+  r.dispatch({ a: 'setSetlist', blocks: [QUIZ, QUIZ] })
+  tick(120_000)
+  assert.equal(r.arrival()?.kind, 'introduction', 'block 0 never dismisses itself')
+  assert.equal(r.timers(), 0)
+  assert.equal(r.reads.length, 0)
+  r.go()
+  assert.equal(r.reads.length, 1, 'Continue is the one press that starts the night')
+
+  r.dispatch({ a: 'arm' })
+  r.dispatch({ a: 'next' })
+  assert.equal(r.arrival()?.kind === 'introduction' && (r.arrival() as { blockAt: number }).blockAt, 1)
   tick(2_999)
   assert.equal(r.arrival()?.kind, 'introduction')
-  assert.equal(r.reads.length, 0)
+  assert.equal(r.reads.length, 1)
   tick(1)
   assert.equal(r.arrival(), undefined)
-  assert.equal(r.reads.length, 1, 'the reader is started once the block may begin')
+  assert.equal(r.reads.length, 2, 'the reader carries on once the block may begin')
 })
 
 test('the host Continue cancels the timer: one dismissal, one start, nothing doubled', () => {
@@ -129,7 +142,8 @@ test('with autoplay off an introduction waits for the host and starts nothing', 
 
 test('undo after a dismissal restores the introduction under a fresh id, with a full timer', () => {
   const r = room({ introSec: 4 })
-  r.dispatch({ a: 'setSetlist', blocks: [QUIZ] })
+  r.dispatch({ a: 'setSetlist', blocks: [QUIZ, QUIZ] })
+  r.dispatch({ a: 'setlistJump', at: 1 })
   const first = r.arrival()!
   tick(4_000)
   assert.equal(r.arrival(), undefined)
@@ -145,6 +159,21 @@ test('undo after a dismissal restores the introduction under a fresh id, with a 
   assert.equal(r.arrival(), undefined)
 })
 
+test('one Undo takes back a dismissal and the match it opened, and automation runs again from it', () => {
+  const r = room({ introSec: 4 })
+  r.dispatch({ a: 'setSetlist', blocks: [QUIZ, BOW] })
+  r.dispatch({ a: 'setlistJump', at: 1 })
+  tick(4_000)
+  assert.equal(r.state.minigame?.phase, 'ready')
+
+  assert.equal(r.dispatch({ a: 'undo' }).status, 'applied')
+  assert.equal(r.state.minigame, undefined, 'no match')
+  const back = r.arrival()
+  assert.ok(back?.kind === 'introduction' && back.blockAt === 1)
+  tick(4_000)
+  assert.equal((r.state.minigame as { phase?: string } | undefined)?.phase, 'ready', 'the restored introduction opens the match again')
+})
+
 test('a jump or a clear while an introduction is pending cancels its timer', () => {
   const r = room({ introSec: 4 })
   r.dispatch({ a: 'setSetlist', blocks: [QUIZ, QUIZ] })
@@ -155,7 +184,7 @@ test('a jump or a clear while an introduction is pending cancels its timer', () 
   tick(10_000)
   assert.equal(r.reads.length, 0, 'nothing fires later')
 
-  r.dispatch({ a: 'setlistJump', at: 0 })
+  r.dispatch({ a: 'setlistJump', at: 1 })
   assert.equal(r.timers(), 1)
   r.dispatch({ a: 'clearSetlist' })
   assert.equal(r.timers(), 0)
@@ -166,8 +195,10 @@ test('a jump or a clear while an introduction is pending cancels its timer', () 
 test('a minigame block opens itself, starts when everyone is ready, and closes after its results', () => {
   const r = room({ introSec: 2, nextSec: 3 })
   r.dispatch({ a: 'setSetlist', blocks: [BOW, QUIZ] })
-  assert.match(r.said.at(-1)!, /Bow\. .*Tap Ready\.$/)
-  tick(2_000)
+  assert.match(r.said.at(-1)!, /Bow\. .*Tap Ready when the match opens\.$/)
+  tick(120_000)
+  assert.equal(r.arrival()?.kind, 'introduction', 'the first introduction holds for Continue')
+  r.go()
   assert.equal(r.arrival(), undefined)
   assert.equal(r.state.minigame?.id, 'bow', 'prepared with the block as its only input')
   assert.equal(r.state.minigame?.options.durationSec, 5)
@@ -198,7 +229,7 @@ test('a minigame block opens itself, starts when everyone is ready, and closes a
 test('Ready waits for a connected player to join or leave, and 60 s starts the match anyway', () => {
   const r = room({ introSec: 0 })
   r.dispatch({ a: 'setSetlist', blocks: [BOW] })
-  tick(0)
+  r.go()
   assert.equal(r.state.minigame?.phase, 'ready')
   r.ready('ada')
   assert.equal(r.state.minigame?.phase, 'ready')
@@ -207,7 +238,7 @@ test('Ready waits for a connected player to join or leave, and 60 s starts the m
 
   const late = room({ introSec: 0 })
   late.dispatch({ a: 'setSetlist', blocks: [BOW] })
-  tick(0)
+  late.go()
   tick(59_999)
   assert.equal(late.state.minigame?.phase, 'ready')
   tick(1)
@@ -218,7 +249,7 @@ test('Ready waits for a connected player to join or leave, and 60 s starts the m
 test('a start nobody can make yet is retried on the next change, not fought', () => {
   const r = room({ introSec: 0 })
   r.dispatch({ a: 'setSetlist', blocks: [BOW] })
-  tick(0)
+  r.go()
   r.state.players.forEach((p) => { p.connected = false })
   tick(60_000)
   assert.equal(r.state.minigame?.phase, 'ready', 'refused: no players')
@@ -230,7 +261,7 @@ test('a start nobody can make yet is retried on the next change, not fought', ()
 test('a host cancel is not fought, and a refused jump leaves the pending timers alone', () => {
   const r = room({ introSec: 0 })
   r.dispatch({ a: 'setSetlist', blocks: [BOW, QUIZ] })
-  tick(0)
+  r.go()
   assert.deepEqual(r.dispatch({ a: 'setlistJump', at: 1 }), { status: 'refused', reason: 'minigame-active' })
   assert.equal(r.timers(), 1, 'the fallback still waits')
   r.ready('ada')
@@ -247,7 +278,7 @@ test('a host cancel is not fought, and a refused jump leaves the pending timers 
 test('closing a result by hand leaves no stale dwell to close the next block', () => {
   const r = room({ introSec: 30, nextSec: 2 })
   r.dispatch({ a: 'setSetlist', blocks: [BOW, QUIZ, QUIZ] })
-  tick(30_000)
+  r.go()
   r.ready('ada')
   r.ready('bo')
   r.finishMatch()
@@ -262,10 +293,22 @@ test('closing a result by hand leaves no stale dwell to close the next block', (
 
 test('turning autoplay off cancels everything pending', () => {
   const r = room({ introSec: 4 })
-  r.dispatch({ a: 'setSetlist', blocks: [QUIZ] })
+  r.dispatch({ a: 'setSetlist', blocks: [QUIZ, QUIZ] })
+  r.dispatch({ a: 'setlistJump', at: 1 })
   assert.equal(r.timers(), 1)
   r.dispatch({ a: 'setAutoplay', on: false, nextSec: 3, buzzSec: 10, reboundSec: 4, introSec: 4 })
   assert.equal(r.timers(), 0)
   tick(10_000)
   assert.equal(r.arrival()?.kind, 'introduction')
+})
+
+test('no block begins beside a minigame that is still open, quiz blocks included', () => {
+  const state = newState()
+  state.autoplay.on = true
+  state.setlist = { blocks: [QUIZ, BOW], at: 0, name: 'n' } as unknown as typeof state.setlist
+  assert.deepEqual(beginFor(state), { do: 'read' })
+  state.minigame = { id: 'bow', matchId: 'm', phase: 'ready', options: {} } as unknown as typeof state.minigame
+  assert.equal(beginFor(state), null, 'a jump to a quiz block with a match open reads nothing')
+  state.setlist!.at = 1
+  assert.equal(beginFor(state), null)
 })

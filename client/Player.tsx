@@ -9,7 +9,7 @@ import type { Mood } from '../shared/wall.ts'
 import type { State } from '../shared/protocol.ts'
 import { scoreKey } from '../shared/scoring.ts'
 import { MINIGAMES } from './minigames.tsx'
-import { MinigameReady } from './MinigameReady.tsx'
+import { MinigameReady, readyShown } from './MinigameReady.tsx'
 import { LETTERS } from '../shared/choice.ts'
 import { ArrivalPhone } from './ArrivalPhone.tsx'
 import { practiceLobbyId } from './arrival-feedback.ts'
@@ -238,10 +238,10 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
 
   if (state?.minigame) {
     const Surface = MINIGAMES[state.minigame.id].player
-    return <>
+    return <div class={readyShown(state, playerId) ? 'minigame-stage minigame-stage--ready' : 'minigame-stage'}>
       <Surface key={state.minigame.matchId} state={state} playerId={playerId} connected={connected} frame={minigameFrame} now={now} send={send} ack={minigameAck} touches={minigameTouches} />
       <MinigameReady state={state} playerId={playerId} send={send} />
-    </>
+    </div>
   }
 
   const choice = round?.kind === 'choice'
