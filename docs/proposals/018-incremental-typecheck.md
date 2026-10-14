@@ -4,10 +4,13 @@ title: Make npm run typecheck incremental: 21 s to under 2 s on a warm tree
 kind: time-cost
 size: XS
 judge: sonnet
-status: accepted
+status: building
 lens: eng
 proposed_by: 7f24ed4b-18c6-49f9-a00b-48d7dfed548a
 proposed_on: 2026-10-14
+built_by: 9d724f51-ec98-4009-8b1c-4754e564ccce
+branch: t3code/8b3f1920
+host: k16
 ---
 
 ## Opportunity
