@@ -246,7 +246,8 @@ npm run walk-read-trivia
       with "steps" and the board an empty line. Ada, Bo and Cy guess 1,700,
       1,200 and 1,500; the slots fill without showing a number. The guesses drop
       onto the line, it holds a beat, then 1,665 slides in from the right; Ada's
-      1,700 lights brass with "+200 · 35 off". Ada's phone reads **Close**
+      1,700 lights brass and the stamp reads "Ada +200 · 35 off". Phones and
+      standings change only once the stamp is up: Ada's phone reads **Nearest**
       "+200 · 35 off", Bo's "465 off"
 - [ ] Nobody buzzes the Everest question: it reveals its answer and passes on
       its own

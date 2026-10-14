@@ -865,18 +865,26 @@ pick buttons and the seconds left above them (`.player__countdown`).
 
 A **closest question** uses the same lifted split and the same slot bar, over
 an empty cyan line (`.closest__line`: a scale, so it is cold) that says "Guess
-in steps". Nothing on the board shows a number while the room is guessing. At
+in steps". Nothing on the board shows a number while the room is guessing, and
+the bar warms to brass when everyone is in, as a choice question's does. At
 the reveal every guess drops onto the line in its player's colour (`fx-drop`,
-staggered), its name and number in a lane above it so close guesses stack
-rather than overprint; the line covers the answer and the middle of the
-guesses, and a wild guess is parked at an end with a ◂ or ▸ beside its number.
-The line holds a beat, then the answer's tick and number run in from the
-right-hand end (`fx-slide`) and hang below the line. Then the nearest lights
-brass (`.is-won`, `fx-tada`), a half-paying second place turns silver, the rest
-dim, and the brass stamp above reads "+200 · 35 off" (or "spot on", "each" for
-a tie, or "Nobody"). Its moments are `closest:listening`, `closest:guessing`
-and `closest:reveal`. The phone shows an in-app number pad (`.pad`): the typed
-value large with its unit, a 3 × 4 key grid, and **Lock in**.
+staggered), its name and number in a lane above it, centred on its dot, so
+close guesses stack rather than overprint; guesses of the same number share
+one label. The line covers the answer and the middle of the guesses, and a
+wild guess is parked at an end with an arrow beside its number. The line
+holds a beat, then the answer's tick and number run in from the right-hand
+end (`fx-slide--even`) and hang below the line. Then the nearest's label fills
+brass and tadas (`.is-won`), a half-paying second fills silver (`.is-second`),
+the rest dim to 0.6 so their names still read, and the brass stamp above names
+the winner: "Ed +200 · 15 off" ("spot on" for an exact hit, "each" for a tie,
+"3 tied" past two, "Nobody" when nobody guessed). The schedule is
+`CLOSEST_REVEAL` in `shared/closest.ts`, applied as inline delays; phones and
+the standings keep the old picture until it has played, so nobody's hand tells
+the room first. Its moments are `closest:listening`, `closest:guessing` and
+`closest:reveal`. The phone shows an in-app number pad (`.pad`): the typed
+value large with its unit and **Lock in** beside it, then four columns of keys
+in three rows. Its verdict is **Nearest** (brass), **Exact**, **Second**
+(placed), or how far off it was.
 
 **The leader shows early, the field fills in.** A beat after the first buzz
 (150 ms — long enough for the true photo finish to land) the board lights up

@@ -379,10 +379,13 @@ after the question: it publishes `round.guessing` (`unit`, `closesAt` after
 host's Close (the same `closeChoice` act). `settleClosest` carries the pack's
 number; `closestAwards` in `shared/scoring.ts` pays it and the transition
 records `truth` and `paid`. Phones submit a `guess` act with a finite number,
-checked by `guessBlockReason`; `viewFor` redacts `guesses` and `paid` to the
-viewer's own. The board places the guesses on a line scaled by
-`shared/closest.ts` only at the reveal, so no number is up while the room is
-still guessing.
+checked by `guessBlockReason`; `viewFor` redacts `guesses` to the viewer's
+own. The result (`truth`, `paid`, `nearest`, `guessed`) is public once settled.
+The board plays the reveal on the `closestTimes` schedule, and phones and the
+board's standings hold the pre-settle picture until it is done
+(`useClosestHold`); under autoplay the reader adds that time to the dwell.
+The board places the guesses on a line scaled by `shared/closest.ts` only at
+the reveal, so no number is up while the room is still guessing.
 
 The Reader primes the Judge with private accepted answers. The Judge offers an
 answer window for the current locked leader, accepts a submission, transcribes

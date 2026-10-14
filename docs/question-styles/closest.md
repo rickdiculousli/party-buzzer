@@ -24,6 +24,9 @@ A: 1,665
 - `A:` is the number alone, zero or more. Commas are fine (`1,665`); a decimal
   point is fine when a decimal answer is natural (`2.5`). The phones' pad has
   no minus key.
+- How you spell `A:` sets how every number on the question is spelt. Write a
+  year without a comma (`1989`) and the pad, the line and the phones show
+  `1989`, never `1,989`; write `1,665` and they group thousands.
 - Years are numbers too ("In what year did..."), and work well: the room
   usually spreads over a century.
 - Scoring is fixed: the nearest takes the value, doubled for an exact hit;
