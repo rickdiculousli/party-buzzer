@@ -124,7 +124,7 @@ test('a question end to end, one occupant the whole way', () => {
   const paid = at()
   assert.equal(paid.moment, 'verdict:award')
   assert.equal(paid.award?.answer, 'Marie Curie')
-  assert.deepEqual(paid.hero, { name: 'Ada', tone: 'answering' }, 'the winner holds the stage')
+  assert.deepEqual(paid.hero, { name: 'Ada', tone: 'awarded' }, 'the winner holds the stage')
   assert.equal(paid.clue, null, 'the question behind a correct answer is spent')
 })
 
@@ -207,7 +207,7 @@ test('a wrong that cost nothing is still a miss, not a payoff of zero', () => {
   // And a real payoff of zero — a question worth nothing — still reads as one.
   s.round.award = { name: 'Ada', points: 0 }
   assert.equal(momentOf(s, LOCAL), 'verdict:award')
-  assert.deepEqual(wallOf(s, LOCAL).hero, { name: 'Ada', tone: 'answering' })
+  assert.deepEqual(wallOf(s, LOCAL).hero, { name: 'Ada', tone: 'awarded' })
 })
 
 test('idle:welcome ends at the first arm, not at the first buzz', () => {
@@ -253,6 +253,11 @@ test('the phone: a question from second place, and the rebound', () => {
   }
   assert.equal(phoneOf('answer:locked', { ...mine, deltaMs: 140 }).sub, '+140 ms')
   assert.equal(phoneOf('verdict:hold', mine).sub, 'Reopening in a moment')
+  // Locked with no margin says why: a leader holds the question. A dead heat
+  // is still a placing, not an absence.
+  assert.equal(phoneOf('answer:locked', mine).sub, 'Someone else is answering')
+  assert.equal(phoneOf('answer:judging', mine).sub, 'Someone else is answering')
+  assert.equal(phoneOf('answer:locked', { ...mine, deltaMs: 0 }).sub, '+0 ms')
 
   // A transcript typing over an *open* rebound is not "somebody is answering":
   // the question is live again and this phone may press.
@@ -371,7 +376,7 @@ test('a payoff keeps the winner on the stage, in a duel and out of one', () => {
   const w = wallOf(s, LOCAL)
   assert.equal(momentOf(s, LOCAL), 'verdict:award')
   oneOf(w, 'a duel payoff')
-  assert.deepEqual(w.hero, { name: 'Ada', tone: 'answering' }, 'not back to the pair')
+  assert.deepEqual(w.hero, { name: 'Ada', tone: 'awarded' }, 'not back to the pair')
   assert.equal(w.faceoff, null)
   assert.equal(w.award?.points, 200)
 
@@ -381,13 +386,13 @@ test('a payoff keeps the winner on the stage, in a duel and out of one', () => {
   delete s.round.buzzable
   const solo = wallOf(s, LOCAL)
   oneOf(solo, 'a solo payoff')
-  assert.deepEqual(solo.hero, { name: 'Ada', tone: 'answering' })
+  assert.deepEqual(solo.hero, { name: 'Ada', tone: 'awarded' })
 
   // And a clue still up does not take it back: a correct answer ends the
   // question, so what is left of it on the stage is spent.
   s.round.fragments = ['A clue.']
   assert.equal(wallOf(s, LOCAL).clue, null)
-  assert.deepEqual(wallOf(s, LOCAL).hero, { name: 'Ada', tone: 'answering' })
+  assert.deepEqual(wallOf(s, LOCAL).hero, { name: 'Ada', tone: 'awarded' })
   s.round.award = { name: 'Ada', points: 0, penalty: true }
   assert.equal(wallOf(s, LOCAL).hero?.tone, 'penalised', 'a miss keeps it too, and says why')
 })
@@ -472,7 +477,7 @@ test('a payoff keeps the stage while the box has a clue up', () => {
   const paid = wallOf(s, LOCAL)
   oneOf(paid, 'paid')
   assert.equal(paid.moment, 'verdict:award')
-  assert.deepEqual(paid.hero, { name: 'Ada', tone: 'answering' }, 'the winner, not the spent question')
+  assert.deepEqual(paid.hero, { name: 'Ada', tone: 'awarded' }, 'the winner, not the spent question')
   assert.equal(paid.clue, null)
   assert.equal(paid.award?.answer, 'Marie Curie')
 })
@@ -634,4 +639,18 @@ test('a scoreless mode starts blank, never calls Buzz, and holds a miss until th
   s.round.phase = 'COLLECTING'
   s.round.order = [{ playerId: 'b', name: 'Bo', at: 2, deltaMs: 0 }]
   assert.deepEqual(wallOf(s, open).hero, { name: 'Bo', tone: 'answering' })
+})
+
+test('the hero is tungsten-open while answering and brass only once awarded', () => {
+  const s = room()
+  s.round = { ...s.round, questionId: 'q', attemptId: 'x', phase: 'LOCKED', armedAt: 1 }
+  s.round.order = [{ playerId: 'a', name: 'Ada', at: 5200, deltaMs: 0 }]
+  assert.deepEqual(wallOf(s, LOCAL).hero, { name: 'Ada', tone: 'answering' }, 'a buzz, judge open')
+
+  s.round.award = { name: 'Ada', points: 300 }
+  s.round.phase = 'IDLE'
+  s.round.order = []
+  const w = wallOf(s, LOCAL)
+  assert.equal(w.moment, 'verdict:award')
+  assert.deepEqual(w.hero, { name: 'Ada', tone: 'awarded' }, 'same name, new tone')
 })

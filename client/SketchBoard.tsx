@@ -30,7 +30,7 @@ export function SketchBoard({ state, frame, now }: MinigameBoardProps) {
         </div>
         <div class="board__mid">
           {top.length
-            ? <p key="winner" class="board__hero fx-anchor">{top.map((r) => nameOf(r.playerId)).join(' & ')}</p>
+            ? <p key="winner" class="board__hero fx-anchor is-awarded">{top.map((r) => nameOf(r.playerId)).join(' & ')}</p>
             : <p class="board__idle">Match over</p>}
         </div>
         <div class="board__below">
@@ -88,7 +88,7 @@ export function SketchBoard({ state, frame, now }: MinigameBoardProps) {
           {sketch.word ? (
             <div class="sketch-head" key={`reveal:${sketch.turn}`}>
               <p class="board__award fx-anchor">{revealStamp(sketch)}</p>
-              <p class="board__hero fx-anchor">{sketch.word}</p>
+              <p class="board__hero fx-anchor is-awarded">{sketch.word}</p>
             </div>
           ) : (
             <div class="sketch-head"><Blanks text={sketch.blanks} /></div>

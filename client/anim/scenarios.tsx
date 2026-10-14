@@ -686,7 +686,7 @@ export const SCENARIOS: Scenario[] = [
     render: (lead) => (
       <Stage
         above={!lead && <p class="board__award">+400</p>}
-        mid={<p class="board__hero">Ada</p>}
+        mid={<p class={lead ? 'board__hero' : 'board__hero is-awarded'}>Ada</p>}
         below={<Timeline />}
       />
     ),
@@ -704,12 +704,11 @@ export const SCENARIOS: Scenario[] = [
     ],
     sound: 'penalty',
     render: (lead) => (
-      // The frame the penalty belongs to: somebody answered. The board clears
-      // the name in the same broadcast that stamps the −400, but this is the
-      // stage the room reads the moment against.
+      // The frame the penalty belongs to: somebody answered, and the name
+      // stays up, turning tally with the stamp above it.
       <Stage
         above={!lead && <p class="board__award is-neg">−400</p>}
-        mid={<p class="board__hero">Ada</p>}
+        mid={<p class={lead ? 'board__hero' : 'board__hero is-penalised'}>Ada</p>}
         below={<Timeline />}
       />
     ),

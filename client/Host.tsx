@@ -516,8 +516,10 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
         {/* Notes sit right under the keys they explain: a `title` on a
             disabled button is never shown — the control suppresses the
             pointer events that would trigger it. */}
-        {judgeReason && <p class="muted host__note">{judgeReason}</p>}
-        {armNote && !scoreless && <p class="muted host__note">{armNote}</p>}
+        <div class="host__notes">
+          {judgeReason && <p class="muted host__note">{judgeReason}</p>}
+          {armNote && !scoreless && <p class="muted host__note">{armNote}</p>}
+        </div>
         <div class="host__minor" style={{ marginTop: 'var(--s3)' }}>
           {!scoreless && <button class="btn" onClick={() => act({ a: 'wrong', neg: 0 })} disabled={!judgeable}>
             Wrong, no penalty

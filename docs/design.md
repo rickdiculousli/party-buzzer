@@ -59,9 +59,9 @@ at a party. Keeping both, and keeping them visually separate, is the design.
 
 | Token | Hex | Means |
 |---|---|---|
-| `--tungsten` | `#ffb454` | Armed, charging, the primary action, the question's value. |
+| `--tungsten` | `#ffb454` | Armed, charging, the primary action, the question's value, a name that has buzzed and is not yet judged. |
 | `--tally` | `#ff3b2f` | Open. The buzzers are taking presses, or something is destructive. |
-| `--brass` | `#c9a227` | First place, correct, awarded, connected. |
+| `--brass` | `#c9a227` | First place, correct, awarded, connected. On the board hero, only ever a result. |
 | `--silver` | `#b8bcc4` | Second place, in the standings dial. |
 | `--bronze` | `#b0793f` | Third place, in the standings dial. |
 | `--hot` | `#fff6e8` | White-hot at full power. Open buzzer and glow cores only. |
@@ -124,6 +124,7 @@ it probably doesn't have one.
 | `--t-md` | `1rem` | Body. |
 | `--t-sm` | `0.8125rem` | Controls, inputs, secondary text. |
 | `--t-xs` | `0.6875rem` | Eyebrows, chips, key hints. Always uppercase and tracked. |
+| `--t-chip-board` | `clamp(0.95rem, 1.25vw, 1.6rem)` | Board only. Every chip on the board, the QR captions and the join address; the setlist chip at 1.2×. |
 
 Board type is viewport-relative because it is read across a room. Host and phone
 type is fixed because it is read at arm's length. Don't mix the two.
@@ -131,7 +132,8 @@ type is fixed because it is read at arm's length. Don't mix the two.
 ### Tracking
 
 `--track-label` (`0.14em`) on anything uppercase and small. `--track-hero`
-(`-0.01em`) on display type at hero sizes. Nothing else gets tracking.
+(`-0.01em`) on display type at hero sizes. Nothing else gets tracking; board
+chips keep `--track-label` at their larger size because they are still labels.
 
 ---
 
@@ -159,7 +161,7 @@ Their tunables are hand-tuned; change a tunable, not a curve.
 |---|---|---|
 | `fx-pin-flash-drop` | Pin drops onto the rail; a glow flashes at touchdown and fades | A timeline mark |
 | `fx-rubber-stamp` | Fades in large, overshoots small, settles | The award |
-| `fx-hero-slam-glow` | Fades in large with a brass glow already lit, cooling | The leader's name |
+| `fx-hero-slam-glow` | Fades in large with a glow in its tone already lit, cooling | The leader's name |
 | `fx-buzz-snap` | Already visible; snaps from slightly large to size | Buzzers opening |
 | `fx-press-flash` | Background flashes white-hot, settles into its colour | Your press registering |
 | `fx-vote-drop-glow` | Falls from above, lands with a small glow | A vote |
@@ -188,7 +190,8 @@ a scenario in the motion harness (`npm run motion`) to preview and tune it.
   whose whole point is a fast twitch.
 - Measurements stay still: cyan readouts and timing numbers never get effects.
 - Colour: multicolour effects use the effect palette below; glows and sparks
-  stay tungsten, brass and hot. Use a player's `--id-*` colour only when the
+  stay tungsten, brass and hot, except the board hero's glow, which follows
+  its verdict tone (so a miss flares tally). Use a player's `--id-*` colour only when the
   effect is about that player (`--fx-color: var(--id-3)` on their name). Never
   cyan, with one exception: `<Glitch>` uses pure cyan, magenta and yellow
   (Display-P3 where the screen has it), because a channel split only reads as
@@ -406,9 +409,9 @@ leader — so scrolling the builder mid-game still shows which row is running.
 
 The board gets one chip, not the strip. It names the mode and the actual
 positions: `Quizbowl-lite · Block 2/3 · Question 1/2`. A minigame block names
-the minigame and block without a question count. This chip is larger and more
-legible than the other status chips, but stays at the top-left edge so it does
-not compete with the question in the middle of the stage.
+the minigame and block without a question count. This chip is 1.2 times the
+board chip size and in chalk rather than dim, but stays at the top-left edge
+so it does not compete with the question in the middle of the stage.
 
 ### Button — `.btn`
 
@@ -502,7 +505,9 @@ it reads as etched rather than as a box edge.
 Identity colour is the left border, same rule as `.row`, and scores are
 `.readout` but never `--ms`. Each row leads with its ordinal — 1st, 2nd, 3rd
 in brass, silver, and bronze, the rest in `--dim`. Ties share a score but not
-an ordinal; the dial is a ranking, not a photo finish. The tilt angle comes from scroll position in JS;
+an ordinal; the dial is a ranking, not a photo finish. The dial rests on
+your own row: on mount and after each reorder it scrolls you into the band,
+unless a finger touched it in the last second. The tilt angle comes from scroll position in JS;
 `scroll-snap-type: y proximity` settles a row into the band without trapping
 the flick.
 
@@ -823,13 +828,15 @@ Shown only when two or more people buzzed — a timeline with one mark is noise.
 ### Board — read from across the room
 
 Grid: the wall (`.board__wall`) on the left, a `clamp(17rem, 23vw, 26rem)`
-sidebar on the right. Everything on the wall is `--t-mega` or larger. Status chips sit top-left so the
-centre stays clear for the moment that matters.
+sidebar on the right. Everything on the wall is `--t-mega` or larger, except
+the status chips, which sit top-left at `--t-chip-board` so the centre stays
+clear for the moment that matters.
 
 States, in priority order:
 
-1. **Result** — hero name in brass, timeline beneath, and the brass award stamp
-   once the host has scored it.
+1. **Result** — hero name in tungsten while they answer, timeline beneath;
+   brass with the brass stamp once the host has scored it, tally with the
+   tally stamp on a miss.
 2. **Buzzers open** — "Buzz" in tally.
 3. **Arming** — whatever was up holds until the buzzers open: the next-question
    card, or the miss on a rebound.
@@ -869,7 +876,10 @@ has to still be there. That is also why the host's Correct and Wrong go dead
 once a question is scored — the order is still up, so the buttons have to be
 the thing that stops.
 
-The QR is full size until the first player joins, then shrinks to a corner.
+The QR is full size while the room is arriving (nobody yet, the lobby, a first
+block's introduction), with the join address printed under it for a phone that
+will not scan; then it shrinks to a corner. The standings win the sidebar: a
+long lobby roster shrinks the code, never the list.
 Between questions it is still there for latecomers, just not eating the wall.
 Connection state sits at the bottom of the sidebar as a `.lamp` — the room
 never needs it, but the host glancing at the wall does. The standings mark
@@ -945,6 +955,7 @@ explanation is the worst thing this app can do:
 | Won | You're up | Answer it |
 | Placed | +20 ms | Someone beat you to it |
 | Locked out | Out | Wrong answer — you sit out the rest of this question |
+| Locked, no press | Locked | Someone else is answering |
 | Correct answer | Right | The points actually awarded, including a mode bonus |
 
 "In" is the phone knowing something the room does not. It is purely local — the

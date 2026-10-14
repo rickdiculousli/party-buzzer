@@ -85,7 +85,7 @@ export function SketchPlayer({ state, playerId, connected = true, frame, now, se
           <p class="sketch-card__note"><span class="readout">+{results[at].points}</span> for the night</p>
         </> : <p class="sketch-card__title">Match over</p>}
       </section>
-      <StandingsDial state={state} />
+      <StandingsDial state={state} playerId={playerId} />
     </main>
   }
 

@@ -48,6 +48,8 @@ the protocol, QR on the phone.
 Judge: sonnet, because the rule and the caption are fully specified and the
 whole change is one component and two CSS lines.
 
+Built as specified, with two review findings folded in: the address carries its scheme and wraps only between scheme, host and port (a bare host typed into a phone goes to http and the server is https-only), and the standings win the sidebar, so a long lobby roster shrinks the code toward its small size instead of being cut off.
+
 ## What you'll see
 Open lobby: a 370px QR with the address under it; Arm: the QR eases down to
 the corner as it does now. The standings column still has room for the roster

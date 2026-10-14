@@ -34,7 +34,7 @@ export function InkBoard({ state, frame, touches }: MinigameBoardProps) {
       <span class="chip">{place}</span>
       {!over && <span class={`chip ink-team-chip ink-team-chip--${ink.turn}`}>{TEAM_LABEL[ink.turn]}</span>}
       <p class={winner ? `ink-board__call ink-board__call--${winner}` : 'ink-board__call'}>{stepLine(ink, nameOf)}</p>
-      {ink.secret && <p key="word" class="board__hero ink-board__word">{ink.secret}</p>}
+      {ink.secret && <p key="word" class="board__hero ink-board__word is-awarded">{ink.secret}</p>}
     </header>
     <InkPad state={state} frame={ink} pad={pad} touches={touches} peekRows={INK_PEEK_ROWS} sets aside={(team) =>
       <aside key={`discard-${team}`} class={`ink-discard ink-discard--${team}`}>

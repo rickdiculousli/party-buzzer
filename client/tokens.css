@@ -137,6 +137,7 @@
   --t-md: 1rem;
   --t-sm: 0.8125rem;
   --t-xs: 0.6875rem;
+  --t-chip-board: clamp(0.95rem, 1.25vw, 1.6rem); /* status chips on the board, read across a room */
 
   --track-label: 0.14em; /* eyebrows and chips only */
   --track-hero: -0.01em;

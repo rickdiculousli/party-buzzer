@@ -48,6 +48,8 @@ hero, any phone or host change.
 Judge: opus, because the colours and states are pinned above and the work is
 threading one enum value through `wall.ts`, its tests and two CSS rules.
 
+Built as specified, plus one review finding: the glow rides an inner span keyed on the tone, so a verdict relights the name in brass or tally instead of dimming it unlit. Sketch and Ink reveals, which reuse the hero class, keep brass as results.
+
 ## What you'll see
 A buzz slams in tungsten, the same warm the host's Arm button wears. Correct
 turns it brass as the stamp lands; wrong turns it tally and shakes as it does

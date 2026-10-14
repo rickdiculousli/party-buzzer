@@ -37,13 +37,17 @@ function Hero({ name, tone }: NonNullable<Wall['hero']>) {
       // same name going red is that person being judged, and the letters should
       // stay put while the colour tells you what happened.
       key={name}
-      // Not brass — brass is what a payoff looks like. Same tally-red as the
-      // stamp above it, so the three parts of a miss read as one thing.
-      class={tone === 'penalised' ? 'board__hero fx-anchor is-penalised' : 'board__hero fx-anchor'}
+      // Tungsten while answering, brass once awarded (brass is what a payoff
+      // looks like), tally-red on a miss, like the stamp above it.
+      class={`board__hero board__hero--toned fx-anchor${tone === 'answering' ? '' : ` is-${tone}`}`}
     >
-      {/* The shake mounts with the recolour, so it plays when the name is
-          judged, not when it arrives. */}
-      {tone === 'penalised' ? <span class="board__hero-hit fx-shake">{name}</span> : name}
+      {/* The glow rides an inner span keyed on the tone, so a verdict relights
+          the name in its new colour instead of dimming it to brass unlit; the
+          slam stays on the outer element and plays once per name. The shake
+          mounts with the recolour too, so it plays when the name is judged. */}
+      <span key={tone} class="board__hero-tone">
+        {tone === 'penalised' ? <span class="board__hero-hit fx-shake">{name}</span> : name}
+      </span>
     </p>
   )
 }
@@ -547,6 +551,9 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
   // truer source, because a wrong answer narrows it.
   const seating = willSeat(state)
   const setlistLabel = setlistPosition(state)
+  const qrBig = state.players.length === 0 || state.arrival?.kind === 'lobby' || state.arrival?.kind === 'introduction'
+  const loopback = ['localhost', '127.0.0.1', '::1', '[::1]'].includes(location.hostname)
+  const showAddress = qrBig && !loopback
 
   return (
     <main class="board" data-review-id="board:root">
@@ -563,7 +570,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
           {/* Position, not drama. The stage belongs to the question; a setlist that
               pulls the eye during a buzz has failed at its job. */}
           {setlistLabel && (
-            <span key={state.setlist?.at} class="chip fx-flip" data-review-id="board:setlist">
+            <span key={state.setlist?.at} class="chip chip--setlist fx-flip" data-review-id="board:setlist">
               {setlistLabel}
             </span>
           )}
@@ -749,10 +756,24 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
           </ol>
         </div>
 
-        {/* Full size until the first player is in, then out of the way. */}
-        <div data-review-id="board:join" class={state.players.length === 0 ? 'board__qr fx-glow-pulse' : 'board__qr is-small'}>
+        {/* Full size while the room is arriving (no players yet, the lobby, a
+            first-block introduction), then out of the way once play starts. */}
+        <div data-review-id="board:join" class={qrBig ? 'board__qr fx-glow-pulse' : 'board__qr is-small'}>
           <img src="/qr.svg" alt="Scan to join" />
           <p>Scan to join</p>
+          {/* With its scheme: the server is https-only, and a bare host typed
+              into a phone goes to http first and gets nothing. Three spans so a
+              long certificate name wraps between tokens, never inside one. */}
+          {showAddress && (
+            <>
+              <p class="board__addr">
+                <span class="board__addr-dim">{location.protocol}//</span>
+                <span>{location.hostname}</span>
+                {location.port && <span class="board__addr-dim">:{location.port}</span>}
+              </p>
+              <p class="board__addr-hint">or type the address</p>
+            </>
+          )}
         </div>
 
         {/* The room never needs this, but the host glancing at the wall does. */}

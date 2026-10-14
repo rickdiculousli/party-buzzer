@@ -192,9 +192,12 @@ export function momentOf(state: State, local: Local): Moment {
  * The other five are the bands above and below, and may co-occur with the
  * middle one — a miss is legitimately transcript, award and hero at once.
  */
+/** The hero's verdict-so-far: `answering` is open, `awarded` paid, `penalised` cost. */
+export type HeroTone = 'answering' | 'awarded' | 'penalised'
+
 export type Wall = {
   moment: Moment
-  hero: { name: string; tone: 'answering' | 'penalised' } | null
+  hero: { name: string; tone: HeroTone } | null
   clue: { whole?: string; shown: string; image?: string } | null
   nominations: 'solo' | 'teams' | null
   faceoff: [string, string] | null
@@ -295,7 +298,7 @@ function leaders(state: State): string[] {
 function middleOf(state: State, m: Moment): Middle {
   const r = state.round
   const nameOf = (id: string) => state.players.find((p) => p.id === id)?.name ?? '?'
-  const hero = (name?: string, tone: 'answering' | 'penalised' = 'answering') =>
+  const hero = (name?: string, tone: HeroTone = 'answering') =>
     name ? ({ hero: { name, tone } } satisfies Middle) : null
 
   // The first choice that has anything to show. The fall-through is `ready`
@@ -321,7 +324,7 @@ function middleOf(state: State, m: Moment): Middle {
   // it; this may, because a name is exactly what a moment cannot carry.
   const leader = hero(r.order[0]?.name)
   const spoken = hero(r.spoken?.name)
-  const scorer = hero(r.award?.name, isPenalty(r.award) ? 'penalised' : 'answering')
+  const scorer = hero(r.award?.name, isPenalty(r.award) ? 'penalised' : 'awarded')
 
   switch (m) {
     // `wallOf` answers these itself, with no middle occupant at all.
@@ -622,9 +625,11 @@ export function phoneOf(m: Moment, f: Mine): Phone {
       sub:
         m === 'verdict:hold'
           ? 'Reopening in a moment'
-          : f.deltaMs
+          : f.deltaMs !== undefined
             ? `+${f.deltaMs} ms`
-            : '',
+            : isFamily(m, 'answer')
+              ? 'Someone else is answering'
+              : '',
       mood: 'barred',
       talk: false,
     }

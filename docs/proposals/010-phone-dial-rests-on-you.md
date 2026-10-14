@@ -50,6 +50,8 @@ height, tilt or snap; any new field in the phone projection.
 Judge: opus, because the scroll rule and the strings are pinned and the only
 hard part is not fighting the user's own flick.
 
+Built with two changes from the spec: the second Locked line ("Didn't make the order") was unreachable, since a closed order with the buzzers shut is always an answering moment, so only "Someone else is answering" exists; and every row, top three included, rests in the band, because 3rd place at the window's bottom edge sat under the frost.
+
 ## What you'll see
 Dee opens her phone and sees `8th Hal · 9th DEE · 10th Ida`, her row centred
 and lit; a score change slides the list so she stays in the band. While Ada

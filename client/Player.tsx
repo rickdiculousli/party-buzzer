@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'preact/hooks'
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { useOpen, useSecondsLeft, useSocket, type SocketFixture } from './useSocket.ts'
 import { Talk } from './Talk.tsx'
 import { colorForPlayer, standings } from './ui.ts'
@@ -49,16 +49,30 @@ function blip(ctx: AudioContext | null, hz = 660, ms = 150) {
  * of the field a scroll away under frosted edges. Rows tilt around a shared
  * cylinder axis by their distance from the middle, like the old time pickers.
  */
-export function StandingsDial({ state }: { state: State }) {
+export function StandingsDial({ state, playerId }: { state: State; playerId?: string | null }) {
   const rows = standings(state)
   const list = useRef<HTMLOListElement>(null)
+  const touched = useRef(-Infinity)
   useFlip(list)
+  // Rest on the player's own row: on mount and whenever the order changes, but
+  // never within a second of a finger on the list, so a flick is not fought.
+  const mine = playerId ? scoreKey(state, playerId) : undefined
+  const at = rows.findIndex((r) => r.key === mine)
+  const order = rows.map((r) => r.key).join('|')
+  useLayoutEffect(() => {
+    const el = list.current
+    if (!el || at < 0 || Date.now() - touched.current < 1000) return
+    const row = el.children[at] as HTMLElement | undefined
+    if (!row) return
+    // Your row in the band; the two rows of padding let even 1st sit there.
+    el.scrollTop = Math.max(0, row.offsetTop + row.offsetHeight / 2 - el.clientHeight / 2)
+  }, [order, at])
   const ordinal = (i: number) =>
     i === 0 ? '1st' : i === 1 ? '2nd' : i === 2 ? '3rd' : `${i + 1}th`
 
   return (
     <div class="dial" aria-label="Standings" data-review-id="phone:standings">
-      <ol class="dial__list" ref={list}>
+      <ol class="dial__list" ref={list} onPointerDown={() => { touched.current = Date.now() }}>
         {rows.map((r, i) => (
           <li key={r.key} data-key={r.key} data-review-id={`phone:standing:${r.key}`} class="dial__row fx-pop" style={{ '--id': r.color }}>
             <span class={i < 3 ? `dial__rank rank rank--${i + 1}` : 'dial__rank rank'}>
@@ -366,7 +380,7 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
         </>
       )}
 
-      {state && <StandingsDial state={state} />}
+      {state && <StandingsDial state={state} playerId={playerId} />}
     </main>
   )
 }
