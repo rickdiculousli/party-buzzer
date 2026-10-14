@@ -4,7 +4,7 @@ import { mulberry32 } from '../../../shared/random.ts'
 import { act, createTable, finished, legal, places, resumeTable, setPresence, startHand, stepTable, tableCheckpoint, STEP_MS, PACE } from './table.ts'
 import type { PokerWorld, Seat } from './types.ts'
 
-const OPTS = { stack: 1500, bigBlind: 20, levelMin: 10, shotSec: 30 }
+const OPTS = { stack: 1500, bigBlind: 20, levelMin: 10, shotSec: 30, evaluations: 100 }
 const seatOf = (w: PokerWorld, id: string) => w.seats.find((seat) => seat.player === id)!
 const actorId = (w: PokerWorld) => w.seats[w.actor!].player
 const at = (w: PokerWorld, offset: number) => w.seats[(w.button + offset) % w.seats.length]

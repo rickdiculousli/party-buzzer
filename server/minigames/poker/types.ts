@@ -3,7 +3,8 @@ import type {
 } from '../../../shared/protocol.ts'
 import type { Pot } from './pots.ts'
 
-export type PokerOptions = { stack: number; bigBlind: number; levelMin: number; shotSec: number }
+/** `evaluations` sizes the preflop equity sample; only tests set it, so it is not a host option. */
+export type PokerOptions = { stack: number; bigBlind: number; levelMin: number; shotSec: number; evaluations?: number }
 
 /** Timed phases hold until a tick. */
 export type Phase =
@@ -41,6 +42,8 @@ export type PokerWorld = {
   /** Shuffles every hand. Drawn secretly, so the match seed that clients see cannot reveal cards. */
   deckSeed: number
   opts: PokerOptions
+  /** Hand evaluations per sampled preflop equity. */
+  evaluations: number
   seats: Seat[]
   busted: { player: PlayerId; place: number }[]
   button: number

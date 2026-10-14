@@ -3,7 +3,7 @@ import { mulberry32 } from '../../../shared/random.ts'
 import type { InputOutcome } from '../definition.ts'
 import { shuffle } from '../shuffle.ts'
 import { handDeck } from './cards.ts'
-import { equity } from './equity.ts'
+import { equity, EVALUATIONS } from './equity.ts'
 import { best, compare } from './evaluate.ts'
 import { awardPots, buildPots } from './pots.ts'
 import type { Legal, PokerAction, PokerCheckpoint, PokerOptions, PokerWorld, Seat } from './types.ts'
@@ -23,7 +23,7 @@ const canBet = (seat: Seat) => inHand(seat) && seat.stack > 0
 
 function table(seed: number, deckSeed: number, opts: PokerOptions, seats: PokerCheckpoint['seats'], button: number): PokerWorld {
   return {
-    tick: 0, seed, deckSeed, opts,
+    tick: 0, seed, deckSeed, opts, evaluations: opts.evaluations ?? EVALUATIONS,
     seats: seats.map(({ player, stack, out }) => ({
       player, stack, startStack: stack, hole: null, bet: 0, contributed: 0,
       folded: false, acted: false, mayRaise: true, connected: true, faceUp: false, out,
@@ -275,7 +275,7 @@ function dealStreet(w: PokerWorld): void {
 
 function updateEquity(w: PokerWorld): void {
   const hands = Object.fromEntries(w.seats.filter(inHand).map((seat) => [seat.player, seat.hole!]))
-  w.equity = equity(hands, w.board, mulberry32((w.seed ^ Math.imul(w.handNo, 31) ^ w.board.length) >>> 0))
+  w.equity = equity(hands, w.board, mulberry32((w.seed ^ Math.imul(w.handNo, 31) ^ w.board.length) >>> 0), w.evaluations)
 }
 
 /** Pays out and empties the hand's contributions; `hands` names each winner's hand at a showdown. */

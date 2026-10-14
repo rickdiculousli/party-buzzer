@@ -6,7 +6,7 @@ import { best, compare } from './evaluate.ts'
 export const EVALUATIONS = 10_000
 
 /** Each hand's share of the pot over every way the board can finish; ties split. */
-export function equity(hands: Record<PlayerId, [Card, Card]>, board: Card[], rand: () => number): Record<PlayerId, number> {
+export function equity(hands: Record<PlayerId, [Card, Card]>, board: Card[], rand: () => number, evaluations = EVALUATIONS): Record<PlayerId, number> {
   const ids = Object.keys(hands)
   const known = new Set([...board, ...ids.flatMap((id) => hands[id])])
   const left = DECK.filter((card) => !known.has(card))
@@ -34,7 +34,7 @@ export function equity(hands: Record<PlayerId, [Card, Card]>, board: Card[], ran
   } else {
     const pool = [...left]
     // ponytail: sampled preflop odds wobble about 1% at nine seats; raise EVALUATIONS if that shows.
-    const samples = Math.round(EVALUATIONS / ids.length)
+    const samples = Math.round(evaluations / ids.length)
     for (let n = 0; n < samples; n++) {
       // A partial Fisher-Yates draws `need` distinct cards.
       for (let i = 0; i < need; i++) {
