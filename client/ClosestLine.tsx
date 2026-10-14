@@ -37,7 +37,7 @@ export function closestStamp(c: ClosestWall): string {
 }
 
 /** Guesses of the same number share one label: two names, one number. */
-type Group = { marks: ClosestMark[]; at: number; shift: number; span: number; lane: number }
+type Group = { marks: ClosestMark[]; at: number; shift: number; span: number; lane: number; start: number }
 
 /**
  * How far a label sits left of its dot, as a share of its own width: centred,
@@ -45,23 +45,38 @@ type Group = { marks: ClosestMark[]; at: number; shift: number; span: number; la
  */
 const shiftAt = (at: number) => Math.min(at / 0.15, 1) * 0.5 + Math.max(0, (at - 0.85) / 0.15) * 0.5
 
-/** Lanes above the line, lowest first, so labels near each other stack rather than overprint. */
+/**
+ * Lanes above the line, lowest first, so labels near each other stack rather
+ * than overprint. A label sits over every stem, so where it can it also keeps
+ * clear of the dot of any label stacked above it, and of any lower label
+ * sitting over its own dot: either way a stem would vanish behind a box and
+ * leave its label looking like a neighbour's. Overprinting is never chosen
+ * while a lane is free of it; past that, the least crowded lane.
+ */
 function groups(marks: ClosestMark[]): Group[] {
   const out: Group[] = []
   for (const m of marks) {
     const last = out[out.length - 1]
     if (last && last.marks[0].guess === m.guess) last.marks.push(m)
-    else out.push({ marks: [m], at: m.at, shift: shiftAt(m.at), span: 0, lane: 0 })
+    else out.push({ marks: [m], at: m.at, shift: shiftAt(m.at), span: 0, lane: 0, start: 0 })
   }
-  const ends: number[] = []
+  const placed: Group[] = []
+  const covers = (g: Group, x: number) => g.start - 0.004 < x && x < g.start + g.span + 0.004
   for (const g of out) {
     const chars = Math.max(g.marks.map((m) => m.name).join(' · ').length * 0.85, g.marks[0].text.length + (g.marks[0].paid ? 5 : 0) + 2)
     g.span = LABEL_BASE + chars * LABEL_CHAR
-    const start = g.at - g.shift * g.span
-    let lane = ends.findIndex((end) => end <= start)
-    if (lane < 0) lane = ends.length < MAX_LANES ? ends.length : ends.indexOf(Math.min(...ends))
-    ends[lane] = start + g.span
+    g.start = g.at - g.shift * g.span
+    const overlaps = (lane: number) =>
+      placed.filter((p) => p.lane === lane && p.start < g.start + g.span && g.start < p.start + p.span).length
+    const hides = (lane: number) =>
+      placed.some((p) => (p.lane < lane && covers(p, g.at)) || (p.lane > lane && covers(g, p.at)))
+    const lanes = Array.from({ length: MAX_LANES }, (_, l) => l)
+    const lane =
+      lanes.find((l) => !overlaps(l) && !hides(l)) ??
+      lanes.find((l) => !overlaps(l)) ??
+      lanes.reduce((best, l) => (overlaps(l) < overlaps(best) ? l : best), 0)
     g.lane = lane
+    placed.push(g)
   }
   return out
 }
@@ -116,7 +131,7 @@ export function ClosestLine({ c, closed, colorOf }: { c: ClosestWall; closed: bo
             return (
               <li
                 key={first.id}
-                class={`closest__mark ${place === 1 ? 'is-won' : place === 2 ? 'is-second' : 'is-dim'}`}
+                class={`closest__mark ${place === 1 ? 'is-won' : place === 2 ? 'is-second' : 'is-dim'}${g.shift === 0 ? ' is-start' : g.shift === 1 ? ' is-end' : ''}`}
                 style={{ '--at': g.at, '--lane': g.lane, '--shift': g.shift, '--id': colorOf(first.id), '--land-at': ms(landAt + r.dropMs / 2) }}
               >
                 {dots}

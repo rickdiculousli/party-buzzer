@@ -766,7 +766,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
    The reveal is one render: every step after the first landing is a delay set
    inline from `closestTimes` (shared/closest.ts), the schedule the phones and
    the reader keep too. */
-.closest { --_dot: 0.625rem; display: grid; gap: var(--s4); justify-items: center; width: min(100%, 72rem); margin-top: var(--s4); }
+.closest { --_dot: 0.625rem; display: grid; gap: var(--s4); justify-items: center; width: min(100%, 72rem); margin-top: var(--s4); overflow-x: clip; }
 .closest__line {
   --_label: clamp(0.85rem, min(1.8vw, 3.2vh), 2.25rem);
   --_lane: calc(var(--_label) * 2.35);
@@ -839,7 +839,26 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .closest__name { color: var(--id); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; font-size: 0.85em; }
 .closest__guess { font-weight: 700; font-variant-numeric: tabular-nums; }
 .closest__arrow { width: 0.5em; height: 0.5em; margin-inline: 0.15em; vertical-align: 0.1em; }
-.closest__paid { font-weight: 800; animation: fx-fade var(--fx-fade-dur) var(--ease) var(--light-at) both; }
+/* Out of the flow until it lights, so a paid label is centred like the rest
+   through the hold and gives nothing away; then a chip of the same fill beside the box. */
+.closest__guess { position: relative; }
+.closest__paid {
+  position: absolute;
+  left: calc(100% + 0.55em);
+  top: -0.1em;
+  bottom: -0.1em;
+  padding: 0.1em 0.35em;
+  border-radius: var(--r-sm);
+  font-weight: 800;
+  animation: fx-fade var(--fx-fade-dur) var(--ease) var(--light-at) both;
+}
+.closest__mark.is-won .closest__paid { background: var(--brass); }
+.closest__mark.is-second .closest__paid { background: var(--silver); }
+/* A label held to an end of the line ends at its dot, not a padding's width short of it. */
+.closest__mark.is-start .closest__face { padding-left: 0; }
+.closest__mark.is-end .closest__face { padding-right: 0; }
+/* …and at the right-hand end the points hang off the left, staying on the line. */
+.closest__mark.is-end .closest__paid { left: auto; right: calc(100% + 0.55em); }
 /* Lit, once the answer is in: the nearest fills brass and tadas, a half-paying
    second fills silver, the rest step back. Each waits at its old look until
    `--light-at` (fill-mode backwards); the kit has no delayed, held change of
@@ -858,9 +877,9 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .closest__mark:is(.is-won, .is-second) .closest__name { --_from: var(--id); }
 @keyframes closest-lit { from { background-color: var(--stage); color: var(--_from, var(--chalk)); box-shadow: none; } }
-/* The rest dim to where a name is still readable from the sofa; the dot stays a solid dot. */
+/* The rest step back only as far as a red or pink name still reads from the sofa; the dot stays a solid dot. */
 .closest__mark.is-dim .closest__face { animation: closest-dim var(--fx-fade-dur) var(--ease) var(--light-at) forwards; }
-@keyframes closest-dim { to { opacity: 0.6; } }
+@keyframes closest-dim { to { opacity: 0.75; } }
 /* The answer: a tick through the line and the number under it, run in from
    the right-hand end, and always from far enough to be seen arriving. */
 .closest__line .closest__truth {
@@ -1839,6 +1858,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .board__award { animation: fx-rubber-stamp var(--fx-dur, var(--strike-dur)) var(--slam); }
 /* A closest reveal's stamp waits, unseen, for the nearest to light; its delay is set inline from `closestTimes`. */
 .board__award.is-closest { animation-fill-mode: backwards; }
+.board__award.is-closest > .fx-burst > i { animation-delay: calc(var(--delay) + var(--stamp-at) + var(--strike-dur) * 0.55); }
 /* The dust comes off the stamp's bottom edge on the frame it lands: the
    overshoot peaks at 55% of the strike. */
 .board__award > .fx-burst > i { animation-delay: calc(var(--delay) + var(--strike-dur) * 0.55); }

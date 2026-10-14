@@ -875,7 +875,7 @@ wild guess is parked at an end with an arrow beside its number. The line
 holds a beat, then the answer's tick and number run in from the right-hand
 end (`fx-slide--even`) and hang below the line. Then the nearest's label fills
 brass and tadas (`.is-won`), a half-paying second fills silver (`.is-second`),
-the rest dim to 0.6 so their names still read, and the brass stamp above names
+the rest dim to 0.75 so their names still read, and the brass stamp above names
 the winner: "Ed +200 · 15 off" ("spot on" for an exact hit, "each" for a tie,
 "3 tied" past two, "Nobody" when nobody guessed). The schedule is
 `CLOSEST_REVEAL` in `shared/closest.ts`, applied as inline delays; phones and

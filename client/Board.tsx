@@ -694,8 +694,13 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
             </p>
           ) : w.closest?.truth ? (
             // The same stamp, held until the nearest lights: what it paid and how near it was.
-            <p data-review-id="board:award" class="board__award is-closest" style={{ animationDelay: closestStampDelay(w.closest) }}>
+            <p
+              data-review-id="board:award"
+              class="board__award is-closest fx-anchor"
+              style={{ animationDelay: closestStampDelay(w.closest), '--stamp-at': closestStampDelay(w.closest) }}
+            >
               {closestStamp(w.closest)}
+              {!!w.closest.winners?.length && <Burst kind="dust" from={['left', 'bottom', 'right']} />}
             </p>
           ) : null}
         </div>
