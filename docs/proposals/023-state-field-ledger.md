@@ -4,10 +4,13 @@ title: One test that makes every State field declare its undo, disk and phone li
 kind: maintenance
 size: S
 judge: opus
-status: accepted
+status: building
 lens: eng
 proposed_by: 7f24ed4b-18c6-49f9-a00b-48d7dfed548a
 proposed_on: 2026-10-14
+built_by: af4632a6-cce5-49e5-a3bd-bc90ad48e191
+branch: t3code/b8826e84
+host: k16
 ---
 
 ## Opportunity

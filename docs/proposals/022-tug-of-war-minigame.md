@@ -4,10 +4,13 @@ title: Tug of war: a thirty-second minigame the whole room shouts through
 kind: feature
 size: M
 judge: opus
-status: accepted
+status: building
 lens: eng
 proposed_by: 7f24ed4b-18c6-49f9-a00b-48d7dfed548a
 proposed_on: 2026-10-14
+built_by: 0249f15c-464b-4335-9c87-9f0c390e9d6d
+branch: t3code/6be3e881
+host: k16
 ---
 
 ## Opportunity
