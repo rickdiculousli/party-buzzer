@@ -16,7 +16,7 @@ import { ArrivalBoard } from './ArrivalBoard.tsx'
 import { practiceLobbyId } from './arrival-feedback.ts'
 import { usePracticeTime } from './usePractice.ts'
 import { Burst, Letters, ScoreChange, useFlip } from './fx.tsx'
-import { ClosestLine, closestStamp, useClosestStage } from './ClosestLine.tsx'
+import { ClosestLine, closestStamp } from './ClosestLine.tsx'
 
 type Mark = BuzzEntry & { lane: number }
 
@@ -565,9 +565,6 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
   const settled = preview?.settled ?? reveal.settled
   const retired = preview?.retired ?? reveal.retired
   const onSettled = preview ? undefined : reveal.onSettled
-  // Above the early returns, because the closest line's clock is a hook.
-  const wall = state ? wallOf(state, { open, settled, retired }) : null
-  const closestStage = useClosestStage(wall?.closest ?? null, state?.round.questionId ?? '', !!preview)
 
   if (!state) return <main class="board"><p class="board__idle">Connecting</p></main>
   if (state.minigame) {
@@ -582,7 +579,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
    * three clocks the module is not allowed to read: the countdown to `armedAt`,
    * the transcript having settled, and the penalty dwell having elapsed.
    */
-  const w = wall!
+  const w = wallOf(state, { open, settled, retired })
   const leader = round.order[0]
   const armed = round.phase === 'ARMED' || round.phase === 'COLLECTING'
   const here = state.players.filter((p) => p.connected).length
@@ -600,7 +597,11 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
 
   return (
     <main class="board" data-review-id="board:root">
-      <section class={w.moment.startsWith('choice:') || w.moment.startsWith('closest:') ? 'board__wall is-choice' : 'board__wall'}>
+      <section
+        class={w.moment.startsWith('choice:') || w.moment.startsWith('closest:') ? 'board__wall is-choice' : 'board__wall'}
+        // The closest reveal's stamp waits for every guess to land: style.css counts them.
+        style={w.closest?.marks ? { '--closest-n': w.closest.marks.length } : undefined}
+      >
         {round.closesAt !== undefined && (w.moment === 'choice:picking' || w.moment === 'buzz:open') && (
           <Countdown until={round.closesAt} now={now} />
         )}
@@ -692,11 +693,10 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
               {w.choices.winners?.length ? `+${w.choices.points} · ${w.choices.winners.length} right` : 'Nobody'}
               {!!w.choices.winners?.length && <Burst kind="dust" from={['left', 'bottom', 'right']} />}
             </p>
-          ) : w.closest?.truth && closestStage === 2 ? (
-            // The same stamp, once the nearest has lit: what it paid and how near it was.
-            <p data-review-id="board:award" class="board__award fx-anchor">
+          ) : w.closest?.truth ? (
+            // The same stamp, held until the nearest lights: what it paid and how near it was.
+            <p data-review-id="board:award" class="board__award is-closest">
               {closestStamp(w.closest)}
-              {!!w.closest.winners?.length && <Burst kind="dust" from={['left', 'bottom', 'right']} />}
             </p>
           ) : null}
         </div>
@@ -770,7 +770,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
               needs to know whether it arrived alone or in a crowd. */}
           {w.choices && <Choices c={w.choices} now={now} colorOf={(id) => colorForPlayer(state, id)} />}
           {w.closest && (
-            <ClosestLine key={round.questionId} c={w.closest} stage={closestStage} colorOf={(id) => colorForPlayer(state, id)} />
+            <ClosestLine key={round.questionId} c={w.closest} colorOf={(id) => colorForPlayer(state, id)} />
           )}
           {w.timeline && <Timeline state={state} round={round} enter={enter.current} />}
         </div>

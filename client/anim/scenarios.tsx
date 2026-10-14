@@ -30,6 +30,10 @@ import { Votes } from '../Votes.tsx'
 import { Spoken } from '../Spoken.tsx'
 import { Burst, CountUp, Glitch, Letters } from '../fx.tsx'
 import { FaceOff, Finale } from '../Board.tsx'
+import { ClosestLine, closestStamp } from '../ClosestLine.tsx'
+import { formatNumber, lineScale, placeOn } from '../../shared/closest.ts'
+import { closestAwards } from '../../shared/scoring.ts'
+import type { ClosestWall } from '../../shared/wall.ts'
 import { ChipStack, Corral, Piece, PlayingCard } from '../PokerParts.tsx'
 import { chain, flop, gather, pitch, receive, scatter, street, sweep, toss, turnUp, CHIP_FACE, FOLD, RECEIVE, REVEAL, TOSS } from '../toss.ts'
 import { mulberry32 } from '../../shared/random.ts'
@@ -225,6 +229,45 @@ function Timeline({ held = 0 }: { held?: number }) {
 const VOTERS = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6']
 
 /** The stage's three bands, so a scenario sits where it really sits. */
+/** The walkthrough's Eiffel Tower question, seven guesses with one wild. */
+const GUESSES: [string, string, number, string][] = [
+  ['ada', 'Ada', 1700, 'var(--id-1)'], ['cy', 'Cy', 1500, 'var(--id-6)'], ['bo', 'Bo', 1200, 'var(--id-3)'],
+  ['di', 'Di', 1720, 'var(--id-4)'], ['ed', 'Ed', 1650, 'var(--id-5)'], ['fen', 'Fen', 900, 'var(--id-2)'],
+  ['gus', 'Gus', 25000, 'var(--id-1)'],
+]
+
+function closestWall(revealed: boolean): ClosestWall {
+  const truth = 1665
+  const base: ClosestWall = { unit: 'steps', points: 200, guessers: GUESSES.map(([id]) => ({ id, guessed: true })) }
+  if (!revealed) return base
+  const paid = closestAwards(Object.fromEntries(GUESSES.map(([id, , g]) => [id, g])), truth, 200)
+  const scale = lineScale(GUESSES.map(([, , g]) => g), truth)
+  const nearest = Math.min(...GUESSES.map(([, , g]) => Math.abs(g - truth)))
+  const marks = GUESSES.map(([id, name, guess]) => ({
+    id, name, guess, text: formatNumber(guess), ...placeOn(scale, guess), off: Math.abs(guess - truth), paid: paid[id] ?? 0,
+    ...(paid[id] && { place: Math.abs(guess - truth) === nearest ? (1 as const) : (2 as const) }),
+  })).sort((a, b) => a.guess - b.guess)
+  return {
+    ...base,
+    truth: { value: truth, text: formatNumber(truth), at: placeOn(scale, truth).at },
+    marks,
+    winners: marks.filter((m) => m.place === 1).map((m) => ({ name: m.name, paid: m.paid, off: m.off })),
+  }
+}
+
+/** The wall as `Board.tsx` lays it out for a closest question. */
+function ClosestScene({ revealed }: { revealed: boolean }) {
+  const c = closestWall(revealed)
+  const colorOf = (id: string) => GUESSES.find(([g]) => g === id)?.[3] ?? 'var(--chalk)'
+  return (
+    <section class="board__wall is-choice" style={{ '--closest-n': c.marks?.length ?? 0 }}>
+      <div class="board__above">{revealed && <p class="board__award is-closest">{closestStamp(c)}</p>}</div>
+      <div class="board__mid"><p class="board__question">How many steps are in the Eiffel Tower to the top?</p></div>
+      <div class="board__below"><ClosestLine c={c} colorOf={colorOf} /></div>
+    </section>
+  )
+}
+
 function Stage({
   above,
   mid,
@@ -818,6 +861,19 @@ export const SCENARIOS: Scenario[] = [
     ),
   },
   ...FX,
+  {
+    id: 'closest',
+    label: 'A closest reveal',
+    family: 'Quiz',
+    note: 'Seven guesses are in. They drop onto the line, it holds, the answer runs in from the right, and the nearest lights.',
+    subject: '.closest__mark, .closest__truth, .board__award',
+    dials: [
+      ms('--closest-land-step', 400, 'Land stagger'),
+      ms('--closest-hold', 3000, 'Hold'),
+      ms('--closest-slide-dur', 2000, 'Answer slide'),
+    ],
+    render: (lead) => <ClosestScene revealed={!lead} />,
+  },
   {
     id: 'finale',
     label: 'The finale',

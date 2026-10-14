@@ -762,15 +762,22 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .board__slots.is-closed { background: color-mix(in srgb, var(--brass) 30%, var(--panel)); border-color: var(--brass); --fx-color: var(--brass); }
 /* A closest question: the slot bar while the room guesses, then the line the
    guesses drop onto. Labels stack in lanes above the line; the answer hangs
-   below it, so the two never meet. The line is a scale, so it is cold. */
-.closest { --_dot: 0.625rem; display: grid; gap: var(--s4); justify-items: center; width: min(100%, 64rem); margin-top: var(--s4); }
+   below it, so the two never meet. The line is a scale, so it is cold.
+   The reveal is one render; everything after the first landing is a CSS delay
+   counted from `--closest-n`, the number of guesses. */
+.board__wall, .closest {
+  --closest-truth-at: calc(var(--closest-n, 0) * var(--closest-land-step) + var(--fx-drop-dur) + var(--closest-hold));
+  --closest-light-at: calc(var(--closest-truth-at) + var(--closest-slide-dur));
+}
+.closest { --_dot: 0.625rem; display: grid; gap: var(--s4); justify-items: center; width: min(100%, 72rem); margin-top: var(--s4); }
 .closest__line {
-  --_lane: calc(var(--t-chip-board) * 2.6);
-  --_mark: 1rem;
+  --_label: clamp(1rem, 1.7vw, 2.1rem);
+  --_lane: calc(var(--_label) * 2.5);
+  --_mark: clamp(0.9rem, 1.3vw, 1.4rem);
   container-type: inline-size;
   position: relative;
   width: calc(100% - 2 * var(--s5));
-  height: calc(var(--_lane) * 4 + var(--t-xl) * 1.6 + var(--s4));
+  height: calc(var(--_lane) * 4 + var(--_mark) * 2 + var(--t-xl) * 1.3);
   /* The rule itself, at the bottom of the lanes. */
   background: linear-gradient(var(--cyan), var(--cyan)) 0 calc(var(--_lane) * 4) / 100% 2px no-repeat;
 }
@@ -784,8 +791,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   color: var(--dim);
 }
 .closest__marks { list-style: none; margin: 0; padding: 0; }
-.closest__mark { position: absolute; left: calc(var(--at) * 100%); top: calc(var(--_lane) * 4); transition: opacity 300ms; }
-.closest__mark.is-dim { opacity: 0.4; }
+.closest__mark { position: absolute; left: calc(var(--at) * 100%); top: calc(var(--_lane) * 4); }
 .closest__dot {
   position: absolute;
   left: calc(var(--_mark) * -0.5);
@@ -807,7 +813,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   background: var(--id);
   opacity: 0.6;
 }
-/* The label, shifted by its own position so the ends stay on the line. */
+/* The label, shifted by its own position along the line so the ends stay on it. */
 .closest__label {
   position: absolute;
   bottom: calc(var(--_mark) * 0.5 + var(--lane) * var(--_lane));
@@ -815,24 +821,51 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   translate: calc(var(--at) * -100%) 0;
   display: grid;
   justify-items: center;
-  padding: 0.15em 0.5em;
+  padding: 0.1em 0.45em;
+  border-radius: var(--r-sm);
   font-family: var(--display);
-  font-size: var(--t-chip-board);
-  line-height: 1.05;
+  font-size: var(--_label);
+  line-height: 1;
   white-space: nowrap;
   color: var(--chalk);
 }
-.closest__name { color: var(--id); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; font-size: 0.8em; }
+.closest__name { color: var(--id); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; font-size: 0.7em; }
 .closest__guess { font-weight: 700; font-variant-numeric: tabular-nums; }
 .closest__paid { font-weight: 800; }
-.closest__mark.is-won .closest__label { background: var(--brass); color: #201a03; border-radius: var(--r-sm); }
-.closest__mark.is-won::before { background: var(--brass); opacity: 1; }
-.closest__mark.is-won .closest__name { color: #201a03; }
-.closest__mark.is-won .closest__dot { background: var(--brass); }
-.closest__mark.is-second .closest__guess, .closest__mark.is-second .closest__paid { color: var(--silver); }
+/* Landing: each guess one stagger after the last, the stem and label with it. */
+.closest__mark .closest__dot { animation-delay: calc(var(--i) * var(--closest-land-step)); }
+.closest__mark::before, .closest__mark .closest__label {
+  animation: fx-fade var(--fx-fade-dur) var(--ease) calc(var(--i) * var(--closest-land-step) + var(--fx-drop-dur) * 0.5) both;
+}
+/* Lit, once the answer is in: the nearest goes brass, a half-paying second
+   silver, the rest dim. Held back by fill-mode until their delay. */
+.closest__mark.is-won .closest__label {
+  background: var(--brass);
+  color: #201a03;
+  animation:
+    fx-fade var(--fx-fade-dur) var(--ease) calc(var(--i) * var(--closest-land-step) + var(--fx-drop-dur) * 0.5) both,
+    closest-lit var(--fx-fade-dur) var(--ease) var(--closest-light-at) backwards,
+    fx-tada var(--fx-tada-dur) ease-in-out var(--closest-light-at);
+  --_a: var(--fx-tada-amp);
+}
+.closest__mark.is-won .closest__name { color: #201a03; animation: closest-ink var(--fx-fade-dur) var(--ease) var(--closest-light-at) backwards; }
+.closest__mark.is-second .closest__paid { color: var(--silver); }
+.closest__mark.is-second .closest__guess {
+  --_from: var(--chalk);
+  color: var(--silver);
+  animation: closest-ink var(--fx-fade-dur) var(--ease) var(--closest-light-at) backwards;
+}
+.closest__paid { animation: fx-fade var(--fx-fade-dur) var(--ease) var(--closest-light-at) both; }
+.closest__mark.is-dim { animation: closest-dim var(--fx-fade-dur) var(--ease) var(--closest-light-at) forwards; }
+/* The kit has no delayed, held change of colour, which is all these are. */
+@keyframes closest-lit { from { background-color: transparent; color: var(--chalk); } }
+@keyframes closest-ink { from { color: var(--_from, var(--id)); } }
+@keyframes closest-dim { to { opacity: 0.4; } }
 /* The answer: a tick through the line and the number under it, run in from the right-hand end. */
-.closest__truth {
+.closest__line .closest__truth {
   --fx-amp: calc((1 - var(--at)) * 100cqw);
+  --fx-dur: var(--closest-slide-dur);
+  animation-delay: var(--closest-truth-at);
   position: absolute;
   left: calc(var(--at) * 100%);
   top: calc(var(--_lane) * 4 - var(--_mark));
@@ -1719,6 +1752,12 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
      `--mark-stagger` above stays, and is the test the rest failed: the marks
      animate against it and sound.ts spaces cues by it, so it genuinely belongs
      to both and would have to be duplicated to live anywhere else. */
+
+  /* A closest reveal: the guesses land one after another, the line holds,
+     the answer runs in, then the nearest lights. */
+  --closest-land-step: 90ms;
+  --closest-hold: 1000ms;
+  --closest-slide-dur: 800ms;
 }
 /* /anim:tunables */
 
@@ -1805,6 +1844,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
    makes it read as struck rather than faded up. */
 .fx-rubber-stamp,
 .board__award { animation: fx-rubber-stamp var(--fx-dur, var(--strike-dur)) var(--slam); }
+/* A closest reveal's stamp waits, unseen, for the nearest to light. */
+.board__award.is-closest { animation-delay: var(--closest-light-at); animation-fill-mode: backwards; }
 /* The dust comes off the stamp's bottom edge on the frame it lands: the
    overshoot peaks at 55% of the strike. */
 .board__award > .fx-burst > i { animation-delay: calc(var(--delay) + var(--strike-dur) * 0.55); }

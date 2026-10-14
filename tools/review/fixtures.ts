@@ -192,6 +192,26 @@ export function makeReviewScenarios(): ReviewScenario[] {
   revealed.round.phase = 'IDLE'
   revealed.scores = { ada: 1000, bo: 400, cy: 600, di: 0 }
 
+  // Seven in the room, four in; nobody's number is on the wall yet.
+  const guessing = question()
+  for (const [id, name] of [['di', 'Di'], ['ed', 'Ed'], ['fen', 'Fen'], ['gus', 'Gus']]) {
+    guessing.players.push({ id, name, connected: true })
+    guessing.scores[id] = 0
+  }
+  guessing.round.kind = 'closest'
+  guessing.round.fragments = ['How many steps are in the Eiffel Tower to the top?']
+  guessing.round.whole = 'How many steps are in the Eiffel Tower to the top?'
+  guessing.round.guessing = { unit: 'steps', closesAt: NOW + 12_000 }
+  guessing.round.guesses = { ada: 1700, cy: 1500, bo: 1200, di: 1720 }
+
+  // Everyone in: a cluster near the answer, one wild guess parked at the end.
+  const lined = structuredClone(guessing)
+  lined.round.guesses = { ada: 1700, cy: 1500, bo: 1200, di: 1720, ed: 1650, fen: 900, gus: 25000 }
+  lined.round.truth = 1665
+  lined.round.paid = { ed: 200, ada: 100 }
+  lined.round.phase = 'IDLE'
+  lined.scores = { ...lined.scores, ed: 200, ada: 100 }
+
   const inkState = (phase: 'ready' | 'playing', names: Record<string, string> = {}) => {
     const state = base()
     state.players = INK_PLAYERS.map((player) => ({ ...player, name: names[player.id] ?? player.name }))
@@ -315,6 +335,8 @@ export function makeReviewScenarios(): ReviewScenario[] {
     build('setlist-complete', 'Setlist complete', spent, at()),
     build('choice-picking', 'Choice question, picking', picking, at({ open: true })),
     build('choice-reveal', 'Choice question, revealed', revealed, at()),
+    build('closest-guessing', 'Closest question, guessing', guessing, at({ open: true })),
+    build('closest-reveal', 'Closest question, revealed', lined, at()),
     build('ink-lobby', 'Ink teams forming', inkState('ready'), at()),
     ink('ink-choosing', 'Ink word choice', (game) => {
       game.play('di', { kind: 'pickWord', index: 2, at: 0 })
