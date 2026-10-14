@@ -4,13 +4,14 @@ title: The night runs itself: introductions between blocks and autoplay across m
 kind: feature
 size: L
 judge: opus
-status: building
+status: done
 lens: eng
 proposed_by: 7f24ed4b-18c6-49f9-a00b-48d7dfed548a
 proposed_on: 2026-10-14
 built_by: e34470ed-4e81-4743-a2a1-3d8821de6cba
 branch: t3code/a1eb61c1
 host: k16
+merged: 3d7a7e05972b0e197efa4a4baf68dad3041b0e10
 ---
 
 ## Opportunity
