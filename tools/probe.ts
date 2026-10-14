@@ -177,7 +177,7 @@ async function main() {
     // room on by itself while this function is still tidying up.
     if (readIsOurs) host.send({ t: 'act', act: 'stopRead' })
     if (autoplayIsOurs) {
-      host.send({ t: 'host', action: { a: 'setAutoplay', on: false, nextSec: 5, reboundSec: 2 } })
+      host.send({ t: 'host', action: { a: 'setAutoplay', on: false, nextSec: 5, buzzSec: 10, reboundSec: 2 } })
     }
     // Then the round: clearSetlist is refused unless it is IDLE, so resetting here
     // before anything IDLE-gated runs is what makes a `clear` mid-question
@@ -343,6 +343,7 @@ async function main() {
               a: 'setAutoplay',
               on: on !== 'off',
               nextSec: Number(next),
+              buzzSec: 10,
               reboundSec: Number(rebound),
             },
           })

@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "pretest": "test -d node_modules/ws || { echo 'node_modules missing: run npm ci'; exit 1; }",
+    "pretypecheck": "test -d node_modules/ws || { echo 'node_modules missing: run npm ci'; exit 1; }",
     "start": "node server/index.ts",
     "start:eleven": "node server/index.ts --eleven",
     "kill": "sh -c 'pid=$(lsof -tiTCP:8080 -sTCP:LISTEN); test -z \"$pid\" || kill $pid'",

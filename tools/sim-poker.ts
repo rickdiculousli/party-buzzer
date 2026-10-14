@@ -41,7 +41,7 @@ if (SOLO && !host.state()?.players.some((p) => p.connected && !p.id.startsWith('
   console.error('Solo needs your phone: join the room first, then run this again.')
   process.exit(1)
 }
-const bots = []
+const bots: { conn: Awaited<ReturnType<typeof connect>>; name: string; seq: number }[] = []
 for (const name of NAMES) {
   const conn = await connect(URL, 'player', name, `sim-poker-${name}`)
   bots.push({ conn, name, seq: Date.now() })

@@ -7,11 +7,13 @@ UI: player `/`, host `/host`, board `/board`. Optimize for convenient game
 nights and understandable code. Authentication, hostile-client defenses,
 remote services, and a general plugin framework are not default requirements.
 
-Read [ARCHTECTURE.md](ARCHTECTURE.md) for the component map and
-[README.md](README.md) for operation. Before naming concepts or changing UI,
-read [the design guide](docs/design.md), especially §9, “Canon words.” Use its
-vocabulary consistently: question, round, attempt, block, setlist, order,
-standings, leader, and hero describe different things.
+Read [ARCHTECTURE.md](ARCHTECTURE.md) for the component map. From
+[README.md](README.md), read only [Saving and undo](README.md#saving-and-undo)
+and [Development](README.md#development) (those two sections). Read the
+[design guide](docs/design.md) by section and task: §9, “Canon words,” for any
+naming; §4 and §5 only when touching components or motion; §7 for surface
+layout. Use the canon vocabulary consistently: question, round, attempt, block,
+setlist, order, standings, leader, and hero describe different things.
 
 Historical plans under `docs/superpowers/` are context, not current contracts.
 Inspect actual call sites and tests before changing an established boundary.
@@ -91,8 +93,8 @@ npm run build
 ```
 
 `npm test` includes server, server/modes, client, shared, and tools tests.
-A server-only glob misses coverage. The TypeScript project does not explicitly
-include `tools/`, so typecheck alone does not validate every utility.
+A server-only glob misses coverage. A fresh worktree has no `node_modules`; run
+`npm ci` first.
 
 Use injected speech, alignment, and transcription fakes for deterministic
 logic tests. Integration servers should use temporary persistence and

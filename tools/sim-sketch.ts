@@ -34,7 +34,7 @@ const scribble = () => {
 }
 
 const host = await connect(URL, 'host')
-const bots = []
+const bots: { conn: Awaited<ReturnType<typeof connect>>; name: string; seq: number; skill: number }[] = []
 for (const [i, name] of NAMES.entries()) {
   const conn = await connect(URL, 'player', name, `sim-sketch-${name}`)
   // Sequence numbers start from the clock so a rerun never reuses remembered ones.
