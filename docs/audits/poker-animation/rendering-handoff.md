@@ -72,7 +72,7 @@ User working preferences carry forward:
 | File | Current responsibility |
 | --- | --- |
 | [Audit and measurements](README.md) | Original sweep, retained optimizations, limits of the measurements |
-| [Design guide](../../design.md#poker-motion-costs) | Current motion/material conventions |
+| [Poker motion costs](README.md#poker-motion-costs) | Current motion/material conventions |
 | [PokerPlayer.tsx](../../../client/PokerPlayer.tsx) | Phone gestures, cached geometry, direct peek rendering, deal/throw/showdown lifetimes |
 | [poker.ts](../../../client/poker.ts) | Gesture rules, peek tip, `peelCard`, shared `bendCard` geometry and lighting |
 | [poker.test.ts](../../../client/poker.test.ts) | Pure gesture, geometry, shared-surface, projection and tangent invariants |

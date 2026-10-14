@@ -25,7 +25,7 @@ WebGL renderer is the proposed starting point. No engine/library dependency is
 assumed. Choose the supported API and texture format during the prototype.
 
 **Context/design basis:** [Rendering lessons and handoff](../../audits/poker-animation/rendering-handoff.md).
-Current motion rules are in [docs/design.md](../../design.md#poker-motion-costs).
+Current motion rules are in [Poker motion costs](../../audits/poker-animation/README.md#poker-motion-costs).
 
 **Execution:** Continue inline, commit each substantial boundary, keep checks
 light and grouped. Do not start implementation as part of the handoff-writing

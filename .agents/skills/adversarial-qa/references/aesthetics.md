@@ -3,7 +3,8 @@
 You judge whether what is on screen is beautiful, coherent and true to the
 house style, frame by frame. Read `docs/design.md` §1–4 and the section for
 the surface or prop involved before you look at any evidence. For Poker,
-also read "Set dressing" and "Poker motion costs".
+also read "Set dressing" and `docs/audits/poker-animation/README.md`
+("Poker motion costs").
 
 ## Evidence
 

@@ -1060,50 +1060,10 @@ disagree, the code is what gets renamed.
   minigame. The quiz is the buzzer play, whichever mode it runs; "trivia" is
   one of those modes, never the whole quiz.
 
+Poker motion costs (peek meshes, shadow masks, texture caps) live with their audit evidence in
+[docs/audits/poker-animation/README.md](audits/poker-animation/README.md#poker-motion-costs).
+
 ---
-
-### Poker motion costs
-
-Keep table facts separate from local time: the shot ring and blind-level readout
-advance between state pushes, and the table rerenders when the game changes.
-Deal and showdown trajectories are retained for the hand and table dimensions.
-A peek measures the settled pair once with fractional pixel dimensions and placement,
-redraws on pointer changes and sleeps while the finger rests. One bounded WebGL
-canvas owns both whole cards during peek, including their flat portions. Crease-aligned
-mesh bands share a gradual material curve and elevated plane; depth separation
-reverses the stack naturally through the turn. Printed backs retain their resting
-orientation and faces use mirrored UVs. Continuous shader lighting and soft
-projected silhouettes on exposed felt suggest flexible stock under the lamp.
-The actual bent meshes project into one binary GPU occlusion mask. Covered pixels
-are opaque regardless of self-overlap or overlap between cards; that union is
-composited once at fixed darkness. Only its outer boundary is softened. Keep
-card-surface lighting separate from this cast shadow. The mask is half the
-canvas resolution, allocated outside drag frames and owned by the same lifecycle.
-Released cards spring back immediately and soften their landing, with a shorter
-return than the initial lift.
-
-The active hand's two faces and shared back are generated from the real card
-component, local font and tokens, decoded and uploaded before use, then reused.
-Transparent texture padding keeps oblique edges clean. Regenerate with
-`npm run poker:prints` after print changes; generated content versions prevent stale
-cached artwork. Canvas resolution is capped at 3× and 1.5 million pixels. Context
-loss, hand/match changes, resize and unmount cancel or release the right work.
-Native cards own deal, rest, throw and showdown. If GPU rendering or textures are
-unavailable, holding a peek gives a simple flat reveal until release. There is no
-parallel DOM bend renderer or continuous resting animation loop.
-
-Cards travel with direct transforms, hinged flips and shade opacity. Uploaded
-paths are thinned within 0.3px of position, 0.25° of rotation/turn and 0.0006
-lift, with contact, pause, tap and stacking landmarks retained exactly. Their
-contact, ambient and airborne shadow silhouettes are prepainted and transformed
-or crossfaded, keeping blur and printed faces stable. Chip stacks use their
-arrival lighting throughout a push. Meter fills transform, and the overbet glow
-crossfades a fixed shadow. Static felt fibres and masks retain their established
-appearance; they do not need animation clocks.
-
-The motion kit's “Eight-seat table stress” and “Phone gesture stress” scenarios
-use real components with synthetic frames, including selectable duplicate frame
-cadence. They never connect to or mutate the room.
 
 ## 10. Seeing it move
 
