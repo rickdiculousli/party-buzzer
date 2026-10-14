@@ -4,10 +4,13 @@ title: Move Poker rendering prose out of Canon words and the architecture map
 kind: token-cost
 size: S
 judge: sonnet
-status: accepted
+status: building
 lens: eng
 proposed_by: 7f24ed4b-18c6-49f9-a00b-48d7dfed548a
 proposed_on: 2026-10-14
+built_by: 8baf9a60-533c-49e1-a330-aa4c22564549
+branch: t3code/fecbcbd4
+host: k16
 ---
 
 ## Opportunity
