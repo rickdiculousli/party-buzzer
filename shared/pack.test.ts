@@ -141,7 +141,7 @@ A: a
   assert.match(errors[1], /2 to 6/)
   assert.match(errors[2], /2 to 6/)
   assert.match(errors[3], /K: shown/)
-  assert.match(errors[4], /K: must be read or shown/)
+  assert.match(errors[4], /K: must be read, shown or closest/)
 })
 
 test('S: lines are one performed script, kept beside the fragments', () => {
@@ -152,4 +152,50 @@ A: x`)
   assert.deepEqual(errors, [])
   assert.deepEqual(questions[0].fragments, ['Plain one.', 'Plain two.'])
   assert.equal(questions[0].script, '[curious] Plain ONE... and get this — plain twooo!')
+})
+
+test('K: closest takes a numeric A:, commas allowed, and an optional unit', () => {
+  const { questions, errors } = parsePack(`V: 200
+K: closest
+U: steps
+How many steps are in the Eiffel Tower?
+A: 1,665
+
+K: closest
+In what year did the Berlin Wall fall?
+A: 1989
+`)
+  assert.deepEqual(errors, [])
+  assert.equal(questions[0].kind, 'closest')
+  assert.equal(questions[0].truth, 1665)
+  assert.equal(questions[0].unit, 'steps')
+  assert.equal(questions[0].answer, '1,665', 'the display answer keeps the pack spelling')
+  assert.equal(questions[1].truth, 1989)
+  assert.equal(questions[1].unit, undefined)
+})
+
+test('a closest question refuses a non-numeric A:, a C: line, and a U: line needs K: closest', () => {
+  const { questions, errors } = parsePack(`K: closest
+Q one.
+A: about a thousand
+
+K: closest
+C: 1 | 2
+Q two.
+A: 1
+
+K: closest
+Q three.
+A: -4
+
+U: metres
+Q four.
+A: 4
+`)
+  assert.equal(questions.length, 0)
+  assert.equal(errors.length, 4)
+  assert.match(errors[0], /must be a number/)
+  assert.match(errors[1], /no C: line/)
+  assert.match(errors[2], /must be a number/)
+  assert.match(errors[3], /U: line belongs to a K: closest/)
 })

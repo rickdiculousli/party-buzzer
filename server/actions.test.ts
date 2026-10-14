@@ -203,6 +203,56 @@ test('undo takes back a settled choice question', () => {
   assert.deepEqual(state.round.picks, { ada: 1, bo: 1, cy: 0 })
 })
 
+function closestRoom() {
+  const state = newState()
+  state.players = [
+    { id: 'ada', name: 'Ada', connected: true },
+    { id: 'bo', name: 'Bo', connected: true },
+    { id: 'cy', name: 'Cy', connected: true },
+  ]
+  applyHostAction(state, { a: 'arm', kind: 'closest' })
+  state.round.value = 200
+  state.round.guessing = { unit: 'steps', closesAt: 1 }
+  state.round.guesses = { ada: 1700, bo: 1200, cy: 1500 }
+  return state
+}
+
+test('settleClosest pays the nearest without a hero, and only once', () => {
+  const state = closestRoom()
+  assert.deepEqual(applyHostAction(state, { a: 'settleClosest', truth: 1665 }), { status: 'applied' })
+  assert.deepEqual(state.scores, { ada: 200 })
+  assert.deepEqual(state.round.paid, { ada: 200 })
+  assert.equal(state.round.truth, 1665)
+  assert.equal(state.round.phase, 'IDLE')
+  assert.equal(state.round.award, undefined)
+  assert.deepEqual(applyHostAction(state, { a: 'settleClosest', truth: 1665 }), { status: 'refused', reason: 'no-guessing' })
+})
+
+test('settleClosest is refused on a buzz question, before guessing opens, and without a number', () => {
+  const state = newState()
+  applyHostAction(state, { a: 'arm' })
+  assert.deepEqual(applyHostAction(state, { a: 'settleClosest', truth: 1 }), { status: 'refused', reason: 'no-guessing' })
+  applyHostAction(state, { a: 'arm', kind: 'closest' })
+  assert.deepEqual(applyHostAction(state, { a: 'settleClosest', truth: 1 }), { status: 'refused', reason: 'no-guessing' })
+  state.round.guessing = { closesAt: 1 }
+  assert.deepEqual(applyHostAction(state, { a: 'settleClosest', truth: Number.NaN }), { status: 'refused', reason: 'no-guessing' })
+})
+
+test('arm and next sweep the closest fields, and undo takes back a settled one', () => {
+  const { state, hub } = rig()
+  Object.assign(state, closestRoom())
+  hub.dispatch({ a: 'settleClosest', truth: 1665 })
+  hub.dispatch({ a: 'undo' })
+  assert.equal(state.scores.ada ?? 0, 0)
+  assert.equal(state.round.truth, undefined)
+  assert.deepEqual(state.round.guesses, { ada: 1700, bo: 1200, cy: 1500 })
+  hub.dispatch({ a: 'settleClosest', truth: 1665 })
+  hub.dispatch({ a: 'next' })
+  for (const k of ['kind', 'guessing', 'guesses', 'truth', 'paid'] as const) {
+    assert.equal(state.round[k], undefined, k)
+  }
+})
+
 test('setChoiceTime clamps to 5..120', () => {
   const state = newState()
   assert.equal(state.choiceSec, 20)

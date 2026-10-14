@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { resolveBuzzes, type RawBuzz, type Resolved } from './resolve.ts'
 import { applyHostAction } from './state.ts'
-import { buzzBlockReason, pickBlockReason } from './eligibility.ts'
+import { buzzBlockReason, guessBlockReason, pickBlockReason } from './eligibility.ts'
 import { bump, lockedPlayerIds, scoreKey } from '../shared/scoring.ts'
 import { catalog, moduleFor } from './modes/index.ts'
 import { useItem } from './items.ts'
@@ -356,6 +356,13 @@ export class Hub {
       this.changed('pick')
       return
     }
+    // A guess too, and only ever a number.
+    if (name === 'guess') {
+      if (!conn.playerId || guessBlockReason(this.state, conn.playerId, data)) return
+      this.state.round.guesses = { ...this.state.round.guesses, [conn.playerId]: data as number }
+      this.changed('guess')
+      return
+    }
     if (conn.role !== 'host') return
     const round = this.state.round
     if (name === 'fragment' && typeof data === 'string') {
@@ -377,6 +384,9 @@ export class Hub {
       round.image = data
     } else if (name === 'choices' && Array.isArray(data)) {
       round.choices = data.filter((c): c is string => typeof c === 'string')
+    } else if (name === 'guessing') {
+      const d = data as State['round']['guessing']
+      if (d && typeof d.closesAt === 'number') round.guessing = d
     } else if (name === 'closesAt') {
       if (typeof data === 'number') round.closesAt = data
       else delete round.closesAt
@@ -684,10 +694,13 @@ export class Hub {
     if (conn.role !== 'player') return { ...this.state, game, minigame }
     // The ledger names who was fastest and who missed; the host and the board tell the room, not each phone.
     const round = this.state.round
-    // Shown and choice questions are on the board whole from the arm, so the
+    // Shown, choice and closest questions are on the board whole from the arm, so the
     // phone may have the same text; the mirror only governs read questions.
     const mirror = this.state.mirrorFragments || !!round.kind
-    const mine = conn.playerId !== undefined ? round.picks?.[conn.playerId] : undefined
+    const own = <T>(all: Record<string, T> | undefined) => {
+      const v = conn.playerId !== undefined ? all?.[conn.playerId] : undefined
+      return v === undefined ? undefined : { [conn.playerId!]: v }
+    }
     return {
       ...this.state,
       game,
@@ -701,7 +714,9 @@ export class Hub {
         whole: undefined,
         image: mirror ? round.image : undefined,
         answer: this.state.mirrorFragments ? round.answer : undefined,
-        picks: mine === undefined ? undefined : { [conn.playerId!]: mine },
+        picks: own(round.picks),
+        guesses: own(round.guesses),
+        paid: own(round.paid),
       },
       reading: undefined,
       night: undefined,

@@ -26,6 +26,7 @@ import { render as realRender, play as realPlay, type Clip, type Playback, type 
 import type { Question } from '../shared/pack.ts'
 import type { State } from '../shared/protocol.ts'
 import { allPicked, optionsText } from '../shared/choice.ts'
+import { allGuessed } from '../shared/closest.ts'
 import type { Judge } from './judge.ts'
 import { Picker, type Pools, type Verdict } from './quips.ts'
 import { isPenalty } from '../shared/protocol.ts'
@@ -620,7 +621,7 @@ export class Reader {
         if (this.hub.dispatch({ a: 'arm', ...(q.kind && { kind: q.kind }) }).status !== 'applied') return
         // Answer variants, memory only — this is the one path by which the judge
         // ever learns what the room is about to be asked.
-        if (q.kind !== 'choice') this.opts.judge?.prime(q.answers)
+        if (q.kind !== 'choice' && q.kind !== 'closest') this.opts.judge?.prime(q.answers)
         await this.until((s) => s.round.phase === 'ARMED', undefined, this.session.signal)
 
         const stamp = this.hub.state.round.armedAt
@@ -637,10 +638,11 @@ export class Reader {
 
         await this.speakQuestion(q, questionId, stillMine, sig)
 
-        if (q.kind === 'choice') {
-          await this.runChoice(q, stillMine, sig)
-          // The grid stays up with its answer; the host's N, or the autoplay
-          // dwell, moves on.
+        if (q.kind === 'choice' || q.kind === 'closest') {
+          if (q.kind === 'choice') await this.runChoice(q, stillMine, sig)
+          else await this.runClosest(q, stillMine, sig)
+          // The grid, or the line, stays up with its answer; the host's N, or
+          // the autoplay dwell, moves on.
           await this.until(() => !stillMine(), this.dwellMs(), this.session.signal)
           if (!stillMine() && this.hub.state.round.questionId) {
             throw new DOMException('Question replaced', 'AbortError')
@@ -864,6 +866,32 @@ export class Reader {
     // The bar fills, the room reads it, then the answer.
     await sleep(LOCK_BEAT_MS, sig)
     if (stillMine()) this.hub.dispatch({ a: 'settleChoice', correct: q.correct! })
+  }
+
+  /**
+   * Guessing opens once the question has been read, with nothing more to read:
+   * the countdown starts at once. It ends on the last eligible guess, the
+   * deadline, or the host's Close, and the pack's number settles it.
+   */
+  private async runClosest(q: Question, stillMine: () => boolean, sig: AbortSignal): Promise<void> {
+    this.closeNow = false
+    const ms = this.hub.state.choiceSec * 1000
+    this.hub.send(this.conn, { t: 'act', act: 'guessing', data: { ...(q.unit && { unit: q.unit }), closesAt: Date.now() + ms } })
+    // Set by the timer itself, as in `runChoice`.
+    let expired = false
+    const timer = setTimeout(() => {
+      expired = true
+      this.wake()
+    }, ms)
+    timer.unref?.()
+    try {
+      await this.until((s) => this.closeNow || expired || allGuessed(s), undefined, sig)
+    } finally {
+      clearTimeout(timer)
+    }
+    // The last dot lands and the room reads the spread, then the answer.
+    await sleep(LOCK_BEAT_MS, sig)
+    if (stillMine()) this.hub.dispatch({ a: 'settleClosest', truth: q.truth! })
   }
 
   /**

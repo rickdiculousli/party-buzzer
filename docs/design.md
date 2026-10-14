@@ -863,6 +863,21 @@ or "Nobody". Its moments are `choice:listening`, `choice:picking` and
 `.choice__letter`) is shared with the phone, which shows the same panels as its
 pick buttons and the seconds left above them (`.player__countdown`).
 
+A **closest question** uses the same lifted split and the same slot bar, over
+an empty cyan line (`.closest__line`: a scale, so it is cold) that says "Guess
+in steps". Nothing on the board shows a number while the room is guessing. At
+the reveal every guess drops onto the line in its player's colour (`fx-drop`,
+staggered), its name and number in a lane above it so close guesses stack
+rather than overprint; the line covers the answer and the middle of the
+guesses, and a wild guess is parked at an end with a ◂ or ▸ beside its number.
+The line holds a beat, then the answer's tick and number run in from the
+right-hand end (`fx-slide`) and hang below the line. Then the nearest lights
+brass (`.is-won`, `fx-tada`), a half-paying second place turns silver, the rest
+dim, and the brass stamp above reads "+200 · 35 off" (or "spot on", "each" for
+a tie, or "Nobody"). Its moments are `closest:listening`, `closest:guessing`
+and `closest:reveal`. The phone shows an in-app number pad (`.pad`): the typed
+value large with its unit, a 3 × 4 key grid, and **Lock in**.
+
 **The leader shows early, the field fills in.** A beat after the first buzz
 (150 ms — long enough for the true photo finish to land) the board lights up
 with the provisional leader, and the timeline keeps filling for the rest of the
@@ -1064,8 +1079,9 @@ disagree, the code is what gets renamed.
   cards to see them is a **peek**, and folded cards pausing mid-table
   **linger**; neither is a hold. Players still contesting a pot are "in the
   hand", never live.
-- **guess / drawer** — a guess is a typed answer in Sketch or Phantom Ink,
-  never a pick or a buzz; the drawer is the player drawing this Sketch turn.
+- **guess / drawer** — a guess is a typed answer in Sketch or Phantom Ink, or
+  a player's number on a closest question (`round.guesses`), never a pick or a
+  buzz; the drawer is the player drawing this Sketch turn.
   A Sketch turn is not a round.
 - **night / fact / milestone / recap card** — the night is the ledger of what
   happened since the room was last cleared; a fact is one entry in it; a

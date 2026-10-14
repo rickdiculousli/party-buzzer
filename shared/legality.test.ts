@@ -87,6 +87,13 @@ const LEGAL: Record<HostAction['a'], [State, HostAction]> = {
     s.round.choices = ['a', 'b']
     return s
   })(), { a: 'settleChoice', correct: 1 }],
+  settleClosest: [(() => {
+    const s = room()
+    s.round.phase = 'ARMED'
+    s.round.kind = 'closest'
+    s.round.guessing = { closesAt: 1 }
+    return s
+  })(), { a: 'settleClosest', truth: 1665 }],
   setScore: [locked(room()), { a: 'setScore', key: 'a', score: 300 }],
   rename: [locked(room()), { a: 'rename', playerId: 'a', name: 'Ada L' }],
   kick: [locked(room()), { a: 'kick', playerId: 'b' }],
@@ -132,6 +139,7 @@ test('every action kind has a shape it is legal in', () => {
 /** One case per code, each driving a room into the shape that refuses. */
 const REFUSED: [Refusal, State, HostAction][] = [
   ['no-choice', locked(room()), { a: 'settleChoice', correct: 0 }],
+  ['no-guessing', locked(room()), { a: 'settleClosest', truth: 10 }],
   ['not-open', locked(room()), { a: 'timeUp' }],
   // Setup is refused mid-question, which is six actions and one code. Every one
   // of them listed: `not-idle` covering only the case somebody remembered is

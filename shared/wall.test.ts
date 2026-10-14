@@ -646,6 +646,71 @@ test('the phone during a choice question', () => {
   assert.equal(phoneOf('choice:reveal', { ...base, armed: false, correct: 1, choices: ['Mars', 'Saturn'] }).label, 'No pick')
 })
 
+test('a closest question: listening, guessing with no numbers up, then the line at the reveal', () => {
+  const s = room()
+  s.players.push({ id: 'c', name: 'Cy', connected: true })
+  s.round = {
+    ...s.round, questionId: 'q', attemptId: 'a1', phase: 'ARMED', armedAt: 1, kind: 'closest',
+    fragments: ['How many steps?'], whole: 'How many steps?',
+  }
+  s.readingActive = true
+  assert.equal(momentOf(s, LOCAL), 'closest:listening')
+  assert.equal(wallOf(s, LOCAL).closest, null)
+
+  s.round.guessing = { unit: 'steps', closesAt: 99 }
+  s.round.guesses = { b: 1200 }
+  assert.equal(momentOf(s, LOCAL), 'closest:guessing')
+  let w = wallOf(s, LOCAL)
+  assert.deepEqual(w.closest, {
+    unit: 'steps', points: 200, closesAt: 99,
+    guessers: [{ id: 'b', guessed: true }, { id: 'a', guessed: false }, { id: 'c', guessed: false }],
+  })
+  assert.equal(JSON.stringify(w.closest).includes('1200'), false, 'no number on the wall while the room guesses')
+  assert.ok(w.clue)
+  assert.equal(w.hero, null)
+
+  s.round.guesses = { b: 1200, a: 1700, c: 1500 }
+  s.round.truth = 1665
+  s.round.paid = { a: 200 }
+  s.round.phase = 'IDLE'
+  assert.equal(momentOf(s, LOCAL), 'closest:reveal')
+  w = wallOf(s, LOCAL)
+  const c = w.closest!
+  assert.equal(c.truth?.text, '1,665')
+  assert.deepEqual(c.marks?.map((m) => [m.name, m.text, m.paid, m.place]), [
+    ['Bo', '1,200', 0, undefined], ['Cy', '1,500', 0, undefined], ['Ada', '1,700', 200, 1],
+  ])
+  const at = c.marks!.map((m) => m.at)
+  assert.ok(at[0] < at[1] && at[1] < c.truth!.at && c.truth!.at < at[2], 'low to high along the line')
+  assert.deepEqual(c.winners, [{ name: 'Ada', paid: 200, off: 35 }])
+  assert.equal(w.award, null)
+  assert.equal(w.value, 200)
+})
+
+test('a closest reveal ranks by distance, not by points', () => {
+  const s = room()
+  s.round = { ...s.round, questionId: 'q', attemptId: 'a1', phase: 'IDLE', kind: 'closest', guessing: { closesAt: 1 }, truth: 10 }
+  // Three tied at the value split 200 into 67s; second place's half is 100.
+  s.round.guesses = { a: 11, b: 9, c: 11, d: 13 }
+  s.round.paid = { a: 67, b: 67, c: 67, d: 100 }
+  const marks = wallOf(s, LOCAL).closest!.marks!
+  assert.deepEqual(Object.fromEntries(marks.map((m) => [m.id, m.place])), { a: 1, b: 1, c: 1, d: 2 })
+})
+
+test('the phone during a closest question', () => {
+  const base = { frozen: false, barred: false, spectator: false, dead: false, won: false, pressed: false, armed: true, open: true, judging: false }
+  assert.equal(phoneOf('closest:listening', base).label, 'Listen')
+  assert.equal(phoneOf('closest:guessing', base).label, 'Guess')
+  assert.equal(phoneOf('closest:guessing', { ...base, guess: 1700, unit: 'steps' }).sub, '1,700 steps')
+  const done = { ...base, armed: false, unit: 'steps', truth: 1665 }
+  const won = phoneOf('closest:reveal', { ...done, guess: 1700, paid: 200 })
+  assert.deepEqual([won.label, won.sub, won.mood], ['Close', '+200 · 35 off', 'first'])
+  assert.equal(phoneOf('closest:reveal', { ...done, guess: 1665, paid: 400 }).label, 'Exact')
+  const lost = phoneOf('closest:reveal', { ...done, guess: 1200 })
+  assert.deepEqual([lost.label, lost.sub, lost.mood], ['465 off', 'It was 1,665 steps', 'barred'])
+  assert.equal(phoneOf('closest:reveal', done).label, 'No guess')
+})
+
 test('a scoreless mode starts blank, never calls Buzz, and holds a miss until the next buzz', () => {
   const s = room()
   s.games = [{ id: 'buzzer', name: 'Pure buzzer', options: [], scoreless: true }]

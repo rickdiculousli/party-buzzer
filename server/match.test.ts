@@ -57,15 +57,17 @@ test('walk-read-quizbowl: the pack takes the answers the walkthrough speaks, and
   assert.ok(!matchAnswer('Rosalind Franklin', questions[1].answers))
 })
 
-/** The same pairing for `npm run walk-read-trivia`: shown questions, and one choice question. */
+/** The same pairing for `npm run walk-read-trivia`: shown questions, one choice question and one closest. */
 test('walk-read-trivia: the pack takes the answers the walkthrough speaks, and refuses the miss', () => {
   const { questions, errors } = parsePack(
     readFileSync(join(import.meta.dirname, '..', 'packs', 'walk-trivia.txt'), 'utf8'),
   )
   assert.deepEqual(errors, [])
-  assert.deepEqual(questions.map((q) => q.kind), ['shown', 'shown', 'choice', 'shown'])
+  assert.deepEqual(questions.map((q) => q.kind), ['shown', 'shown', 'choice', 'closest', 'shown'])
   // The walk picks by letter: Ada and Cy pick C, Bo picks D.
   assert.equal(questions[2].correct, 2)
+  // And guesses 1,700, 1,200 and 1,500: Ada's is nearest.
+  assert.equal(questions[3].truth, 1665)
 
   assert.ok(matchAnswer('Mars', questions[0].answers))
   assert.ok(matchAnswer('Albert Einstein', questions[1].answers))

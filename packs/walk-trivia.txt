@@ -13,6 +13,12 @@ C: Mars | Venus | Saturn | Jupiter
 Which planet has the most known moons?
 A: Saturn
 
+V: 200
+K: closest
+U: steps
+How many steps are in the Eiffel Tower to the top?
+A: 1,665
+
 V: 500
 K: shown
 What is the tallest mountain on Earth above sea level?

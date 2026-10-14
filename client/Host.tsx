@@ -133,6 +133,13 @@ function notesFor(
     case 'choice:reveal':
       return { judge: null, arm: played }
 
+    case 'closest:listening':
+      return { judge: 'Everyone types a number on their phone once the question is read.', arm: null }
+    case 'closest:guessing':
+      return { judge: 'Close guessing to settle it now.', arm: null }
+    case 'closest:reveal':
+      return { judge: null, arm: played }
+
     // The desk passes `settled: true`, so this moment does not reach it.
     case 'answer:judging':
       return { judge: null, arm: played }
@@ -537,6 +544,11 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
           {moment === 'choice:picking' && (
             <button class="btn" onClick={() => fire('closeChoice')}>
               Close picking
+            </button>
+          )}
+          {moment === 'closest:guessing' && (
+            <button class="btn" onClick={() => fire('closeChoice')}>
+              Close guessing
             </button>
           )}
         </div>

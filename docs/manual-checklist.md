@@ -218,9 +218,9 @@ ever opens — the run stops on "no answer window for Ada" rather than hanging.
 
 ### Reading plain trivia — `npm run walk-read-trivia`
 
-Shown trivia and one multiple-choice question (`packs/walk-trivia.txt`): three
-players, autoplay on, every buzz answer spoken and judged, the choice picked
-from the players' own sockets. Needs the judge, like the pyramid walk. About a
+Shown trivia, one multiple-choice question and one closest question
+(`packs/walk-trivia.txt`): three players, autoplay on, every buzz answer spoken
+and judged, the choice picked and the numbers guessed from the players' own sockets. Needs the judge, like the pyramid walk. About a
 minute.
 
 ```bash
@@ -242,9 +242,15 @@ npm run walk-read-trivia
       pick C, Bo picks D. The picker bar fills, and a beat after the last one
       lands the bar goes brass and pings before the answer. Saturn lights, Ada's and Cy's dots sit on
       it, and the stamp reads "+400 · 2 right"
+- [ ] The Eiffel Tower question: once it is read, phones show the number pad
+      with "steps" and the board an empty line. Ada, Bo and Cy guess 1,700,
+      1,200 and 1,500; the slots fill without showing a number. The guesses drop
+      onto the line, it holds a beat, then 1,665 slides in from the right; Ada's
+      1,700 lights brass with "+200 · 35 off". Ada's phone reads **Close**
+      "+200 · 35 off", Bo's "465 off"
 - [ ] Nobody buzzes the Everest question: it reveals its answer and passes on
       its own
-- [ ] Scores end Ada 600, Bo −300, Cy 700
+- [ ] Scores end Ada 800, Bo −300, Cy 700
 
 ### Two packs in one setlist — `npm run walk-packs`
 

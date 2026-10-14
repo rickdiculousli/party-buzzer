@@ -269,9 +269,9 @@ remain private in Reader/Judge memory; the display answer enters State when
 revealed. Keep those separate when adding content or projections.
 
 `shared/wall.ts` chooses a semantic moment from public gameplay facts plus local
-presentation inputs (`open`, `settled`, `retired`). Its 20 moments belong to seven
+presentation inputs (`open`, `settled`, `retired`). Its 23 moments belong to eight
 families; the `arrival` family (lobby, introduction) ranks above everything and, while
-it is up, empties every other wall lane so retained verdicts and choices cannot show through; the `choice` family ranks first while a choice question is up.
+it is up, empties every other wall lane so retained verdicts and choices cannot show through; the `choice` family ranks first while a choice question is up, and the `closest` family likewise for a closest question.
 A choice question keeps the clue in the middle band and puts `Wall.choices`, a
 grid, in the band below, so no hero appears. Wall and phone projections use this shared decision; the wall selects
 one middle occupant, such as a clue or hero. Browser effects supply clock and
@@ -372,6 +372,17 @@ mode's scoring hooks. The round stays `ARMED` while picking and never passes
 through `COLLECTING` or `LOCKED`. Phones submit a `pick` act; `viewFor` redacts
 `picks` to the viewer's own and sends shown and choice text regardless of the
 mirror.
+
+`runClosest` is the same shape for a closest question, with nothing to read
+after the question: it publishes `round.guessing` (`unit`, `closesAt` after
+`choiceSec`) at once and waits for every picker to guess, the deadline, or the
+host's Close (the same `closeChoice` act). `settleClosest` carries the pack's
+number; `closestAwards` in `shared/scoring.ts` pays it and the transition
+records `truth` and `paid`. Phones submit a `guess` act with a finite number,
+checked by `guessBlockReason`; `viewFor` redacts `guesses` and `paid` to the
+viewer's own. The board places the guesses on a line scaled by
+`shared/closest.ts` only at the reveal, so no number is up while the room is
+still guessing.
 
 The Reader primes the Judge with private accepted answers. The Judge offers an
 answer window for the current locked leader, accepts a submission, transcribes

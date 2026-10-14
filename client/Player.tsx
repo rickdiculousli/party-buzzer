@@ -11,6 +11,7 @@ import { scoreKey } from '../shared/scoring.ts'
 import { MINIGAMES } from './minigames.tsx'
 import { MinigameReady, readyShown } from './MinigameReady.tsx'
 import { LETTERS } from '../shared/choice.ts'
+import { GuessPad } from './GuessPad.tsx'
 import { ArrivalPhone } from './ArrivalPhone.tsx'
 import { practiceLobbyId } from './arrival-feedback.ts'
 import { usePracticeTime } from './usePractice.ts'
@@ -244,11 +245,18 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     </div>
   }
 
-  const choice = round?.kind === 'choice'
+  // Neither has a buzz: the whole room answers on its phone.
+  const choice = round?.kind === 'choice' || round?.kind === 'closest'
   const myPick = playerId ? round?.picks?.[playerId] : undefined
   const pick = (i: number) => {
     if (preview) return
     send({ t: 'act', act: 'pick', data: i })
+    navigator.vibrate?.(30)
+  }
+  const myGuess = playerId ? round?.guesses?.[playerId] : undefined
+  const guess = (n: number) => {
+    if (preview) return
+    send({ t: 'act', act: 'guess', data: n })
     navigator.vibrate?.(30)
   }
 
@@ -304,6 +312,10 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     pick: myPick,
     choices: round?.choices,
     correct: round?.correct,
+    guess: myGuess,
+    unit: round?.guessing?.unit,
+    truth: round?.truth,
+    paid: playerId ? round?.paid?.[playerId] : undefined,
     value: round?.value,
     awardPoints: round?.award && !round.award.penalty ? round.award.points : undefined,
   })
@@ -349,6 +361,9 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
         {moment === 'choice:picking' && round?.closesAt !== undefined && (
           <PickCountdown until={round.closesAt} now={now} />
         )}
+        {moment === 'closest:guessing' && round?.guessing && (
+          <PickCountdown until={round.guessing.closesAt} now={now} />
+        )}
 
         {moment === 'choice:picking' && myPick === undefined && !frozen && !spectator ? (
           <div class="player__choices" data-review-id="phone:choices">
@@ -359,6 +374,8 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
               </button>
             ))}
           </div>
+        ) : moment === 'closest:guessing' && myGuess === undefined && !frozen && !spectator ? (
+          <GuessPad key={round?.questionId} unit={round?.guessing?.unit} onGuess={guess} />
         ) : talk ? (
           <Talk
             playerId={playerId}

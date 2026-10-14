@@ -7,12 +7,14 @@ documented in `shared/pack.ts`.
 | --- | --- |
 | Quizbowl-lite | [quizbowl-lite.md](quizbowl-lite.md) |
 | Multiple choice | [choice.md](choice.md) |
+| Closest guess | [closest.md](closest.md) |
 | Voice performance (`S:`, `R:`, quip pools) | [voice.md](voice.md) |
 
 ## Accepted answers (`A:` line), all styles
 
-A multiple-choice question has no spoken answer to match, so these rules do
-not apply to it; its `A:` just names the right choice.
+Multiple-choice and closest questions have no spoken answer to match, so these
+rules do not apply to them: a choice question's `A:` names the right choice,
+and a closest question's is the number.
 
 The first entry is what the board shows. `server/match.ts` counts a guess as
 correct when every word of any accepted answer appears in what the player said.

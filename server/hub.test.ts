@@ -441,6 +441,52 @@ test('a phone may not publish choices', () => {
   assert.equal(state.round.choices, undefined)
 })
 
+function guessRig() {
+  const { state, hub, host, ada, bo } = pickRig()
+  hub.dispatch({ a: 'arm', kind: 'closest' })
+  state.round.armedAt = Date.now() - 10
+  return { state, hub, host, ada, bo }
+}
+
+test('a guess is a number, taken once, only while guessing is open, and a buzz is refused', () => {
+  const { state, hub, host, ada, bo } = guessRig()
+  hub.handle(ada, { t: 'act', act: 'guess', data: 1700 })
+  assert.equal(state.round.guesses, undefined, 'no guess before guessing opens')
+  hub.handle(host, { t: 'act', act: 'guessing', data: { unit: 'steps', closesAt: Date.now() + 60_000 } })
+  for (const junk of ['1700', null, Number.NaN, Infinity, { n: 1 }]) hub.handle(bo, { t: 'act', act: 'guess', data: junk })
+  assert.equal(state.round.guesses, undefined, 'a guess that is not a number is refused')
+  hub.handle(ada, { t: 'act', act: 'guess', data: 1700 })
+  hub.handle(ada, { t: 'act', act: 'guess', data: 1665 })
+  assert.deepEqual(state.round.guesses, { ada: 1700 }, 'locked in')
+  hub.handle(bo, { t: 'buzz', at: Date.now() })
+  assert.equal(state.round.phase, 'ARMED', 'nobody buzzes a closest question')
+  hub.handle(host, { t: 'act', act: 'guessing', data: { closesAt: Date.now() - 1 } })
+  hub.handle(bo, { t: 'act', act: 'guess', data: 1200 })
+  assert.deepEqual(state.round.guesses, { ada: 1700 }, 'late guess ignored')
+})
+
+test('a phone sees only its own guess and its own pay', () => {
+  const { state, hub, host, ada, bo } = guessRig()
+  hub.handle(host, { t: 'act', act: 'guessing', data: { closesAt: Date.now() + 60_000 } })
+  hub.handle(ada, { t: 'act', act: 'guess', data: 1700 })
+  hub.handle(bo, { t: 'act', act: 'guess', data: 1200 })
+  assert.deepEqual(hub.viewFor(ada).round.guesses, { ada: 1700 })
+  assert.deepEqual(hub.viewFor(host).round.guesses, { ada: 1700, bo: 1200 })
+  state.round.value = 200
+  hub.dispatch({ a: 'settleClosest', truth: 1665 })
+  assert.deepEqual(hub.viewFor(ada).round.paid, { ada: 200 })
+  assert.equal(hub.viewFor(bo).round.paid, undefined)
+  assert.deepEqual(hub.viewFor(bo).round.guesses, { bo: 1200 })
+  assert.equal(hub.viewFor(bo).round.truth, 1665, 'the answer is public once it is up')
+  assert.equal(state.scores.ada, 200)
+})
+
+test('a phone may not open guessing', () => {
+  const { state, hub, ada } = guessRig()
+  hub.handle(ada, { t: 'act', act: 'guessing', data: { closesAt: Date.now() + 60_000 } })
+  assert.equal(state.round.guessing, undefined)
+})
+
 test('closing the minigame a setlist block names moves to the next block in one undo step', () => {
   const { state, hub, conn } = rig()
   hub.setMinigameRuntime(new MinigameRuntime(state, {

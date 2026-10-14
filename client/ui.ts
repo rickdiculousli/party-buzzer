@@ -38,6 +38,7 @@ export const REFUSAL_TEXT: Record<Refusal, string> = {
   'too-few-players': 'Sketch needs at least two players.',
   'sketch-words': 'Sketch needs packs/sketch-words.txt with at least three words per player.',
   'no-choice': 'No choice question is taking picks.',
+  'no-guessing': 'No closest question is taking guesses.',
   'not-open': 'The buzzers are not open with nobody in.',
   'arrival-changed': 'That lobby or introduction has already moved on.',
   'introduction-active': 'The introduction is up — press Continue first.',

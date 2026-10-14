@@ -660,6 +660,61 @@ test('autoplay moves on from a settled choice question', async () => {
   await settled(reader)
 })
 
+const CLOSEST = 'V: 200\nK: closest\nU: steps\nHow many steps are in the Eiffel Tower?\nA: 1,665\n'
+
+test('guessing opens once the question is read and settles when everyone has guessed', async () => {
+  const { hub, state, reader, speech } = rig(CLOSEST)
+  const [ada, bo] = withPhones(hub, ['ada', 'bo'])
+  await reader.select('one.txt')
+  reader.start()
+  while (!state.round.guessing) await tick()
+  assert.equal(state.round.kind, 'closest')
+  assert.equal(state.round.guessing.unit, 'steps')
+  assert.ok(state.round.guessing.closesAt > Date.now(), 'the countdown starts with guessing')
+  assert.deepEqual(speech.spoken, ['How many steps are in the Eiffel Tower?'])
+  hub.handle(ada, { t: 'act', act: 'guess', data: 1700 })
+  const last = Date.now()
+  hub.handle(bo, { t: 'act', act: 'guess', data: 1200 })
+  while (state.round.truth === undefined) await tick()
+  assert.ok(Date.now() - last >= 900, 'the room sees the slots full first')
+  assert.equal(state.round.truth, 1665)
+  assert.equal(state.scores.ada, 200)
+  assert.equal(state.scores.bo ?? 0, 0)
+  reader.stop()
+  await settled(reader)
+})
+
+test('a disconnected phone does not hold guessing open', async () => {
+  const { hub, state, reader } = rig(CLOSEST)
+  const [ada, bo] = withPhones(hub, ['ada', 'bo'])
+  await reader.select('one.txt')
+  reader.start()
+  while (!state.round.guessing) await tick()
+  hub.handle(ada, { t: 'act', act: 'guess', data: 1600 })
+  hub.remove(bo)
+  while (state.round.truth === undefined) await tick()
+  assert.equal(state.scores.ada, 200)
+  reader.stop()
+  await settled(reader)
+})
+
+test('a closest question settles when the timer runs out, or on the host\'s Close', async () => {
+  for (const close of [false, true]) {
+    const { hub, state, reader } = rig(CLOSEST)
+    hub.setReader(reader)
+    withPhones(hub, ['ada'])
+    state.choiceSec = close ? 60 : 0.05
+    await reader.select('one.txt')
+    reader.start()
+    while (!state.round.guessing) await tick()
+    if (close) hub.handle({ id: 'h', role: 'host', send: () => {} }, { t: 'act', act: 'closeChoice' })
+    while (state.round.truth === undefined) await tick()
+    assert.deepEqual(state.round.paid, {}, 'nobody guessed, nobody paid')
+    reader.stop()
+    await settled(reader)
+  }
+})
+
 test('a quip on a right answer does not stall autoplay', { timeout: 5000 }, async () => {
   const packDir = mkdtempSync(join(tmpdir(), 'pb-reader-quip-'))
   writeFileSync(join(packDir, 'one.txt'), 'One.\nR: Nice.\nA: gold\n\nTwo.\nA: silver\n')

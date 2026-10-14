@@ -760,6 +760,88 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 /* Everyone is in: the bar warms for a beat before the answer lands. */
 .board__slots { transition: background 200ms, border-color 200ms; }
 .board__slots.is-closed { background: color-mix(in srgb, var(--brass) 30%, var(--panel)); border-color: var(--brass); --fx-color: var(--brass); }
+/* A closest question: the slot bar while the room guesses, then the line the
+   guesses drop onto. Labels stack in lanes above the line; the answer hangs
+   below it, so the two never meet. The line is a scale, so it is cold. */
+.closest { --_dot: 0.625rem; display: grid; gap: var(--s4); justify-items: center; width: min(100%, 64rem); margin-top: var(--s4); }
+.closest__line {
+  --_lane: calc(var(--t-chip-board) * 2.6);
+  --_mark: 1rem;
+  container-type: inline-size;
+  position: relative;
+  width: calc(100% - 2 * var(--s5));
+  height: calc(var(--_lane) * 4 + var(--t-xl) * 1.6 + var(--s4));
+  /* The rule itself, at the bottom of the lanes. */
+  background: linear-gradient(var(--cyan), var(--cyan)) 0 calc(var(--_lane) * 4) / 100% 2px no-repeat;
+}
+.closest__ask {
+  position: absolute;
+  inset: auto 0 0;
+  margin: 0;
+  text-align: center;
+  font-family: var(--display);
+  font-size: var(--t-xl);
+  color: var(--dim);
+}
+.closest__marks { list-style: none; margin: 0; padding: 0; }
+.closest__mark { position: absolute; left: calc(var(--at) * 100%); top: calc(var(--_lane) * 4); transition: opacity 300ms; }
+.closest__mark.is-dim { opacity: 0.4; }
+.closest__dot {
+  position: absolute;
+  left: calc(var(--_mark) * -0.5);
+  top: calc(var(--_mark) * -0.5);
+  width: var(--_mark);
+  height: var(--_mark);
+  border-radius: 50%;
+  background: var(--id);
+  box-shadow: 0 0 0 2px var(--stage);
+}
+/* A stem up to the label's lane. */
+.closest__mark::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  bottom: 0;
+  width: 2px;
+  height: calc(var(--_mark) * 0.5 + var(--lane) * var(--_lane));
+  background: var(--id);
+  opacity: 0.6;
+}
+/* The label, shifted by its own position so the ends stay on the line. */
+.closest__label {
+  position: absolute;
+  bottom: calc(var(--_mark) * 0.5 + var(--lane) * var(--_lane));
+  left: 0;
+  translate: calc(var(--at) * -100%) 0;
+  display: grid;
+  justify-items: center;
+  padding: 0.15em 0.5em;
+  font-family: var(--display);
+  font-size: var(--t-chip-board);
+  line-height: 1.05;
+  white-space: nowrap;
+  color: var(--chalk);
+}
+.closest__name { color: var(--id); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; font-size: 0.8em; }
+.closest__guess { font-weight: 700; font-variant-numeric: tabular-nums; }
+.closest__paid { font-weight: 800; }
+.closest__mark.is-won .closest__label { background: var(--brass); color: #201a03; border-radius: var(--r-sm); }
+.closest__mark.is-won::before { background: var(--brass); opacity: 1; }
+.closest__mark.is-won .closest__name { color: #201a03; }
+.closest__mark.is-won .closest__dot { background: var(--brass); }
+.closest__mark.is-second .closest__guess, .closest__mark.is-second .closest__paid { color: var(--silver); }
+/* The answer: a tick through the line and the number under it, run in from the right-hand end. */
+.closest__truth {
+  --fx-amp: calc((1 - var(--at)) * 100cqw);
+  position: absolute;
+  left: calc(var(--at) * 100%);
+  top: calc(var(--_lane) * 4 - var(--_mark));
+  width: 0;
+  margin: 0;
+}
+.closest__tick { position: absolute; left: -1.5px; width: 3px; height: calc(var(--_mark) * 2); background: var(--chalk); }
+.closest__value { position: absolute; top: calc(var(--_mark) * 2); left: 0; translate: calc(var(--at) * -100%) 0; font-family: var(--display); font-weight: 800; font-size: var(--t-xl); line-height: 1.1; color: var(--chalk); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.closest__unit { font-weight: 500; color: var(--dim); font-size: 0.6em; }
 /* The countdown, behind everything on the wall: centred, huge, and faded. */
 .board__countdown {
   position: absolute;
@@ -3603,7 +3685,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .minigame-ready__btn { width: 100%; min-height: 3.5rem; }
 .minigame-ready__btn.is-on { border-color: var(--brass); color: var(--brass); }
 
-/* ===================================================================
+/* ============================================================
  * RECAP: the keepsake page a phone opens from the finale's code
  * =================================================================== */
 .recap {
@@ -3622,3 +3704,41 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .recap__title { font-size: var(--t-sm); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); }
 .recap__name { font-family: var(--display); font-weight: 800; font-size: var(--t-xl); }
 .recap__detail { color: var(--dim); }
+=======
+/* --- the closest question's pad: the typed number large, then the keys ---- */
+.pad { flex: 1; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: var(--s2); }
+.pad__value {
+  margin: 0;
+  padding: var(--s2) var(--s3);
+  background: var(--raise);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  text-align: right;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: min(clamp(2.5rem, 13vw, 4.5rem), 9vh);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--chalk);
+  overflow: hidden;
+  white-space: nowrap;
+}
+.pad__value.is-empty { color: var(--dim); }
+.pad__unit { font-weight: 500; font-size: 0.45em; color: var(--dim); }
+.pad__keys { min-height: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: minmax(0, 1fr); gap: var(--s2); }
+.pad__key {
+  min-height: 0;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: min(clamp(1.5rem, 8vw, 2.5rem), 5vh);
+  color: var(--chalk);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  cursor: pointer;
+}
+.pad__key:active { border-color: var(--tungsten); background: var(--raise); }
+.pad__go { font-size: var(--t-lg); padding-block: var(--s3); }

@@ -8,6 +8,9 @@
  *   K: shown                         optional; on the board whole, still read aloud
  *   C: Mars | Venus | Saturn         optional; makes a multiple-choice question,
  *                                    and A: must equal one choice
+ *   K: closest                       optional; every phone types a number and the
+ *                                    nearest takes it; A: must be a number
+ *   U: metres                        optional, closest only; the unit on the pad
  *   S: [curious] This composer...    optional; the performed read — tags,
  *                                    stress, ad-libs — spoken in place of the
  *                                    fragments by a paid voice; the board
@@ -30,7 +33,11 @@ export type Question = {
   /** Path relative to the pack directory. */
   image?: string
   /** Absent = read: revealed clause by clause as it is spoken. */
-  kind?: 'shown' | 'choice'
+  kind?: 'shown' | 'choice' | 'closest'
+  /** Closest questions only: `A:` as a number. Set exactly when `kind` is closest. */
+  truth?: number
+  /** Closest questions only, if the pack names one: what the number counts. */
+  unit?: string
   /** Choice questions only, in display order. */
   choices?: string[]
   /** Index into `choices` of the right one. Set exactly when `choices` is. */
@@ -50,7 +57,8 @@ export function parsePack(text: string): PackResult {
   let answer = ''
   let variants: string[] = []
   let image: string | undefined
-  let kind: 'shown' | undefined
+  let kind: 'shown' | 'closest' | undefined
+  let unit: string | undefined
   let choices: string[] | undefined
   let kindError: string | undefined
   let script: string | undefined
@@ -58,11 +66,23 @@ export function parsePack(text: string): PackResult {
   let startLine = 0
 
   const flush = () => {
-    if (value === undefined && fragments.length === 0 && !answer && !image && !kind && !choices && !kindError && !script && !reaction) return
+    if (value === undefined && fragments.length === 0 && !answer && !image && !kind && !unit && !choices && !kindError && !script && !reaction) return
     if (kindError) {
       errors.push(kindError)
     } else if (fragments.length === 0 || !answer) {
       errors.push(`line ${startLine}: a question needs at least one fragment and an A: line`)
+    } else if (unit !== undefined && kind !== 'closest') {
+      errors.push(`line ${startLine}: a U: line belongs to a K: closest question`)
+    } else if (kind === 'closest') {
+      // `1,665` reads as the room would write it; the display answer keeps the pack's spelling.
+      const truth = Number(answer.replace(/[,\s]/g, ''))
+      if (choices) {
+        errors.push(`line ${startLine}: a closest question has no C: line`)
+      } else if (!/\d/.test(answer) || !Number.isFinite(truth) || truth < 0) {
+        errors.push(`line ${startLine}: a closest question's A: must be a number of zero or more`)
+      } else {
+        questions.push({ value, fragments, answer, answers: variants, kind, truth, ...(unit && { unit }), ...(image && { image }), ...(script && { script }), ...(reaction && { reaction }) })
+      }
     } else if (choices) {
       const correct = choices.findIndex((c) => c.toLowerCase() === answer.toLowerCase())
       if (kind === 'shown') {
@@ -83,6 +103,7 @@ export function parsePack(text: string): PackResult {
     variants = []
     image = undefined
     kind = undefined
+    unit = undefined
     choices = undefined
     kindError = undefined
     script = undefined
@@ -115,8 +136,8 @@ export function parsePack(text: string): PackResult {
     }
     if (line.startsWith('K:')) {
       const k = line.slice(2).trim()
-      if (k === 'shown') kind = 'shown'
-      else if (k !== 'read') kindError = `line ${n}: K: must be read or shown; a C: line makes a choice question`
+      if (k === 'shown' || k === 'closest') kind = k
+      else if (k !== 'read') kindError = `line ${n}: K: must be read, shown or closest; a C: line makes a choice question`
       if (fragments.length === 0) startLine = n
       return
     }
@@ -128,6 +149,11 @@ export function parsePack(text: string): PackResult {
     }
     if (line.startsWith('R:')) {
       reaction = line.slice(2).trim()
+      if (fragments.length === 0) startLine = n
+      return
+    }
+    if (line.startsWith('U:')) {
+      unit = line.slice(2).trim()
       if (fragments.length === 0) startLine = n
       return
     }

@@ -132,7 +132,7 @@ export type Round = {
   /** Revealed after scoring, if a question pack supplied one. Stripped from player views. */
   answer?: string
   /** How the question is put to the room. Absent = read aloud and revealed as it is spoken. */
-  kind?: 'shown' | 'choice'
+  kind?: QuestionKind
   /** A choice question's options, published once the question has been read. Every role sees them. */
   choices?: string[]
   /**
@@ -145,7 +145,24 @@ export type Round = {
   picks?: Record<PlayerId, number>
   /** The right option, set when picking closes. Its presence is what "revealed" means. */
   correct?: number
+  /**
+   * A closest question's window, published once the question has been read:
+   * the unit the phones' pad shows, and the server-time end of guessing.
+   */
+  guessing?: { unit?: string; closesAt: number }
+  /** Each player's number on a closest question. Host and board see all; a phone sees its own. */
+  guesses?: Record<PlayerId, number>
+  /**
+   * A closest question's answer and what it paid, set when guessing closes.
+   * `truth`'s presence is what "revealed" means. `paid` names only players who
+   * scored; a phone sees its own entry.
+   */
+  truth?: number
+  paid?: Record<PlayerId, number>
 }
+
+/** Absent = read aloud. `closest` is the room typing a number; the nearest takes it. */
+export type QuestionKind = 'shown' | 'choice' | 'closest'
 
 /** The active game mode. `id` names a registered module; the rest is its data. */
 export type GameState = {
@@ -773,7 +790,7 @@ export type State = {
   mirrorFragments: boolean
   /** Seconds a locked-in player has to speak before silence scores wrong. 0 = no timeout. */
   answerWindowSec: number
-  /** Seconds of picking after the voice has read a choice question's options. */
+  /** Seconds of picking after the voice has read a choice question's options, or of guessing on a closest one. */
   choiceSec: number
   /** Hands-off reading: the reader supplies its own N and paces the beats. */
   autoplay: Autoplay
@@ -792,8 +809,9 @@ export type State = {
 }
 
 export type HostAction =
-  | { a: 'arm'; kind?: 'shown' | 'choice' }
+  | { a: 'arm'; kind?: QuestionKind }
   | { a: 'settleChoice'; correct: number }
+  | { a: 'settleClosest'; truth: number }
   | { a: 'setChoiceTime'; sec: number }
   | { a: 'correct' }
   | { a: 'wrong'; neg: number }

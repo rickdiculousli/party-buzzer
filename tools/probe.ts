@@ -45,6 +45,8 @@
  *                    the clip goes in as audio, so STT and the matcher both run
  *   pick:A=C@1500    picks on a choice question, by letter, that many ms after
  *                    the choices go up (@0 by default); waits for it to settle
+ *   guess:A=1700@800 numbers on a closest question, that many ms after guessing
+ *                    opens (@0 by default); waits for it to settle
  *   teams:R=A,B/S=C  teams grouping, those teams, those players on them
  *   setlist:t*2@p.txt,q*1:v
  *                    setlist: mode*count blocks, @pack the reader takes that
@@ -124,7 +126,7 @@ async function main() {
     // The header comment is the manual; printing a second copy is a second
     // thing to keep true.
     log('\n  usage: npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@120 correct')
-    log('  steps: loop join value arm buzz correct wrong next reset undo pack mode direct autoplay rewind read armed act speak say pick done teams setlist jump duel minigame ready in out vote unvote seat cancel wait clear')
+    log('  steps: loop join value arm buzz correct wrong next reset undo pack mode direct autoplay rewind read armed act speak say pick guess done teams setlist jump duel minigame ready in out vote unvote seat cancel wait clear')
     log('  walks: npm run walk-duel   walk-teams   walk-setlist   walk-read-quizbowl   walk-read-trivia   walk-packs\n')
     return
   }
@@ -277,6 +279,26 @@ async function main() {
           // Everyone the walk scripts picks, so the reader settles at once; a
           // player left out is waited for until the countdown runs out.
           await host.waitFor((s) => s.round.correct !== undefined, 180_000)
+          break
+        }
+
+        // guess:Ada=1700,Bo=1200@800 — each player's number on a closest
+        // question, sent that many ms after guessing opens.
+        case 'guess': {
+          await host.waitFor((s) => !!s.round.guessing, 60_000)
+          const up = Date.now()
+          for (const spec of arg.split(',').filter(Boolean)) {
+            const [who, offset = '0'] = spec.split('@')
+            const [name, number = ''] = who.split('=')
+            const n = Number(number)
+            if (!name || number === '' || !Number.isFinite(n)) throw new Error(`guess needs Name=Number, got "${spec}"`)
+            const conn = player(name)
+            void sleep(Math.max(0, up + Number(offset) - Date.now())).then(() =>
+              conn.send({ t: 'act', act: 'guess', data: n }),
+            )
+          }
+          // As with picks: everyone scripted guesses, so the reader settles at once.
+          await host.waitFor((s) => s.round.truth !== undefined, 180_000)
           break
         }
 

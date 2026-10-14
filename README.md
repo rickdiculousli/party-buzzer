@@ -284,8 +284,8 @@ verdict dwell, rebound pauses, and advancing through questions. With spoken
 answer recognition available, the judge can also apply verdicts automatically.
 The host can still judge manually.
 
-A question can also be **shown** or **multiple choice**; one pack can mix all
-three. `K: shown` puts the whole question on the board at the arm while the
+A question can also be **shown**, **multiple choice** or **closest**; one pack
+can mix all four. `K: shown` puts the whole question on the board at the arm while the
 voice still reads it, and buzzing works as usual. A `C: Mars | Venus | Saturn`
 line makes a multiple-choice question: the voice reads the question, the
 choices appear on the board and phones, the voice reads them, and every
@@ -294,6 +294,16 @@ runs out after the options are read (the host can also press **Close
 picking**). Every right pick scores the round value; a wrong one costs
 nothing. `A:` must equal one of the choices. Shown and choice text reaches
 phones whatever the mirror setting. See [the mixed pack](packs/mixed.txt).
+
+`K: closest` with a number on the `A:` line (and an optional `U: metres` unit)
+makes a closest question: once the voice has read it, every phone gets a
+number pad and every player types one guess. Guessing closes when everyone has
+guessed, **Choice time** runs out, or the host presses **Close guessing**. The
+board drops the guesses onto a number line, slides the answer in, and lights
+the nearest: it takes the round value, doubled for an exact hit, and players
+tied share it. With six or more guessers the next-nearest takes half. Nobody
+sees another player's number until the reveal. See
+[game-night.txt](packs/game-night.txt).
 
 Export `ELEVENLABS_API_KEY` in your shell and run `npm run start:eleven`, and
 ElevenLabs v4 reads in the house voice (Buzzer Host – Dynamic;

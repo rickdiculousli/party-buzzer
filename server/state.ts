@@ -8,7 +8,7 @@ import { duelOnArm, duelOnWrong, duelRule, resolveDuel, seatDuel } from './duel.
 import { advanceSetlist, applySetup, enterBlock, introduceBlock, sanitizeBlocks } from './setlist.ts'
 import { refuses } from '../shared/legality.ts'
 import { persistedSnapshot } from './snapshot.ts'
-import { bump, scoreKey } from '../shared/scoring.ts'
+import { bump, closestAwards, scoreKey } from '../shared/scoring.ts'
 import { arrivalBlocksPlay, endLobby } from '../shared/arrival.ts'
 
 export { bump, scoreKey, lockedPlayerIds } from '../shared/scoring.ts'
@@ -124,6 +124,10 @@ function clearQuestion(round: State['round']): void {
   delete round.closesAt
   delete round.picks
   delete round.correct
+  delete round.guessing
+  delete round.guesses
+  delete round.truth
+  delete round.paid
 }
 
 /** Next, reset, jump and clear move past the first block, so its introduction goes. */
@@ -341,6 +345,17 @@ function mutateHostAction(state: State, action: HostAction): void {
       round.correct = action.correct
       round.phase = 'IDLE'
       return
+
+    // The room's numbers against the pack's, paid without the mode's hooks the
+    // way a choice question is: nobody buzzed, so there is no leader to score.
+    case 'settleClosest': {
+      const paid = closestAwards(round.guesses ?? {}, action.truth, round.value)
+      for (const [playerId, points] of Object.entries(paid)) bump(state, scoreKey(state, playerId), points)
+      round.truth = action.truth
+      round.paid = paid
+      round.phase = 'IDLE'
+      return
+    }
 
     case 'setChoiceTime':
       state.choiceSec = Math.min(120, Math.max(5, Math.round(action.sec) || 20))

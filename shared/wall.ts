@@ -26,15 +26,16 @@
 import { isPenalty } from './protocol.ts'
 import { milestoneFor, setlistSpent } from './recap.ts'
 import { pickers } from './choice.ts'
+import { formatNumber, lineScale, placeOn } from './closest.ts'
 import { arrivalPresentation, type ArrivalPresentation } from './arrival.ts'
 import type { Award, State } from './protocol.ts'
 
 /**
- * The twenty states, in priority order — `momentOf` returns the first that
+ * The twenty-three states, in priority order — `momentOf` returns the first that
  * matches, and that ordering is the load-bearing part. The two `arrival`
  * states come first because an arrival covers whatever the idle round still
- * holds, a prior payoff or choice reveal included. The three `choice` states
- * come next because a choice question never reaches any of the others.
+ * holds, a prior payoff or choice reveal included. The three `choice` and three
+ * `closest` states come next because those questions never reach any of the others.
  *
  * Reordering within a family is safe. Reordering across one is a behaviour
  * change. Two pairs are ordered the way they are for a reason that is not
@@ -52,6 +53,9 @@ export type Moment =
   | 'choice:listening'
   | 'choice:picking'
   | 'choice:reveal'
+  | 'closest:listening'
+  | 'closest:guessing'
+  | 'closest:reveal'
   | 'answer:judging'
   | 'verdict:hold'
   | 'answer:locked'
@@ -78,7 +82,7 @@ export type Moment =
  */
 export type Local = { open: boolean; settled: boolean; retired: boolean }
 
-export type Family = 'arrival' | 'choice' | 'answer' | 'verdict' | 'duel' | 'buzz' | 'idle'
+export type Family = 'arrival' | 'choice' | 'closest' | 'answer' | 'verdict' | 'duel' | 'buzz' | 'idle'
 /** Typed prefix matching, so a family question stays one line and stays checked. */
 export function isFamily<F extends Family>(m: Moment, f: F): m is Extract<Moment, `${F}:${string}`> {
   return m.startsWith(`${f}:`)
@@ -99,6 +103,11 @@ export function momentOf(state: State, local: Local): Moment {
   if (r.kind === 'choice' && r.questionId) {
     if (r.correct !== undefined) return 'choice:reveal'
     return r.choices ? 'choice:picking' : 'choice:listening'
+  }
+  // The same for a closest question: the room types a number, nobody buzzes.
+  if (r.kind === 'closest' && r.questionId) {
+    if (r.truth !== undefined) return 'closest:reveal'
+    return r.guessing ? 'closest:guessing' : 'closest:listening'
   }
 
   // The room reads what was said before it reads how it scored — even though
@@ -221,6 +230,12 @@ export type Wall = {
    */
   choices: ChoiceWall | null
   /**
+   * A closest question's line, in the band below the clue. Null outside
+   * `closest:guessing` and `closest:reveal`. Built from `guesses`, which only
+   * the host and board receive.
+   */
+  closest: ClosestWall | null
+  /**
    * The lobby or introduction, during the `arrival` moments only. It replaces
    * every other band: the seven occupants and the ancillary lanes are null,
    * `timeline` is false and `value` is null. Phones read the same object from
@@ -248,6 +263,37 @@ export type ChoiceWall = {
   /** At the reveal: who picked each option, by player id. */
   by?: string[][]
   winners?: string[]
+}
+
+export type ClosestWall = {
+  unit?: string
+  points: number
+  /**
+   * Everyone who may guess, in the order they did, then those still out.
+   * Never the number: the board is in front of the room, and a number up
+   * early is one the next phone copies.
+   */
+  guessers: { id: string; guessed: boolean }[]
+  closesAt?: number
+  /** At the reveal: the pack's number, spelt for the wall, and where it sits along the line, 0 to 1. */
+  truth?: { value: number; text: string; at: number }
+  /** At the reveal: every guess, low to high. `parked` is off the line, held at that end. */
+  marks?: ClosestMark[]
+  /** At the reveal: who took the value (ties share it), for the stamp. Empty when nobody guessed. */
+  winners?: { name: string; paid: number; off: number }[]
+}
+
+export type ClosestMark = {
+  id: string
+  name: string
+  guess: number
+  text: string
+  at: number
+  parked?: 'low' | 'high'
+  off: number
+  paid: number
+  /** 1 took the value, 2 took half; absent paid nothing. */
+  place?: 1 | 2
 }
 
 /**
@@ -341,6 +387,9 @@ function middleOf(state: State, m: Moment): Middle {
     case 'choice:listening':
     case 'choice:picking':
     case 'choice:reveal':
+    case 'closest:listening':
+    case 'closest:guessing':
+    case 'closest:reveal':
       return or(clue)
     // The verdict clears `order` the instant it lands, but the room is still
     // reading the transcript above. Without this the stage flicks back to the
@@ -424,6 +473,53 @@ function choiceWall(state: State, m: Moment): ChoiceWall | null {
   }
 }
 
+function closestWall(state: State, m: Moment): ClosestWall | null {
+  const r = state.round
+  if (!isFamily(m, 'closest') || !r.guessing) return null
+  const guesses = Object.entries(r.guesses ?? {})
+  const nameOf = (id: string) => state.players.find((p) => p.id === id)?.name ?? '?'
+  const wall: ClosestWall = {
+    ...(r.guessing.unit && { unit: r.guessing.unit }),
+    points: r.value,
+    // `guesses` keeps insertion order, which is the order the room guessed in.
+    guessers: [
+      ...guesses.map(([id]) => ({ id, guessed: true })),
+      ...pickers(state).filter((id) => r.guesses?.[id] === undefined).map((id) => ({ id, guessed: false })),
+    ],
+    closesAt: r.guessing.closesAt,
+  }
+  if (r.truth === undefined) return wall
+  const truth = r.truth
+  const scale = lineScale(guesses.map(([, g]) => g), truth)
+  const paid = r.paid ?? {}
+  // By distance, not by points: a three-way tie for the value can pay each
+  // less than second place's half.
+  const offOf = (g: number) => Math.round(Math.abs(g - truth) * 1e6) / 1e6
+  const nearest = Math.min(...guesses.map(([, g]) => offOf(g)))
+  const marks: ClosestMark[] = guesses
+    .map(([id, guess]) => {
+      const off = offOf(guess)
+      const points = paid[id] ?? 0
+      return {
+        id,
+        name: nameOf(id),
+        guess,
+        text: formatNumber(guess),
+        ...placeOn(scale, guess),
+        off,
+        paid: points,
+        ...(points > 0 && { place: off === nearest ? (1 as const) : (2 as const) }),
+      }
+    })
+    .sort((a, b) => a.guess - b.guess)
+  return {
+    ...wall,
+    truth: { value: truth, text: formatNumber(truth), at: placeOn(scale, truth).at },
+    marks,
+    winners: marks.filter((k) => k.place === 1).map((k) => ({ name: k.name, paid: k.paid, off: k.off })),
+  }
+}
+
 export function wallOf(state: State, local: Local): Wall {
   const r = state.round
   const m = momentOf(state, local)
@@ -440,6 +536,7 @@ export function wallOf(state: State, local: Local): Wall {
       timeline: false,
       value: null,
       choices: null,
+      closest: null,
       arrival: arrivalPresentation(state),
       milestone: null,
     }
@@ -474,8 +571,9 @@ export function wallOf(state: State, local: Local): Wall {
     // question's card replaces them: through the read, the buzz, the answer
     // and the verdict. Between questions the card says it instead.
     // Not beside the card, which says the same number large.
-    value: 'next' in middle || scoreless ? null : r.phase !== 'IDLE' || isFamily(m, 'answer') || isFamily(m, 'verdict') || isFamily(m, 'choice') ? r.value : null,
+    value: 'next' in middle || scoreless ? null : r.phase !== 'IDLE' || isFamily(m, 'answer') || isFamily(m, 'verdict') || isFamily(m, 'choice') || isFamily(m, 'closest') ? r.value : null,
     choices: choiceWall(state, m),
+    closest: closestWall(state, m),
     arrival: null,
     milestone:
       state.night && m !== 'idle:finale'
@@ -529,6 +627,11 @@ export type Mine = {
   pick?: number
   choices?: string[]
   correct?: number
+  /** This phone's number on a closest question, the unit, and at the reveal the answer and what it paid. */
+  guess?: number
+  unit?: string
+  truth?: number
+  paid?: number
   /** The round value, for the reveal's "+200". */
   value?: number
   /** Actual award for a buzz answer; modes may add a power bonus. */
@@ -605,6 +708,23 @@ export function phoneOf(m: Moment, f: Mine): Phone {
     const answer = f.correct === undefined ? '' : f.choices?.[f.correct] ?? ''
     return { label: f.pick === undefined ? 'No pick' : 'Wrong', sub: `It was ${answer}`, mood: 'barred', talk: false }
   }
+  if (m === 'closest:listening') {
+    return { label: 'Listen', sub: 'Guess once the question is read', mood: 'waiting', talk: false }
+  }
+  if (m === 'closest:guessing') {
+    return f.guess === undefined
+      ? { label: 'Guess', sub: '', mood: 'open', talk: false }
+      : { label: 'Locked', sub: withUnit(f.guess, f.unit), mood: 'placed', talk: false }
+  }
+  if (m === 'closest:reveal') {
+    const truth = f.truth === undefined ? '' : withUnit(f.truth, f.unit)
+    if (f.guess === undefined) return { label: 'No guess', sub: `It was ${truth}`, mood: 'barred', talk: false }
+    const off = Math.abs(f.guess - (f.truth ?? f.guess))
+    if (f.paid) {
+      return { label: off === 0 ? 'Exact' : 'Close', sub: `+${f.paid} · ${off === 0 ? 'spot on' : `${formatNumber(off)} off`}`, mood: 'first', talk: false }
+    }
+    return { label: `${formatNumber(off)} off`, sub: `It was ${truth}`, mood: 'barred', talk: false }
+  }
   // Phones have no award-stamp dwell, so their local moment may already be
   // idle:ready while the scored round is still up. The answerer keeps the
   // actual result until the next arm clears its award and order.
@@ -656,6 +776,8 @@ export function phoneOf(m: Moment, f: Mine): Phone {
   }
   return { label: 'Wait', sub: 'The host has not armed yet', mood: 'waiting', talk: false }
 }
+
+const withUnit = (n: number, unit?: string) => (unit ? `${formatNumber(n)} ${unit}` : formatNumber(n))
 
 const ordinal = (n: number) => {
   const t = n % 100

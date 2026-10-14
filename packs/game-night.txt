@@ -161,3 +161,61 @@ A: Grimace Shake | Grimace
 V: 400
 In DiEM Archive's viral cat cartoons, Giggle hits 17 black at roulette and shouts what three-word phrase?
 A: Let it ride
+
+V: 200
+K: closest
+U: steps
+How many steps are in the Eiffel Tower to the top?
+A: 1,665
+
+V: 300
+K: closest
+U: metres
+How tall is Mount Everest, in metres above sea level?
+A: 8,849
+
+V: 200
+K: closest
+In what year did the Berlin Wall fall?
+A: 1989
+
+V: 200
+K: closest
+U: bones
+How many bones are in an adult human body?
+A: 206
+
+V: 200
+K: closest
+U: keys
+How many keys are on a standard piano?
+A: 88
+
+V: 200
+K: closest
+In what year did the first iPhone go on sale?
+A: 2007
+
+V: 400
+K: closest
+U: km
+On average, how far is the Moon from the Earth, in kilometres?
+A: 384,400
+
+V: 300
+K: closest
+U: minutes
+How many minutes are there in a week?
+A: 10,080
+
+V: 300
+K: closest
+U: countries
+How many countries are members of the United Nations?
+A: 193
+
+V: 300
+K: closest
+U: seconds
+How many seconds are there in a day?
+A: 86,400

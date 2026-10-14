@@ -71,6 +71,7 @@ export type Refusal =
   | 'too-few-players'
   | 'sketch-words'
   | 'no-choice'
+  | 'no-guessing'
   | 'not-open'
   | 'arrival-changed'
   | 'introduction-active'
@@ -116,7 +117,7 @@ export function refuses(s: State, a: HostAction): Refusal | null {
 
     // Only while the buzzers are open and nobody has pressed.
     case 'timeUp':
-      return r.phase === 'ARMED' && r.kind !== 'choice' && r.order.length === 0 ? null : 'not-open'
+      return r.phase === 'ARMED' && r.kind !== 'choice' && r.kind !== 'closest' && r.order.length === 0 ? null : 'not-open'
 
     // Only while a choice question's options are up and nothing has been revealed.
     case 'settleChoice':
@@ -124,6 +125,12 @@ export function refuses(s: State, a: HostAction): Refusal | null {
         Number.isInteger(a.correct) && a.correct >= 0 && a.correct < r.choices.length
         ? null
         : 'no-choice'
+
+    // Only while a closest question is taking guesses, and with a number to settle on.
+    case 'settleClosest':
+      return r.kind === 'closest' && r.guessing && r.truth === undefined && Number.isFinite(a.truth)
+        ? null
+        : 'no-guessing'
 
     // Only ever opens a rebound that is being held. A stray one — a double tap,
     // a reader waking on a round that already moved — has nothing to open.
