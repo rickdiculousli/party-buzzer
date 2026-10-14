@@ -1,4 +1,5 @@
 import test from 'node:test'
+import { readFileSync } from 'node:fs'
 import assert from 'node:assert/strict'
 import { Hub, type Conn } from './hub.ts'
 import { newState } from './state.ts'
@@ -15,9 +16,13 @@ import type { State } from '../shared/protocol.ts'
  * disk  yes:  written to `persistedSnapshot` unchanged.
  *       reset: written in a narrowed or rewound form (round value only, a reset match).
  *       no:   not written; a restart rebuilds or forgets it.
- * phone full: a player's `viewFor` carries it unchanged.
- *       own:  a player gets a projection of it (redacted to their own share).
+ * phone full: a player's `viewFor` carries what the host's does.
+ *       own:  a player gets a projection of its own (redacted to their share).
  *       none: a player never gets it.
+ *
+ * A row describes the fixture below. Some fields vary by shape: a lobby
+ * `arrival` is dropped from undo, and a `minigame` in ready or results is
+ * written to disk unchanged. snapshot.test.ts covers those cases.
  */
 type Lifetime = { undo: 'yes' | 'no' | 'live'; disk: 'yes' | 'no' | 'reset'; phone: 'full' | 'own' | 'none' }
 
@@ -44,7 +49,7 @@ const lifetimes = {
   autoplay: { undo: 'yes', disk: 'yes', phone: 'full' },
   readingActive: { undo: 'no', disk: 'no', phone: 'full' },
   reading: { undo: 'no', disk: 'no', phone: 'none' },
-  minigame: { undo: 'yes', disk: 'reset', phone: 'own' },
+  minigame: { undo: 'yes', disk: 'reset', phone: 'full' },
   arrival: { undo: 'yes', disk: 'no', phone: 'full' },
 } satisfies Record<keyof State, Lifetime> as Record<keyof State, Lifetime>
 
@@ -92,11 +97,19 @@ function everyField(): State {
 const keysWhere = (pick: (l: Lifetime) => boolean) =>
   (Object.keys(lifetimes) as (keyof State)[]).filter((k) => pick(lifetimes[k])).sort()
 
+/** The field names written in `State`'s declaration, so an unset optional one still counts. */
+function declaredFields(): string[] {
+  const source = readFileSync(new URL('../shared/protocol.ts', import.meta.url), 'utf8')
+  const body = source.split('\nexport type State = {\n')[1]!.split('\n}\n')[0]!
+  return [...body.matchAll(/^  (\w+)\??:/gm)].map((m) => m[1]!).sort()
+}
+
 test('every State field has a lifetime row, and every row names a field', () => {
-  const fields = Object.keys(everyField()).sort()
-  const unclassified = fields.filter((k) => !(k in lifetimes))
+  const declared = declaredFields()
+  const unclassified = declared.filter((k) => !(k in lifetimes))
   assert.deepEqual(unclassified, [], `classify in server/lifetimes.test.ts: ${unclassified.join(', ')}`)
-  assert.deepEqual(Object.keys(lifetimes).sort(), fields, 'a row names a field the fixture does not set')
+  assert.deepEqual(Object.keys(lifetimes).sort(), declared, 'a row names a field State does not declare')
+  assert.deepEqual(Object.keys(everyField()).sort(), declared, 'everyField() must set every field')
 })
 
 test('undo keeps exactly the undo: yes fields; live ones survive and the rest reset', () => {
@@ -125,19 +138,20 @@ test('disk keeps exactly the disk: yes and reset fields, the yes ones unchanged'
   }
 })
 
-test('a phone sees full fields unchanged, its own projection of others, and none of the rest', () => {
-  const state = everyField()
-  const hub = new Hub(state)
+test('a phone sees full fields as the host does, its own projection of others, and none of the rest', () => {
+  const hub = new Hub(everyField())
   const phone: Conn = { id: 'pa', role: 'player', playerId: 'a', send() {} }
   const view = hub.viewFor(phone) as Record<string, unknown>
+  const host = hub.viewFor({ id: 'h', role: 'host', send() {} }) as Record<string, unknown>
   for (const key of keysWhere((l) => l.phone === 'none')) {
     assert.equal(view[key], undefined, `${key} never reaches a phone`)
   }
   for (const key of keysWhere((l) => l.phone === 'full')) {
-    assert.deepEqual(view[key], state[key], `${key} reaches a phone unchanged`)
+    assert.notEqual(host[key], undefined, `${key} is in the fixture`)
+    assert.deepEqual(view[key], host[key], `${key} reaches a phone as the host sees it`)
   }
   for (const key of keysWhere((l) => l.phone === 'own')) {
     assert.notEqual(view[key], undefined, `${key} reaches a phone`)
-    assert.notDeepEqual(view[key], state[key], `${key} is projected for a phone`)
+    assert.notDeepEqual(view[key], host[key], `${key} is projected for a phone`)
   }
 })
