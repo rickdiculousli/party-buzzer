@@ -4,7 +4,7 @@ title: Closest-guess question: everyone types a number, the nearest takes it
 kind: feature
 size: M
 judge: opus
-status: proposed
+status: accepted
 lens: eng
 proposed_by: 7f24ed4b-18c6-49f9-a00b-48d7dfed548a
 proposed_on: 2026-10-14

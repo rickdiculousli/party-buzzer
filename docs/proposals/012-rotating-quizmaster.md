@@ -4,7 +4,7 @@ title: Rotating quizmaster: a player's phone reads and judges a block
 kind: feature
 size: L
 judge: fable
-status: proposed
+status: later
 lens: eng
 proposed_by: 7f24ed4b-18c6-49f9-a00b-48d7dfed548a
 proposed_on: 2026-10-14

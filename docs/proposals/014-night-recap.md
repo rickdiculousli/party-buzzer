@@ -4,7 +4,7 @@ title: Night recap: milestones during play and a keepsake at the finale
 kind: feature
 size: L
 judge: fable
-status: proposed
+status: accepted
 lens: eng
 proposed_by: 7f24ed4b-18c6-49f9-a00b-48d7dfed548a
 proposed_on: 2026-10-14
