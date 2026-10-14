@@ -1,7 +1,6 @@
-import test from 'node:test'
+import { test as nodeTest, mock } from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
-import { setTimeout as sleep } from 'node:timers/promises'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -11,6 +10,31 @@ import { Judge, type Transcribe } from './judge.ts'
 import { Reader } from './reader.ts'
 import type { Speech } from './speech.ts'
 import { ARM_DELAY_MS } from '../shared/protocol.ts'
+
+const STEP_MS = 5
+
+/**
+ * Every test runs on a mock clock: `sleep(ms)` advances timers and `Date.now()`
+ * together, in small steps, yielding to the event loop so promises and file
+ * work settle between them.
+ */
+function test(name: string, fn: () => Promise<void>): void {
+  nodeTest(name, async () => {
+    mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] })
+    try {
+      await fn()
+    } finally {
+      mock.timers.reset()
+    }
+  })
+}
+
+async function sleep(ms: number) {
+  for (let left = ms; left > 0; left -= STEP_MS) {
+    mock.timers.tick(Math.min(STEP_MS, left))
+    await new Promise((r) => setImmediate(r))
+  }
+}
 
 const hostConn: Conn = { id: 'h', role: 'host', send: () => {} }
 

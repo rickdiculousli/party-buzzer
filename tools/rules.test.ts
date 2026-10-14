@@ -1,4 +1,5 @@
-import test from 'node:test'
+import test, { mock } from 'node:test'
+import type { TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { whenever, neverFollows, phaseGraph, minGap, check, type Rule } from './rules.ts'
 import type { Frame } from '../server/trace.ts'
@@ -149,7 +150,27 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+const STEP_MS = 5
+
+/** Advances timers and `Date.now()` together, in small steps that let promises settle between them. */
+async function sleep(ms: number) {
+  for (let left = ms; left > 0; left -= STEP_MS) {
+    mock.timers.tick(Math.min(STEP_MS, left))
+    await new Promise((r) => setImmediate(r))
+  }
+}
+
+/** A test that runs on a mock clock, so its waits cost no wall time. */
+function mockClockTest(name: string, fn: (t: TestContext) => Promise<void>) {
+  test(name, async (t) => {
+    mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] })
+    try {
+      await fn(t)
+    } finally {
+      mock.timers.reset()
+    }
+  })
+}
 
 const drive = () => {
   const frames: Frame[] = []
@@ -167,7 +188,7 @@ const drive = () => {
   return { hub, frames, player, host }
 }
 
-test('integration: photo finish, correct, next — zero violations', async () => {
+mockClockTest('integration: photo finish, correct, next — zero violations', async () => {
   const { hub, frames, player, host } = drive()
   const ada = player('Ada', 'p1'), bo = player('Bo', 'p2')
   hub.handle(host, { t: 'host', action: { a: 'arm' } })
@@ -180,7 +201,7 @@ test('integration: photo finish, correct, next — zero violations', async () =>
   assert.deepEqual(check(frames, RULES, {}), [])
 })
 
-test('integration: wrong answer then rebound — zero violations', async () => {
+mockClockTest('integration: wrong answer then rebound — zero violations', async () => {
   const { hub, frames, player, host } = drive()
   const ada = player('Ada', 'p1'), bo = player('Bo', 'p2')
   hub.handle(host, { t: 'host', action: { a: 'arm' } })
@@ -195,7 +216,7 @@ test('integration: wrong answer then rebound — zero violations', async () => {
   assert.deepEqual(check(frames, RULES, {}), [])
 })
 
-test('integration: a buzz cuts the voice, so say and cue never overlap', async (t) => {
+mockClockTest('integration: a buzz cuts the voice, so say and cue never overlap', async (t) => {
   const packDir = mkdtempSync(join(tmpdir(), 'pb-rules-'))
   writeFileSync(join(packDir, 'one.txt'), 'V: 300\nFirst fragment. / Second fragment.\nA: gold\n')
   const frames: Frame[] = []
