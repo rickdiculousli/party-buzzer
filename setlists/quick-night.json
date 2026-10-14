@@ -1,0 +1,26 @@
+[
+  {
+    "game": "trivia",
+    "options": {},
+    "count": 8,
+    "pack": "game-night.txt"
+  },
+  {
+    "game": "bow",
+    "options": {},
+    "count": 1
+  },
+  {
+    "game": "quizbowl",
+    "options": {
+      "powerAfterFragment": 2,
+      "powerBonus": 50,
+      "neg": 0,
+      "bouncebacks": true,
+      "itemsEnabled": false
+    },
+    "count": 4,
+    "pack": "quizbowl-lite.txt",
+    "duel": "vote"
+  }
+]

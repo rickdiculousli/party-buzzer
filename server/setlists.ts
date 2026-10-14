@@ -8,9 +8,11 @@ import { basename, join } from 'node:path'
 import { sanitizeBlocks } from './setlist.ts'
 import { knownModule } from './modes/index.ts'
 import { duelRule } from './duel.ts'
-import type { SetlistBlock } from '../shared/protocol.ts'
+import { isMinigameId, type SetlistBlock } from '../shared/protocol.ts'
 
 const rule = (id: string) => !!duelRule(id)
+// The same pair setSetlist accepts: a saved night may visit a minigame.
+const game = (id: string) => knownModule(id) || isMinigameId(id)
 
 /** Sorted setlist filenames. A missing directory is a room with nothing saved. */
 export function listSetlists(dir: string): string[] {
@@ -40,7 +42,7 @@ export function readSetlist(dir: string, name: string): SetlistBlock[] {
     console.warn(`[setlists] could not read "${name}":`, err)
     return []
   }
-  return sanitizeBlocks(raw, knownModule, rule)
+  return sanitizeBlocks(raw, game, rule)
 }
 
 /** Write a setlist, returning the filename it landed under. */

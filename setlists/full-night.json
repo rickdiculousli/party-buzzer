@@ -1,0 +1,62 @@
+[
+  {
+    "game": "trivia",
+    "options": {},
+    "count": 3,
+    "pack": "mixed.txt"
+  },
+  {
+    "game": "trivia",
+    "options": {},
+    "count": 12,
+    "pack": "game-night.txt"
+  },
+  {
+    "game": "sketch",
+    "options": {},
+    "count": 1
+  },
+  {
+    "game": "trivia",
+    "options": {},
+    "count": 12,
+    "pack": "game-night.txt"
+  },
+  {
+    "game": "tank",
+    "options": {},
+    "count": 1
+  },
+  {
+    "game": "quizbowl",
+    "options": {
+      "powerAfterFragment": 2,
+      "powerBonus": 50,
+      "neg": 0,
+      "bouncebacks": true,
+      "itemsEnabled": true
+    },
+    "count": 6,
+    "pack": "quizbowl-lite.txt",
+    "duel": "volunteer-random"
+  },
+  {
+    "game": "trivia",
+    "options": {},
+    "count": 10,
+    "pack": "game-night.txt"
+  },
+  {
+    "game": "quizbowl",
+    "options": {
+      "powerAfterFragment": 2,
+      "powerBonus": 100,
+      "neg": 0,
+      "bouncebacks": true,
+      "itemsEnabled": false
+    },
+    "count": 4,
+    "pack": "quizbowl-lite.txt",
+    "duel": "vote"
+  }
+]

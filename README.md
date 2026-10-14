@@ -75,6 +75,18 @@ A **setlist** is a sequence of blocks, each choosing a game, options, value,
 duel rule, question count, and optionally a pack. A block without a pack is
 read aloud by the host. Saved setlists are JSON files in `setlists/`.
 
+Two starter setlists ship in `setlists/`. **quick-night** is about twenty
+minutes: eight spoken trivia questions from `game-night.txt`, a round of Bow, and
+four quizbowl questions from `quizbowl-lite.txt` with the room voting two
+players into a duel before each. **full-night** is about forty-five minutes: a
+three-question warm-up from `mixed.txt` that shows the shown and multiple-choice
+formats, two dozen trivia questions split around a round of Sketch, Tank battle,
+six quizbowl questions with item drops and volunteer duels, a ten-question
+trivia sprint, and a four-question quizbowl finale at a doubled power bonus. Both
+read from packs, so the spoken voice or the host reads them; a test keeps each
+block's count inside its pack. Poker is not in either, because a poker block
+runs on its own clock; add one in Setup when the night wants it.
+
 ### Bow minigame
 
 Bow is available as a freehand mechanics preview. Join every player before the
