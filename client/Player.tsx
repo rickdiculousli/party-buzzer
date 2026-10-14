@@ -12,6 +12,8 @@ import { MINIGAMES } from './minigames.tsx'
 import { MinigameReady, readyShown } from './MinigameReady.tsx'
 import { LETTERS } from '../shared/choice.ts'
 import { GuessPad } from './GuessPad.tsx'
+import { useClosestHold } from './ClosestLine.tsx'
+import { scoresBeforeClosest } from '../shared/closest.ts'
 import { ArrivalPhone } from './ArrivalPhone.tsx'
 import { practiceLobbyId } from './arrival-feedback.ts'
 import { usePracticeTime } from './usePractice.ts'
@@ -166,7 +168,12 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
   const nameOf = (id: string) => state?.players.find((p) => p.id === id)?.name ?? '?'
   const buzzableNames = round?.buzzable?.map(nameOf)
 
-  const score = key ? state?.scores[key] ?? 0 : 0
+  // A closest reveal plays on the board for a few seconds after it settles;
+  // this phone keeps its "Locked" and the old scores until it has, so the
+  // room learns the result from the wall rather than from a hand.
+  const holding = useClosestHold(round, !preview)
+  const shownState = state && holding ? { ...state, scores: scoresBeforeClosest(state) } : state
+  const score = key ? shownState?.scores[key] ?? 0 : 0
   const armed = round?.phase === 'ARMED' || round?.phase === 'COLLECTING'
   const pressed = !!round && pressedFor === round.attemptId && !!round.attemptId
 
@@ -288,9 +295,10 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
   // `settled` and `retired` are both already true here: the phone renders no
   // transcript and no award stamp, so it has no reveal to wait on — neither
   // dwell exists on this surface for the moment to sit through.
-  const moment = state
+  const reached = state
     ? momentOf(state, { open, settled: true, retired: true })
     : ('idle:welcome' as const)
+  const moment = holding && reached === 'closest:reveal' ? 'closest:guessing' : reached
   const { label, sub, mood, talk } = phoneOf(moment, {
     frozen,
     barred,
@@ -306,7 +314,7 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     armed,
     open,
     judging: !!round?.judge,
-    place: state ? 1 + standings(state).filter((r) => r.score > score).length : undefined,
+    place: shownState ? 1 + standings(shownState).filter((r) => r.score > score).length : undefined,
     next: round?.value,
     last: !!state && lastUp(state),
     pick: myPick,
@@ -314,8 +322,10 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     correct: round?.correct,
     guess: myGuess,
     unit: round?.guessing?.unit,
+    plain: !!round?.guessing?.plain,
     truth: round?.truth,
     paid: playerId ? round?.paid?.[playerId] : undefined,
+    nearest: round?.nearest,
     value: round?.value,
     awardPoints: round?.award && !round.award.penalty ? round.award.points : undefined,
   })
@@ -375,7 +385,7 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
             ))}
           </div>
         ) : moment === 'closest:guessing' && myGuess === undefined && !frozen && !spectator ? (
-          <GuessPad key={round?.questionId} unit={round?.guessing?.unit} onGuess={guess} />
+          <GuessPad key={round?.questionId} unit={round?.guessing?.unit} plain={!!round?.guessing?.plain} onGuess={guess} />
         ) : talk ? (
           <Talk
             playerId={playerId}
@@ -401,7 +411,7 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
         </>
       )}
 
-      {state && <StandingsDial state={state} playerId={playerId} />}
+      {shownState && <StandingsDial state={shownState} playerId={playerId} />}
     </main>
   )
 }

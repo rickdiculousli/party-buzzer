@@ -223,6 +223,7 @@ test('settleClosest pays the nearest without a hero, and only once', () => {
   assert.deepEqual(state.scores, { ada: 200 })
   assert.deepEqual(state.round.paid, { ada: 200 })
   assert.equal(state.round.truth, 1665)
+  assert.equal(state.round.nearest, 35)
   assert.equal(state.round.phase, 'IDLE')
   assert.equal(state.round.award, undefined)
   assert.deepEqual(applyHostAction(state, { a: 'settleClosest', truth: 1665 }), { status: 'refused', reason: 'no-guessing' })
@@ -248,7 +249,7 @@ test('arm and next sweep the closest fields, and undo takes back a settled one',
   assert.deepEqual(state.round.guesses, { ada: 1700, bo: 1200, cy: 1500 })
   hub.dispatch({ a: 'settleClosest', truth: 1665 })
   hub.dispatch({ a: 'next' })
-  for (const k of ['kind', 'guessing', 'guesses', 'truth', 'paid'] as const) {
+  for (const k of ['kind', 'guessing', 'guesses', 'truth', 'paid', 'nearest'] as const) {
     assert.equal(state.round[k], undefined, k)
   }
 })

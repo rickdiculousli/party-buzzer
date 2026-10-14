@@ -30,7 +30,7 @@ import { Votes } from '../Votes.tsx'
 import { Spoken } from '../Spoken.tsx'
 import { Burst, CountUp, Glitch, Letters } from '../fx.tsx'
 import { FaceOff, Finale } from '../Board.tsx'
-import { ClosestLine, closestStamp } from '../ClosestLine.tsx'
+import { ClosestLine, closestStamp, closestStampDelay } from '../ClosestLine.tsx'
 import { formatNumber, lineScale, placeOn } from '../../shared/closest.ts'
 import { closestAwards } from '../../shared/scoring.ts'
 import type { ClosestWall } from '../../shared/wall.ts'
@@ -260,10 +260,12 @@ function ClosestScene({ revealed }: { revealed: boolean }) {
   const c = closestWall(revealed)
   const colorOf = (id: string) => GUESSES.find(([g]) => g === id)?.[3] ?? 'var(--chalk)'
   return (
-    <section class="board__wall is-choice" style={{ '--closest-n': c.marks?.length ?? 0 }}>
-      <div class="board__above">{revealed && <p class="board__award is-closest">{closestStamp(c)}</p>}</div>
+    <section class="board__wall is-choice">
+      <div class="board__above">
+        {revealed && <p class="board__award is-closest" style={{ animationDelay: closestStampDelay(c) }}>{closestStamp(c)}</p>}
+      </div>
       <div class="board__mid"><p class="board__question">How many steps are in the Eiffel Tower to the top?</p></div>
-      <div class="board__below"><ClosestLine c={c} colorOf={colorOf} /></div>
+      <div class="board__below"><ClosestLine c={c} closed={!revealed} colorOf={colorOf} /></div>
     </section>
   )
 }
@@ -867,11 +869,8 @@ export const SCENARIOS: Scenario[] = [
     family: 'Quiz',
     note: 'Seven guesses are in. They drop onto the line, it holds, the answer runs in from the right, and the nearest lights.',
     subject: '.closest__mark, .closest__truth, .board__award',
-    dials: [
-      ms('--closest-land-step', 400, 'Land stagger'),
-      ms('--closest-hold', 3000, 'Hold'),
-      ms('--closest-slide-dur', 2000, 'Answer slide'),
-    ],
+    // Its timings are `CLOSEST_REVEAL` in shared/closest.ts, which the phones and the reader keep too.
+    dials: [],
     render: (lead) => <ClosestScene revealed={!lead} />,
   },
   {

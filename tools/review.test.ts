@@ -186,6 +186,7 @@ test('review scenarios cover the main board and phone moments', async () => {
     'choice-reveal',
     'closest-guessing',
     'closest-reveal',
+    'closest-crowd',
     'ink-lobby',
     'ink-choosing',
     'ink-choose',

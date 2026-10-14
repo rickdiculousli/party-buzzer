@@ -27,6 +27,7 @@ import { isPenalty } from './protocol.ts'
 import { milestoneFor, setlistSpent } from './recap.ts'
 import { pickers } from './choice.ts'
 import { formatNumber, lineScale, placeOn } from './closest.ts'
+import { closestOff } from './scoring.ts'
 import { arrivalPresentation, type ArrivalPresentation } from './arrival.ts'
 import type { Award, State } from './protocol.ts'
 
@@ -267,6 +268,8 @@ export type ChoiceWall = {
 
 export type ClosestWall = {
   unit?: string
+  /** Numbers without a thousands comma: the pack wrote a year. */
+  plain?: true
   points: number
   /**
    * Everyone who may guess, in the order they did, then those still out.
@@ -480,6 +483,7 @@ function closestWall(state: State, m: Moment): ClosestWall | null {
   const nameOf = (id: string) => state.players.find((p) => p.id === id)?.name ?? '?'
   const wall: ClosestWall = {
     ...(r.guessing.unit && { unit: r.guessing.unit }),
+    ...(r.guessing.plain && { plain: true as const }),
     points: r.value,
     // `guesses` keeps insertion order, which is the order the room guessed in.
     guessers: [
@@ -494,7 +498,7 @@ function closestWall(state: State, m: Moment): ClosestWall | null {
   const paid = r.paid ?? {}
   // By distance, not by points: a three-way tie for the value can pay each
   // less than second place's half.
-  const offOf = (g: number) => Math.round(Math.abs(g - truth) * 1e6) / 1e6
+  const offOf = (g: number) => closestOff(g, truth)
   const nearest = Math.min(...guesses.map(([, g]) => offOf(g)))
   const marks: ClosestMark[] = guesses
     .map(([id, guess]) => {
@@ -504,7 +508,7 @@ function closestWall(state: State, m: Moment): ClosestWall | null {
         id,
         name: nameOf(id),
         guess,
-        text: formatNumber(guess),
+        text: formatNumber(guess, wall.plain),
         ...placeOn(scale, guess),
         off,
         paid: points,
@@ -514,7 +518,7 @@ function closestWall(state: State, m: Moment): ClosestWall | null {
     .sort((a, b) => a.guess - b.guess)
   return {
     ...wall,
-    truth: { value: truth, text: formatNumber(truth), at: placeOn(scale, truth).at },
+    truth: { value: truth, text: formatNumber(truth, wall.plain), at: placeOn(scale, truth).at },
     marks,
     winners: marks.filter((k) => k.place === 1).map((k) => ({ name: k.name, paid: k.paid, off: k.off })),
   }
@@ -630,8 +634,11 @@ export type Mine = {
   /** This phone's number on a closest question, the unit, and at the reveal the answer and what it paid. */
   guess?: number
   unit?: string
+  plain?: boolean
   truth?: number
   paid?: number
+  /** `round.nearest`: whether a paid guess took first place or second. */
+  nearest?: number
   /** The round value, for the reveal's "+200". */
   value?: number
   /** Actual award for a buzz answer; modes may add a power bonus. */
@@ -714,16 +721,19 @@ export function phoneOf(m: Moment, f: Mine): Phone {
   if (m === 'closest:guessing') {
     return f.guess === undefined
       ? { label: 'Guess', sub: '', mood: 'open', talk: false }
-      : { label: 'Locked', sub: withUnit(f.guess, f.unit), mood: 'placed', talk: false }
+      : { label: 'Locked', sub: withUnit(f.guess, f.unit, f.plain), mood: 'placed', talk: false }
   }
   if (m === 'closest:reveal') {
-    const truth = f.truth === undefined ? '' : withUnit(f.truth, f.unit)
+    const truth = f.truth === undefined ? '' : withUnit(f.truth, f.unit, f.plain)
     if (f.guess === undefined) return { label: 'No guess', sub: `It was ${truth}`, mood: 'barred', talk: false }
-    const off = Math.abs(f.guess - (f.truth ?? f.guess))
+    const off = closestOff(f.guess, f.truth ?? f.guess)
     if (f.paid) {
-      return { label: off === 0 ? 'Exact' : 'Close', sub: `+${f.paid} · ${off === 0 ? 'spot on' : `${formatNumber(off)} off`}`, mood: 'first', talk: false }
+      const sub = `+${f.paid} · ${off === 0 ? 'spot on' : `${formatNumber(off, f.plain)} off`}`
+      // Brass is first place only; a half-paying second is placed, like the board's silver.
+      if (off === f.nearest) return { label: off === 0 ? 'Exact' : 'Nearest', sub, mood: 'first', talk: false }
+      return { label: 'Second', sub, mood: 'placed', talk: false }
     }
-    return { label: `${formatNumber(off)} off`, sub: `It was ${truth}`, mood: 'barred', talk: false }
+    return { label: `${formatNumber(off, f.plain)} off`, sub: `It was ${truth}`, mood: 'barred', talk: false }
   }
   // Phones have no award-stamp dwell, so their local moment may already be
   // idle:ready while the scored round is still up. The answerer keeps the
@@ -777,7 +787,7 @@ export function phoneOf(m: Moment, f: Mine): Phone {
   return { label: 'Wait', sub: 'The host has not armed yet', mood: 'waiting', talk: false }
 }
 
-const withUnit = (n: number, unit?: string) => (unit ? `${formatNumber(n)} ${unit}` : formatNumber(n))
+const withUnit = (n: number, unit?: string, plain?: boolean) => (unit ? `${formatNumber(n, plain)} ${unit}` : formatNumber(n, plain))
 
 const ordinal = (n: number) => {
   const t = n % 100

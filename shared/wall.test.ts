@@ -702,10 +702,13 @@ test('the phone during a closest question', () => {
   assert.equal(phoneOf('closest:listening', base).label, 'Listen')
   assert.equal(phoneOf('closest:guessing', base).label, 'Guess')
   assert.equal(phoneOf('closest:guessing', { ...base, guess: 1700, unit: 'steps' }).sub, '1,700 steps')
-  const done = { ...base, armed: false, unit: 'steps', truth: 1665 }
+  const done = { ...base, armed: false, unit: 'steps', truth: 1665, nearest: 35 }
   const won = phoneOf('closest:reveal', { ...done, guess: 1700, paid: 200 })
-  assert.deepEqual([won.label, won.sub, won.mood], ['Close', '+200 · 35 off', 'first'])
-  assert.equal(phoneOf('closest:reveal', { ...done, guess: 1665, paid: 400 }).label, 'Exact')
+  assert.deepEqual([won.label, won.sub, won.mood], ['Nearest', '+200 · 35 off', 'first'])
+  const second = phoneOf('closest:reveal', { ...done, guess: 1500, paid: 100 })
+  assert.deepEqual([second.label, second.sub, second.mood], ['Second', '+100 · 165 off', 'placed'])
+  assert.equal(phoneOf('closest:reveal', { ...done, unit: undefined, plain: true, truth: 1989, guess: 1980 }).sub, 'It was 1989')
+  assert.equal(phoneOf('closest:reveal', { ...done, nearest: 0, guess: 1665, paid: 400 }).label, 'Exact')
   const lost = phoneOf('closest:reveal', { ...done, guess: 1200 })
   assert.deepEqual([lost.label, lost.sub, lost.mood], ['465 off', 'It was 1,665 steps', 'barred'])
   assert.equal(phoneOf('closest:reveal', done).label, 'No guess')

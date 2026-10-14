@@ -172,6 +172,8 @@ A: 1989
   assert.equal(questions[0].answer, '1,665', 'the display answer keeps the pack spelling')
   assert.equal(questions[1].truth, 1989)
   assert.equal(questions[1].unit, undefined)
+  assert.equal(questions[1].plain, true, 'a year written without a comma keeps none')
+  assert.equal(questions[0].plain, undefined)
 })
 
 test('a closest question refuses a non-numeric A:, a C: line, and a U: line needs K: closest', () => {

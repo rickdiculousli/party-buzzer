@@ -26,7 +26,7 @@ import { render as realRender, play as realPlay, type Clip, type Playback, type 
 import type { Question } from '../shared/pack.ts'
 import type { State } from '../shared/protocol.ts'
 import { allPicked, optionsText } from '../shared/choice.ts'
-import { allGuessed } from '../shared/closest.ts'
+import { allGuessed, closestTimes } from '../shared/closest.ts'
 import type { Judge } from './judge.ts'
 import { Picker, type Pools, type Verdict } from './quips.ts'
 import { isPenalty } from '../shared/protocol.ts'
@@ -642,8 +642,11 @@ export class Reader {
           if (q.kind === 'choice') await this.runChoice(q, stillMine, sig)
           else await this.runClosest(q, stillMine, sig)
           // The grid, or the line, stays up with its answer; the host's N, or
-          // the autoplay dwell, moves on.
-          await this.until(() => !stillMine(), this.dwellMs(), this.session.signal)
+          // the autoplay dwell, moves on. A closest dwell starts once the
+          // board's reveal has played, so the room gets the whole payoff.
+          const dwell = this.dwellMs()
+          const reveal = q.kind === 'closest' ? closestTimes(this.hub.state.round.guessed ?? 0).doneAt : 0
+          await this.until(() => !stillMine(), dwell === undefined ? undefined : dwell + reveal, this.session.signal)
           if (!stillMine() && this.hub.state.round.questionId) {
             throw new DOMException('Question replaced', 'AbortError')
           }
@@ -876,7 +879,8 @@ export class Reader {
   private async runClosest(q: Question, stillMine: () => boolean, sig: AbortSignal): Promise<void> {
     this.closeNow = false
     const ms = this.hub.state.choiceSec * 1000
-    this.hub.send(this.conn, { t: 'act', act: 'guessing', data: { ...(q.unit && { unit: q.unit }), closesAt: Date.now() + ms } })
+    const data = { ...(q.unit && { unit: q.unit }), ...(q.plain && { plain: true }), closesAt: Date.now() + ms }
+    this.hub.send(this.conn, { t: 'act', act: 'guessing', data })
     // Set by the timer itself, as in `runChoice`.
     let expired = false
     const timer = setTimeout(() => {

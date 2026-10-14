@@ -716,7 +716,6 @@ export class Hub {
         answer: this.state.mirrorFragments ? round.answer : undefined,
         picks: own(round.picks),
         guesses: own(round.guesses),
-        paid: own(round.paid),
       },
       reading: undefined,
       night: undefined,

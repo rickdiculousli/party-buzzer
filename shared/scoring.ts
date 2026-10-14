@@ -21,6 +21,11 @@ export function lockedPlayerIds(state: Roster & Pick<State, 'round'>): PlayerId[
 /** A closest question's second place pays from this many guessers up. */
 export const CLOSEST_SECOND_FROM = 6
 
+/** How far a guess is from the answer. Rounded so 1.1 and 0.9 tie around 1, as the room would expect. */
+export function closestOff(guess: number, truth: number): number {
+  return Math.round(Math.abs(guess - truth) * 1e6) / 1e6
+}
+
 /**
  * What a closest question pays, by player: the nearest guess takes the value,
  * doubled for an exact hit; with six or more guessers the next-nearest takes
@@ -28,8 +33,7 @@ export const CLOSEST_SECOND_FROM = 6
  * Only players who score appear.
  */
 export function closestAwards(guesses: Record<PlayerId, number>, truth: number, value: number): Record<PlayerId, number> {
-  // Rounded so 1.1 and 0.9 tie around 1, as the room would expect.
-  const off = Object.entries(guesses).map(([id, g]) => ({ id, d: Math.round(Math.abs(g - truth) * 1e6) / 1e6 }))
+  const off = Object.entries(guesses).map(([id, g]) => ({ id, d: closestOff(g, truth) }))
   const distances = [...new Set(off.map((o) => o.d))].sort((a, b) => a - b)
   const pots = [distances[0] === 0 ? value * 2 : value]
   if (off.length >= CLOSEST_SECOND_FROM) pots.push(value / 2)

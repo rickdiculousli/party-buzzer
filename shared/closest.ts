@@ -3,8 +3,9 @@
  * board lays the guesses on. Who may guess is `pickers`, the same room a
  * choice question waits for.
  */
-import type { State } from './protocol.ts'
+import type { ScoreKey, State } from './protocol.ts'
 import { pickers } from './choice.ts'
+import { scoreKey } from './scoring.ts'
 
 /** False with nobody eligible, so an empty room waits for the timer. */
 export function allGuessed(state: State): boolean {
@@ -12,13 +13,45 @@ export function allGuessed(state: State): boolean {
   return who.length > 0 && who.every((id) => state.round.guesses?.[id] !== undefined)
 }
 
-/** "1,665", "0.25". The same spelling on the pad, the line and the stamp. */
-export function formatNumber(n: number): string {
-  return n.toLocaleString('en-US', { maximumFractionDigits: 6 })
+/**
+ * "1,665", "0.25". The same spelling on the pad, the line and the stamp.
+ * `plain` drops the thousands comma, for a pack that writes its answer as a
+ * year: "1989", never "1,989".
+ */
+export function formatNumber(n: number, plain = false): string {
+  return n.toLocaleString('en-US', { maximumFractionDigits: 6, useGrouping: !plain })
+}
+
+/**
+ * The board's reveal, in ms: each guess lands a step after the last, the line
+ * holds, the answer runs in, the nearest lights, then the stamp. The board
+ * applies these as CSS delays; phones and the board's standings hold the old
+ * picture until `doneAt`, and autoplay waits it out, so nobody's hand or the
+ * standings tell the room before the wall does. `dropMs`, `tadaMs` and
+ * `stampMs` are the kit's `--fx-drop-dur`, `--fx-tada-dur` and `--strike-dur`.
+ */
+export const CLOSEST_REVEAL = { landStepMs: 90, dropMs: 420, holdMs: 600, slideMs: 600, tadaMs: 800, stampMs: 260 }
+
+export function closestTimes(guesses: number): { truthAt: number; lightAt: number; stampAt: number; doneAt: number } {
+  const r = CLOSEST_REVEAL
+  const truthAt = Math.max(0, guesses - 1) * r.landStepMs + r.dropMs + r.holdMs
+  const lightAt = truthAt + r.slideMs
+  const stampAt = lightAt + r.tadaMs / 2
+  return { truthAt, lightAt, stampAt, doneAt: stampAt + r.stampMs }
+}
+
+/** The scores as they stood before a settled closest question paid, for the beat the reveal is still playing. */
+export function scoresBeforeClosest(state: State): Record<ScoreKey, number> {
+  const scores = { ...state.scores }
+  for (const [id, points] of Object.entries(state.round.paid ?? {})) {
+    const key = scoreKey(state, id)
+    scores[key] = (scores[key] ?? 0) - points
+  }
+  return scores
 }
 
 /** How much wider than the rest an end guess's gap must be to park it. */
-const WILD = 3
+const WILD = 2
 
 /** The span the line draws. Guesses outside it are parked at its ends. */
 export type LineScale = { lo: number; hi: number }
@@ -26,7 +59,7 @@ export type LineScale = { lo: number; hi: number }
 /**
  * The line covers the answer and at least the middle 90 % of the guesses. One
  * wild guess would squash everyone else into a dot, so an end guess is parked
- * when its gap to the rest is over three times as wide as all the rest: at
+ * when its gap to the rest is over twice as wide as all the rest: at
  * most a twentieth of the guesses at each end, and at least one once there are
  * three. A margin keeps the end marks off the edges.
  */

@@ -149,16 +149,20 @@ export type Round = {
    * A closest question's window, published once the question has been read:
    * the unit the phones' pad shows, and the server-time end of guessing.
    */
-  guessing?: { unit?: string; closesAt: number }
+  guessing?: { unit?: string; closesAt: number; plain?: true }
   /** Each player's number on a closest question. Host and board see all; a phone sees its own. */
   guesses?: Record<PlayerId, number>
   /**
    * A closest question's answer and what it paid, set when guessing closes.
    * `truth`'s presence is what "revealed" means. `paid` names only players who
-   * scored; a phone sees its own entry.
+   * scored. Every role sees both: the board puts them all on the wall.
    */
   truth?: number
   paid?: Record<PlayerId, number>
+  /** How far the nearest guess was, set with `truth`, so a phone that scored can tell first place from second. */
+  nearest?: number
+  /** How many guessed, set with `truth`: every surface times the reveal from it (`closestTimes`). */
+  guessed?: number
 }
 
 /** Absent = read aloud. `closest` is the room typing a number; the nearest takes it. */

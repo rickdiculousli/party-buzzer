@@ -8,7 +8,7 @@ import { duelOnArm, duelOnWrong, duelRule, resolveDuel, seatDuel } from './duel.
 import { advanceSetlist, applySetup, enterBlock, introduceBlock, sanitizeBlocks } from './setlist.ts'
 import { refuses } from '../shared/legality.ts'
 import { persistedSnapshot } from './snapshot.ts'
-import { bump, closestAwards, scoreKey } from '../shared/scoring.ts'
+import { bump, closestAwards, closestOff, scoreKey } from '../shared/scoring.ts'
 import { arrivalBlocksPlay, endLobby } from '../shared/arrival.ts'
 
 export { bump, scoreKey, lockedPlayerIds } from '../shared/scoring.ts'
@@ -128,6 +128,8 @@ function clearQuestion(round: State['round']): void {
   delete round.guesses
   delete round.truth
   delete round.paid
+  delete round.nearest
+  delete round.guessed
 }
 
 /** Next, reset, jump and clear move past the first block, so its introduction goes. */
@@ -353,6 +355,9 @@ function mutateHostAction(state: State, action: HostAction): void {
       for (const [playerId, points] of Object.entries(paid)) bump(state, scoreKey(state, playerId), points)
       round.truth = action.truth
       round.paid = paid
+      const offs = Object.values(round.guesses ?? {}).map((g) => closestOff(g, action.truth))
+      if (offs.length) round.nearest = Math.min(...offs)
+      round.guessed = offs.length
       round.phase = 'IDLE'
       return
     }

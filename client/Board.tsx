@@ -16,7 +16,8 @@ import { ArrivalBoard } from './ArrivalBoard.tsx'
 import { practiceLobbyId } from './arrival-feedback.ts'
 import { usePracticeTime } from './usePractice.ts'
 import { Burst, Letters, ScoreChange, useFlip } from './fx.tsx'
-import { ClosestLine, closestStamp } from './ClosestLine.tsx'
+import { ClosestLine, closestStamp, closestStampDelay, useClosestHold } from './ClosestLine.tsx'
+import { allGuessed, scoresBeforeClosest } from '../shared/closest.ts'
 
 type Mark = BuzzEntry & { lane: number }
 
@@ -565,6 +566,8 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
   const settled = preview?.settled ?? reveal.settled
   const retired = preview?.retired ?? reveal.retired
   const onSettled = preview ? undefined : reveal.onSettled
+  // The standings wait out a closest reveal, so they do not call the winner before the line does.
+  const holding = useClosestHold(state?.round, !preview)
 
   if (!state) return <main class="board"><p class="board__idle">Connecting</p></main>
   if (state.minigame) {
@@ -597,11 +600,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
 
   return (
     <main class="board" data-review-id="board:root">
-      <section
-        class={w.moment.startsWith('choice:') || w.moment.startsWith('closest:') ? 'board__wall is-choice' : 'board__wall'}
-        // The closest reveal's stamp waits for every guess to land: style.css counts them.
-        style={w.closest?.marks ? { '--closest-n': w.closest.marks.length } : undefined}
-      >
+      <section class={w.moment.startsWith('choice:') || w.moment.startsWith('closest:') ? 'board__wall is-choice' : 'board__wall'}>
         {round.closesAt !== undefined && (w.moment === 'choice:picking' || w.moment === 'buzz:open') && (
           <Countdown until={round.closesAt} now={now} />
         )}
@@ -695,7 +694,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
             </p>
           ) : w.closest?.truth ? (
             // The same stamp, held until the nearest lights: what it paid and how near it was.
-            <p data-review-id="board:award" class="board__award is-closest">
+            <p data-review-id="board:award" class="board__award is-closest" style={{ animationDelay: closestStampDelay(w.closest) }}>
               {closestStamp(w.closest)}
             </p>
           ) : null}
@@ -770,7 +769,12 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
               needs to know whether it arrived alone or in a crowd. */}
           {w.choices && <Choices c={w.choices} now={now} colorOf={(id) => colorForPlayer(state, id)} />}
           {w.closest && (
-            <ClosestLine key={round.questionId} c={w.closest} colorOf={(id) => colorForPlayer(state, id)} />
+            <ClosestLine
+              key={round.questionId}
+              c={w.closest}
+              closed={w.closest.truth === undefined && (allGuessed(state) || (w.closest.closesAt !== undefined && now() >= w.closest.closesAt))}
+              colorOf={(id) => colorForPlayer(state, id)}
+            />
           )}
           {w.timeline && <Timeline state={state} round={round} enter={enter.current} />}
         </div>
@@ -803,7 +807,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
         <div class="board__standings" data-review-id="board:standings">
           <p class="eyebrow">Standings</p>
           <ol class="stack" ref={standingsList}>
-            {standings(state).map((r, i) => (
+            {standings(holding ? { ...state, scores: scoresBeforeClosest(state) } : state).map((r, i) => (
               <li key={r.key} data-key={r.key} data-review-id={`board:standing:${r.key}`} class="row fx-pop" style={{ borderLeftColor: r.color }}>
                 {/* Medals for the podium only, but the space is kept either
                     way so every name lines up. */}

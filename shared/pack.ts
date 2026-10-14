@@ -38,6 +38,8 @@ export type Question = {
   truth?: number
   /** Closest questions only, if the pack names one: what the number counts. */
   unit?: string
+  /** Closest questions only: `A:` is 1000 or more with no comma, like a year, so no number gets one. */
+  plain?: true
   /** Choice questions only, in display order. */
   choices?: string[]
   /** Index into `choices` of the right one. Set exactly when `choices` is. */
@@ -81,7 +83,8 @@ export function parsePack(text: string): PackResult {
       } else if (!/\d/.test(answer) || !Number.isFinite(truth) || truth < 0) {
         errors.push(`line ${startLine}: a closest question's A: must be a number of zero or more`)
       } else {
-        questions.push({ value, fragments, answer, answers: variants, kind, truth, ...(unit && { unit }), ...(image && { image }), ...(script && { script }), ...(reaction && { reaction }) })
+        const plain = truth >= 1000 && !answer.includes(',')
+        questions.push({ value, fragments, answer, answers: variants, kind, truth, ...(unit && { unit }), ...(plain && { plain: true as const }), ...(image && { image }), ...(script && { script }), ...(reaction && { reaction }) })
       }
     } else if (choices) {
       const correct = choices.findIndex((c) => c.toLowerCase() === answer.toLowerCase())

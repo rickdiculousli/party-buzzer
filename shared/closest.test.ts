@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { allGuessed, formatNumber, lineScale, placeOn } from './closest.ts'
+import { allGuessed, CLOSEST_REVEAL, closestTimes, formatNumber, lineScale, placeOn, scoresBeforeClosest } from './closest.ts'
 import type { State } from './protocol.ts'
 
 function room(): State {
@@ -40,7 +40,10 @@ test('one wild guess is parked at the end rather than squashing the rest', () =>
   const low = lineScale([900000, 950000, 1000000, 10], 980000)
   assert.equal(placeOn(low, 10).parked, 'low')
   // A guess that is merely far keeps its place.
-  assert.equal(placeOn(lineScale([1500, 1200, 1700, 1800, 1], 1665), 1).parked, undefined)
+  assert.equal(placeOn(lineScale([1500, 1200, 1700, 1800, 600], 1665), 600).parked, undefined)
+  // A dozen crowding the answer push a far one off the end, so they get the line.
+  const piano = [88, 88, 88, 52, 76, 80, 85, 90, 96, 100, 120, 300]
+  assert.equal(placeOn(lineScale(piano, 88), 300).parked, 'high')
   // Two guesses are not a crowd to protect.
   assert.equal(placeOn(lineScale([1500, 1000000], 1665), 1000000).parked, undefined)
 })
@@ -55,4 +58,25 @@ test('every guess and the answer agreeing still draws a line', () => {
 test('numbers are spelt as the room writes them', () => {
   assert.equal(formatNumber(1665), '1,665')
   assert.equal(formatNumber(0.25), '0.25')
+})
+
+test('a year spelt plain keeps no comma', () => {
+  assert.equal(formatNumber(1989, true), '1989')
+  assert.equal(formatNumber(1989), '1,989')
+})
+
+test('the reveal lights after the answer runs in, and the stamp after that', () => {
+  const t = closestTimes(7)
+  assert.ok(t.truthAt < t.lightAt && t.lightAt < t.stampAt && t.stampAt < t.doneAt)
+  assert.equal(closestTimes(8).truthAt - t.truthAt, CLOSEST_REVEAL.landStepMs, 'one step per guess')
+  assert.equal(closestTimes(0).truthAt, closestTimes(1).truthAt)
+})
+
+test('the scores before a closest question paid', () => {
+  const s = room()
+  s.grouping = 'teams'
+  s.players[0].teamId = 'red'
+  s.scores = { red: 300, bo: 100 }
+  s.round.paid = { ada: 200, bo: 100 }
+  assert.deepEqual(scoresBeforeClosest(s), { red: 100, bo: 0 })
 })

@@ -465,7 +465,7 @@ test('a guess is a number, taken once, only while guessing is open, and a buzz i
   assert.deepEqual(state.round.guesses, { ada: 1700 }, 'late guess ignored')
 })
 
-test('a phone sees only its own guess and its own pay', () => {
+test('a phone sees only its own guess, and the result once it is up', () => {
   const { state, hub, host, ada, bo } = guessRig()
   hub.handle(host, { t: 'act', act: 'guessing', data: { closesAt: Date.now() + 60_000 } })
   hub.handle(ada, { t: 'act', act: 'guess', data: 1700 })
@@ -474,8 +474,7 @@ test('a phone sees only its own guess and its own pay', () => {
   assert.deepEqual(hub.viewFor(host).round.guesses, { ada: 1700, bo: 1200 })
   state.round.value = 200
   hub.dispatch({ a: 'settleClosest', truth: 1665 })
-  assert.deepEqual(hub.viewFor(ada).round.paid, { ada: 200 })
-  assert.equal(hub.viewFor(bo).round.paid, undefined)
+  assert.deepEqual(hub.viewFor(bo).round.paid, { ada: 200 }, 'the result is on the wall for everyone')
   assert.deepEqual(hub.viewFor(bo).round.guesses, { bo: 1200 })
   assert.equal(hub.viewFor(bo).round.truth, 1665, 'the answer is public once it is up')
   assert.equal(state.scores.ada, 200)

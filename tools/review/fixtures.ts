@@ -2,6 +2,7 @@ import { Hub } from '../../server/hub.ts'
 import { newState } from '../../server/state.ts'
 import type { Conn } from '../../server/hub.ts'
 import type { State } from '../../shared/protocol.ts'
+import { closestAwards } from '../../shared/scoring.ts'
 import type { PracticeFeedback } from '../../client/arrival-feedback.ts'
 import type { ReviewScenario } from '../../client/review/model.ts'
 import { INK_LONG_NAMES, INK_PLAYERS, InkGame, inkSession } from './ink.ts'
@@ -209,8 +210,29 @@ export function makeReviewScenarios(): ReviewScenario[] {
   lined.round.guesses = { ada: 1700, cy: 1500, bo: 1200, di: 1720, ed: 1650, fen: 900, gus: 25000 }
   lined.round.truth = 1665
   lined.round.paid = { ed: 200, ada: 100 }
+  lined.round.nearest = 15
+  lined.round.guessed = 7
   lined.round.phase = 'IDLE'
   lined.scores = { ...lined.scores, ed: 200, ada: 100 }
+
+  // Twelve in, three tied on the answer and a crowd around it: the lanes' worst case.
+  const tied = question()
+  const CROWD: [string, string, number][] = [
+    ['ada', 'Ada', 88], ['bo', 'Bo', 88], ['cy', 'Cy', 88], ['di', 'Di', 52], ['ed', 'Ed', 76], ['fen', 'Fen', 80],
+    ['gus', 'Gus', 85], ['hal', 'Hal', 90], ['ivy', 'Ivy', 96], ['jo', 'Jo', 100], ['kit', 'Kit', 120], ['lu', 'Lu', 300],
+  ]
+  tied.players = CROWD.map(([id, name]) => ({ id, name, connected: true }))
+  tied.round.kind = 'closest'
+  tied.round.fragments = ['How many keys are on a standard piano?']
+  tied.round.whole = 'How many keys are on a standard piano?'
+  tied.round.guessing = { unit: 'keys', closesAt: NOW - 1 }
+  tied.round.guesses = Object.fromEntries(CROWD.map(([id, , g]) => [id, g]))
+  tied.round.truth = 88
+  tied.round.paid = closestAwards(tied.round.guesses, 88, tied.round.value)
+  tied.round.nearest = 0
+  tied.round.guessed = CROWD.length
+  tied.round.phase = 'IDLE'
+  tied.scores = Object.fromEntries(CROWD.map(([id]) => [id, tied.round.paid?.[id] ?? 0]))
 
   const inkState = (phase: 'ready' | 'playing', names: Record<string, string> = {}) => {
     const state = base()
@@ -337,6 +359,7 @@ export function makeReviewScenarios(): ReviewScenario[] {
     build('choice-reveal', 'Choice question, revealed', revealed, at()),
     build('closest-guessing', 'Closest question, guessing', guessing, at({ open: true })),
     build('closest-reveal', 'Closest question, revealed', lined, at()),
+    build('closest-crowd', 'Closest question, a tied crowd', tied, at()),
     build('ink-lobby', 'Ink teams forming', inkState('ready'), at()),
     ink('ink-choosing', 'Ink word choice', (game) => {
       game.play('di', { kind: 'pickWord', index: 2, at: 0 })
