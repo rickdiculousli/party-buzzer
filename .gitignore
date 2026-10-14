@@ -45,3 +45,6 @@ packs/phantom-ink.txt
 
 # Adversarial QA evidence: filmstrips and timing dumps, regenerated per run.
 .qa/
+
+# Per-worktree scratch and caches (e.g. the incremental typecheck build info).
+cache/

@@ -95,6 +95,8 @@ npm run build
 `npm test` includes server, server/modes, client, shared, and tools tests.
 A server-only glob misses coverage. A fresh worktree has no `node_modules`; run
 `npm ci` first.
+The first `npm run typecheck` in a fresh worktree is a full check (tens of seconds) and writes
+`cache/tsbuildinfo`; later runs are incremental and take a few seconds.
 
 Use injected speech, alignment, and transcription fakes for deterministic
 logic tests. Integration servers should use temporary persistence and

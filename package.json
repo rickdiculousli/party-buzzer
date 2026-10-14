@@ -39,7 +39,7 @@
     "walk-images": "node tools/probe.ts join:Ada,Bo,Cy direct mode:trivia mirror:on pack:walk-images.txt autoplay:on:2:2 rewind read armed buzz:Ada@1500 wait:1000 'say:Ada=Japan' armed buzz:Bo@1500 wait:1000 'say:Bo=stop sign' wait:4000 clear",
     "walk-packs": "node tools/probe.ts join:Ada,Bo,Cy setlist:trivia*1@walk-a.txt,quizbowl*2@walk-b.txt,trivia*2@walk-a.txt autoplay:on:2:2 rewind read armed buzz:Ada@2600 wait:1000 correct wait:1000 armed buzz:Bo@2400 wait:1000 correct wait:1000 armed buzz:Cy@2200 wait:1000 wrong:100 wait:1000 armed buzz:Ada@400 wait:1000 correct wait:1000 armed buzz:Bo@2400 wait:1000 correct wait:1000 armed buzz:Cy@2400 wait:1000 correct wait:1000 wait:2000 clear",
     "test": "node --test 'server/*.test.ts' 'server/modes/*.test.ts' 'server/minigames/**/*.test.ts' 'client/*.test.ts' 'shared/*.test.ts' 'tools/*.test.ts' 'tools/qa/*.test.ts'",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit --incremental --tsBuildInfoFile cache/tsbuildinfo",
     "fakes": "node tools/fakes.ts",
     "demo-sounds": "node tools/demo-sounds.ts"
   },
