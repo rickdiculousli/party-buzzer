@@ -3,7 +3,8 @@
  * time. Everything here is fake except the reader and the hub — the point is
  * what reaches State and when, not whether a Mac can talk.
  */
-import test from 'node:test'
+import { test as nodeTest, mock } from 'node:test'
+import type { TestContext, TestOptions } from 'node:test'
 import assert from 'node:assert/strict'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -66,7 +67,45 @@ function rig(align?: Aligner, nextCardMs?: number) {
   return { hub, state, reader, plays }
 }
 
-const settle = (ms = 30) => new Promise((r) => setTimeout(r, ms))
+/**
+ * Every test runs on a mock clock: `settle(ms)` advances timers and
+ * `Date.now()` together, then yields to the event loop so promises and file
+ * reads settle. The fold times above are then exact, however busy the machine.
+ */
+const STEP_MS = 5
+
+type Body = (t: TestContext) => void | Promise<void>
+function test(name: string, fn: Body): void
+function test(name: string, opts: TestOptions, fn: Body): void
+function test(name: string, a: TestOptions | Body, b?: Body) {
+  const opts = typeof a === 'function' ? {} : a
+  const fn = (typeof a === 'function' ? a : b) as Body
+  nodeTest(name, opts, async (t) => {
+    mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] })
+    try {
+      await fn(t)
+    } finally {
+      mock.timers.reset()
+    }
+  })
+}
+
+async function settle(ms = 30) {
+  // Small steps, so work that waits on a timer and then on file I/O keeps pace.
+  for (let left = ms; left > 0; left -= STEP_MS) {
+    mock.timers.tick(Math.min(STEP_MS, left))
+    await new Promise((r) => setImmediate(r))
+  }
+}
+
+/** Drives the clock until the reader's loop has finished. */
+async function settled(reader: Reader) {
+  let done = false
+  const finished = reader.settled().then(() => { done = true })
+  while (!done) await settle(STEP_MS)
+  await finished
+}
+
 async function reachArm(state: ReturnType<typeof newState>) {
   await settle(ARM_DELAY_MS + 30)
   return state
@@ -273,7 +312,7 @@ test('Read during an introduction never activates the reader, and Continue does 
   assert.equal(state.reading, undefined, 'no progress published')
 
   hub.dispatch({ a: 'closeArrival', arrivalId: state.arrival!.id })
-  await reader.settled()
+  await settled(reader)
   assert.equal(state.readingActive, false, 'Read was refused, not queued')
   assert.equal(state.round.phase, 'IDLE')
   assert.equal(plays.length, 0)
@@ -290,7 +329,7 @@ test('an introduction arriving during the card dwell refuses the arm and the loo
   hub.dispatch({ a: 'setSetlist', blocks: introBlocks })
   assert.equal(state.arrival?.kind, 'introduction')
 
-  await reader.settled()
+  await settled(reader)
   assert.equal(state.round.phase, 'IDLE', 'never armed')
   assert.equal(state.readingActive, false, 'the session ended')
   assert.equal(state.arrival?.kind, 'introduction', 'and left the introduction up')
