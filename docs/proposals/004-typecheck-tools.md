@@ -4,10 +4,13 @@ title: Typecheck tools/ and fix the seven errors it hides
 kind: maintenance
 size: S
 judge: sonnet
-status: proposed
+status: building
 lens: eng
 proposed_by: 84f60f14-53e0-4721-b652-b8ea1742ca7e
 proposed_on: 2026-10-13
+built_by: 84f60f14-53e0-4721-b652-b8ea1742ca7e
+branch: t3code/party-buzzer-proposal-round-1
+host: k16
 ---
 
 ## Opportunity
