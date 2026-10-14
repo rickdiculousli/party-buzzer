@@ -73,7 +73,7 @@ test('most first buzzes needs two, counts the first buzz verdict per question, a
   assert.equal(card(recapCards(night(verdict({ q: '1', key: 'a' }), verdict({ q: '2', key: 'b' })), r), 'first-buzzes'), undefined)
 })
 
-test('comeback: bottom half to the podium, once per key, and only with four keys', () => {
+test('comeback: bottom half to the podium, once per key, four keys or more, ranks shared on a tie', () => {
   const r = roster(['a', 'b', 'c', 'd', 'e', 'f'])
   const facts = night(
     standings(['a', 'b', 'c', 'd', 'e', 'f']),
@@ -83,9 +83,20 @@ test('comeback: bottom half to the podium, once per key, and only with four keys
   const found = milestones(facts, r).filter((m) => m.kind === 'comeback')
   assert.deepEqual(found.map((m) => m.text), ['Comeback: Fay, 6th to 3rd'])
   assert.equal(found[0]!.questionId, 'q1')
-  assert.deepEqual(card(recapCards(facts, r), 'comeback-f'), { id: 'comeback-f', title: 'Comeback', name: 'Fay', detail: '6th to 3rd' })
+  // The card reads the best place held after the climb, which is where the night ended.
+  assert.deepEqual(card(recapCards(facts, r), 'comeback-f'), { id: 'comeback-f', title: 'Comeback', name: 'Fay', detail: '6th to 1st' })
   const small = roster(['a', 'b', 'c'])
   assert.deepEqual(milestones(night(standings(['a', 'b', 'c']), standings(['c', 'a', 'b'])), small).filter((m) => m.kind === 'comeback'), [])
+  // Four keys: the podium is the top two, so 3rd place is no comeback from 4th; and an
+  // opening 0-0-0-0 ranks everyone first, so roster order alone is never "last".
+  const four = roster(['a', 'b', 'c', 'd'])
+  const level = (scores: number[], at?: { questionId: string }): NightFact => ({
+    kind: 'standings', at: 0, ...at, order: ['a', 'b', 'c', 'd'].map((key, i) => ({ key, score: scores[i]! })).sort((x, y) => y.score - x.score),
+  })
+  const noClimb = night(level([0, 0, 0, 0]), level([100, 0, 0, 0], { questionId: 'q1' }), level([100, 200, 0, 0], { questionId: 'q2' }), level([100, 200, 50, 0], { questionId: 'q3' }))
+  assert.deepEqual(milestones(noClimb, four).filter((m) => m.kind === 'comeback'), [], 'Cy stays 3rd: a shared 3rd becoming an outright 3rd is not the podium')
+  const climb = night(level([0, 0, 0, 0]), level([100, 200, 0, 0], { questionId: 'q1' }), level([100, 200, 0, 300], { questionId: 'q2' }))
+  assert.deepEqual(milestones(climb, four).filter((m) => m.kind === 'comeback').map((m) => m.text), ['Comeback: Dee, 3rd to 1st'])
 })
 
 test('a teams night labels teams and groups minigame results by team', () => {

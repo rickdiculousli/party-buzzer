@@ -24,7 +24,7 @@
  *    arrives in `Local`. That is what keeps it runnable under `node:test`.
  */
 import { isPenalty } from './protocol.ts'
-import { setlistSpent } from './recap.ts'
+import { milestoneFor, setlistSpent } from './recap.ts'
 import { pickers } from './choice.ts'
 import { arrivalPresentation, type ArrivalPresentation } from './arrival.ts'
 import type { Award, State } from './protocol.ts'
@@ -227,6 +227,12 @@ export type Wall = {
    * `arrivalPresentation`, never from here.
    */
   arrival: ArrivalPresentation | null
+  /**
+   * One dim line for the question or match just settled ("New leader: Dee"),
+   * from the night's ledger. Null without a night (a phone's state), under an
+   * arrival and at the finale, where the recap cards take over.
+   */
+  milestone: string | null
 }
 
 export type ChoiceWall = {
@@ -435,6 +441,7 @@ export function wallOf(state: State, local: Local): Wall {
       value: null,
       choices: null,
       arrival: arrivalPresentation(state),
+      milestone: null,
     }
   }
 
@@ -470,6 +477,13 @@ export function wallOf(state: State, local: Local): Wall {
     value: 'next' in middle || scoreless ? null : r.phase !== 'IDLE' || isFamily(m, 'answer') || isFamily(m, 'verdict') || isFamily(m, 'choice') ? r.value : null,
     choices: choiceWall(state, m),
     arrival: null,
+    milestone:
+      state.night && m !== 'idle:finale'
+        ? milestoneFor(state.night, state, {
+            questionId: r.questionId || undefined,
+            matchId: state.minigame?.phase === 'results' ? state.minigame.matchId : undefined,
+          })
+        : null,
   }
 }
 

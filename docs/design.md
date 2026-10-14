@@ -886,6 +886,14 @@ never needs it, but the host glancing at the wall does. The standings mark
 the podium with `.rank` medals (1st/2nd/3rd in brass, silver, bronze); below
 third there is no number, because the order already says it.
 
+**The milestone is a murmur, the recap is the encore.** A milestone (`.board__milestone`)
+is one dim line in the stakes corner, under the chip, for the question or match
+it belongs to; it never enters the middle band and never covers the hero. At the
+finale the winner and confetti play as before; about 2.5 s after the name
+appears, a recap band (`.board__recap`) hangs under it and cycles the night's
+recap cards, one every 4 s, each rising in. The sidebar's code then points at
+`/recap` ("Scan to keep the night"), so a phone can keep the cards and the final standings.
+
 ### Arrival — the lobby and the introduction
 
 Two moments that sit above everything else. The **lobby** is a Test buzzer:
@@ -1056,6 +1064,11 @@ disagree, the code is what gets renamed.
 - **guess / drawer** — a guess is a typed answer in Sketch or Phantom Ink,
   never a pick or a buzz; the drawer is the player drawing this Sketch turn.
   A Sketch turn is not a round.
+- **night / fact / milestone / recap card** — the night is the ledger of what
+  happened since the room was last cleared; a fact is one entry in it; a
+  milestone is the one-line recognition shown mid-night ("New leader: Dee");
+  a recap card is one finale card (title, name, detail). A milestone's "leader"
+  is the top of the standings, not `order[0]`, and only appears in its copy.
 - **game / quiz** — a game is anything on the host's Games tab: the quiz or a
   minigame. The quiz is the buzzer play, whichever mode it runs; "trivia" is
   one of those modes, never the whole quiz.

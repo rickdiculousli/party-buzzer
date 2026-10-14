@@ -90,9 +90,18 @@ function runSteps(night: Night): Run[] {
   return steps.sort((a, b) => a.at - b.at)
 }
 
-type Comeback = { key: ScoreKey; worst: number; now: number; at: number; fact: Standings }
+type Comeback = { key: ScoreKey; worst: number; now: number; best: number; at: number; fact: Standings }
 
-/** A key reaching the top three from the bottom half, once per key; needs a field of four or more. */
+/** Competition rank, zero-based: how many keys score strictly more. Everyone on 0 is first, nobody is last. */
+const rankOf = (order: Standings['order'], i: number): number =>
+  order.filter((o) => o.score > order[i]!.score).length
+
+/**
+ * A key reaching the podium from the bottom half, once per key; needs a field
+ * of four or more. The podium stops short of the bottom half, so in a field of
+ * four it is the top two: "3rd to 3rd" is not a climb. `now` is the rank at the
+ * climb (the milestone), `best` the best rank held from then on (the card).
+ */
 function comebacks(night: Night): Comeback[] {
   const out: Comeback[] = []
   const worst = new Map<ScoreKey, number>()
@@ -100,14 +109,20 @@ function comebacks(night: Night): Comeback[] {
   night.facts.forEach((f, at) => {
     if (f.kind !== 'standings') return
     const n = f.order.length
-    f.order.forEach(({ key }, now) => {
+    const podium = Math.min(3, Math.floor(n / 2))
+    f.order.forEach(({ key }, i) => {
+      const now = rankOf(f.order, i)
       const was = worst.get(key)
-      if (n >= 4 && now < 3 && was !== undefined && was >= Math.ceil(n / 2) && !done.has(key)) {
+      if (n >= 4 && now < podium && was !== undefined && was >= Math.ceil(n / 2) && !done.has(key)) {
         done.add(key)
-        out.push({ key, worst: was, now, at, fact: f })
+        out.push({ key, worst: was, now, best: now, at, fact: f })
       }
     })
-    f.order.forEach(({ key }, i) => worst.set(key, Math.max(worst.get(key) ?? 0, i)))
+    f.order.forEach(({ key }, i) => worst.set(key, Math.max(worst.get(key) ?? 0, rankOf(f.order, i))))
+    for (const c of out) {
+      const i = f.order.findIndex((o) => o.key === c.key)
+      if (i >= 0) c.best = Math.min(c.best, rankOf(f.order, i))
+    }
   })
   return out
 }
@@ -214,7 +229,7 @@ export function recapCards(night: Night, roster: Roster): RecapCard[] {
   }
 
   for (const c of comebacks(night)) {
-    cards.push({ id: `comeback-${c.key}`, title: 'Comeback', name: label(c.key), detail: `${ordinal(c.worst + 1)} to ${ordinal(c.now + 1)}` })
+    cards.push({ id: `comeback-${c.key}`, title: 'Comeback', name: label(c.key), detail: `${ordinal(c.worst + 1)} to ${ordinal(c.best + 1)}` })
   }
 
   for (const f of night.facts) {

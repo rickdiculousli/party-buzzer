@@ -492,6 +492,33 @@ test('a spent setlist is the finale, with every tied leader named', () => {
   assert.deepEqual(w.finale, ['Ada', 'Bo'])
 })
 
+test('a milestone shows for its question, not the next one, and not at the finale', () => {
+  const s = room()
+  s.round.questionId = 'q1'
+  s.scores = { a: 200, b: 0 }
+  s.night = {
+    facts: [
+      { kind: 'standings', at: 1, order: [{ key: 'a', score: 0 }, { key: 'b', score: 0 }] },
+      { kind: 'standings', at: 2, questionId: 'q1', order: [{ key: 'b', score: 0 }, { key: 'a', score: 0 }] },
+      { kind: 'standings', at: 3, questionId: 'q1', order: [{ key: 'a', score: 200 }, { key: 'b', score: 0 }] },
+    ],
+  }
+  assert.equal(wallOf(s, LOCAL).milestone, 'New leader: Ada')
+  s.round.questionId = 'q2'
+  assert.equal(wallOf(s, LOCAL).milestone, null)
+  s.round.questionId = ''
+  s.setlist = { blocks: [{ game: 'trivia', options: {}, count: 1 }], at: 1, done: 0 }
+  assert.equal(wallOf(s, LOCAL).moment, 'idle:finale')
+  assert.equal(wallOf(s, LOCAL).milestone, null)
+})
+
+test('a state without a night has no milestone', () => {
+  const s = room()
+  s.round.questionId = 'q1'
+  assert.equal(s.night, undefined)
+  assert.equal(wallOf(s, LOCAL).milestone, null)
+})
+
 test('a payoff on the last question outranks the finale', () => {
   const s = room()
   s.scores = { a: 400, b: 0 }

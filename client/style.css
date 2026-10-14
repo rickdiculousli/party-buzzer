@@ -471,6 +471,30 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 @keyframes fx-finale-side { from { translate: 100% 0; } }
 @keyframes fx-finale-scene { to { translate: calc(var(--side-w) / -2) 0; } }
 
+/* The finale's name with the recap band hung under it. The band is out of
+   flow, so the name keeps the lane's centre and the band arriving moves
+   nothing. */
+.board__finale-stack { position: relative; display: flex; flex-direction: column; align-items: center; }
+.board__recap {
+  position: absolute;
+  top: calc(100% + var(--s5));
+  left: 50%;
+  translate: -50% 0;
+  width: max-content;
+  max-width: 90vw;
+  text-align: center;
+}
+.board__recap-card { display: grid; gap: var(--s2); justify-items: center; }
+.board__recap-card p { margin: 0; }
+.board__recap-title {
+  font-size: var(--t-sm);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.board__recap-name { font-family: var(--display); font-weight: 800; font-size: var(--t-mega); line-height: 0.95; color: var(--chalk); }
+.board__recap-detail { color: var(--dim); font-size: var(--t-lg); }
+
 /* A zero-height line across the wall's middle, so each cannon fires from the
    midpoint of its edge. */
 .board__cannons {
@@ -578,6 +602,22 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   top: var(--s5);
   right: var(--s6);
   opacity: 0.8;
+}
+/* The milestone: one dim line under the stakes chip, in the same corner. The
+   chip is one line tall in chip type; this sits below it, right-aligned, and
+   never wider than the lane the setlist chips leave free. */
+.board__milestone {
+  position: absolute;
+  top: calc(var(--s5) + var(--t-chip-board) * 2.6);
+  right: var(--s6);
+  max-width: 40vw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+  font-size: var(--t-chip-board);
+  color: var(--dim);
+  opacity: 0.85;
 }
 .board__barred {
   position: absolute;
@@ -3520,3 +3560,23 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .minigame-stage--ready > :first-child { height: 100%; min-height: 0; overflow-y: auto; }
 .minigame-ready__btn { width: 100%; min-height: 3.5rem; }
 .minigame-ready__btn.is-on { border-color: var(--brass); color: var(--brass); }
+
+/* ===================================================================
+ * RECAP: the keepsake page a phone opens from the finale's code
+ * =================================================================== */
+.recap {
+  min-height: 100dvh;
+  padding: var(--s5) var(--s4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  max-width: 32rem;
+  margin: 0 auto;
+}
+.recap__date { margin: 0; color: var(--dim); font-size: var(--t-sm); letter-spacing: var(--track-label); text-transform: uppercase; }
+.recap__cards { display: grid; gap: var(--s3); }
+.recap__card { display: grid; gap: var(--s1); padding: var(--s4); background: var(--panel); border-left: 3px solid var(--brass); border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+.recap__card p { margin: 0; }
+.recap__title { font-size: var(--t-sm); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); }
+.recap__name { font-family: var(--display); font-weight: 800; font-size: var(--t-xl); }
+.recap__detail { color: var(--dim); }

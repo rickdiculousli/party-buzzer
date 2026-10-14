@@ -425,6 +425,18 @@ export function HostPlayers({ state, act }: { state: State; act: Act }) {
           ))}
         </div>
       </section>
+
+      <section>
+        <p class="eyebrow">Night</p>
+        <p class="muted">The recap remembers every verdict since the room was last cleared.</p>
+        <button
+          class="btn btn--ghost"
+          disabled={!!refuses(state, { a: 'clearNight' })}
+          onClick={() => act({ a: 'clearNight' })}
+        >
+          Clear night
+        </button>
+      </section>
     </>
   )
 }

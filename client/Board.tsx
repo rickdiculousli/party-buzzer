@@ -7,6 +7,7 @@ import { Votes } from './Votes.tsx'
 import { Spoken } from './Spoken.tsx'
 import { lastUp, wallOf, type ChoiceWall, type Wall } from '../shared/wall.ts'
 import { LETTERS } from '../shared/choice.ts'
+import { recapCards, type RecapCard } from '../shared/recap.ts'
 import { isPenalty } from '../shared/protocol.ts'
 import { useReveal } from './useReveal.ts'
 import { COLLECT_MS, type BuzzEntry, type State } from '../shared/protocol.ts'
@@ -57,17 +58,52 @@ function Hero({ name, tone }: NonNullable<Wall['hero']>) {
  * white flash, then the winner. The build's own animation end is the cue, so it is
  * tuned in the stylesheet alone.
  */
-export function Finale({ names }: { names: string[] }) {
+export function Finale({ names, cards = [] }: { names: string[]; cards?: RecapCard[] }) {
   const [shown, setShown] = useState(false)
   if (!shown) return <span class="board__finale-flash" aria-hidden="true" onAnimationEnd={() => setShown(true)} />
-  return <FinaleShow names={names} />
+  return <FinaleShow names={names} cards={cards} />
+}
+
+/** The recap band starts this long after the name appears: after the second volley has landed. */
+const RECAP_START_MS = 2500
+/** Each recap card holds the band this long before the next replaces it. */
+const RECAP_CARD_MS = 4000
+
+/**
+ * The night's recap cards, one at a time, looping. Keyed by card id so each
+ * change mounts afresh and rises in; the index is taken modulo the length so
+ * a card list that shrinks mid-cycle cannot point past its end.
+ */
+function RecapBand({ cards }: { cards: RecapCard[] }) {
+  const [started, setStarted] = useState(false)
+  const [i, setI] = useState(0)
+  useEffect(() => {
+    const t = setTimeout(() => setStarted(true), RECAP_START_MS)
+    return () => clearTimeout(t)
+  }, [])
+  useEffect(() => {
+    if (!started || cards.length < 2) return
+    const t = setInterval(() => setI((n) => n + 1), RECAP_CARD_MS)
+    return () => clearInterval(t)
+  }, [started, cards.length])
+  const card = started ? cards[i % cards.length] : undefined
+  if (!card) return null
+  return (
+    <div class="board__recap" data-review-id="board:recap">
+      <div key={card.id} class="board__recap-card fx-rise">
+        <p class="board__recap-title">{card.title}</p>
+        <p class="board__recap-name">{card.name}</p>
+        {card.detail && <p class="board__recap-detail">{card.detail}</p>}
+      </div>
+    </div>
+  )
 }
 
 /**
  * The winner in the effect palette, with confetti on arrival and once more a
  * beat later, from the name and from both edges. Ties share the stage.
  */
-function FinaleShow({ names }: { names: string[] }) {
+function FinaleShow({ names, cards }: { names: string[]; cards: RecapCard[] }) {
   const [again, setAgain] = useState(false)
   // The cannons go on the wall itself: the stage moves over for the sidebar,
   // and a moving box would take the cannons' edges with it.
@@ -79,12 +115,15 @@ function FinaleShow({ names }: { names: string[] }) {
     return () => clearTimeout(t)
   }, [])
   return (
-    <p ref={name} class="board__hero board__finale fx-anchor" data-review-id="board:finale">
-      <Letters text={names.join(' & ')} class="fx-rainbow" />
-      <Burst kind="confetti" from="top" />
-      {again && <Burst kind="confetti" from="top" />}
-      {wall && createPortal(<Cannons />, wall)}
-    </p>
+    <div class="board__finale-stack">
+      <p ref={name} class="board__hero board__finale fx-anchor" data-review-id="board:finale">
+        <Letters text={names.join(' & ')} class="fx-rainbow" />
+        <Burst kind="confetti" from="top" />
+        {again && <Burst kind="confetti" from="top" />}
+        {wall && createPortal(<Cannons />, wall)}
+      </p>
+      {cards.length > 0 && <RecapBand cards={cards} />}
+    </div>
   )
 }
 
@@ -653,7 +692,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
             band below never moves (style.css, .board__mid). */}
         <div class="board__mid">
           {w.hero && <Hero {...w.hero} />}
-          {w.finale && <Finale names={w.finale} />}
+          {w.finale && <Finale names={w.finale} cards={state.night ? recapCards(state.night, state) : []} />}
           {w.next !== null && (
             <div class="board__next fx-rise" data-review-id="board:next">
               {lastUp(state) ? (
@@ -727,6 +766,12 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
           <span class="chip board__stakes" data-review-id="board:stakes">{w.value} pts</span>
         )}
 
+        {/* One dim line under the stakes chip, in the same corner; it never
+            enters the middle band, so the hero keeps the stage to itself. */}
+        {w.milestone && (
+          <span key={w.milestone} class="board__milestone fx-rise" data-review-id="board:milestone">{w.milestone}</span>
+        )}
+
         {/* Status, not stage content — parked at the foot of the stage so a
             rebound's lockout chips never move the timeline above them. */}
         {!w.arrival && barred.length > 0 && (
@@ -759,12 +804,13 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
         {/* Full size while the room is arriving (no players yet, the lobby, a
             first-block introduction), then out of the way once play starts. */}
         <div data-review-id="board:join" class={qrBig ? 'board__qr fx-glow-pulse' : 'board__qr is-small'}>
-          <img src="/qr.svg" alt="Scan to join" />
-          <p>Scan to join</p>
+          {/* At the finale the code carries the keepsake instead of the room. */}
+          <img src={w.finale ? '/recap.svg' : '/qr.svg'} alt={w.finale ? 'Scan to keep the night' : 'Scan to join'} />
+          <p>{w.finale ? 'Scan to keep the night' : 'Scan to join'}</p>
           {/* With its scheme: the server is https-only, and a bare host typed
               into a phone goes to http first and gets nothing. Three spans so a
               long certificate name wraps between tokens, never inside one. */}
-          {showAddress && (
+          {showAddress && !w.finale && (
             <>
               <p class="board__addr">
                 <span class="board__addr-dim">{location.protocol}//</span>

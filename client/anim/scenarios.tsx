@@ -821,10 +821,23 @@ export const SCENARIOS: Scenario[] = [
     id: 'finale',
     label: 'The finale',
     family: 'Quiz',
-    note: 'The last block of the setlist is done. A brass spotlight comes up, a white flash, then the winner takes the stage in the effect palette.',
+    note: 'The last block of the setlist is done. A brass spotlight comes up, a white flash, then the winner takes the stage in the effect palette. After the confetti the recap cards cycle under the name.',
     subject: '.board__finale-flash, .board__finale',
     dials: [ms('--fx-rainbow-dur', 6000), ms('--fx-burst-dur', 2000, 'Confetti')],
-    render: (lead) => <Stage mid={lead ? <div class="harness__ghost" /> : <Finale names={['Ada']} />} />,
+    render: (lead) => (
+      <Stage
+        mid={lead ? <div class="harness__ghost" /> : (
+          <Finale
+            names={['Ada']}
+            cards={[
+              { id: 'fastest', title: 'Fastest buzz', name: 'Bo', detail: '41 ms · 12 ms ahead' },
+              { id: 'comeback-h', title: 'Comeback', name: 'Hal', detail: '8th to 2nd' },
+              { id: 'minigame-1', title: 'Sketch', name: 'Ada', detail: '300 points' },
+            ]}
+          />
+        )}
+      />
+    ),
   },
   {
     id: 'faceoff',
