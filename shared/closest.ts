@@ -57,11 +57,12 @@ const WILD = 2
 export type LineScale = { lo: number; hi: number }
 
 /**
- * The line covers the answer and at least the middle 90 % of the guesses. One
- * wild guess would squash everyone else into a dot, so an end guess is parked
- * when its gap to the rest is over twice as wide as all the rest: at
- * most a twentieth of the guesses at each end, and at least one once there are
- * three. A margin keeps the end marks off the edges.
+ * The line covers the answer and at least the middle 90 % of the guesses. A
+ * wild guess would squash everyone else into a dot, so the outermost guesses
+ * at an end are parked when the gap in from them is over twice as wide as all
+ * the rest: the deepest such gap within the cap, so two wild guesses go
+ * together. At most a twentieth of the guesses at each end, and at least one
+ * once there are three. A margin keeps the end marks off the edges.
  */
 export function lineScale(guesses: number[], truth: number): LineScale {
   const sorted = [...guesses].sort((a, b) => a - b)
@@ -69,12 +70,16 @@ export function lineScale(guesses: number[], truth: number): LineScale {
   let first = 0
   let last = sorted.length - 1
   const span = (a: number, b: number) => Math.max(sorted[b], truth) - Math.min(sorted[a], truth)
-  for (let i = 0; i < cap && last - first >= 2; i++) {
-    if (sorted[last] - Math.max(sorted[last - 1], truth) > WILD * span(first, last - 1)) last--
+  let park = 0
+  for (let k = 1; k <= cap && last - k - first >= 1; k++) {
+    if (sorted[last - k + 1] - Math.max(sorted[last - k], truth) > WILD * span(first, last - k)) park = k
   }
-  for (let i = 0; i < cap && last - first >= 2; i++) {
-    if (Math.min(sorted[first + 1], truth) - sorted[first] > WILD * span(first + 1, last)) first++
+  last -= park
+  park = 0
+  for (let k = 1; k <= cap && last - first - k >= 1; k++) {
+    if (Math.min(sorted[first + k], truth) - sorted[first + k - 1] > WILD * span(first + k, last)) park = k
   }
+  first += park
   let lo = Math.min(truth, sorted[first] ?? truth)
   let hi = Math.max(truth, sorted[last] ?? truth)
   if (hi === lo) {

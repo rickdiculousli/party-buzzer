@@ -893,6 +893,11 @@ export class Reader {
     } finally {
       clearTimeout(timer)
     }
+    // The host's Close shuts the window now, not at the settle: no guess lands
+    // in the beat before the answer, and the board's bar warms with it.
+    if (this.closeNow && stillMine()) {
+      this.hub.send(this.conn, { t: 'act', act: 'guessing', data: { ...data, closesAt: Date.now() } })
+    }
     // The last dot lands and the room reads the spread, then the answer.
     await sleep(LOCK_BEAT_MS, sig)
     if (stillMine()) this.hub.dispatch({ a: 'settleClosest', truth: q.truth! })

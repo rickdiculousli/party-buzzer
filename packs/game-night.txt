@@ -204,9 +204,9 @@ A: 384,400
 
 V: 300
 K: closest
-U: minutes
-How many minutes are there in a week?
-A: 10,080
+U: metres
+How long is the main span of San Francisco's Golden Gate Bridge, in metres?
+A: 1,280
 
 V: 300
 K: closest
@@ -214,8 +214,7 @@ U: countries
 How many countries are members of the United Nations?
 A: 193
 
-V: 300
+V: 200
 K: closest
-U: seconds
-How many seconds are there in a day?
-A: 86,400
+In what year was the Eiffel Tower completed?
+A: 1889

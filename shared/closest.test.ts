@@ -44,6 +44,11 @@ test('one wild guess is parked at the end rather than squashing the rest', () =>
   // A dozen crowding the answer push a far one off the end, so they get the line.
   const piano = [88, 88, 88, 52, 76, 80, 85, 90, 96, 100, 120, 300]
   assert.equal(placeOn(lineScale(piano, 88), 300).parked, 'high')
+  // Two jokers at one end go together once the room is big enough to cap two.
+  const room = Array.from({ length: 20 }, (_, i) => 5 + i)
+  const both = lineScale([...room, 1e6, 2e6], 10)
+  assert.ok(both.hi < 100)
+  assert.equal(placeOn(both, 1e6).parked, 'high')
   // Two guesses are not a crowd to protect.
   assert.equal(placeOn(lineScale([1500, 1000000], 1665), 1000000).parked, undefined)
 })

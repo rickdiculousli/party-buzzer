@@ -190,14 +190,19 @@ K: closest
 Q three.
 A: -4
 
+K: closest
+Q 3b.
+A: 1e3
+
 U: metres
 Q four.
 A: 4
 `)
   assert.equal(questions.length, 0)
-  assert.equal(errors.length, 4)
+  assert.equal(errors.length, 5)
   assert.match(errors[0], /must be a number/)
   assert.match(errors[1], /no C: line/)
   assert.match(errors[2], /must be a number/)
-  assert.match(errors[3], /U: line belongs to a K: closest/)
+  assert.match(errors[3], /must be a number/)
+  assert.match(errors[4], /U: line belongs to a K: closest/)
 })

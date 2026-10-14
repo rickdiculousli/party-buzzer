@@ -637,6 +637,8 @@ export type Mine = {
   plain?: boolean
   truth?: number
   paid?: number
+  /** Guessing has closed, or the board is still playing the reveal: no pad, nothing to give away. */
+  closed?: boolean
   /** `round.nearest`: whether a paid guess took first place or second. */
   nearest?: number
   /** The round value, for the reveal's "+200". */
@@ -719,9 +721,10 @@ export function phoneOf(m: Moment, f: Mine): Phone {
     return { label: 'Listen', sub: 'Guess once the question is read', mood: 'waiting', talk: false }
   }
   if (m === 'closest:guessing') {
-    return f.guess === undefined
-      ? { label: 'Guess', sub: '', mood: 'open', talk: false }
-      : { label: 'Locked', sub: withUnit(f.guess, f.unit, f.plain), mood: 'placed', talk: false }
+    if (f.guess !== undefined) return { label: 'Locked', sub: withUnit(f.guess, f.unit, f.plain), mood: 'placed', talk: false }
+    return f.closed
+      ? { label: 'Time’s up', sub: 'Watch the board', mood: 'waiting', talk: false }
+      : { label: 'Guess', sub: '', mood: 'open', talk: false }
   }
   if (m === 'closest:reveal') {
     const truth = f.truth === undefined ? '' : withUnit(f.truth, f.unit, f.plain)

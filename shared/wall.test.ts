@@ -701,6 +701,7 @@ test('the phone during a closest question', () => {
   const base = { frozen: false, barred: false, spectator: false, dead: false, won: false, pressed: false, armed: true, open: true, judging: false }
   assert.equal(phoneOf('closest:listening', base).label, 'Listen')
   assert.equal(phoneOf('closest:guessing', base).label, 'Guess')
+  assert.equal(phoneOf('closest:guessing', { ...base, closed: true }).label, 'Time’s up')
   assert.equal(phoneOf('closest:guessing', { ...base, guess: 1700, unit: 'steps' }).sub, '1,700 steps')
   const done = { ...base, armed: false, unit: 'steps', truth: 1665, nearest: 35 }
   const won = phoneOf('closest:reveal', { ...done, guess: 1700, paid: 200 })

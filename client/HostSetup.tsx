@@ -198,7 +198,7 @@ function Reading({ state, act }: { state: State; act: Act }) {
                   act({ a: 'setChoiceTime', sec: Number((e.target as HTMLInputElement).value) })
                 }
               />
-              <span class="muted">sec after the options are read</span>
+              <span class="muted">sec after the options are read, or a closest question</span>
             </label>
 
             <label class="field">

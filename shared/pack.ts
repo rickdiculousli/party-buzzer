@@ -77,10 +77,10 @@ export function parsePack(text: string): PackResult {
       errors.push(`line ${startLine}: a U: line belongs to a K: closest question`)
     } else if (kind === 'closest') {
       // `1,665` reads as the room would write it; the display answer keeps the pack's spelling.
-      const truth = Number(answer.replace(/[,\s]/g, ''))
+      const truth = /^[\d,\s]*\.?\d+$/.test(answer) ? Number(answer.replace(/[,\s]/g, '')) : NaN
       if (choices) {
         errors.push(`line ${startLine}: a closest question has no C: line`)
-      } else if (!/\d/.test(answer) || !Number.isFinite(truth) || truth < 0) {
+      } else if (!Number.isFinite(truth)) {
         errors.push(`line ${startLine}: a closest question's A: must be a number of zero or more`)
       } else {
         const plain = truth >= 1000 && !answer.includes(',')

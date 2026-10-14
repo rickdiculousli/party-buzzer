@@ -386,7 +386,7 @@ export class Hub {
       round.choices = data.filter((c): c is string => typeof c === 'string')
     } else if (name === 'guessing') {
       const d = data as State['round']['guessing']
-      if (d && typeof d.closesAt === 'number') round.guessing = d
+      if (round.kind === 'closest' && d && typeof d.closesAt === 'number') round.guessing = d
     } else if (name === 'closesAt') {
       if (typeof data === 'number') round.closesAt = data
       else delete round.closesAt

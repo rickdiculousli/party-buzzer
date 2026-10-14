@@ -299,6 +299,8 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     ? momentOf(state, { open, settled: true, retired: true })
     : ('idle:welcome' as const)
   const moment = holding && reached === 'closest:reveal' ? 'closest:guessing' : reached
+  // Past the deadline, settled, or the board still revealing: a pad here would take a guess the server refuses.
+  const guessingClosed = holding || round?.truth !== undefined || (!!round?.guessing && now() >= round.guessing.closesAt)
   const { label, sub, mood, talk } = phoneOf(moment, {
     frozen,
     barred,
@@ -323,6 +325,7 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     guess: myGuess,
     unit: round?.guessing?.unit,
     plain: !!round?.guessing?.plain,
+    closed: guessingClosed,
     truth: round?.truth,
     paid: playerId ? round?.paid?.[playerId] : undefined,
     nearest: round?.nearest,
@@ -384,7 +387,7 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
               </button>
             ))}
           </div>
-        ) : moment === 'closest:guessing' && myGuess === undefined && !frozen && !spectator ? (
+        ) : moment === 'closest:guessing' && myGuess === undefined && !guessingClosed && !frozen && !spectator ? (
           <GuessPad key={round?.questionId} unit={round?.guessing?.unit} plain={!!round?.guessing?.plain} onGuess={guess} />
         ) : talk ? (
           <Talk
