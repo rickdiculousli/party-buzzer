@@ -1055,6 +1055,9 @@ disagree, the code is what gets renamed.
 - **match / minigame / field** — a match is one synchronized minigame
   start-to-results cycle; a minigame is the kind of play; its shared 2D space
   is the field. A match is not a question, and the field is not the stage.
+- **side / mark / flag** — Tug of war splits the room into two sides; a side
+  wins when the flag passes its mark. A side is not a team: a teams grouping
+  fills each side with whole teams.
 - **street / hand / table** — in Poker a street is one betting round (preflop,
   flop, turn, river), a hand is one deal to its pot, and the match is the whole
   tournament. The table is Poker's field. None of them is a round. Pressing the

@@ -90,7 +90,7 @@ duel rule, question count, and optionally a pack. A block without a pack is
 read aloud by the host. Saved setlists are JSON files in `setlists/`.
 
 Two starter setlists ship in `setlists/`. **quick-night** is about twenty
-minutes: eight spoken trivia questions from `game-night.txt`, a Bow match, and
+minutes: eight spoken trivia questions from `game-night.txt`, a Tug of war match, and
 four quizbowl questions from `quizbowl-lite.txt` with the room voting two
 players into a duel before each. **full-night** is about forty-five minutes: a
 three-question warm-up from `mixed.txt` that shows the shown and multiple-choice
@@ -115,6 +115,23 @@ Bow (or any minigame); closing it moves the setlist on. Final visual styling is
 not implemented yet; the current
 shapes are placeholders for testing aim, release, flight, collisions, scoring,
 and simultaneous play.
+
+### Tug of war minigame
+
+Open **Tug of war** on the host's Games tab and press **Start match**. The room
+splits into two sides, Red and Blue: players alternate down the standings, and
+under a teams grouping each team stays whole on one side (a lone team lends the
+side its name and colour). Every phone is one big handle in the player's side
+colour; tap it as fast as you like. Each tap pulls, but quick repeats count for
+less, so mashing pays and an even rhythm pays more. The board shows the rope,
+the centre flag and each side's effort. A spring sags the flag back toward the
+centre, so a side that falls behind can claw it back. The first side to drag the flag past its
+mark wins; otherwise the side ahead when the time runs out does, and equal
+sides draw. Every member of the winning side gains the `value` option (default
+100); a draw awards nothing. Options are `durationSec` (default 30) and
+`value`. Players who join after the start spectate until the next match.
+
+`npm run sim-tug` fills the room with bots that tap at their own rhythms.
 
 ### Tank minigame
 
@@ -398,6 +415,7 @@ With a game server running:
 ```sh
 npm run sim -- 5 2
 npm run sim-bow -- 3 20
+npm run sim-tug -- 3 20
 npm run sim-tank -- 3 30
 npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@140 correct
 ```

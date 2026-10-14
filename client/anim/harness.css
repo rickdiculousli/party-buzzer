@@ -251,3 +251,7 @@
 .poker-stress__surface > .board, .poker-stress__surface > .player { width: 100%; height: 100%; min-height: 0; }
 .poker-stress--phone { width: 390px; }
 .poker-stress--phone .poker-stress__surface { height: 844px; }
+
+/* --- tug replay: the real board at 16:9 inside the preview --- */
+.harness-tug { width: 100%; aspect-ratio: 16 / 9; max-height: 100%; margin: auto; }
+.harness-tug .tug-board { height: 100%; }

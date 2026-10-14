@@ -43,7 +43,7 @@ are objects in the same process as `Hub`. The composition root is
 | Startup and transport | `server/index.ts` | Load state, construct services, HTTP(S), WebSocket, spoken uploads, shutdown flush |
 | Room coordination | `server/hub.ts` | Connections, dispatch, undo history, collection timers, role views, change notification |
 | Game transitions | `server/state.ts` | Apply host actions, distinguish outcomes, coordinate rule modules, load/save state |
-| Minigame runtime | `server/minigames/runtime.ts`, `server/minigames/registry.ts`, `server/minigames/bow/`, `server/minigames/tank/`, `server/minigames/ink/`, `server/minigames/sketch/`, `server/minigames/poker/` | Match lifecycle, fixed-step simulation, queued inputs, role frames, ready lobby, touch relay and checkpoints; bow, tank, ink, sketch and poker rules behind registry definitions |
+| Minigame runtime | `server/minigames/runtime.ts`, `server/minigames/registry.ts`, `server/minigames/bow/`, `server/minigames/tank/`, `server/minigames/ink/`, `server/minigames/sketch/`, `server/minigames/poker/`, `server/minigames/tug/` | Match lifecycle, fixed-step simulation, queued inputs, role frames, ready lobby, touch relay and checkpoints; bow, tank, ink, sketch, poker and tug rules behind registry definitions |
 | Buzz ranking | `server/resolve.ts` | Clamp and sort timestamps, deduplicate players, exclude lockouts |
 | Gameplay framework | `server/items.ts`, `duel.ts`, `setlist.ts`, `eligibility.ts` | Inventories/effects, seating, block progression, effect and mode eligibility |
 | Mode rules | `server/modes/` | Static registry, options, mode memory, scoring hooks and host status |
@@ -190,6 +190,10 @@ Every step goes through `Hub.dispatch`, is re-derived from state after each
 `changed()` and undo, and accepts a refusal silently. A host cancel mints a new
 matchId and is left alone. Timers clear on undo, `clearSetlist`, `setlistJump`
 and autoplay off; the Reader stays the only `arm` issuer.
+A definition's `create` receives the room (`MinigameRoom`: players, teams,
+grouping, scores) as well as the participants, so a game can split sides from
+standings or teams (Tug of war does). `finished` may end a timed match before
+its clock (Tug of war stops at the mark); see `server/minigames/definition.ts`.
 On the client, `client/minigames.tsx` holds one registry row per minigame — name,
 timed flag, lobby side-picking, player surface, board surface — and
 `client/minigame-info.ts` holds the JSX-free half of it, including

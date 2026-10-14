@@ -22,6 +22,7 @@
  * drift from what the board actually does.
  */
 import { PokerStress } from './PokerStress.tsx'
+import { TugReplay } from './TugReplay.tsx'
 import { COLLECT_MS } from '../../shared/protocol.ts'
 import type { Cue } from '../sound.ts'
 import { NUMERIC, type NumericField } from '../cues.ts'
@@ -893,6 +894,9 @@ export const SCENARIOS: Scenario[] = [
   { id: 'poker-phone-stress', label: 'Phone gesture stress', family: 'Poker', subject: '.poker-stress__surface', dials: [],
     note: 'Real phone: peek, flick and countdown. Synthetic frames only; the room is untouched.',
     render: (lead) => <PokerStress lead={lead} surface="phone" /> },
+  { id: 'tug-rope', label: 'Tug of war rope', family: 'Minigames', subject: '.tug-board', dials: [], tune: ['stamp', 'leader', 'award'],
+    note: 'A scripted match on the real board and world: even, Blue surges, Red claws back, Blue drags it past the mark. The board fires its own cues. Retrigger to replay.',
+    render: (lead) => <TugReplay lead={lead} /> },
   foldScenario('poker-fold-hard', 'Fold, hard flick, one card gets away', { dx: 0.2, dy: -0.98, speed: 1 }, 1),
   foldScenario('poker-fold-soft', 'Fold, soft flick', { dx: -0.3, dy: -0.95, speed: 0.2 }),
   foldScenario('poker-fold-timeout', 'Fold, timed out', null),

@@ -11,6 +11,7 @@ export const MINIGAME_INFO: Record<MinigameId, { name: string; timed: boolean; p
   ink: { name: 'Phantom Ink', timed: false, picksTeams: true },
   sketch: { name: 'Sketch', timed: false, picksTeams: false },
   poker: { name: 'Poker', timed: false, picksTeams: false },
+  tug: { name: 'Tug of war', timed: true, picksTeams: false },
 }
 
 /** The minigames in the shape the modes ship, so one picker and one options form serve both. */

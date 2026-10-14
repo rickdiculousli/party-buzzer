@@ -62,6 +62,11 @@ const INTRODUCTIONS: Record<string, IntroductionCopy> = {
     goal: 'Draw the word, or guess it fast',
     phone: 'Draw when it is your turn; otherwise type guesses.',
   },
+  tug: {
+    title: 'Tug of war',
+    goal: 'Drag the flag past your mark',
+    phone: 'Tap to pull when the match starts.',
+  },
   poker: {
     title: 'Poker',
     goal: 'Win every stack at the table',

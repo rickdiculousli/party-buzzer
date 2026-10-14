@@ -18,6 +18,7 @@
     "sim-ink": "node tools/sim-ink.ts",
     "sim-sketch": "node tools/sim-sketch.ts",
     "sim-poker": "node tools/sim-poker.ts",
+    "sim-tug": "node tools/sim-tug.ts",
     "probe": "node tools/probe.ts",
     "trace": "node tools/trace.ts",
     "motion": "BROWSER=open vite --open /anim.html",
