@@ -95,7 +95,7 @@ export class MinigameRuntime {
       session.endsAt = definition.untimed ? undefined : startsAt + session.options.durationSec * 1_000
       delete session.results
       const resumed = session.checkpoint && definition.resume ? definition.resume(session.checkpoint.data, session.options) : null
-      const created = resumed ?? definition.create(session.options.seed, participants, session.options, lobby)
+      const created = resumed ?? definition.create(session.options.seed, participants, session.options, lobby, this.state)
       if (resumed) session.participants = resumed.participants
       this.world = created.world
       if ('crews' in created && created.crews) session.crews = created.crews
@@ -201,7 +201,7 @@ export class MinigameRuntime {
       this.accumulator = remainder
     }
     this.broadcast(definition)
-    const over = definition.untimed ? definition.finished?.(this.world) === true : now >= session.endsAt! + LANDING_GRACE_MS
+    const over = definition.finished?.(this.world) === true || (!definition.untimed && now >= session.endsAt! + LANDING_GRACE_MS)
     if (!this.completed && over) {
       this.completed = true
       this.hooks.onComplete(session.matchId, definition.results(this.world))

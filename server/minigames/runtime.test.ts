@@ -402,3 +402,28 @@ test('poker publishes a rebased deadline after dropped catch-up time', () => {
   assert.equal(r.frames.length, count + 1)
   assert.equal(after.actBy - before.actBy, 600)
 })
+
+test('a timed tug ignores countdown taps and ends early once the flag is past a mark', () => {
+  const r = rig()
+  r.runtime.host({ a: 'prepareMinigame', id: 'tug', options: {} })
+  r.runtime.host({ a: 'startMinigame' })
+  const session = r.state.minigame!
+  assert.equal(session.endsAt! - session.startsAt!, 30_000)
+  const tap = (playerId: string, seq: number) =>
+    r.runtime.input(playerId, { t: 'minigameInput', matchId: session.matchId, seq, input: { kind: 'pull' } })
+  for (let seq = 0; seq < 50; seq++) tap('bo', seq)
+  r.setNow(session.startsAt!)
+  r.advance(100)
+  const flag = () => (r.runtime.frameFor('board') as Extract<MinigameFrame, { id: 'tug'; role: 'board' }>).flag
+  assert.equal(flag(), 0, 'taps sent in the countdown do nothing')
+  let seq = 100
+  while (r.completions.length === 0 && seq < 100 + 30_000 / 50) {
+    tap('bo', seq++)
+    r.advance(50)
+  }
+  assert.equal(r.completions.length, 1)
+  const { results } = r.completions[0] as { results: { playerId: string; points: number }[] }
+  assert.equal(results.find((result) => result.playerId === 'bo')!.points, 100)
+  assert.equal(results.find((result) => result.playerId === 'ada')!.points, 0)
+  assert.ok(seq < 100 + 30_000 / 50, 'the match ended before the clock')
+})

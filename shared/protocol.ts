@@ -257,7 +257,7 @@ export type ReadingUpdate = { progress: ReadingState; active: boolean }
 /** A solo crew uses the same player for both roles. */
 export type TankCrew = { id: string; driver: PlayerId; gunner: PlayerId }
 
-export type MinigameId = 'bow' | 'tank' | 'ink' | 'sketch' | 'poker'
+export type MinigameId = 'bow' | 'tank' | 'ink' | 'sketch' | 'poker' | 'tug'
 
 /**
  * Each minigame's host-settable options, as the same schema the modes ship.
@@ -280,6 +280,10 @@ export const MINIGAME_OPTIONS: Record<MinigameId, Extract<OptionSpec, { kind: 'i
     { kind: 'int', key: 'bigBlind', label: 'Starting big blind', default: 20, min: 2, max: 10_000 },
     { kind: 'int', key: 'levelMin', label: 'Minutes per level', default: 10, min: 1, max: 60 },
     { kind: 'int', key: 'shotSec', label: 'Shot clock seconds', default: 30, min: 5, max: 120 },
+  ],
+  tug: [
+    { kind: 'int', key: 'durationSec', label: 'Seconds', default: 30, min: 10, max: 120 },
+    { kind: 'int', key: 'value', label: 'Points per winner', default: 100, min: 0, max: 1_000 },
   ],
 }
 
@@ -434,6 +438,9 @@ export type BowInput =
   | { kind: 'aim'; angle: number; tension: number }
   | { kind: 'release'; at: number }
 
+/** One tap on the rope handle. */
+export type TugInput = { kind: 'pull' }
+
 export type TankInput =
   | { kind: 'wheel'; turns: number; part?: 'hull' | 'turret' }
   | { kind: 'turn'; rate: number; part?: 'hull' | 'turret' }
@@ -516,7 +523,7 @@ export type MinigameInputMsg = {
   t: 'minigameInput'
   matchId: string
   seq: number
-  input: BowInput | TankInput | InkInput | SketchInput | PokerInput
+  input: BowInput | TankInput | InkInput | SketchInput | PokerInput | TugInput
 }
 
 export type MinigameInputAck = {
@@ -541,6 +548,21 @@ export type BowFrameArrow = {
   angle: number
   state: 'flying' | 'lodged-target' | 'lodged-boundary'
   tailKick: number
+}
+
+/** A Tug half of the room. A team name and colour when the side is exactly one team. */
+export type TugSide = { name: string; color: string; members: PlayerId[] }
+
+export type TugShared = {
+  sides: [TugSide, TugSide]
+  /** The flag: -1 is side 0's mark, 1 is side 1's mark, 0 the centre. */
+  flag: number
+  /** Each side's pull this frame, per connected member, 0 to about 1. */
+  effort: [number, number]
+  /** Server time the rope stops. */
+  endsAt: number
+  /** The side that won, null for a draw, absent while pulling. */
+  winner?: 0 | 1 | null
 }
 
 type FrameBase<Id extends MinigameId> = { id: Id; matchId: string; tick: number; serverTime: number }
@@ -596,6 +618,8 @@ export type MinigameFrame =
   | (FrameBase<'sketch'> & { role: 'player' } & SketchShared & SketchPrivate)
   | (FrameBase<'poker'> & { role: 'board' } & PokerShared)
   | (FrameBase<'poker'> & { role: 'player' } & PokerShared & PokerPrivate)
+  | (FrameBase<'tug'> & { role: 'board' } & TugShared)
+  | (FrameBase<'tug'> & { role: 'player' } & TugShared & { side: 0 | 1; pull: number })
   | (FrameBase<MinigameId> & { role: 'spectator' })
 
 export type InkStrokeView = { points: InkPoint[]; author: PlayerId; peek?: true }

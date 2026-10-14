@@ -1,4 +1,4 @@
-import type { MinigameCheckpoint, MinigameInputAck, MinigameLobby, MinigameResult, PlayerId, TankCrew } from '../../shared/protocol.ts'
+import type { MinigameCheckpoint, MinigameInputAck, MinigameLobby, MinigameResult, PlayerId, State, TankCrew } from '../../shared/protocol.ts'
 import type { Refusal } from '../../shared/legality.ts'
 
 export type InputOutcome =
@@ -7,6 +7,9 @@ export type InputOutcome =
 
 /** Maps a world time in ms to server time. */
 export type Clock = (worldMs: number) => number
+
+/** The room at Start: roster in join order, grouping, teams and standings. Read it; never keep it. */
+export type MinigameRoom = Pick<State, 'grouping' | 'players' | 'teams' | 'scores'>
 
 /** Who sees a player's touch. */
 export type TouchAudience = { players: PlayerId[]; board: boolean }
@@ -17,10 +20,11 @@ export type TouchAudience = { players: PlayerId[]; board: boolean }
  */
 export type MinigameDefinition<W> = {
   stepMs: number
-  /** Options arrive sanitized against `MINIGAME_OPTIONS`, plus durationSec and seed. */
-  create(seed: number, participants: string[], options: Record<string, number>, lobby: MinigameLobby): { world: W; crews?: TankCrew[] }
+  /** Options arrive sanitized against `MINIGAME_OPTIONS`, plus durationSec and seed. The runtime always passes `room`. */
+  create(seed: number, participants: string[], options: Record<string, number>, lobby: MinigameLobby, room?: MinigameRoom): { world: W; crews?: TankCrew[] }
   /** No clock: the match ends when `finished` returns true. */
   untimed?: true
+  /** Untimed: the only way the match ends. Timed: an early end, before the clock and its landing grace. */
   finished?(world: W): boolean
   /** Checked on prepare and again on start; a reason refuses the host action. */
   prepare?(): Refusal | null
