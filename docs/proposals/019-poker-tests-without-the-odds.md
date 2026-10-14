@@ -4,13 +4,14 @@ title: Poker table tests stop computing win percentages nobody asserts
 kind: test-speed
 size: S
 judge: sonnet
-status: building
+status: done
 lens: eng
 proposed_by: 7f24ed4b-18c6-49f9-a00b-48d7dfed548a
 proposed_on: 2026-10-14
 built_by: b6918ed5-efdf-42ed-af4e-c49ef0d99582
 branch: t3code/d7c56aa1
 host: k16
+merged: a274115bcb06115201de40c736abacfdb5bef137
 ---
 
 ## Opportunity
