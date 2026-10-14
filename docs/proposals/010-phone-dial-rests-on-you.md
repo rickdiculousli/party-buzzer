@@ -4,7 +4,8 @@ title: The phone's standings rest on you, and Locked says why
 kind: ux
 size: S
 judge: opus
-status: building
+status: done
+merged: 1f2e99d
 built_by: aaf94b3d-60f5-4ad2-a5ba-b4d629bae3df
 branch: t3code/ux-proposal-round
 host: k16

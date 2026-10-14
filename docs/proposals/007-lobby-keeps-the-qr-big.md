@@ -4,7 +4,8 @@ title: The lobby keeps the QR big and names the address
 kind: ux
 size: S
 judge: sonnet
-status: building
+status: done
+merged: 1f2e99d
 built_by: aaf94b3d-60f5-4ad2-a5ba-b4d629bae3df
 branch: t3code/ux-proposal-round
 host: k16
