@@ -4,7 +4,10 @@ title: Host controls hold still between moments
 kind: refinement
 size: XS
 judge: sonnet
-status: proposed
+status: building
+built_by: aaf94b3d-60f5-4ad2-a5ba-b4d629bae3df
+branch: t3code/ux-proposal-round
+host: k16
 lens: ux
 proposed_by: aaf94b3d-60f5-4ad2-a5ba-b4d629bae3df
 proposed_on: 2026-10-13
