@@ -4,10 +4,13 @@ title: Put the joined-reader tests on the mock clock before they fail a build th
 kind: test-speed
 size: S
 judge: opus
-status: accepted
+status: building
 lens: eng
 proposed_by: 7f24ed4b-18c6-49f9-a00b-48d7dfed548a
 proposed_on: 2026-10-14
+built_by: 89aae50a-7558-4ed1-9baf-4b258586eda1
+branch: t3code/b498097b
+host: k16
 ---
 
 ## Opportunity
