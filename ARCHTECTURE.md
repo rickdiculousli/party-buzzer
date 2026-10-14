@@ -385,6 +385,8 @@ recording is handled by `Talk.tsx`, `recorder.ts`, and `wav.ts`.
 
 ## Undo versus restart
 
+`server/lifetimes.test.ts` is the source of truth: one row per `State` field for undo, disk and phone, checked against `gameSnapshot`, `persistedSnapshot` and `viewFor`.
+
 | Data | Undo snapshot | Disk snapshot |
 | --- | --- | --- |
 | Players, teams, scores, settings, inventories | Yes | Yes |
