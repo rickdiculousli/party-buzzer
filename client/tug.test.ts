@@ -10,11 +10,19 @@ test('the first excursion picks a half without a cue', () => {
 
 test('a crossing needs to clear the margin and cues once', () => {
   let c = watchCrossing(NO_CROSSING, -0.4, 0).next
-  const near = watchCrossing(c, 0.05, 5000)
+  const near = watchCrossing(c, 0.03, 5000)
   assert.equal(near.crossed, false)
-  const over = watchCrossing(c, 0.2, 5000)
+  const over = watchCrossing(near.next, 0.2, 5100)
   assert.equal(over.crossed, true)
-  assert.equal(watchCrossing(over.next, 0.3, 5100).crossed, false)
+  assert.equal(watchCrossing(over.next, 0.3, 5200).crossed, false)
+})
+
+test('a flag that creeps over the line long after passing it stays quiet', () => {
+  let c = watchCrossing(NO_CROSSING, -0.4, 0).next
+  c = watchCrossing(c, 0.01, 5000).next
+  const late = watchCrossing(c, 0.06, 5600)
+  assert.equal(late.crossed, false)
+  assert.equal(late.next.half, 1, 'the half is still taken')
 })
 
 test('a swing inside the gap is taken silently, never cued late', () => {
