@@ -1,7 +1,8 @@
 import { useState } from 'preact/hooks'
 import { formatNumber } from '../shared/closest.ts'
 
-const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫']
+/** Three rows of four, so a short phone keeps keys a thumb can hit. */
+const KEYS = ['1', '2', '3', '⌫', '4', '5', '6', '.', '7', '8', '9', '0']
 /** Digits a guess may hold, before and after the point together. */
 const MAX_DIGITS = 12
 
@@ -31,10 +32,16 @@ export function GuessPad({ unit, onGuess }: { unit?: string; onGuess: (n: number
   const ready = text !== '' && Number.isFinite(value)
   return (
     <div class="pad" data-review-id="phone:pad">
-      <p class={text ? 'pad__value' : 'pad__value is-empty'}>
-        {shown(text)}
-        {unit && <span class="pad__unit"> {unit}</span>}
-      </p>
+      {/* Lock in beside the number, not under the keys: a short phone has no row to spare. */}
+      <div class="pad__top">
+        <p class={text ? 'pad__value' : 'pad__value is-empty'}>
+          {shown(text)}
+          {unit && <span class="pad__unit"> {unit}</span>}
+        </p>
+        <button class="btn btn--primary pad__go" disabled={!ready} onClick={() => ready && onGuess(value)}>
+          Lock in
+        </button>
+      </div>
       <div class="pad__keys">
         {KEYS.map((k) => (
           <button key={k} class="pad__key" onClick={() => setText((t) => press(t, k))} aria-label={k === '⌫' ? 'Delete' : k}>
@@ -42,9 +49,6 @@ export function GuessPad({ unit, onGuess }: { unit?: string; onGuess: (n: number
           </button>
         ))}
       </div>
-      <button class="btn btn--primary pad__go" disabled={!ready} onClick={() => ready && onGuess(value)}>
-        Lock in
-      </button>
     </div>
   )
 }

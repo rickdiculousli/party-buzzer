@@ -184,6 +184,8 @@ test('review scenarios cover the main board and phone moments', async () => {
     'setlist-complete',
     'choice-picking',
     'choice-reveal',
+    'closest-guessing',
+    'closest-reveal',
     'ink-lobby',
     'ink-choosing',
     'ink-choose',

@@ -868,12 +868,12 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   animation-delay: var(--closest-truth-at);
   position: absolute;
   left: calc(var(--at) * 100%);
-  top: calc(var(--_lane) * 4 - var(--_mark));
+  top: calc(var(--_lane) * 4 - var(--_mark) * 0.4);
   width: 0;
   margin: 0;
 }
-.closest__tick { position: absolute; left: -1.5px; width: 3px; height: calc(var(--_mark) * 2); background: var(--chalk); }
-.closest__value { position: absolute; top: calc(var(--_mark) * 2); left: 0; translate: calc(var(--at) * -100%) 0; font-family: var(--display); font-weight: 800; font-size: var(--t-xl); line-height: 1.1; color: var(--chalk); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.closest__tick { position: absolute; left: -1.5px; width: 3px; height: calc(var(--_mark) * 1.6); background: var(--chalk); }
+.closest__value { position: absolute; top: calc(var(--_mark) * 1.6); left: 0; translate: calc(var(--at) * -100%) 0; font-family: var(--display); font-weight: 800; font-size: var(--t-xl); line-height: 1.1; color: var(--chalk); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .closest__unit { font-weight: 500; color: var(--dim); font-size: 0.6em; }
 /* The countdown, behind everything on the wall: centred, huge, and faded. */
 .board__countdown {
@@ -3747,8 +3747,11 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .recap__detail { color: var(--dim); }
 =======
 /* --- the closest question's pad: the typed number large, then the keys ---- */
-.pad { flex: 1; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: var(--s2); }
+.pad { flex: 1; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--s2); }
+.pad__top { display: flex; gap: var(--s2); min-width: 0; }
 .pad__value {
+  flex: 1;
+  min-width: 0;
   margin: 0;
   padding: var(--s2) var(--s3);
   background: var(--raise);
@@ -3757,7 +3760,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   text-align: right;
   font-family: var(--display);
   font-weight: 800;
-  font-size: min(clamp(2.5rem, 13vw, 4.5rem), 9vh);
+  font-size: min(clamp(2rem, 11vw, 4rem), 7vh);
   line-height: 1;
   font-variant-numeric: tabular-nums;
   color: var(--chalk);
@@ -3766,7 +3769,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .pad__value.is-empty { color: var(--dim); }
 .pad__unit { font-weight: 500; font-size: 0.45em; color: var(--dim); }
-.pad__keys { min-height: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: minmax(0, 1fr); gap: var(--s2); }
+.pad__keys { min-height: 0; display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: minmax(2.25rem, 1fr); gap: var(--s2); }
 .pad__key {
   min-height: 0;
   background: var(--panel);
@@ -3782,4 +3785,4 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   cursor: pointer;
 }
 .pad__key:active { border-color: var(--tungsten); background: var(--raise); }
-.pad__go { font-size: var(--t-lg); padding-block: var(--s3); }
+.pad__go { flex: none; font-size: var(--t-lg); padding-inline: var(--s4); }
