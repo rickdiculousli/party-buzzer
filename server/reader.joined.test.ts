@@ -69,8 +69,8 @@ function rig(align?: Aligner, nextCardMs?: number) {
 
 /**
  * Every test runs on a mock clock: `settle(ms)` advances timers and
- * `Date.now()` together, then yields to the event loop so promises and file
- * reads settle. The fold times above are then exact, however busy the machine.
+ * `Date.now()` together in 5 ms steps, yielding to the event loop between them
+ * so promise chains keep pace. A busy machine cannot move a fold past a check.
  */
 const STEP_MS = 5
 
@@ -81,6 +81,8 @@ function test(name: string, a: TestOptions | Body, b?: Body) {
   const opts = typeof a === 'function' ? {} : a
   const fn = (typeof a === 'function' ? a : b) as Body
   nodeTest(name, opts, async (t) => {
+    // A test that timed out never reached its `finally`; don't fail the rest.
+    mock.timers.reset()
     mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] })
     try {
       await fn(t)
@@ -91,7 +93,7 @@ function test(name: string, a: TestOptions | Body, b?: Body) {
 }
 
 async function settle(ms = 30) {
-  // Small steps, so work that waits on a timer and then on file I/O keeps pace.
+  // Small steps, so work that waits on a timer and then on a promise keeps pace.
   for (let left = ms; left > 0; left -= STEP_MS) {
     mock.timers.tick(Math.min(STEP_MS, left))
     await new Promise((r) => setImmediate(r))
