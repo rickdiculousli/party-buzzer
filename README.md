@@ -51,11 +51,22 @@ it: **Arm** or **Close lobby** moves on whether or not anyone tested. The lobby
 is runtime only, so undo does not bring it back and a restart drops it.
 
 A fresh setlist clears the last question and opens its first block with an
-introduction (board and phones say what the block is, in a line). It appears for the first block only; **Continue**
-dismisses it. While it is up, Arm, Read, and opening a minigame are refused, and
-the host desk says so. Next, reset, jumping, and clearing the setlist also drop
-it. Undo can restore an introduction, under a new id, so a stale Continue is
-refused. A restart does not restore one.
+introduction (board and phones say what the block is: its name, goal, and for a
+quiz block the question count, value and duel rule). **Continue** dismisses it.
+While it is up, Arm, Read, and opening a minigame are refused, and the host desk
+says so. Next, reset, jumping, and clearing the setlist also drop it. Undo can
+restore an introduction, under a new id, so a stale Continue is refused. A
+restart does not restore one.
+
+With **Autoplay** on, every later block is introduced too ("Next: Sketch. ...")
+and a performing voice reads it aloud. The introduction dismisses itself after
+the *Introductions last* setting (12 s by default), then the block begins on its
+own: a block with a pack starts reading, and a minigame block opens its match.
+Phones tap **Ready**; the match starts when every connected player has, or after
+60 s, and the results close after the answer-dwell time and move to the next
+block. Poker is still opened and closed by the host. A host who acts by hand in
+the gaps is not fought: undo, jumping, clearing the setlist or turning autoplay
+off cancels whatever was pending.
 
 Phones estimate server time and timestamp the press locally. The server clamps
 that timestamp between opening and arrival, then ranks presses. This reduces

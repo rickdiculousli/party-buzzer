@@ -7,6 +7,9 @@ export function gameSnapshot(state: State) {
   const snapshot = structuredClone(game)
   delete snapshot.round.judge
   // An introduction is part of the game an undo returns to; a lobby is runtime.
+  // `autoplay.introSec` and a minigame lobby's `ready` list are game settings and
+  // lobby facts: both ride the snapshot, and so both undo and persist. The
+  // night's timers and the match autoplay opened are Hub memory, in neither.
   if (snapshot.arrival?.kind === 'lobby') delete snapshot.arrival
   return {
     ...snapshot,

@@ -278,7 +278,7 @@ export function makeReviewScenarios(): ReviewScenario[] {
   ].map((name, i) => ({ id: `p${i}`, name, connected: true }))
   const introduction = (state: State, game: string) => {
     state.setlist = { blocks: [{ game, options: {}, count: 3 }], at: 0, done: 0 }
-    state.arrival = { kind: 'introduction', id: 'review-intro', blockAt: 0 }
+    state.arrival = { kind: 'introduction', id: 'review-intro', blockAt: 0, blockKey: '0:trivia' }
     return state
   }
   const introTrivia = introduction(base(), 'trivia')

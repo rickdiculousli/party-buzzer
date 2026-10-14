@@ -32,7 +32,7 @@
  *   next             clear the round
  *   reset | undo     reset the round / undo the last host action
  *   pack:name.txt    pick a pack and wait out its synthesis
- *   autoplay:on:4:2  autoplay on, payoff dwell, rebound pause (seconds)
+ *   autoplay:on:4:2:12  autoplay on, payoff dwell, rebound pause, introduction (seconds)
  *   rewind           forget where every pack got to, so a walkthrough repeats exactly
  *   read             start the reader on the chosen pack or the block's
  *   armed            wait for the buzzers to open — the reader arms, not you
@@ -52,6 +52,8 @@
  *                    the block it follows
  *   jump:1           jump the setlist to that block index
  *   duel:vote        open a heads-up duel under that rule id
+ *   minigame:prepare[:secs]  open the current setlist block's minigame (or the one named); start | close
+ *   ready            every joined player taps Ready in the open minigame lobby
  *   in:A,B | out:A   volunteer / back off, from those players' own sockets
  *   vote:A=B,C=B     A votes for B, C votes for B (`=`, not `>`: no quoting)
  *   unvote:A         A takes their vote back — the tally counts down
@@ -76,7 +78,7 @@ import { join } from 'node:path'
 import { connect, reachable, type Conn } from './conn.ts'
 import { link } from '../server/net.ts'
 import { clipPath, run } from '../server/speech.ts'
-import { ARM_DELAY_MS, COLLECT_MS } from '../shared/protocol.ts'
+import { ARM_DELAY_MS, COLLECT_MS, type MinigameId } from '../shared/protocol.ts'
 
 const args = process.argv.slice(2)
 const URL = await reachable(process.env.URL)
@@ -122,7 +124,7 @@ async function main() {
     // The header comment is the manual; printing a second copy is a second
     // thing to keep true.
     log('\n  usage: npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@120 correct')
-    log('  steps: loop join value arm buzz correct wrong next reset undo pack mode direct autoplay rewind read armed act speak say pick done teams setlist jump duel in out vote unvote seat cancel wait clear')
+    log('  steps: loop join value arm buzz correct wrong next reset undo pack mode direct autoplay rewind read armed act speak say pick done teams setlist jump duel minigame ready in out vote unvote seat cancel wait clear')
     log('  walks: npm run walk-duel   walk-teams   walk-setlist   walk-read-quizbowl   walk-read-trivia   walk-packs\n')
     return
   }
@@ -170,14 +172,19 @@ async function main() {
   let setlistIsOurs = false
   let readIsOurs = false
   let autoplayIsOurs = false
+  let minigameIsOurs = false
 
   const clear = () => {
     // The reader first: one still running would arm the next question straight
     // back over the top of everything below, and autoplay would then walk the
     // room on by itself while this function is still tidying up.
     if (readIsOurs) host.send({ t: 'act', act: 'stopRead' })
+    if (minigameIsOurs) {
+      host.send({ t: 'host', action: { a: 'cancelMinigame' } })
+      host.send({ t: 'host', action: { a: 'closeMinigame' } })
+    }
     if (autoplayIsOurs) {
-      host.send({ t: 'host', action: { a: 'setAutoplay', on: false, nextSec: 5, buzzSec: 10, reboundSec: 2 } })
+      host.send({ t: 'host', action: { a: 'setAutoplay', on: false, nextSec: 5, buzzSec: 10, reboundSec: 2, introSec: 12 } })
     }
     // Then the round: clearSetlist is refused unless it is IDLE, so resetting here
     // before anything IDLE-gated runs is what makes a `clear` mid-question
@@ -334,9 +341,9 @@ async function main() {
           break
         }
 
-        // autoplay:on:4:2 — on, four seconds on the payoff, two on a rebound.
+        // autoplay:on:4:2:12 — on, four seconds on the payoff, two on a rebound, twelve on an introduction.
         case 'autoplay': {
-          const [on, next = '4', rebound = '2'] = arg.split(':')
+          const [on, next = '4', rebound = '2', intro = '12'] = arg.split(':')
           host.send({
             t: 'host',
             action: {
@@ -345,6 +352,7 @@ async function main() {
               nextSec: Number(next),
               buzzSec: 10,
               reboundSec: Number(rebound),
+              introSec: Number(intro),
             },
           })
           autoplayIsOurs = true
@@ -528,6 +536,35 @@ async function main() {
 
         case 'jump':
           host.send({ t: 'host', action: { a: 'setlistJump', at: Number(arg) } })
+          break
+
+        // minigame:prepare:6 — open the block's minigame (`prepare:bow:6` names
+        // one), then `ready`, `minigame:start`, and `minigame:close`, which
+        // finishes the block. Autoplay does all of this by itself.
+        case 'minigame': {
+          const [what, ...rest] = arg.split(':')
+          if (what === 'prepare') {
+            const s = host.state()
+            const named = rest.find((x) => x && Number.isNaN(Number(x)))
+            const id = named ?? s?.setlist?.blocks[s.setlist.at]?.game
+            if (!id) throw new Error('minigame:prepare needs a setlist block or a name')
+            const secs = rest.find((x) => x && !Number.isNaN(Number(x)))
+            const options = secs ? { durationSec: Number(secs) } : {}
+            host.send({ t: 'host', action: { a: 'prepareMinigame', id: id as MinigameId, options } })
+            await host.waitFor((s) => s.minigame?.id === id && s.minigame.phase === 'ready', 3000)
+            minigameIsOurs = true
+          } else if (what === 'start') {
+            host.send({ t: 'host', action: { a: 'startMinigame' } })
+          } else if (what === 'close') {
+            host.send({ t: 'host', action: { a: 'closeMinigame' } })
+            await host.waitFor((s) => !s.minigame, 3000)
+            minigameIsOurs = false
+          } else throw new Error(`unknown minigame step "${what}"`)
+          break
+        }
+
+        case 'ready':
+          for (const conn of players.values()) conn.send({ t: 'minigameLobby', change: { do: 'ready', on: true } })
           break
 
         case 'duel':

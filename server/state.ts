@@ -5,7 +5,7 @@ import { ARM_DELAY_MS, isMinigameId } from '../shared/protocol.ts'
 import { knownModule, moduleFor, sanitizeOptions } from './modes/index.ts'
 import { executeGrants } from './items.ts'
 import { duelOnArm, duelOnWrong, duelRule, resolveDuel, seatDuel } from './duel.ts'
-import { advanceSetlist, applySetup, enterBlock, sanitizeBlocks } from './setlist.ts'
+import { advanceSetlist, applySetup, enterBlock, introduceBlock, sanitizeBlocks } from './setlist.ts'
 import { refuses } from '../shared/legality.ts'
 import { persistedSnapshot } from './snapshot.ts'
 import { bump, scoreKey } from '../shared/scoring.ts'
@@ -55,7 +55,7 @@ export function newState(): State {
     // transcript types out, holds, the penalty stamps and dwells, and only then
     // does the clue pick up. At two seconds the voice came back while the −400
     // was still landing, which is two things happening at once.
-    autoplay: { on: false, nextSec: 5, buzzSec: 10, reboundSec: 4 },
+    autoplay: { on: false, nextSec: 5, buzzSec: 10, reboundSec: 4, introSec: 12 },
     round: {
       questionId: '',
       attemptId: '',
@@ -385,6 +385,7 @@ function mutateHostAction(state: State, action: HostAction): void {
         nextSec: secs(action.nextSec, 5),
         buzzSec: secs(action.buzzSec, 10),
         reboundSec: secs(action.reboundSec, 4),
+        introSec: secs(action.introSec, 12),
       }
       return
 
@@ -477,7 +478,7 @@ function mutateHostAction(state: State, action: HostAction): void {
         // A fresh start introduces its first block, after setup and any duel
         // window are in place, and replaces a lobby. A kept position leaves
         // a pending introduction and its id alone.
-        state.arrival = { kind: 'introduction', id: randomUUID(), blockAt: 0 }
+        introduceBlock(state, true)
       } else if (changed) applySetup(state, apply)
       return
     }
@@ -492,6 +493,7 @@ function mutateHostAction(state: State, action: HostAction): void {
       setlist.done = 0
       dropIntroduction(state)
       enterBlock(state, apply, true)
+      introduceBlock(state, false)
       return
     }
 
@@ -574,6 +576,8 @@ export function loadState(path: string): State {
         loaded.setlist.done = Math.max(0, loaded.setlist.done | 0)
       }
     }
+    // A minigame lobby from before the ready flag existed.
+    if (loaded.minigame?.lobby) loaded.minigame.lobby.ready ??= []
     // A duel mid-setup can't survive a restart: the pool was voted under a
     // room that may not be back. Fresh boot, no duel — and round.buzzable
     // goes with it, since without the duel it is just two ids that can buzz
@@ -594,6 +598,7 @@ export function loadState(path: string): State {
       nextSec: secs(Number(auto?.nextSec), 5),
       buzzSec: secs(Number(auto?.buzzSec), 10),
       reboundSec: secs(Number(auto?.reboundSec), 4),
+      introSec: secs(Number(auto?.introSec), 12),
     }
     loaded.game ??= { id: 'trivia', options: {}, moduleState: {} }
     if (!knownModule(loaded.game.id)) {

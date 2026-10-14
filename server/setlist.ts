@@ -10,6 +10,7 @@
  * applyHostAction, which would be a cycle. That also makes every rule here
  * testable against a recording fake.
  */
+import { randomUUID } from 'node:crypto'
 import type { SetlistBlock, HostAction, State } from '../shared/protocol.ts'
 import { isMinigameId } from '../shared/protocol.ts'
 
@@ -70,6 +71,22 @@ export function advanceSetlist(state: State, apply: Apply): void {
     fresh = true
   }
   enterBlock(state, apply, fresh)
+  if (fresh) introduceBlock(state, false)
+}
+
+/**
+ * Introduce the block the setlist is on. A fresh start does so whatever the
+ * autoplay setting; entering a later block does so only under autoplay, where
+ * nobody is standing at the host desk to explain it. A spent setlist has no
+ * block and so nothing to introduce. Call after setup and any duel are in place.
+ */
+export function introduceBlock(state: State, force: boolean): void {
+  const setlist = state.setlist
+  const block = setlist?.blocks[setlist.at]
+  if (!setlist || !block || !(force || state.autoplay.on)) return
+  state.arrival = {
+    kind: 'introduction', id: randomUUID(), blockAt: setlist.at, blockKey: `${setlist.at}:${block.game}`,
+  }
 }
 
 /**

@@ -33,7 +33,7 @@ function room(): State {
     mirrorFragments: false,
     answerWindowSec: 0,
     choiceSec: 20,
-    autoplay: { on: false, nextSec: 4, buzzSec: 4, reboundSec: 3 },
+    autoplay: { on: false, nextSec: 4, buzzSec: 4, reboundSec: 3, introSec: 12 },
   }
 }
 
@@ -48,7 +48,7 @@ function locked(s: State): State {
 
 /** A fresh setlist's introduction, holding play until the host continues. */
 function intro(s: State): State {
-  s.arrival = { kind: 'introduction', id: 'intro-1', blockAt: 0 }
+  s.arrival = { kind: 'introduction', id: 'intro-1', blockAt: 0, blockKey: '0:trivia' }
   return s
 }
 
@@ -95,7 +95,7 @@ const LEGAL: Record<HostAction['a'], [State, HostAction]> = {
   assign: [locked(room()), { a: 'assign', playerId: 'a', teamId: 't' }],
   setMode: [room(), { a: 'setMode', id: 'quizbowl', options: {} }],
   setMirror: [locked(room()), { a: 'setMirror', on: true }],
-  setAutoplay: [locked(room()), { a: 'setAutoplay', on: true, nextSec: 5, buzzSec: 5, reboundSec: 4 }],
+  setAutoplay: [locked(room()), { a: 'setAutoplay', on: true, nextSec: 5, buzzSec: 5, reboundSec: 4, introSec: 12 }],
   openDuel: [room(), { a: 'openDuel', rule: 'vote' }],
   closeDuel: [(() => {
     const s = room()

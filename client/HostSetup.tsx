@@ -272,6 +272,25 @@ function Reading({ state, act }: { state: State; act: Act }) {
                   />
                   <span class="muted">sec after a wrong answer, before the clue resumes</span>
                 </label>
+                <label class="field">
+                  Introductions last
+                  <input
+                    class="input input--num"
+                    type="number"
+                    min={0}
+                    max={60}
+                    step={0.5}
+                    value={state.autoplay.introSec}
+                    onInput={(e) =>
+                      act({
+                        ...state.autoplay,
+                        a: 'setAutoplay',
+                        introSec: Number((e.target as HTMLInputElement).value),
+                      })
+                    }
+                  />
+                  <span class="muted">sec between blocks, then the next block begins</span>
+                </label>
               </>
             )}
           </>

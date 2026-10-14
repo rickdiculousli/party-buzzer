@@ -11,7 +11,7 @@ export type TimedTouch = MinigameTouch & { at: number }
 export const teamCap = (connected: number) => Math.ceil(connected / 2)
 
 export function lobbyColumns(state: State) {
-  const lobby = state.minigame?.lobby ?? { teams: {}, volunteers: [] }
+  const lobby = state.minigame?.lobby ?? { teams: {}, volunteers: [], ready: [] }
   const connected = state.players.filter((player) => player.connected)
   const cap = teamCap(connected.length)
   return (['sun', 'moon'] as const).map((team) => {

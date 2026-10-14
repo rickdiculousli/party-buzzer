@@ -9,7 +9,8 @@ import { duelAct, duelCatalog } from './duel.ts'
 import { listPacks, packSizes } from './packs.ts'
 import { listSetlists, readSetlist, writeSetlist } from './setlists.ts'
 import { refuses } from '../shared/legality.ts'
-import { arrivalBlocksPlay, endLobby, practiceAllowed } from '../shared/arrival.ts'
+import { arrivalBlocksPlay, arrivalPresentation, endLobby, introductionLine, practiceAllowed } from '../shared/arrival.ts'
+import { READY_FALLBACK_MS, beginFor, everyoneReady } from './night.ts'
 import { COLLECT_MS } from '../shared/protocol.ts'
 import { makeTracer, type Tracer } from './trace.ts'
 import { gameSnapshot, restoreGame, type GameSnapshot } from './snapshot.ts'
@@ -52,6 +53,8 @@ export type ReaderControls = {
   rewind(): void
   /** End picking on the choice question being read. */
   closeChoice(): void
+  /** Speak a line in the quip slot, if a performing voice is on; otherwise silent. */
+  announce(text: string): void
 }
 
 export type HubOpts = {
@@ -90,6 +93,16 @@ export class Hub {
   private minigame: MinigameRuntime | undefined
   /** Practice receipts in the current lobby. Private, never in State; restarts per lobby. */
   private practiceSeq = 0
+  /**
+   * The night's automation, private runtime memory beside the collection
+   * timers: one timer per slot, each keyed by the thing it waits on (an
+   * arrival id, a matchId) so a changed key means the wait is over.
+   */
+  private night = new Map<'intro' | 'ready' | 'results', { key: string; handle: NodeJS.Timeout; fired: boolean }>()
+  /** The match autoplay opened. A cancel mints a new matchId, which automation then leaves alone. */
+  private nightMatch: string | undefined
+  private nightBusy = false
+  private nightDirty = false
 
   constructor(state: State, opts: HubOpts = {}) {
     this.state = state
@@ -215,6 +228,8 @@ export class Hub {
       return this.lobby(action)
     }
     let result: ActionResult
+    let dismissedIntro = false
+    let raisedIntro = false
     if (action.a === 'undo') {
       result = { status: this.undo() ? 'applied' : 'unchanged' }
     } else if (
@@ -236,6 +251,15 @@ export class Hub {
           endLobby(this.state)
           this.stopReaderQuietly()
         }
+        if (this.introRaised(before)) {
+          raisedIntro = true
+          this.stopReaderQuietly()
+        }
+        if (action.a === 'startMinigame' && this.nightMatch !== undefined && before.minigame?.matchId === this.nightMatch) {
+          // Starting mints a new matchId; the automated match follows it.
+          this.nightMatch = this.state.minigame?.matchId
+        }
+        if (action.a === 'closeMinigame') this.nightMatch = undefined
         this.history.push(before)
         if (this.history.length > UNDO_DEPTH) this.history.shift()
       }
@@ -247,16 +271,31 @@ export class Hub {
         if (this.history.length > UNDO_DEPTH) this.history.shift()
         // A new introduction holds the room, so a reader mid-dwell or
         // mid-preparation stops here rather than arming over it.
-        const intro = this.state.arrival
-        if (intro?.kind === 'introduction' && intro.id !== before.arrival?.id) this.stopReaderQuietly()
+        if (this.introRaised(before)) {
+          raisedIntro = true
+          this.stopReaderQuietly()
+        }
+        dismissedIntro = action.a === 'closeArrival' && before.arrival?.kind === 'introduction'
       }
     }
     if (result.status === 'applied') {
+      // These end whatever the night was waiting on. Nothing here for a
+      // refusal or a no-op: those leave every timer alone.
+      if (action.a === 'undo' || action.a === 'clearSetlist' || action.a === 'setlistJump') this.nightClear(true)
       if (RESETS.has(action.a)) this.clearWindow()
       this.changed(`host:${action.a}`)
       if (action.a === 'startMinigame') this.broadcastMinigame()
+      const shown = this.state.autoplay.on && raisedIntro ? arrivalPresentation(this.state) : null
+      if (shown?.kind === 'introduction') this.reader?.announce(introductionLine(shown))
+      if (dismissedIntro) this.nightBegin()
     }
     return result
+  }
+
+  /** Whether the applied action left a new introduction up, as opposed to none or the one that was. */
+  private introRaised(before: GameSnapshot): boolean {
+    const intro = this.state.arrival
+    return intro?.kind === 'introduction' && intro.id !== before.arrival?.id
   }
 
   /** Playback reports facts; the current mode decides what they mean. */
@@ -692,5 +731,94 @@ export class Hub {
     this.trace(cause, this.state)
     this.broadcast()
     this.onChange(this.state)
+    this.nightEval()
+  }
+
+  /**
+   * Re-derive the night's timers from the state, after every change. Steps go
+   * through `dispatch` and accept a refusal quietly. A step that changes state
+   * re-enters here; the guard turns that into one more pass of the loop.
+   */
+  private nightEval(): void {
+    if (this.nightBusy) {
+      this.nightDirty = true
+      return
+    }
+    this.nightBusy = true
+    try {
+      for (let pass = 0; pass < 8; pass++) {
+        this.nightDirty = false
+        this.nightStep()
+        if (!this.nightDirty) break
+      }
+    } finally {
+      this.nightBusy = false
+    }
+  }
+
+  private nightStep(): void {
+    const s = this.state
+    if (!s.autoplay.on) {
+      this.nightClear(false)
+      return
+    }
+    const intro = s.arrival?.kind === 'introduction' ? s.arrival.id : undefined
+    this.nightTimer('intro', intro, s.autoplay.introSec * 1000, (key) => {
+      this.dispatch({ a: 'closeArrival', arrivalId: key })
+    })
+
+    const mg = s.minigame
+    const mine = mg !== undefined && mg.matchId === this.nightMatch
+    const waiting = mine && mg.phase === 'ready' ? mg.matchId : undefined
+    this.nightTimer('ready', waiting, READY_FALLBACK_MS, () => this.nightStart())
+    // Once the fallback has run out, any later change (a team pick, a join) that makes the start legal starts it.
+    if (waiting && (everyoneReady(s) || this.night.get('ready')?.fired)) this.nightStart()
+
+    const done = mine && mg.phase === 'results' ? mg.matchId : undefined
+    this.nightTimer('results', done, s.autoplay.nextSec * 1000, (key) => {
+      if (this.state.minigame?.matchId === key) this.dispatch({ a: 'closeMinigame' })
+    })
+  }
+
+  private nightStart(): void {
+    const mg = this.state.minigame
+    if (mg && mg.matchId === this.nightMatch && mg.phase === 'ready') this.dispatch({ a: 'startMinigame' })
+  }
+
+  /** One timer per slot. The same key keeps it running; a new key restarts it; no key clears it. */
+  private nightTimer(slot: 'intro' | 'ready' | 'results', key: string | undefined, ms: number, fire: (key: string) => void): void {
+    const held = this.night.get(slot)
+    if (held && held.key === key) return
+    if (held) clearTimeout(held.handle)
+    this.night.delete(slot)
+    if (key === undefined) return
+    const handle = setTimeout(() => {
+      const entry = this.night.get(slot)
+      if (!entry || entry.key !== key) return
+      entry.fired = true
+      fire(key)
+    }, ms)
+    handle.unref?.()
+    this.night.set(slot, { key, handle, fired: false })
+  }
+
+  private nightClear(forgetMatch: boolean): void {
+    for (const entry of this.night.values()) clearTimeout(entry.handle)
+    this.night.clear()
+    if (forgetMatch) this.nightMatch = undefined
+  }
+
+  /** An introduction was dismissed under autoplay: set the block going. Runs after that dismissal has committed. */
+  private nightBegin(): void {
+    const begin = beginFor(this.state)
+    if (begin?.do === 'read') {
+      this.reader?.start()
+    } else if (begin?.do === 'prepare') {
+      const result = this.dispatch({ a: 'prepareMinigame', id: begin.id, options: begin.options })
+      if (result.status === 'applied') {
+        this.nightMatch = this.state.minigame?.matchId
+        this.nightEval()
+      }
+    }
   }
 }

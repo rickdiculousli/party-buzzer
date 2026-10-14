@@ -30,6 +30,10 @@ const clockLeft = (ms: number) => {
   return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`
 }
 
+/** Connected players who have tapped Ready in the open lobby. */
+const readyCount = (state: State) =>
+  state.players.filter((p) => p.connected && state.minigame?.lobby?.ready?.includes(p.id)).length
+
 /** The Play tab while a minigame is up: its clock, its lobby and its way out. */
 function MatchDesk({ state, act, now }: {
   state: State
@@ -48,6 +52,7 @@ function MatchDesk({ state, act, now }: {
         ? 'No time limit'
         : session.phase === 'playing' ? `${remaining} seconds left` : `${session.options.durationSec} second match`}</p>
       {session.phase === 'ready' && game.picksTeams && <p class="muted">Players pick sides on their phones.</p>}
+      {session.phase === 'ready' && session.id !== 'poker' && <p class="muted readout">{readyCount(state)} of {state.players.filter((p) => p.connected).length} ready</p>}
       <p class="muted">{session.participants.length} players in this match</p>
       {session.status?.map((line) => <p key={line.text}>
         {line.text}{line.until !== undefined && <> · <span class="readout">{clockLeft(line.until - now())}</span></>}

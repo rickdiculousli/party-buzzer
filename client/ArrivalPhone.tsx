@@ -1,6 +1,6 @@
 import './arrival-phone.css'
 import { activePracticePlayers, practiceLobbyId, type PracticeFeedback } from './arrival-feedback.ts'
-import type { ArrivalPresentation } from '../shared/arrival.ts'
+import { NEXT_LABEL, type ArrivalPresentation } from '../shared/arrival.ts'
 import type { PlayerId, State } from '../shared/protocol.ts'
 
 /**
@@ -21,9 +21,10 @@ export function ArrivalPhone({ state, arrival, playerId, connected, feedback, pu
   if (arrival.kind === 'introduction') {
     return (
       <div class="arrival-phone" data-review-id="phone:arrival-introduction">
-        <p class="eyebrow">First block</p>
+        <p class="eyebrow">{arrival.next ? NEXT_LABEL : 'First block'}</p>
         <h2 class="arrival-phone__title">{arrival.title}</h2>
         <p class="arrival-phone__text">{arrival.phone}</p>
+        {arrival.detail && <p class="arrival-phone__text">{arrival.detail}</p>}
         <p class="arrival-phone__wait chip">Waiting for the host</p>
       </div>
     )

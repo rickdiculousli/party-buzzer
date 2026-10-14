@@ -165,6 +165,23 @@ sanitizes `prepareMinigame` against it and the host renders its form from it.
 A setlist block may name a minigame (`isMinigameId`). Entering one leaves the
 quiz mode alone; the host opens the match from the Play tab, and the hub moves
 the setlist to the next block when that minigame closes, in the same undo step.
+
+Under autoplay the Hub also runs the night across blocks (`server/night.ts` holds
+the pure predicates; the timers are private Hub memory beside the collection
+timers). Entering any fresh block raises an introduction (`server/setlist.ts`
+`introduceBlock`, after setup and any duel), spoken by the Reader's `announce`
+when a performing voice is on. One timer keyed by the arrival id dismisses it
+after `autoplay.introSec`; the host's Continue does the same. Dismissal starts
+the block: `prepareMinigame` with the block's options for a minigame other than
+Poker, `reader.start()` for a block with a pack, nothing for Poker or a packless
+block. The match it opened is remembered by `matchId`; while it waits in `ready`,
+every connected player tapping Ready (`MinigameLobby.ready`) or a 60 s fallback
+dispatches `startMinigame`, and `nextSec` after results the Hub dispatches
+`closeMinigame`, which advances the setlist and raises the next introduction.
+Every step goes through `Hub.dispatch`, is re-derived from state after each
+`changed()` and undo, and accepts a refusal silently. A host cancel mints a new
+matchId and is left alone. Timers clear on undo, `clearSetlist`, `setlistJump`
+and autoplay off; the Reader stays the only `arm` issuer.
 On the client, `client/minigames.tsx` holds one registry row per minigame — name,
 timed flag, lobby side-picking, player surface, board surface — and
 `client/minigame-info.ts` holds the JSX-free half of it, including
@@ -249,7 +266,7 @@ one middle occupant, such as a clue or hero. Browser effects supply clock and
 animation progress. Equal inputs yield equal moments, but individual browsers
 can be at different local animation stages.
 
-Arrival state (`State.arrival`: an open lobby or a first-block introduction) is public
+Arrival state (`State.arrival`: an open lobby or a block introduction) is public
 to every role, so `arrivalPresentation` in `shared/arrival.ts` serves the board and
 phone alike. The Hub owns a lobby directly: `openLobby`/`closeArrival` for a lobby bypass
 history and `onChange`, and `practiceBuzz` marks a player tested in State, then relays a
@@ -369,7 +386,9 @@ recording is handled by `Talk.tsx`, `recorder.ts`, and `wav.ts`.
 | Current round/question and mode memory | Yes, with restore rules | No; retain round value and mode configuration |
 | Playback state and judge window | No | No |
 | Setlist position | Yes | Yes |
-| Arrival introduction | Yes, restored under a fresh id | No |
+| Arrival introduction (`blockKey` survives a restore, `id` does not) | Yes, restored under a fresh id | No |
+| Night automation timers and the match autoplay opened | No; undo clears them | No |
+| `autoplay.introSec`, minigame lobby `ready` | Yes | Yes |
 | Arrival lobby, tested ids, practice sequence | No; undo cancels a lobby | No |
 | Reader per-pack cursor | No | No |
 | Attempt-bound effects | Restored and restamped | Excluded; unassigned effects can persist |

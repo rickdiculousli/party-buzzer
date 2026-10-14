@@ -5,13 +5,13 @@ import { makeInk } from './definition.ts'
 import { CARDS } from './fixtures.ts'
 import type { InkWorld } from './types.ts'
 
-const lobby = { teams: { sw: 'sun', s1: 'sun', mw: 'moon', m1: 'moon' } as const, volunteers: ['sw', 'mw'] }
+const lobby = { teams: { sw: 'sun', s1: 'sun', mw: 'moon', m1: 'moon' } as const, volunteers: ['sw', 'mw'], ready: [] }
 const clock = (ms: number) => ms
 
 function setup() {
   const ink = makeInk(() => CARDS, mulberry32(5))
   assert.equal(ink.prepare?.(), null)
-  const { world } = ink.create(1, ['m1', 'mw', 's1', 'sw'], {}, { teams: { ...lobby.teams }, volunteers: [...lobby.volunteers] })
+  const { world } = ink.create(1, ['m1', 'mw', 's1', 'sw'], {}, { teams: { ...lobby.teams }, volunteers: [...lobby.volunteers], ready: [] })
   return { ink, world }
 }
 
@@ -21,7 +21,7 @@ test('prepare reports missing cards', () => {
 
 test('start uses the lobby rules', () => {
   const ink = makeInk(() => CARDS)
-  assert.equal(ink.startable?.({ teams: { a: 'sun' }, volunteers: [] }, ['a', 'b']), 'unpicked')
+  assert.equal(ink.startable?.({ teams: { a: 'sun' }, volunteers: [], ready: [] }, ['a', 'b']), 'unpicked')
 })
 
 test('classify accepts well-formed inputs only', () => {

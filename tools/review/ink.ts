@@ -41,7 +41,7 @@ export const inkSession = (phase: MinigameState['phase']): MinigameState => ({
   phase,
   options: { durationSec: 0, seed: 7 },
   participants: INK_PLAYERS.map((player) => player.id),
-  lobby: { teams: TEAMS, volunteers: WRITERS },
+  lobby: { teams: TEAMS, volunteers: WRITERS, ready: [] },
 })
 
 /** Deterministic so every capture of a scenario deals the same cards. */

@@ -136,6 +136,8 @@ export class Reader {
    * change would otherwise stop it as if it were the question being buzzed.
    */
   private quipback: Playback | undefined
+  /** Rises on stop and pause, so an announcement still rendering when either lands is dropped. */
+  private voiceEpoch = 0
   private picker = new Picker()
   private loop: Promise<void> = Promise.resolve()
   private running = false
@@ -373,6 +375,33 @@ export class Reader {
     if (this.quipback === pb) this.quipback = undefined
   }
 
+  /**
+   * Say an introduction, in the quip slot so a stop or pause cuts it. Only a
+   * performing voice does; anything else is silent. Rendered on first use and
+   * kept like a cue. Never throws: an unrendered line is simply not spoken.
+   */
+  announce(text: string): void {
+    if (!this.opts.perform || !text) return
+    const epoch = this.voiceEpoch
+    void (async () => {
+      if (!this.ready.has(text)) {
+        this.ready.set(text, this.speech.render(this.opts.cacheDir, text, this.opts.voice).then(
+          (clip) => { this.clips.set(text, clip.path) },
+          (e) => { console.warn(`[reader] could not render announcement — ${e}`) },
+        ))
+      }
+      await this.ready.get(text)
+      const path = this.clips.get(text)
+      // A stop or pause since the request cancels it.
+      if (!path || epoch !== this.voiceEpoch) return
+      const pb = this.speech.play(path)
+      this.quipback?.stop()
+      this.quipback = pb
+      await pb.done
+      if (this.quipback === pb) this.quipback = undefined
+    })().catch((e) => console.warn(`[reader] announcement failed — ${e}`))
+  }
+
   /** A fixed line, in the quip slot so pause and stop cut it. Unrendered, it is skipped. */
   private async cue(text: string | undefined): Promise<void> {
     if (!text) return
@@ -427,12 +456,13 @@ export class Reader {
     this.publish({})
     const session = this.session
     this.loop = this.run().finally(() => {
-      if (this.session === session) this.stop()
+      if (this.session === session && this.running) this.stop()
     })
   }
 
   pause(): void {
     this.paused = true
+    this.voiceEpoch += 1
     // Kill the clip; `speak` sees `paused` still set and holds, then replays it.
     this.playback?.stop()
     this.quipback?.stop()
@@ -451,6 +481,7 @@ export class Reader {
 
   stop(): void {
     this.running = false
+    this.voiceEpoch += 1
     this.session.abort()
     this.paused = false
     this.playback?.stop()
@@ -521,6 +552,10 @@ export class Reader {
       if (b.pack) void this.ensure(b.pack).catch((e) => console.warn(`[reader] ${b.pack}: ${e}`))
     }
 
+    // Whether the loop ended because there is nothing left to read. A stop or
+    // an abort ends it too (an introduction stops the reader on purpose), and
+    // that must leave autoplay exactly as it was.
+    let spent = false
     while (this.running) {
       // One question, one scope, and the scope is a signal rather than a flag
       // somebody has to remember to test. Everything below is awaited with it,
@@ -536,13 +571,19 @@ export class Reader {
       let mine = true
       try {
         const want = this.nextPack()
-        if (!want) break
+        if (!want) {
+          spent = true
+          break
+        }
         if (want !== this.pack) {
           await this.ensure(want, this.session.signal)
           this.pack = want
         }
         const q = this.questions[this.qIndex]
-        if (!q) break
+        if (!q) {
+          spent = true
+          break
+        }
         // The one place the warm start can bite: a room that outran the renderer.
         // Wait here rather than arming onto a clip that does not exist yet, which
         // would open the buzzers on silence.
@@ -665,6 +706,7 @@ export class Reader {
         this.wake()
       }
     }
+    if (!spent) return
     // The pack is spent, so autoplay goes off with it. Leaving it on would hand
     // the room back to a host whose next question advances itself out from
     // under them; off, the game simply carries on by hand.

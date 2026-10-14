@@ -224,7 +224,7 @@ test('prepare refuses with the definition reason and creates an empty lobby othe
   withToy(() => {
     const r = rig()
     assert.deepEqual(prepareToy(r), { status: 'applied' })
-    assert.deepEqual(r.state.minigame?.lobby, { teams: {}, volunteers: [] })
+    assert.deepEqual(r.state.minigame?.lobby, { teams: {}, volunteers: [], ready: [] })
   })
 })
 

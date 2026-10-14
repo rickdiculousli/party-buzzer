@@ -46,7 +46,7 @@ test('undo stops playback and reopens collection instead of restoring a missing 
   const state = newState()
   let stopped = 0
   const hub = new Hub(state, { reader: {
-    async select() {}, start() {}, pause() {}, resume() {}, rewind() {}, closeChoice() {}, stop() { stopped++ },
+    async select() {}, start() {}, pause() {}, resume() {}, rewind() {}, closeChoice() {}, announce() {}, stop() { stopped++ },
   } })
   state.round.phase = 'COLLECTING'
   state.round.order = [{ playerId: 'a', name: 'Ada', at: 1, deltaMs: 0 }]
@@ -152,7 +152,7 @@ test('arrival never reaches disk, and loading strips a crafted one from either f
   t.after(() => rmSync(dir, { recursive: true, force: true }))
   const state = newState()
   state.setlist = { blocks: [{ game: 'trivia', options: {}, count: 2 }], at: 0, done: 0 }
-  state.arrival = { kind: 'introduction', id: 'i', blockAt: 0 }
+  state.arrival = { kind: 'introduction', id: 'i', blockAt: 0, blockKey: '0:trivia' }
   assert.equal('arrival' in persistedSnapshot(state).state, false)
 
   const file = join(dir, 'crafted.json')
@@ -165,4 +165,27 @@ test('arrival never reaches disk, and loading strips a crafted one from either f
   state.arrival = { kind: 'lobby', id: 'l', testedPlayerIds: [] }
   writeFileSync(file, JSON.stringify(state))
   assert.equal(loadState(file).arrival, undefined, 'the legacy spread is stripped too')
+})
+
+test('introSec and the lobby ready list persist, and an older file gets their defaults', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'buzzer-snapshot-'))
+  t.after(() => rmSync(dir, { recursive: true, force: true }))
+  const state = newState()
+  state.autoplay = { on: true, nextSec: 5, buzzSec: 10, reboundSec: 4, introSec: 7 }
+  state.minigame = {
+    id: 'bow', matchId: 'm', phase: 'ready', options: { durationSec: 40, seed: 1 }, participants: [],
+    lobby: { teams: {}, volunteers: [], ready: ['ada'] },
+  }
+  const file = join(dir, 'new.json')
+  writeFileSync(file, JSON.stringify(persistedSnapshot(state)))
+  const loaded = loadState(file)
+  assert.equal(loaded.autoplay.introSec, 7)
+  assert.deepEqual(loaded.minigame?.lobby?.ready, ['ada'])
+
+  const old = persistedSnapshot(state)
+  const legacy = { ...old, state: { ...old.state, autoplay: { on: true, nextSec: 5, buzzSec: 10, reboundSec: 4 }, minigame: { ...old.state.minigame, lobby: { teams: {}, volunteers: [] } } } }
+  writeFileSync(file, JSON.stringify(legacy))
+  const upgraded = loadState(file)
+  assert.equal(upgraded.autoplay.introSec, 12)
+  assert.deepEqual(upgraded.minigame?.lobby?.ready, [])
 })

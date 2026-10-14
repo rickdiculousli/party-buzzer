@@ -1,5 +1,5 @@
 import './arrival-host.css'
-import { arrivalBlocksPlay } from '../shared/arrival.ts'
+import { NEXT_LABEL, arrivalBlocksPlay, arrivalPresentation } from '../shared/arrival.ts'
 import { refuses } from '../shared/legality.ts'
 import type { HostAction, State } from '../shared/protocol.ts'
 import { REFUSAL_TEXT } from './ui.ts'
@@ -21,12 +21,18 @@ export function ArrivalHost({ state, act }: { state: State; act: (action: HostAc
   const arrival = state.arrival
 
   if (arrival?.kind === 'introduction') {
+    const shown = arrivalPresentation(state)
+    const title = shown?.kind === 'introduction' ? [shown.title, shown.detail].filter(Boolean).join(' · ') : ''
     return (
       <section class="arrival-host" data-review-id="host:arrival-introduction">
-        <p class="eyebrow">First block</p>
+        <p class="eyebrow">{arrival.blockAt > 0 ? NEXT_LABEL : 'First block'}{title && ` ${title}`}</p>
         <div class="arrival-host__row">
           <button class="btn btn--primary" onClick={() => act({ a: 'closeArrival', arrivalId: arrival.id })}>Continue</button>
-          <p class="arrival-host__note">Reading and arming wait until you continue.</p>
+          <p class="arrival-host__note">
+            {state.autoplay.on
+              ? `Continues by itself after ${state.autoplay.introSec} s.`
+              : 'Reading and arming wait until you continue.'}
+          </p>
         </div>
       </section>
     )

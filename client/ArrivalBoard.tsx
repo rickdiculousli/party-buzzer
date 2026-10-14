@@ -1,7 +1,7 @@
 import './arrival-board.css'
 import { activePracticePlayers, practiceLobbyId, type PracticeFeedback } from './arrival-feedback.ts'
 import { colorForPlayer } from './ui.ts'
-import type { ArrivalPresentation } from '../shared/arrival.ts'
+import { NEXT_LABEL, type ArrivalPresentation } from '../shared/arrival.ts'
 import type { State } from '../shared/protocol.ts'
 
 /**
@@ -19,9 +19,10 @@ export function ArrivalBoard({ state, arrival, feedback, pulseNow }: {
   if (arrival.kind === 'introduction') {
     return (
       <div class="arrival-board" data-review-id="board:arrival-introduction">
-        <p class="eyebrow arrival-board__label">First block</p>
+        <p class="eyebrow arrival-board__label">{arrival.next ? NEXT_LABEL : 'First block'}</p>
         <h2 class="arrival-board__title fx-rise">{arrival.title}</h2>
         <p class="arrival-board__goal">{arrival.goal}</p>
+        {arrival.detail && <p class="arrival-board__goal">{arrival.detail}</p>}
       </div>
     )
   }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { applyLobby, lobbyStartable, teamMembers } from './lobby.ts'
 import type { MinigameLobby } from '../../shared/protocol.ts'
 
-const empty = (): MinigameLobby => ({ teams: {}, volunteers: [] })
+const empty = (): MinigameLobby => ({ teams: {}, volunteers: [], ready: [] })
 
 test('joining, switching and leaving update the team and drop the volunteer mark', () => {
   const lobby = empty()
@@ -44,4 +44,19 @@ test('disconnected picks do not count toward a team', () => {
   }
   assert.deepEqual(teamMembers(lobby, ['a', 'b', 'c'], 'moon'), ['c'])
   assert.equal(lobbyStartable(lobby, ['a', 'b', 'c']), 'team-too-small')
+})
+
+test('ready is a per-player flag that toggles and reports only real changes', () => {
+  const lobby = empty()
+  assert.equal(applyLobby(lobby, 'ada', { do: 'ready', on: false }), false)
+  assert.equal(applyLobby(lobby, 'ada', { do: 'ready', on: true }), true)
+  assert.equal(applyLobby(lobby, 'ada', { do: 'ready', on: true }), false)
+  applyLobby(lobby, 'bo', { do: 'ready', on: true })
+  assert.deepEqual(lobby.ready, ['ada', 'bo'])
+  assert.equal(applyLobby(lobby, 'ada', { do: 'ready', on: false }), true)
+  assert.deepEqual(lobby.ready, ['bo'])
+  // Teams are untouched by it, and an old lobby without the list still works.
+  const old = { teams: {}, volunteers: [] } as unknown as MinigameLobby
+  assert.equal(applyLobby(old, 'cy', { do: 'ready', on: true }), true)
+  assert.deepEqual(old.ready, ['cy'])
 })

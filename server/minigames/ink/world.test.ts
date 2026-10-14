@@ -12,7 +12,7 @@ function world(): InkWorld {
     rand: mulberry32(1),
     cards: CARDS,
     participants: ['m1', 'mw', 's1', 's2', 'sw'],
-    lobby: { teams: { sw: 'sun', s1: 'sun', s2: 'sun', mw: 'moon', m1: 'moon' }, volunteers: ['sw', 'mw'] },
+    lobby: { teams: { sw: 'sun', s1: 'sun', s2: 'sun', mw: 'moon', m1: 'moon' }, volunteers: ['sw', 'mw'], ready: [] },
   })
 }
 
@@ -41,7 +41,7 @@ test('volunteers write, everyone else guesses, and each team holds seven prompts
 test('without volunteers a team member is drawn as writer', () => {
   const w = createInkWorld({
     rand: mulberry32(3), cards: CARDS, participants: ['a', 'b', 'c', 'd'],
-    lobby: { teams: { a: 'sun', b: 'sun', c: 'moon', d: 'moon' }, volunteers: [] },
+    lobby: { teams: { a: 'sun', b: 'sun', c: 'moon', d: 'moon' }, volunteers: [], ready: [] },
   })
   assert.ok(['a', 'b'].includes(w.roster.sun.writer))
   assert.equal(w.roster.sun.guessers.length, 1)

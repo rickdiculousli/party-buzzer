@@ -20,7 +20,7 @@ test('lobby columns count connected members and flag overfill', () => {
   ]
   state.minigame = {
     id: 'ink', matchId: 'm', phase: 'ready', options: { durationSec: 40, seed: 1 }, participants: [],
-    lobby: { teams: { a: 'sun', b: 'sun', c: 'sun', d: 'moon' }, volunteers: ['b'] },
+    lobby: { teams: { a: 'sun', b: 'sun', c: 'sun', d: 'moon' }, volunteers: ['b'], ready: [] },
   }
   const [sun, moon] = lobbyColumns(state)
   assert.equal(sun.count, 3)

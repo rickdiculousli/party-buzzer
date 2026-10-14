@@ -595,7 +595,7 @@ const ACTIONS: HostAction[] = [
   { a: 'assign', playerId: 'p1', teamId: 't1' },
   { a: 'setMode', id: 'quizbowl', options: {} },
   { a: 'setMirror', on: true },
-  { a: 'setAutoplay', on: true, nextSec: 3, buzzSec: 3, reboundSec: 2 },
+  { a: 'setAutoplay', on: true, nextSec: 3, buzzSec: 3, reboundSec: 2, introSec: 12 },
   // 'host-pick' rather than 'random': an instant rule seats (or deletes itself)
   // on the spot, which makes what the action did depend on the draw.
   { a: 'openDuel', rule: 'host-pick' },

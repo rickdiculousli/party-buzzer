@@ -28,7 +28,7 @@ function room(): State {
     mirrorFragments: false,
     answerWindowSec: 0,
     choiceSec: 20,
-    autoplay: { on: false, nextSec: 4, buzzSec: 4, reboundSec: 3 },
+    autoplay: { on: false, nextSec: 4, buzzSec: 4, reboundSec: 3, introSec: 12 },
   }
 }
 
@@ -414,7 +414,7 @@ test('a payoff keeps the winner on the stage, in a duel and out of one', () => {
  */
 test('the box picking the question back up ends the penalty, dwell or no dwell', () => {
   const s = room()
-  s.autoplay = { on: true, nextSec: 4, buzzSec: 4, reboundSec: 3 }
+  s.autoplay = { on: true, nextSec: 4, buzzSec: 4, reboundSec: 3, introSec: 12 }
   s.readingActive = true
   s.reading = {
     pack: 'p', qIndex: 0, qTotal: 3, fragIndex: 1, fragTotal: 4,

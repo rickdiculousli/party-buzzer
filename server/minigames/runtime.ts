@@ -69,7 +69,7 @@ export class MinigameRuntime {
       this.resetTransient()
       this.state.minigame = {
         id: action.id, matchId: randomUUID(), phase: 'ready', options, participants: [],
-        lobby: { teams: {}, volunteers: [] },
+        lobby: { teams: {}, volunteers: [], ready: [] },
       }
       return { status: 'applied' }
     }
@@ -82,13 +82,15 @@ export class MinigameRuntime {
       if (session.phase !== 'ready') return { status: 'unchanged' }
       const participants = this.state.players.filter((player) => player.connected).map((player) => player.id).sort()
       if (participants.length === 0) return { status: 'refused', reason: 'no-players' }
-      const lobby: MinigameLobby = session.lobby ?? { teams: {}, volunteers: [] }
+      const lobby: MinigameLobby = session.lobby ?? { teams: {}, volunteers: [], ready: [] }
       const startRefusal = definition.prepare?.() ?? definition.startable?.(lobby, participants)
       if (startRefusal) return { status: 'refused', reason: startRefusal }
       const startsAt = this.now() + COUNTDOWN_MS
       session.matchId = randomUUID()
       session.phase = 'countdown'
       session.participants = participants
+      // A cancel back to ready asks for a fresh Ready from everyone.
+      lobby.ready = []
       session.startsAt = startsAt
       session.endsAt = definition.untimed ? undefined : startsAt + session.options.durationSec * 1_000
       delete session.results

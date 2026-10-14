@@ -392,12 +392,18 @@ export function validPoints(points: unknown): points is InkPoint[] {
     Array.isArray(p) && p.length === 2 && p.every((n) => typeof n === 'number' && n >= INK_REACH.min && n <= INK_REACH.max))
 }
 
-export type MinigameLobby = { teams: Record<PlayerId, InkTeamName>; volunteers: PlayerId[] }
+export type MinigameLobby = {
+  teams: Record<PlayerId, InkTeamName>
+  volunteers: PlayerId[]
+  /** Players who tapped Ready; autoplay starts the match when every connected player has. */
+  ready: PlayerId[]
+}
 
 export type LobbyChange =
   | { do: 'join'; team: InkTeamName }
   | { do: 'leave' }
   | { do: 'volunteer'; on: boolean }
+  | { do: 'ready'; on: boolean }
 
 export type MinigameTouch = { playerId: PlayerId; name: string; target: string; x: number; y: number }
 
@@ -654,14 +660,16 @@ export type InkPrivate = {
 
 /**
  * The opening of a game night: a lobby where joined players test their
- * buzzers, or the introduction to a fresh setlist's first block. Every entry
+ * buzzers, or the introduction to a block of the setlist (the first on a fresh
+ * start; any block entered under autoplay). `blockKey` names the block's
+ * position and content and survives an undo restore, which changes `id`. Every entry
  * gets a fresh id, so a control or receipt from an older arrival cannot act on
  * a newer one. Runtime only: undo keeps an introduction, never a lobby, and
  * neither reaches disk.
  */
 export type Arrival =
   | { kind: 'lobby'; id: string; testedPlayerIds: PlayerId[] }
-  | { kind: 'introduction'; id: string; blockAt: 0 }
+  | { kind: 'introduction'; id: string; blockAt: number; blockKey: string }
 
 /** The server's echo of one accepted practice press. `seq` rises within a lobby. */
 export type PracticeReceipt = {
@@ -683,6 +691,8 @@ export type Autoplay = {
   buzzSec: number
   /** Seconds of silence after a wrong answer before the clue picks back up. */
   reboundSec: number
+  /** Seconds an introduction holds the room before it dismisses itself. */
+  introSec: number
 }
 
 export type State = {
@@ -756,8 +766,8 @@ export type HostAction =
   /** `keepScores` is the setlist crossing a block boundary; a host switch resets. */
   | { a: 'setMode'; id: string; options: Record<string, unknown>; keepScores?: boolean }
   | { a: 'setMirror'; on: boolean }
-  /** The whole triple every time: one edit, one undo step, no partial merge. */
-  | { a: 'setAutoplay'; on: boolean; nextSec: number; buzzSec: number; reboundSec: number }
+  /** The whole quadruple every time: one edit, one undo step, no partial merge. */
+  | { a: 'setAutoplay'; on: boolean; nextSec: number; buzzSec: number; reboundSec: number; introSec: number }
   | { a: 'openDuel'; rule: string }
   /** ids = host override (and the only path for resolve:'host' rules); absent = resolve by rule. */
   | { a: 'closeDuel'; playerIds?: [PlayerId, PlayerId] }

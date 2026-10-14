@@ -3494,3 +3494,16 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .poker-hole--gpu-peek > .poker-peek-canvas { visibility: visible; }
 .poker-hole--gpu-peek > .poker-hole__card > .poker-card { visibility: hidden; }
 .poker-hole--peek-fallback .poker-card__turn { transform: rotateY(0deg); }
+
+/* The shared Ready control on every minigame phone while the match waits. */
+.minigame-ready {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  padding: var(--s3) var(--s3) calc(var(--s3) + env(safe-area-inset-bottom));
+  background: var(--panel);
+}
+.minigame-ready__btn { width: 100%; }
+.minigame-ready__btn.is-on { border-color: var(--brass); color: var(--brass); }

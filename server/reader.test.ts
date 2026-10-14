@@ -72,6 +72,7 @@ function rig(packBody: string) {
     speech,
   })
   hub.setOnChange((s) => reader.onStateChange(s))
+  hub.setReader(reader)
   return { hub, state, reader, speech }
 }
 
@@ -101,6 +102,7 @@ test('the host waits for the first question, not the whole pack', async () => {
   }
   const reader = new Reader(hub, { packDir, cacheDir: packDir + '/.cache', speech })
   hub.setOnChange((s) => reader.onStateChange(s))
+  hub.setReader(reader)
 
   await reader.select('one.txt') // returns on the first question, not the last
   assert.equal(state.reading?.qTotal, 2)
@@ -291,10 +293,10 @@ test('a wrong answer rebounds and the interrupted fragment is re-read', async ()
 })
 
 /** Turn autoplay on with dwells short enough to test against. */
-function autoplay(hub: Hub, nextSec: number, reboundSec: number): void {
+function autoplay(hub: Hub, nextSec: number, reboundSec: number, introSec = 0.1): void {
   hub.handle({ id: 'h', role: 'host', send: () => {} }, {
     t: 'host',
-    action: { a: 'setAutoplay', on: true, nextSec, buzzSec: nextSec, reboundSec },
+    action: { a: 'setAutoplay', on: true, nextSec, buzzSec: nextSec, reboundSec, introSec },
   })
 }
 
@@ -444,6 +446,7 @@ test('a setlist reads each block from its own pack, and keeps each pack its plac
   const speech = fakeSpeech()
   const reader = new Reader(hub, { packDir, cacheDir: join(packDir, '.cache'), speech })
   hub.setOnChange((s) => reader.onStateChange(s))
+  hub.setReader(reader)
 
   hub.handle({ id: 'h', role: 'host', send: () => {} }, {
     t: 'host',
@@ -459,6 +462,9 @@ test('a setlist reads each block from its own pack, and keeps each pack its plac
   hub.dispatch({ a: 'closeArrival', arrivalId: state.arrival!.id })
   autoplay(hub, 0.1, 0)
   reader.start()
+  // Each seam raises an introduction that stops the reader and, once it
+  // dismisses itself, starts it again; the night ends when the autoplay does.
+  while (state.autoplay.on) await wait(5)
   await settled(reader)
 
   // Block 3 returns to pack A and gets its second question, not its first.
@@ -509,6 +515,7 @@ test('Read starts every spent pack over, not only the one it left off in', async
   const speech = fakeSpeech()
   const reader = new Reader(hub, { packDir, cacheDir: join(packDir, '.cache'), speech })
   hub.setOnChange((s) => reader.onStateChange(s))
+  hub.setReader(reader)
   hub.handle({ id: 'h', role: 'host', send: () => {} }, {
     t: 'host',
     action: {
@@ -523,6 +530,7 @@ test('Read starts every spent pack over, not only the one it left off in', async
   autoplay(hub, 0.1, 0)
 
   reader.start()
+  while (state.autoplay.on) await wait(5)
   await settled(reader)
   assert.deepEqual(speech.spoken, ['A one.', 'B one.'])
 
@@ -532,6 +540,7 @@ test('Read starts every spent pack over, not only the one it left off in', async
   hub.handle({ id: 'h', role: 'host', send: () => {} }, { t: 'host', action: { a: 'setlistJump', at: 0 } })
   autoplay(hub, 0.1, 0)
   reader.start()
+  while (state.autoplay.on) await wait(5)
   await settled(reader)
   assert.deepEqual(
     speech.spoken,
@@ -639,7 +648,7 @@ test('the host closes picking early', async () => {
 test('autoplay moves on from a settled choice question', async () => {
   const { hub, state, reader, speech } = rig(CHOICE + '\nV: 100\nNext.\nA: x\n')
   const [ada] = withPhones(hub, ['ada'])
-  hub.dispatch({ a: 'setAutoplay', on: true, nextSec: 0.01, buzzSec: 0.01, reboundSec: 0.01 })
+  hub.dispatch({ a: 'setAutoplay', on: true, nextSec: 0.01, buzzSec: 0.01, reboundSec: 0.01, introSec: 12 })
   await reader.select('one.txt')
   reader.start()
   while (!state.round.choices) await tick()
@@ -665,6 +674,7 @@ test('a quip on a right answer does not stall autoplay', { timeout: 5000 }, asyn
     quips: { pools: { correct: [], wrong: [], nobody: [] } },
   })
   hub.setOnChange((s) => reader.onStateChange(s))
+  hub.setReader(reader)
   autoplay(hub, 0.2, 0)
   await reader.select('one.txt')
   reader.start()
@@ -699,6 +709,7 @@ test('a pool quip plays its own whole take, not a cut of the pool', { timeout: 5
     quips: { pools: { correct: [{ text: '[snickers] Okay.', sincere: false }, { text: 'Fine.', sincere: false }], wrong: [], nobody: [] } },
   })
   hub.setOnChange((s) => reader.onStateChange(s))
+  hub.setReader(reader)
   autoplay(hub, 0.2, 0)
   await reader.select('one.txt')
   reader.start()
@@ -715,4 +726,63 @@ test('a pool quip plays its own whole take, not a cut of the pool', { timeout: 5
   reader.stop()
   await settled(reader)
   assert.deepEqual(speech.spoken, ['One.', '[snickers] Okay.', 'Two.'], 'the line was its own clip, played whole')
+})
+
+test('its own Next into a fresh block keeps autoplay on, waits out the introduction, then reads on', async () => {
+  const packDir = mkdtempSync(join(tmpdir(), 'pb-reader-seam-'))
+  writeFileSync(join(packDir, 'a.txt'), 'A one.\nA: a\n')
+  writeFileSync(join(packDir, 'b.txt'), 'B one.\nA: b\n')
+  const state = newState()
+  const hub = new Hub(state)
+  const speech = fakeSpeech()
+  const reader = new Reader(hub, { packDir, cacheDir: join(packDir, '.cache'), speech })
+  hub.setOnChange((s) => reader.onStateChange(s))
+  hub.setReader(reader)
+  hub.dispatch({
+    a: 'setSetlist',
+    blocks: [
+      { game: 'trivia', options: {}, count: 1, pack: 'a.txt' },
+      { game: 'trivia', options: {}, count: 1, pack: 'b.txt' },
+    ],
+  })
+  hub.dispatch({ a: 'closeArrival', arrivalId: state.arrival!.id })
+  autoplay(hub, 0.1, 0, 2)
+  reader.start()
+
+  while (state.arrival?.kind !== 'introduction') await wait(5)
+  assert.equal(state.arrival.blockAt, 1)
+  assert.equal(state.autoplay.on, true, 'the seam is not the end of the pack')
+  assert.equal(state.readingActive, false, 'the introduction stopped the reader')
+  await wait(1_500)
+  assert.deepEqual(speech.spoken, ['A one.'], 'nothing is read over the introduction')
+
+  await wait(600)
+  assert.equal(state.arrival, undefined)
+  while (speech.spoken.length < 2) await wait(5)
+  assert.deepEqual(speech.spoken, ['A one.', 'B one.'], 'and the next block resumes by itself')
+  while (state.autoplay.on) await wait(5)
+  await settled(reader)
+})
+
+test('an announcement is spoken only by a performing voice, and never throws', async () => {
+  const quiet = rig(PACK)
+  quiet.reader.announce('Next: Sketch.')
+  await wait(20)
+  assert.deepEqual(quiet.speech.spoken, [])
+
+  const packDir = mkdtempSync(join(tmpdir(), 'pb-reader-announce-'))
+  const state = newState()
+  const hub = new Hub(state)
+  const speech = fakeSpeech()
+  const reader = new Reader(hub, { packDir, cacheDir: join(packDir, '.cache'), speech, perform: true })
+  reader.announce('Next: Sketch.')
+  await wait(20)
+  assert.deepEqual(speech.spoken, ['Next: Sketch.'])
+
+  const broken = new Reader(hub, {
+    packDir, cacheDir: join(packDir, '.cache'), perform: true,
+    speech: { render: async () => { throw new Error('no voice') }, play: () => { throw new Error('unreachable') } },
+  })
+  broken.announce('Next: Tank battle.')
+  await wait(20)
 })

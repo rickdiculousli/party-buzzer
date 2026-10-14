@@ -6,7 +6,7 @@ import { STEP_MS, drawerOf, type SketchWorld } from './world.ts'
 
 const WORDS = ['banana', 'cherry', 'dragon', 'eggplant', 'fennel', 'grapes', 'honeydew', 'kiwifruit', 'lemons']
 const clock = (worldMs: number) => 1_000 + worldMs
-const lobby = { teams: {}, volunteers: [] }
+const lobby = { teams: {}, volunteers: [], ready: [] }
 
 function started() {
   const def = makeSketch(() => WORDS, mulberry32(1))

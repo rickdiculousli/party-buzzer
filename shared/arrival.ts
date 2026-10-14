@@ -5,7 +5,7 @@
  * surface. The copy registry is descriptive data, not rules: it names a game
  * and says what to expect, and nothing reads it to decide eligibility.
  */
-import type { PlayerId, State } from './protocol.ts'
+import { isMinigameId, type PlayerId, type SetlistBlock, type State } from './protocol.ts'
 
 /** How long a practice press lights its player, measured locally from receipt. */
 export const PRACTICE_PULSE_MS = 600
@@ -13,7 +13,18 @@ export const PRACTICE_PULSE_MS = 600
 export type IntroductionCopy = { title: string; goal: string; phone: string }
 
 /** The public arrival occupant: the same facts on the board and every phone. */
-export type ArrivalPresentation = { kind: 'lobby' } | ({ kind: 'introduction' } & IntroductionCopy)
+export type ArrivalPresentation =
+  | { kind: 'lobby' }
+  | ({
+    kind: 'introduction'
+    /** The block's own facts, composed: counts, value, duel rule, or what a minigame will ask of the phones. */
+    detail?: string
+    /** True past the first block: the screen says "Next:" before the title. */
+    next: boolean
+  } & IntroductionCopy)
+
+/** The label a later block's introduction carries before its title. */
+export const NEXT_LABEL = 'Next:'
 
 const INTRODUCTIONS: Record<string, IntroductionCopy> = {
   trivia: {
@@ -34,12 +45,12 @@ const INTRODUCTIONS: Record<string, IntroductionCopy> = {
   tank: {
     title: 'Tank battle',
     goal: 'Work with your crew to earn points',
-    phone: 'Your controls and crew appear when the host opens the match.',
+    phone: 'Your controls and crew appear when the match opens.',
   },
   ink: {
     title: 'Phantom Ink',
     goal: 'Help your team find the secret word',
-    phone: 'Choose a team when the host opens the game.',
+    phone: 'Choose a team when the match opens.',
   },
   buzzer: {
     title: 'Pure buzzer',
@@ -82,6 +93,26 @@ export function introductionFor(gameId: string): IntroductionCopy {
     : { title: gameId, goal: 'The host will explain this game', phone: 'Wait for the host to begin' }
 }
 
+/** Whether autoplay will open this block's match by itself: every minigame but Poker, which the host runs. */
+export function autoPrepares(state: State, block: SetlistBlock): boolean {
+  return state.autoplay.on && isMinigameId(block.game) && block.game !== 'poker'
+}
+
+/** "5 questions · 200 points · Duels: Vote" for a quiz block; "Tap Ready" for a minigame that opens itself. */
+function blockDetail(state: State, block: SetlistBlock): string | undefined {
+  if (isMinigameId(block.game)) return autoPrepares(state, block) ? 'Tap Ready' : undefined
+  const parts = [`${block.count} ${block.count === 1 ? 'question' : 'questions'}`]
+  if (block.value !== undefined) parts.push(`${block.value} points`)
+  if (block.duel) parts.push(`Duels: ${state.duelRules.find((rule) => rule.id === block.duel)?.name ?? block.duel}`)
+  return parts.join(' · ')
+}
+
+/** What the voice says: "Next: Sketch. Draw the word, or guess it fast. Tap Ready." */
+export function introductionLine(p: Extract<ArrivalPresentation, { kind: 'introduction' }>): string {
+  const stop = (text: string) => (/[.!?]$/.test(text) ? text : `${text}.`)
+  return [...(p.next ? [NEXT_LABEL] : []), `${p.title}.`, stop(p.goal), ...(p.detail ? [stop(p.detail)] : [])].join(' ')
+}
+
 /**
  * What covers the room, from facts every role receives: the arrival and the
  * setlist's block names. Never round content, picks, or reader progress, so a
@@ -91,6 +122,12 @@ export function arrivalPresentation(state: State): ArrivalPresentation | null {
   const a = state.arrival
   if (!a) return null
   if (a.kind === 'lobby') return { kind: 'lobby' }
-  const game = state.setlist?.blocks[a.blockAt]?.game ?? state.game.id
-  return { kind: 'introduction', ...introductionFor(game) }
+  const block = state.setlist?.blocks[a.blockAt]
+  const detail = block && blockDetail(state, block)
+  return {
+    kind: 'introduction',
+    ...introductionFor(block?.game ?? state.game.id),
+    ...(detail && { detail }),
+    next: a.blockAt > 0,
+  }
 }

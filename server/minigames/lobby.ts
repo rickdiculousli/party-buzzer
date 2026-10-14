@@ -25,6 +25,12 @@ export function applyLobby(lobby: MinigameLobby, playerId: PlayerId, change: Lob
     else unvolunteer()
     return true
   }
+  if (change.do === 'ready') {
+    const ready = lobby.ready ?? (lobby.ready = [])
+    if (change.on === ready.includes(playerId)) return false
+    lobby.ready = change.on ? [...ready, playerId] : ready.filter((id) => id !== playerId)
+    return true
+  }
   return false
 }
 

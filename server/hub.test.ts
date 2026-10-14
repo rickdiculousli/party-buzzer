@@ -1,4 +1,4 @@
-import test from 'node:test'
+import test, { mock } from 'node:test'
 import assert from 'node:assert/strict'
 import { Hub, type Conn } from './hub.ts'
 import { newState } from './state.ts'
@@ -246,6 +246,7 @@ test('a selectPack that fails is logged, not thrown — the process must survive
     reader: {
       select: () => Promise.reject(new Error('no such pack')),
       start: () => {},
+      announce: () => {},
       pause: () => {},
       resume: () => {},
       stop: () => {},
@@ -367,7 +368,7 @@ test('lobby picks broadcast state and touches reach only the named audience', ()
   const bo = conn('player')
   joinAs(hub, ada, 'Ada')
   joinAs(hub, bo, 'Bo')
-  state.minigame = { id: 'bow', matchId: 'm', phase: 'ready', options: { durationSec: 40, seed: 1 }, participants: [], lobby: { teams: {}, volunteers: [] } }
+  state.minigame = { id: 'bow', matchId: 'm', phase: 'ready', options: { durationSec: 40, seed: 1 }, participants: [], lobby: { teams: {}, volunteers: [], ready: [] } }
   hub.handle(ada, { t: 'minigameLobby', change: { do: 'join', team: 'sun' } })
   assert.equal(lastState(1).minigame?.lobby?.teams[ada.playerId!], 'sun')
 
@@ -585,7 +586,7 @@ test('a fresh setlist over a retained verdict or choice reveal shows only the in
     assert.equal(momentOf(phone, local), 'arrival:introduction', leftover)
 
     const wall = wallOf(board, local)
-    assert.deepEqual(wall.arrival, { kind: 'introduction', ...introductionFor('quizbowl') })
+    assert.deepEqual(wall.arrival, { kind: 'introduction', ...introductionFor('quizbowl'), detail: '2 questions', next: false })
     for (const lane of ['hero', 'clue', 'nominations', 'faceoff', 'call', 'finale', 'next',
       'unanswered', 'transcript', 'award', 'value', 'choices'] as const) {
       assert.equal(wall[lane], null, `${leftover}: ${lane}`)
@@ -624,4 +625,24 @@ test('a kept-cursor setlist edit keeps the pending introduction; an identical on
   assert.equal(hub.dispatch({ a: 'setSetlist', blocks: [{ game: 'trivia', options: {}, count: 2 }, { game: 'trivia', options: {}, count: 4 }] }).status, 'applied')
   assert.equal(state.arrival?.id, id)
   assert.equal(hub.dispatch({ a: 'setSetlist', blocks: [{ game: 'trivia', options: {}, count: 2 }, { game: 'trivia', options: {}, count: 4 }] }).status, 'unchanged')
+})
+
+test('clearSetlist clears the night\'s pending timers', () => {
+  mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+  try {
+    const { state, hub } = rig()
+    const held = () => (hub as unknown as { night: Map<string, unknown> }).night.size
+    hub.dispatch({ a: 'setAutoplay', on: true, nextSec: 5, buzzSec: 10, reboundSec: 4, introSec: 12 })
+    hub.dispatch({ a: 'setSetlist', blocks: [{ game: 'trivia', options: {}, count: 1 }] })
+    assert.equal(held(), 1, 'the introduction is on a clock')
+    assert.equal(hub.dispatch({ a: 'clearSetlist' }).status, 'applied')
+    assert.equal(state.arrival, undefined)
+    assert.equal(held(), 0)
+    // A refusal or a no-op touches nothing: a second clear changes no timer.
+    hub.dispatch({ a: 'setSetlist', blocks: [{ game: 'trivia', options: {}, count: 1 }] })
+    assert.equal(hub.dispatch({ a: 'closeArrival', arrivalId: 'stale' }).status, 'refused')
+    assert.equal(held(), 1)
+  } finally {
+    mock.timers.reset()
+  }
 })

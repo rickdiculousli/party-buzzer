@@ -34,7 +34,7 @@ export const sketchSession = (phase: MinigameState['phase'], results?: MinigameR
   phase,
   options: { durationSec: 0, seed: 7, drawSec: 80, drawers: 0 },
   participants: SKETCH_PLAYERS.map((player) => player.id),
-  lobby: { teams: {}, volunteers: [] },
+  lobby: { teams: {}, volunteers: [], ready: [] },
   ...(results ? { results } : {}),
 })
 

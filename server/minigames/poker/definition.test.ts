@@ -5,7 +5,7 @@ import { act, legal, stepTable } from './table.ts'
 import type { PokerWorld } from './types.ts'
 
 const clock = (worldMs: number) => 1_000 + worldMs
-const lobby = { teams: {}, volunteers: [] }
+const lobby = { teams: {}, volunteers: [], ready: [] }
 const OPTS = { durationSec: 40, seed: 3, stack: 1500, bigBlind: 20, levelMin: 10, shotSec: 30 }
 const start = (players = ['a', 'b', 'c']) => poker.create(3, players, OPTS, lobby).world as PokerWorld
 const untilBet = (w: PokerWorld) => { for (let i = 0; i < 2_000 && w.phase.at !== 'bet'; i++) poker.step(w) }
