@@ -1,15 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="320 236 720 480" width="1200" height="800">
   <!-- Drawn for party-buzzer; dedicated to the public domain under CC0 1.0. -->
-  <defs>
-    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#7fb8e0"/>
-      <stop offset="1" stop-color="#f4dcac"/>
-    </linearGradient>
-  </defs>
-  <rect width="1200" height="800" fill="url(#sky)"/>
-  <circle cx="230" cy="190" r="70" fill="#fff3c4"/>
-  <path d="M0 560 C 200 470, 420 520, 600 560 C 780 600, 980 480, 1200 520 L 1200 800 L 0 800 Z" fill="#dcae6a"/>
-  <path d="M0 660 C 260 610, 520 690, 760 650 C 940 620, 1080 650, 1200 640 L 1200 800 L 0 800 Z" fill="#c9954f"/>
+  <rect width="1200" height="800" fill="#9aa7ad"/>
   <g fill="#9a6633">
     <!-- far legs, a shade darker -->
     <path d="M462 560 L 488 560 L 484 640 L 492 700 L 470 700 L 462 640 Z" fill="#7d5128"/>
@@ -33,5 +24,5 @@
     <ellipse cx="718" cy="704" rx="18" ry="6"/>
   </g>
   <circle cx="930" cy="284" r="5" fill="#2b1a0c"/>
-  <ellipse cx="600" cy="712" rx="230" ry="14" fill="#b07f3e" opacity="0.5"/>
+  <ellipse cx="600" cy="712" rx="230" ry="14" fill="#6f7a80" opacity="0.6"/>
 </svg>

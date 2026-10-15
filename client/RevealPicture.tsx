@@ -14,26 +14,31 @@ const LONG_SIDE = 1600
 const decoded = new Map<string, HTMLImageElement>()
 
 /**
- * The reveal-clock instant to show, re-read on each step boundary of the
- * reveal clock while the picture is sharpening. A timer aimed at the boundary,
- * not an interval started whenever: the chip must drop when the price does,
- * not up to a step later.
+ * The reveal-clock instant to show, read from the clock on every render and
+ * re-rendered on each step boundary while the picture is sharpening. A timer
+ * aimed at the boundary, not an interval started whenever: the chip must drop
+ * when the price does, not up to a step later. Undefined until there is one
+ * to show; a press not yet published keeps the last.
  */
 function useShownAt(r: RevealWall, now: () => number): number | undefined {
-  const [at, setAt] = useState(() => revealShownAt(r, now()))
+  const [, tick] = useState(0)
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const read = () => {
-      const next = revealShownAt(r, now())
-      if (next !== undefined) setAt(next)
-      if (!r.live) return
-      // A hair past the boundary, so the read lands on the new step.
-      timer = setTimeout(read, Math.max(0, nextRevealStep(r, now()) - now()) + 5)
+    if (!r.live) return
+    let timer: ReturnType<typeof setTimeout>
+    // A hair past the boundary, so the render lands on the new step.
+    const arm = () => {
+      timer = setTimeout(() => {
+        tick((n) => n + 1)
+        arm()
+      }, Math.max(0, nextRevealStep(r, now()) - now()) + 5)
     }
-    read()
+    arm()
     return () => clearTimeout(timer)
   }, [r.from, r.until, r.heldAt, r.live, r.sharp])
-  return at
+  const last = useRef<number>()
+  const at = revealShownAt(r, now())
+  if (at !== undefined) last.current = at
+  return last.current
 }
 
 /**
@@ -83,18 +88,24 @@ export function RevealPicture({ src, reveal, now }: { src: string; reveal: Revea
       ctx.drawImage(image, 0, 0, w, h)
       return
     }
-    const cw = Math.max(1, Math.round((w / LONG_SIDE) * across))
-    const ch = Math.max(1, Math.round((h / LONG_SIDE) * across))
+    // Square cells of a fractional count: the image fills `across` cells of the
+    // small canvas, the last one partial, and the canvas crops it at the edge.
+    const cell = LONG_SIDE / across
+    const cw = w / cell
+    const ch = h / cell
     const small = (cells.current ??= document.createElement('canvas'))
-    small.width = cw
-    small.height = ch
+    small.width = Math.ceil(cw)
+    small.height = Math.ceil(ch)
     const sctx = small.getContext('2d')
     if (!sctx) return
     sctx.imageSmoothingEnabled = true
     sctx.imageSmoothingQuality = 'high'
+    // The partial cell at each far edge is only part-covered by the exact
+    // draw; the stretched one under it makes that cell opaque, in the edge's colour.
+    sctx.drawImage(image, 0, 0, small.width, small.height)
     sctx.drawImage(image, 0, 0, cw, ch)
     ctx.imageSmoothingEnabled = false
-    ctx.drawImage(small, 0, 0, w, h)
+    ctx.drawImage(small, 0, 0, small.width * cell, small.height * cell)
   }, [image, at, reveal.from, reveal.until])
 
   // Sized from the first frame (3:2 until the picture says otherwise), so the
@@ -122,8 +133,15 @@ export function RevealStakes({ value, reveal, now }: { value: number; reveal: Re
   const t = reveal.heldAt ?? at ?? reveal.from
   const points = revealValue(value, reveal, t)
   const lit = reveal.live && revealMultiplier(reveal, t) > 1
-  const first = useRef(points)
-  const dropped = points !== first.current
+  // Flashed only on a fall: a press published a beat after a step can put the
+  // price back up, and that is a correction, not news.
+  // Remembered by value, so the re-render on the next step keeps the class.
+  const prev = useRef(points)
+  const flashed = useRef<number>()
+  if (points < prev.current) flashed.current = points
+  else if (points !== prev.current) flashed.current = undefined
+  prev.current = points
+  const dropped = flashed.current === points
   return (
     <span
       key={points}

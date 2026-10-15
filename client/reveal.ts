@@ -12,7 +12,8 @@ export const REVEAL_STEP_MS = 250
 /** Cells across the picture's long side at the start: it is drawn through a 6 px canvas. */
 export const REVEAL_FIRST_CELLS = 6
 /**
- * Cells across just before the picture goes sharp. Aimed at what the room can
+ * The cells the curve aims at as the picture goes sharp; the last step drawn
+ * is a little short of it (88 on a ten-second reveal). Aimed at what the room can
  * see, not at the canvas: on an 800 px picture across a room, past about a
  * hundred cells every step looks the same, and the last quarter would be a
  * still picture with 1.25x on offer.
@@ -21,7 +22,7 @@ export const REVEAL_LAST_CELLS = 96
 /**
  * Cells grow geometrically from first to last against progress raised to this
  * power: about 10 across at the end of the first quarter, 19 at the midpoint,
- * 41 at three quarters. The whole picture lands at `until`, on the same step as
+ * 42 at three quarters. The whole picture lands at `until`, on the same step as
  * the drop to the plain value.
  */
 export const REVEAL_EASE = 1.25
@@ -41,7 +42,7 @@ export function revealShownAt(r: RevealWall, now: number): number | undefined {
   if (r.sharp) return r.until
   if (r.heldAt !== undefined) return step(r, r.heldAt)
   if (!r.live) return undefined
-  return step(r, now)
+  return step(r, Math.max(now, r.opensAt))
 }
 
 /** Server time of the step after `now`, for a timer that lands on the step rather than near it. */
@@ -49,10 +50,14 @@ export function nextRevealStep(r: Pick<RevealWall, 'from'>, now: number): number
   return step(r, now) + REVEAL_STEP_MS
 }
 
-/** Cells across the long side at instant `at`, for a picture `full` device pixels across. */
+/**
+ * Cells across the long side at instant `at`, for a picture `full` device
+ * pixels across. Fractional, so every step changes the grid even where the
+ * curve is shallow; the canvas crops the part-cell at the edge.
+ */
 export function revealCells(r: Pick<RevealWall, 'from' | 'until'>, at: number, full: number): number {
   const p = revealProgress(r, at)
   if (p >= 1) return full
-  const cells = Math.round(REVEAL_FIRST_CELLS * (REVEAL_LAST_CELLS / REVEAL_FIRST_CELLS) ** (p ** REVEAL_EASE))
+  const cells = REVEAL_FIRST_CELLS * (REVEAL_LAST_CELLS / REVEAL_FIRST_CELLS) ** (p ** REVEAL_EASE)
   return Math.min(full, Math.max(REVEAL_FIRST_CELLS, cells))
 }

@@ -933,9 +933,9 @@ test('a picture reveal holds on a miss, resumes for the rebound, and pays by whe
   const resumed = state.round.reveal!
   assert.equal(resumed.heldAt, undefined)
   assert.equal(resumed.until - resumed.from, 4000, 'the same length of reveal')
-  assert.equal(state.round.armedAt - ARM_DELAY_MS - resumed.from, heldAt - first.from, 'carried on from where it stood')
+  assert.equal(state.round.armedAt - resumed.from, heldAt - first.from, 'carried on from where it stood, as the buzzers open')
 
-  // A second into the rebound: 2.8 s of 4 is the third quarter.
+  // A second into the rebound: 2.5 s of 4 is the third quarter.
   await wait(state.round.armedAt + 1000 - Date.now())
   hub.handle(bo, { t: 'buzz', at: Date.now() })
   await wait(COLLECT_MS + 30)

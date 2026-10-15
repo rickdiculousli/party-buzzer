@@ -261,9 +261,10 @@ export type Wall = {
  * `heldAt`: a leader's press or a miss holds the picture there. `live`: the
  * buzzers are open, so it sharpens on the clock. `sharp`: the question is over.
  * None of the three is the moment between a first press and the order being
- * published, where the board simply holds what it has.
+ * published, where the board simply holds what it has. `opensAt` is the arm
+ * instant: until the buzzers open the picture does not move.
  */
-export type RevealWall = { from: number; until: number; heldAt?: number; live: boolean; sharp: boolean }
+export type RevealWall = { from: number; until: number; heldAt?: number; live: boolean; sharp: boolean; opensAt: number }
 
 export type ChoiceWall = {
   options: string[]
@@ -500,6 +501,7 @@ function revealWall(state: State): RevealWall | null {
     ...(heldAt !== undefined && { heldAt }),
     live: r.phase === 'ARMED',
     sharp: r.phase === 'IDLE',
+    opensAt: r.armedAt,
   }
 }
 

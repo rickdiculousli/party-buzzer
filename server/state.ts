@@ -98,10 +98,9 @@ function openRebound(state: State): void {
   round.armedAt = Date.now() + ARM_DELAY_MS
   round.order = []
   round.total = 0
-  // A picture the miss held carries on from where it stopped. From now, not
-  // from the arm instant: the board would otherwise step back for the 300 ms
-  // between them.
-  if (round.reveal) round.reveal = resumeReveal(round.reveal, Date.now())
+  // A picture the miss held carries on from where it stopped, from the instant
+  // the buzzers open; the board holds it until then (`RevealWall.opensAt`).
+  if (round.reveal) round.reveal = resumeReveal(round.reveal, round.armedAt)
   for (const e of state.effects) e.attemptId = round.attemptId
 }
 

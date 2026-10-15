@@ -41,7 +41,6 @@ import { mulberry32 } from '../../shared/random.ts'
 import type { BurstFrom } from '../fx.ts'
 import type { Recipe } from '../synth.ts'
 import { RevealPicture, RevealStakes } from '../RevealPicture.tsx'
-import { revealShownAt } from '../reveal.ts'
 import type { RevealWall } from '../../shared/wall.ts'
 
 /**
@@ -278,27 +277,32 @@ const CAMEL = new URL('../../packs/images/camel.svg', import.meta.url).href
 const REVEAL_MS = 10_000
 
 /**
- * A picture reveal from mosaic to sharp. The board's clock is server time; here
- * it is an invisible animation's `currentTime`, read every frame, so the
- * filmstrip's stepped clock drives the mosaic exactly as it drives CSS. The
- * mosaic still only changes on the 250 ms steps `revealShownAt` quantises to.
+ * A picture reveal from mosaic to sharp, on the live path the board takes. The
+ * board's clock is server time; here it is an invisible animation's
+ * `currentTime`, read every frame, so the filmstrip's stepped clock drives the
+ * mosaic and the stakes chip exactly as it drives CSS. Both still only change
+ * on the 250 ms steps `revealShownAt` quantises to.
  */
 function RevealScene({ lead }: { lead: boolean }) {
   const clock = useRef<HTMLSpanElement>(null)
-  const [at, setAt] = useState(0)
+  const t = useRef(0)
+  const [, frame] = useState(0)
   useEffect(() => {
     let id = 0
     const read = () => {
-      const t = clock.current?.getAnimations()[0]?.currentTime
-      if (typeof t === 'number') setAt(revealShownAt({ from: 0, until: REVEAL_MS, live: true, sharp: false }, t) ?? 0)
+      const at = clock.current?.getAnimations()[0]?.currentTime
+      if (typeof at === 'number' && at !== t.current) {
+        t.current = at
+        frame((n) => n + 1)
+      }
       id = requestAnimationFrame(read)
     }
     id = requestAnimationFrame(read)
     return () => cancelAnimationFrame(id)
   }, [])
-  // Held at the stepped instant: the picture and the chip show exactly that moment.
-  const wall: RevealWall = { from: 0, until: REVEAL_MS, heldAt: at, live: false, sharp: false }
-  const now = () => at
+  const done = t.current >= REVEAL_MS
+  const wall: RevealWall = { from: 0, until: REVEAL_MS, live: !done, sharp: done, opensAt: 0 }
+  const now = () => t.current
   return (
     <section class="board__wall">
       <span ref={clock} class="reveal-clock" aria-hidden="true" style={{ position: 'absolute', opacity: 0, animation: `fx-flip ${REVEAL_MS + 500}ms linear both` }} />

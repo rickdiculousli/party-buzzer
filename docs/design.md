@@ -890,13 +890,13 @@ A **picture reveal** keeps the ordinary buzz layout, with the picture above
 the question in the middle band, drawn as a mosaic (`.board__reveal`, a canvas
 inside the `.board__image` limits, its box the picture's from the first frame).
 It starts six cells across and refines on a fixed 250 ms step, never per
-frame: about 10 cells at the end of the first quarter, 19 at the midpoint, 41
-at three quarters and 96 just before the end, and the whole picture lands on
-the step where the value drops to plain (`client/reveal.ts`). The stakes chip
+frame: about 10 cells at the end of the first quarter, 19 at the midpoint, 42
+at three quarters and 88 on the last step of a ten-second reveal, and the whole
+picture lands on the step where the value drops to plain (`client/reveal.ts`). The stakes chip
 says what a buzz is worth now. While that is more than the plain value it is
 lit in tungsten at full strength, and each drop flashes it toward tally
 (`fx-flash--tint`); once someone has the floor it reads what they are playing
-for, and settles back to the dim chip. A buzz holds the picture on the step it
+for, and drops back to the dim chip. A buzz holds the picture on the step it
 landed in; the hero
 takes the middle while they answer, and a rebound brings the picture back
 where it stopped and sharpens on from there. Once the question is over it is
