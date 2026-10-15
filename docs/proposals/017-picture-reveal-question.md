@@ -4,10 +4,13 @@ title: Picture reveal: a photo sharpens over ten seconds and an early buzz pays 
 kind: feature
 size: M
 judge: opus
-status: accepted
+status: building
 lens: eng
 proposed_by: 7f24ed4b-18c6-49f9-a00b-48d7dfed548a
 proposed_on: 2026-10-14
+built_by: f12a0b93-a890-49e5-94dc-3172202866ca
+branch: t3code/10db7534
+host: k16
 ---
 
 ## Opportunity
