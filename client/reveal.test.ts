@@ -9,6 +9,7 @@ test('the mosaic steps on a fixed 250 ms clock, holds where a press held it, and
   assert.equal(revealShownAt(r, 1250), 1250)
   assert.equal(revealShownAt({ ...r, live: false, heldAt: 3333 }, 9000), 3250, 'a hold lands on the step its press was in')
   assert.equal(revealShownAt({ ...r, from: -2000, until: 8000, opensAt: 1000 }, 700), 1000, 'a rebound holds where it stopped until the buzzers open')
+  assert.equal(revealShownAt(r, 60_000), 11_000, 'past the end it stays at the end')
   assert.equal(nextRevealStep(r, 1249), 1250)
   assert.equal(nextRevealStep(r, 1250), 1500, 'a timer aims at the boundary after this one')
   assert.equal(revealShownAt({ ...r, live: false }, 9000), undefined, 'a press not yet published keeps what is up')

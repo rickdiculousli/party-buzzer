@@ -264,16 +264,16 @@ npm run walk-images
 
 - [ ] The flag and the road sign are up sharp above their question from the
       arm, on the board and (mirror on) on the phones
-- [ ] The camel question arms as a mosaic six cells across; it sharpens in
-      visible steps through every quarter and goes whole only at ten seconds.
+- [ ] The camel question arms as a mosaic six cells across and sharpens in
+      a visible step every quarter second.
       The stakes chip reads 400 pts, lit, and flashes down a quarter at a time
 - [ ] Cy buzzes three seconds in, while the chip reads 350, and says "a
       horse": the miss holds the wall, and the rebound brings the mosaic back
       exactly as coarse as Cy left it before it sharpens on
 - [ ] Ada buzzes two and a half seconds into the rebound, says "a camel", and
       the stamp reads +300, the number the chip showed when she pressed
-- [ ] No phone shows the camel while it is a mosaic; once Ada is paid, the
-      phones show it sharp
+- [ ] Once Ada is paid the board draws the camel whole. No phone shows it
+      while it is a mosaic; once she is paid, the phones show it sharp
 
 ### Two packs in one setlist — `npm run walk-packs`
 

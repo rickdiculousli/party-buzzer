@@ -25,8 +25,10 @@ function useShownAt(r: RevealWall, now: () => number): number | undefined {
   useEffect(() => {
     if (!r.live) return
     let timer: ReturnType<typeof setTimeout>
-    // A hair past the boundary, so the render lands on the new step.
+    // A hair past the boundary, so the render lands on the new step. None
+    // past the end: the picture and the price are done changing.
     const arm = () => {
+      if (now() >= r.until) return
       timer = setTimeout(() => {
         tick((n) => n + 1)
         arm()

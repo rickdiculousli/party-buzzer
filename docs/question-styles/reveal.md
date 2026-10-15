@@ -30,8 +30,9 @@ A: a camel | dromedary
 - Never put the answer in the picture as text, and keep the question text
   generic ("What is this?"): the board shows it whole from the start, and
   "What animal is this?" is half the answer.
-- SVG, PNG and JPEG all work. Keep the long side at 1,000 to 2,000 pixels; the
-  board draws it at 1,600.
+- SVG, PNG and JPEG all work. Keep the long side at 1,000 to 2,000 pixels and
+  the file small (a few hundred KB): the board fetches it as the question arms
+  and the clock is already running, so a heavy file eats the double-value quarter.
 - Use only pictures you may share: your own, or CC0 / public-domain images,
   and list them in [packs/images/CREDITS.md](../../packs/images/CREDITS.md).
 - The `A:` line follows the shared rules below in [README.md](README.md).

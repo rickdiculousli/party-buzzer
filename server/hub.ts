@@ -603,7 +603,7 @@ export class Hub {
       round.order = [
         { playerId: steal.playerId, name, at, deltaMs: 0 },
         ...round.order.filter((b) => b.playerId !== steal.playerId),
-      ].map((b) => ({ ...b, deltaMs: Math.round(b.at - round.armedAt) }))
+      ].map((b) => ({ ...b, deltaMs: Math.max(0, Math.round(b.at - at)) }))
     }
     round.total = round.order.length
   }

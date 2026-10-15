@@ -42,7 +42,8 @@ export function revealShownAt(r: RevealWall, now: number): number | undefined {
   if (r.sharp) return r.until
   if (r.heldAt !== undefined) return step(r, r.heldAt)
   if (!r.live) return undefined
-  return step(r, Math.max(now, r.opensAt))
+  // Past the end it stays at the end, so a sharp picture is not redrawn every step.
+  return Math.min(r.until, step(r, Math.max(now, r.opensAt)))
 }
 
 /**

@@ -791,6 +791,7 @@ test('a steal on a picture reveal takes first place but keeps its own press, so 
     mock.timers.tick(COLLECT_MS)
     assert.equal(state.round.order[0].playerId, bo.playerId, 'the steal still jumps the queue')
     assert.equal(state.round.order[0].at, armedAt + 6100, 'at its own press, not the arm')
+    assert.deepEqual(state.round.order.map((b) => b.deltaMs), [0, 0], 'behind first place, never behind the arm')
     hub.dispatch({ a: 'correct' })
     assert.equal(state.round.award?.points, 300, 'priced where the picture stood: 6.1 s of 10 is the third quarter')
   } finally {
