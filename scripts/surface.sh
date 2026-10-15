@@ -9,7 +9,7 @@ path=${1:?usage: surface.sh <path> <WxH>}
 size=${2:?usage: surface.sh <path> <WxH>}
 cd "$(dirname "$0")/.."
 test -d node_modules/playwright || npm ci --no-audit --no-fund >/dev/null
-test -f dist/index.html || npm run build >/dev/null
+npm run build >/dev/null   # always: a stale dist/ would be shot against the current tree
 mkdir -p shots cache
 out="shots/$(echo "$path$size" | tr '/×x' '___').png"
 log=cache/surface-$$.log
@@ -31,5 +31,5 @@ for i in $(seq 1 100); do
   sleep 0.2
 done
 [ -n "$port" ] || { cat "$log" >&2; echo "surface: the server never listened" >&2; exit 1; }
-npx playwright screenshot --wait-for-timeout 2500 --viewport-size "$(echo "$size" | tr "x×" ",,")" "http://127.0.0.1:$port$path" "$out"
+npx playwright screenshot --wait-for-timeout 2500 --viewport-size "$(printf %s "$size" | sed "s/×/,/; s/x/,/")" "http://127.0.0.1:$port$path" "$out"
 echo "$out"
