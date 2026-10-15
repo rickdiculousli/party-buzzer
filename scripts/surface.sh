@@ -25,7 +25,7 @@ viewport=$(printf %s "$size" | sed 's/×/,/; s/x/,/')
 log=cache/surface-$$.log
 state=cache/surface-$$.json
 cleanup() {
-  if [ -n "${pid:-}" ]; then kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null; fi   # wait: close() flushes the state file
+  if [ -n "${pid:-}" ]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi   # wait: close() flushes the state file; || true: set -e holds inside the trap
   rm -f "$log" "$state"
 }
 trap cleanup EXIT
@@ -53,8 +53,8 @@ node --input-type=module -e '
   try {
     const page = await browser.newPage({ viewport: { width, height } })
     await page.goto(url)
-    // Host and board render "Connecting…" and the phone's lamp reads "Disconnected" until the
-    // socket is up; a shot of either proves nothing.
+    // Host and board render "Connecting…" and the phone lamp reads "Disconnected" until the
+    // socket is up; a shot of either proves nothing. (No apostrophes here: this is a single-quoted shell string.)
     await page.waitForFunction(() => !/Connecting|Disconnected/.test(document.body.innerText), null, { timeout: 15000 })
     await page.waitForTimeout(500)
     await page.screenshot({ path: out })
