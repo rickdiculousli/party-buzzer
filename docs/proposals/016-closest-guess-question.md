@@ -4,7 +4,7 @@ title: Closest-guess question: everyone types a number, the nearest takes it
 kind: feature
 size: M
 judge: opus
-status: building
+status: done
 lens: eng
 proposed_by: 7f24ed4b-18c6-49f9-a00b-48d7dfed548a
 proposed_on: 2026-10-14
@@ -12,6 +12,7 @@ built_by: 2259117e-fdd4-4c67-9780-a59ac56e0b62
 branch: t3code/8ebd7a4a
 host: k16
 scope_grew: [014]
+merged: 5ed633383dd9b2476572371288f2a1609633d358
 ---
 
 ## Opportunity
