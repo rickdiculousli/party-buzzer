@@ -4,13 +4,14 @@ title: Night recap: milestones during play and a keepsake at the finale
 kind: feature
 size: L
 judge: fable
-status: building
+status: done
 lens: eng
 proposed_by: 7f24ed4b-18c6-49f9-a00b-48d7dfed548a
 proposed_on: 2026-10-14
 built_by: 34c8999b-16af-44f0-a14d-73d3864dd734
 branch: t3code/4e4a1f8a
 host: k16
+merged: 2c33af0b475449ae5052b96918fcf2604ade7376
 ---
 
 ## Opportunity
