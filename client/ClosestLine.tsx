@@ -63,9 +63,12 @@ function groups(marks: ClosestMark[]): Group[] {
   const placed: Group[] = []
   const covers = (g: Group, x: number) => g.start - 0.004 < x && x < g.start + g.span + 0.004
   for (const g of out) {
-    const chars = Math.max(g.marks.map((m) => m.name).join(' · ').length * 0.85, g.marks[0].text.length + (g.marks[0].paid ? 5 : 0) + 2)
-    g.span = LABEL_BASE + chars * LABEL_CHAR
-    g.start = g.at - g.shift * g.span
+    const chars = Math.max(g.marks.map((m) => m.name).join(' · ').length * 0.85, g.marks[0].text.length + 2)
+    const face = LABEL_BASE + chars * LABEL_CHAR
+    // A paid label's "+N" chip sits beside the face: right of it, or left at the line's right-hand end.
+    const chip = g.marks[0].place ? LABEL_BASE + (String(g.marks[0].paid).length + 2) * LABEL_CHAR : 0
+    g.span = face + chip
+    g.start = g.at - g.shift * face - (g.shift === 1 ? chip : 0)
     const overlaps = (lane: number) =>
       placed.filter((p) => p.lane === lane && p.start < g.start + g.span && g.start < p.start + p.span).length
     const hides = (lane: number) =>
