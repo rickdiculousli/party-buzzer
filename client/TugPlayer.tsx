@@ -1,8 +1,16 @@
 import { useRef } from 'preact/hooks'
+import type { MinigameResult } from '../shared/protocol.ts'
 import type { MinigamePlayerProps } from './minigames.tsx'
 import { matchFrame } from './minigame-info.ts'
 
-export function TugPlayer({ state, frame, now, send }: MinigamePlayerProps) {
+/** The outcome from the committed results, for a phone that rejoined after the last frame. */
+function resultTitle(results: MinigameResult[], playerId: string | null): string {
+  const mine = results.find((r) => r.playerId === playerId)
+  if (!results.some((r) => r.points > 0)) return 'Match complete'
+  return mine && mine.points > 0 ? `Your side wins · +${mine.points}` : 'Your side lost the pull'
+}
+
+export function TugPlayer({ state, playerId, frame, now, send }: MinigamePlayerProps) {
   const session = state.minigame!
   const mine = matchFrame(frame, 'tug', 'player', session.matchId)
   const spectator = frame?.matchId === session.matchId && frame.role === 'spectator'
@@ -32,6 +40,7 @@ export function TugPlayer({ state, frame, now, send }: MinigamePlayerProps) {
   const title = session.phase === 'countdown' ? `Starts in ${countdown}`
     : winner === null ? 'Draw'
     : winner !== undefined && mine ? `${mine.sides[winner].name} wins` + (winner === mine.side ? ` · +${session.options.value}` : '')
+    : session.phase === 'results' && session.results ? resultTitle(session.results, playerId)
     : stopped ? 'Rope stopped'
     : session.phase === 'playing' ? 'Tap to pull'
     : 'Waiting for host'

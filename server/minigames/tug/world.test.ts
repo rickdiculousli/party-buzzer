@@ -56,7 +56,7 @@ test('mashing pays, but an even rhythm beats bursts of the same taps', () => {
   assert.ok(even > bursts, `ten even taps (${even}) beat five doubled taps (${bursts})`)
 })
 
-test('the spring sags a lead back toward the centre', () => {
+test('the spring sags the flag back toward the centre', () => {
   const w = world(['a', 'b'])
   run(w, 800, (id) => id === 'b')
   const out = w.flag
@@ -65,7 +65,7 @@ test('the spring sags a lead back toward the centre', () => {
   assert.ok(w.flag > 0 && w.flag < out * 0.8, `left alone it sags back (${w.flag})`)
 })
 
-test('a lead can be clawed back', () => {
+test('a side that falls behind can claw it back', () => {
   const w = world(['a', 'b'])
   run(w, 800, (id) => id === 'b')
   assert.ok(w.flag > 0.2 && w.flag < 1)

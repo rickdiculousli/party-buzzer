@@ -134,12 +134,12 @@ export function stepTug(world: TugWorld): void {
     world.winner = world.flag > 0 ? 1 : 0
     world.endedAtMs = world.nowMs
   } else if (world.nowMs >= world.durationMs) {
-    world.winner = leading(world)
+    world.winner = aheadSide(world)
     world.endedAtMs = world.nowMs
   }
 }
 
-const leading = (world: TugWorld): 0 | 1 | null => world.flag > 0 ? 1 : world.flag < 0 ? 0 : null
+const aheadSide = (world: TugWorld): 0 | 1 | null => world.flag > 0 ? 1 : world.flag < 0 ? 0 : null
 
 export const tugFinished = (world: TugWorld) => world.endedAtMs !== undefined && world.nowMs >= world.endedAtMs + BEAT_MS
 
@@ -149,7 +149,7 @@ export function tugPresence(world: TugWorld, connected: PlayerId[]): void {
 
 /** Every member of the winning side gains `value`; a draw pays nobody. `shots` counts taps' worth, rounded. */
 export function tugResults(world: TugWorld): MinigameResult[] {
-  const winner = world.winner !== undefined ? world.winner : leading(world)
+  const winner = world.winner !== undefined ? world.winner : aheadSide(world)
   return world.sides.flatMap((side, s) => side.members.map((id) => ({
     playerId: id, points: s === winner ? world.value : 0, shots: Math.round(world.pullers[id].pull),
   }))).sort((a, b) => b.points - a.points || b.shots - a.shots || (a.playerId < b.playerId ? -1 : 1))

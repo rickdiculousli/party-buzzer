@@ -58,9 +58,9 @@ function useDrawn(board: BoardFrame | null, onSwing: () => void): Drawn {
   return drawn
 }
 
-/** Fires on a change of `value` after mount, never for the value the board mounted on. */
-function useOnChange<T>(value: T, fire: (value: T) => void) {
-  const seen = useRef(value)
+/** Fires on a change of `value` after mount, never for the value (or `mounted`) the board mounted on. */
+function useOnChange<T>(value: T, fire: (value: T) => void, mounted: T = value) {
+  const seen = useRef(mounted)
   useEffect(() => {
     if (seen.current === value) return
     seen.current = value
@@ -86,7 +86,11 @@ export function TugBoard({ state, frame, now }: MinigameBoardProps) {
   const board = matchFrame(frame, 'tug', 'board', session.matchId)
   // The sides outlive the last frame, so the results can name the winners' side.
   const sidesSeen = useRef<BoardFrame['sides'] | null>(null)
-  if (board) sidesSeen.current = board.sides
+  const winnerSeen = useRef<0 | 1 | null | undefined>(undefined)
+  if (board) {
+    sidesSeen.current = board.sides
+    winnerSeen.current = board.winner
+  }
   const sides = board?.sides ?? sidesSeen.current
   const { rope, lean: hang, effort, tense, arrived } = useDrawn(board, () => play('stamp', { rateScale: 1.3 }))
   // The verdict, as the room sees it: only once the drawn flag has arrived.
@@ -97,13 +101,16 @@ export function TugBoard({ state, frame, now }: MinigameBoardProps) {
     if (phase === 'playing') play('stamp')
     if (phase === 'results' && session.results?.some((r) => r.points > 0)) play('award')
   })
-  useOnChange(winner, (w) => { if (w === 0 || w === 1) play('leader') })
+  // A board that mounts on a decided match has missed the win, so it stays quiet.
+  useOnChange(winner, (w) => { if (w === 0 || w === 1) play('leader') }, board?.winner)
 
   if (session.phase === 'results') {
     const results = session.results ?? []
     const won = results.filter((r) => r.points > 0)
     const rest = results.filter((r) => r.points <= 0)
-    const winSide = won.length ? sides?.find((s) => s.members.includes(won[0].playerId)) : undefined
+    // The last frame names the winner even when `value` is 0 and nobody gained points.
+    const w = winnerSeen.current
+    const winSide = w === 0 || w === 1 ? sides?.[w] : won.length ? sides?.find((s) => s.members.includes(won[0].playerId)) : undefined
     const row = (r: (typeof results)[number]) => (
       <li key={r.playerId}>
         <span>{playerName(state, r.playerId)}</span>
@@ -114,7 +121,7 @@ export function TugBoard({ state, frame, now }: MinigameBoardProps) {
       <main class="tug-results">
         <p class="eyebrow">Tug of war</p>
         <h2 class="tug-results__verdict" style={{ color: winSide?.color }}>
-          {won.length === 0 ? 'Draw' : winSide ? `${winSide.name} wins` : 'Winners'}
+          {winSide ? `${winSide.name} wins` : won.length === 0 ? 'Draw' : 'Winners'}
         </h2>
         {won.length > 0 && <ol class="tug-results__list fx-rise">{won.map(row)}</ol>}
         {rest.length > 0 && <ol class="tug-results__list tug-results__rest">{rest.map(row)}</ol>}
