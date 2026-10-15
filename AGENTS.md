@@ -90,9 +90,12 @@ node --test server/resolve.test.ts   # focused example
 npm test                           # all five test locations
 npm run typecheck
 npm run build
+npm run test:review                # layout fit check, every review scenario; about a minute
 ```
 
 `npm test` includes server, server/modes, client, shared, and tools tests.
+After a UI change, run `npm run test:review` in full; it fits well inside a
+command's ten-minute limit, so don't trim it to a few scenarios.
 A server-only glob misses coverage. A fresh worktree has no `node_modules`; run
 `npm ci` first.
 The first `npm run typecheck` in a fresh worktree is a full check (slow) and writes

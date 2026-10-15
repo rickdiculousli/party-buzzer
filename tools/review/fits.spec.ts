@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect } from '@playwright/test'
 import { makeReviewScenarios } from './fixtures.ts'
 
 /**
@@ -105,17 +105,18 @@ function measure(): Finding {
   return { scroll, bounds: [...new Set(bounds)], overlaps: [...new Set(overlaps)] }
 }
 
-type Sweep = Map<string, { where: string; f: Finding }[]>
+// One test per scenario and surface, each on its own page, spread across the
+// workers. Not one page for the whole sweep: Chromium crashes after some five
+// hundred loads into a single page, and the run then hangs until it times out.
+test.describe.configure({ mode: 'parallel' })
 
-async function sweep(page: Page): Promise<Sweep> {
-  const out: Sweep = new Map()
-  for (const scenario of makeReviewScenarios()) {
-    const targets = [
-      { surface: 'board' as const, player: undefined },
-      ...scenario.phones.map((p) => ({ surface: 'phone' as const, player: p.playerId })),
-    ]
-    const found: { where: string; f: Finding }[] = []
-    for (const { surface, player } of targets) {
+for (const scenario of makeReviewScenarios()) {
+  const targets = [
+    { surface: 'board' as const, player: undefined },
+    ...scenario.phones.map((p) => ({ surface: 'phone' as const, player: p.playerId })),
+  ]
+  for (const { surface, player } of targets) {
+    test(`${scenario.id} ${surface}${player ? `:${player}` : ''} fits`, async ({ page }) => {
       for (const size of SIZES[surface]) {
         await page.setViewportSize(size)
         const url = new URLSearchParams({ scenario: scenario.id, surface, ...(player && { player }) })
@@ -126,29 +127,12 @@ async function sweep(page: Page): Promise<Sweep> {
           content: '*, *::before, *::after { animation-delay: -10s !important; animation-iteration-count: 1 !important; transition: none !important; }',
         })
         await page.waitForTimeout(30)
-        found.push({ where: `${surface}${player ? `:${player}` : ''} @${size.width}x${size.height}`, f: await page.evaluate(measure) })
+        const f = await page.evaluate(measure)
+        const at = `@${size.width}x${size.height}`
+        expect.soft(f.scroll, `the page scrolls ${at}`).toBeNull()
+        expect.soft(f.bounds, `boxes leave the screen ${at}`).toEqual([])
+        expect.soft(f.overlaps, `boxes overlap ${at}`).toEqual([])
       }
-    }
-    out.set(scenario.id, found)
-  }
-  return out
-}
-
-// One sweep, three verdicts: loading every page three times would triple a slow test.
-let swept: Promise<Sweep> | undefined
-
-function check(pick: (f: Finding) => string[]) {
-  return async ({ page }: { page: Page }) => {
-    test.setTimeout(600_000)
-    swept ??= sweep(page)
-    const failures: string[] = []
-    for (const [id, found] of await swept) {
-      for (const { where, f } of found) failures.push(...pick(f).map((h) => `${id} ${where}: ${h}`))
-    }
-    expect(failures).toEqual([])
+    })
   }
 }
-
-test('no board or phone preview scrolls', check((f) => (f.scroll ? [f.scroll] : [])))
-test('every visible box sits inside the screen', check((f) => f.bounds))
-test('no two visible boxes overlap', check((f) => f.overlaps))
