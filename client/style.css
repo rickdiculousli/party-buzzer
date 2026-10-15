@@ -51,8 +51,7 @@ body {
 .tug-board { height: 100dvh; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; padding: var(--s4) var(--s6); overflow: hidden; position: relative; background: var(--stage); color: var(--chalk); }
 .tug-board__header { display: flex; justify-content: space-between; align-items: flex-start; min-height: var(--t-mega); }
 .tug-board__title { font: 600 var(--t-chip-board)/1 var(--display); color: var(--dim); }
-.tug-clock { font: 800 var(--t-mega)/1 var(--display); font-variant-numeric: tabular-nums; }
-.tug-clock.is-low { color: var(--tally); }
+.tug-clock { display: inline-block; font: 800 var(--t-mega)/1 var(--display); font-variant-numeric: tabular-nums; }
 .tug-field { width: 100%; height: 100%; min-height: 0; overflow: visible; transition: opacity var(--base); }
 .tug-field__centre { stroke: var(--dim); stroke-width: 3; stroke-dasharray: 10 14; }
 .tug-field__mark { stroke: currentColor; stroke-width: 8; stroke-linecap: round; }
@@ -64,9 +63,10 @@ body {
 .tug-flag__knot { fill: var(--paper); stroke: var(--stage); stroke-width: 4; }
 /* The kit's fx-jitter shakes letters; the flag borrows its keyframes, in field units. */
 .tug-flag.is-tense { --_a: 4px; animation: fx-jitter var(--fx-jitter-dur) steps(1) infinite; }
-.tug-board.is-decided .tug-field, .tug-board.is-decided .tug-board__sides { opacity: 0.2; transition: opacity var(--base); }
-.tug-board__verdict { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; text-align: center; pointer-events: none; }
-.tug-board__verdict h2 { margin: 0; font: 800 var(--t-hero)/1 var(--display); }
+.tug-board.is-decided .tug-board__sides, .tug-board.is-decided .tug-field__mark { opacity: 0.2; transition: opacity var(--base); }
+/* The verdict sits above the rope, so the flag that decided it stays in view. */
+.tug-board__verdict { position: absolute; inset: 0 0 auto; height: 40%; display: grid; place-content: end center; text-align: center; pointer-events: none; }
+.tug-board__verdict h2 { margin: 0; font: 800 min(var(--t-hero), 22vh)/1 var(--display); }
 .tug-board__sides { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s6); transition: opacity var(--base); }
 .tug-side { display: grid; gap: var(--s2); align-content: end; }
 .tug-side:last-child { text-align: right; }

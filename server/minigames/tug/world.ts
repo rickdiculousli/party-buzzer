@@ -2,10 +2,10 @@ import type { MinigameResult, PlayerId, TugSide } from '../../../shared/protocol
 import type { MinigameRoom } from '../definition.ts'
 
 export const TUG_STEP_MS = 50
-/** A tap's fatigue fades over this long, so a tap ~300 ms after the last is nearly full value. */
-export const FATIGUE_MS = 300
+/** A tap's fatigue fades over this long: a tap 300 ms after the last is nearly full value, and flat-out mashing tops out near seven a second. */
+export const FATIGUE_MS = 150
 /** Flag travel per unit of pull, per connected member of the side. */
-export const GAIN = 0.12
+export const GAIN = 0.15
 /** The sag back toward the centre, per second, in proportion to how far the flag is out. */
 export const SPRING = 0.1
 /** How long the crossed or final flag holds the board before the results. */
@@ -97,8 +97,8 @@ export function createTugWorld(input: { participants: PlayerId[]; room: Minigame
 
 /**
  * One tap. Each tap's worth is 1 / (1 + fatigue), and fatigue fades over
- * FATIGUE_MS; at a steady interval T a tap is worth 1 - e^(-T/300 ms). So
- * more taps always pull more, but the pull per second levels off near three,
+ * FATIGUE_MS; at a steady interval T a tap is worth 1 - e^(-T/150 ms). So
+ * more taps always pull more, but the pull per second levels off near seven,
  * and for the same number of taps an even rhythm beats bursts.
  * Taps before the first step were sent during the countdown and do nothing.
  */

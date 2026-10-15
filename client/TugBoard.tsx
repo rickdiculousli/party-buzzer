@@ -15,13 +15,13 @@ const ROPE_Y = 250
 /** At the win the rope is carried this far past the mark before it settles. */
 const CARRY = 0.05
 /** Effort meters ease over this long, so they read as strain rather than strobe. */
-const METER_MS = 300
+const METER_MS = 120
 
-type Drawn = { rope: Rope; lean: Rope; effort: [number, number]; tense: boolean }
+type Drawn = { rope: Rope; lean: Rope; effort: [number, number]; tense: boolean; arrived: boolean }
 
 /** The drawn rope and meters, eased every animation frame toward the latest server frame. */
 function useDrawn(board: BoardFrame | null, onSwing: () => void): Drawn {
-  const [drawn, setDrawn] = useState<Drawn>({ rope: { x: 0, v: 0 }, lean: { x: 0, v: 0 }, effort: [0, 0], tense: false })
+  const [drawn, setDrawn] = useState<Drawn>({ rope: { x: 0, v: 0 }, lean: { x: 0, v: 0 }, effort: [0, 0], tense: false, arrived: false })
   const live = useRef(drawn)
   const target = useRef<BoardFrame | null>(board)
   target.current = board
@@ -46,7 +46,9 @@ function useDrawn(board: BoardFrame | null, onSwing: () => void): Drawn {
         if (seen.crossed) swung.current()
       }
       const decided = frame?.winner !== undefined
-      live.current = { rope, lean: lean(live.current.lean, rope.v, dt), effort, tense: !decided && strained(live.current.tense, effort) }
+      // A win at the mark is called when the drawn flag gets there, not a frame ahead of it.
+      const arrived = decided && (!atMark || Math.abs(rope.x) >= 1)
+      live.current = { rope, lean: lean(live.current.lean, rope.v, dt), effort, tense: !decided && strained(live.current.tense, effort, rope.v), arrived }
       setDrawn(live.current)
       raf = requestAnimationFrame(tick)
     }
@@ -86,8 +88,9 @@ export function TugBoard({ state, frame, now }: MinigameBoardProps) {
   const sidesSeen = useRef<BoardFrame['sides'] | null>(null)
   if (board) sidesSeen.current = board.sides
   const sides = board?.sides ?? sidesSeen.current
-  const { rope, lean: hang, effort, tense } = useDrawn(board, () => play('stamp', { rateScale: 1.3 }))
-  const winner = board?.winner
+  const { rope, lean: hang, effort, tense, arrived } = useDrawn(board, () => play('stamp', { rateScale: 1.3 }))
+  // The verdict, as the room sees it: only once the drawn flag has arrived.
+  const winner = arrived ? board?.winner : undefined
 
   // Three cues, on transitions only, so a board reloaded mid-match stays quiet.
   useOnChange(session.phase, (phase) => {
@@ -110,10 +113,10 @@ export function TugBoard({ state, frame, now }: MinigameBoardProps) {
     return (
       <main class="tug-results">
         <p class="eyebrow">Tug of war</p>
-        <h2 class="tug-results__verdict fx-rise" style={{ color: winSide?.color }}>
+        <h2 class="tug-results__verdict" style={{ color: winSide?.color }}>
           {won.length === 0 ? 'Draw' : winSide ? `${winSide.name} wins` : 'Winners'}
         </h2>
-        {won.length > 0 && <ol class="tug-results__list">{won.map(row)}</ol>}
+        {won.length > 0 && <ol class="tug-results__list fx-rise">{won.map(row)}</ol>}
         {rest.length > 0 && <ol class="tug-results__list tug-results__rest">{rest.map(row)}</ol>}
       </main>
     )
@@ -129,7 +132,7 @@ export function TugBoard({ state, frame, now }: MinigameBoardProps) {
     <main class={verdict ? 'tug-board is-decided' : 'tug-board'}>
       <header class="tug-board__header">
         <strong class="tug-board__title">Tug of war</strong>
-        {session.phase === 'playing' && !decided && <span class={remaining <= 5 ? 'tug-clock is-low' : 'tug-clock'}>{remaining}</span>}
+        {session.phase === 'playing' && !decided && <span key={remaining <= 5 ? remaining : 'clock'} class={remaining <= 5 ? 'tug-clock fx-pop' : 'tug-clock'}>{remaining}</span>}
       </header>
       <svg class="tug-field" viewBox="0 0 1600 500" aria-label="Tug of war rope">
         <line x1={CENTRE} y1="60" x2={CENTRE} y2="440" class="tug-field__centre" />

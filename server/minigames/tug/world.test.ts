@@ -23,12 +23,13 @@ function run(w: TugWorld, ms: number, tapper: (id: string, at: number) => boolea
   }
 }
 
-/** The pull one player banks from a schedule of tap times. */
+/** The pull one player banks from a schedule of tap times; their opponent matches them so the rope stays in play. */
 function banked(times: number[]) {
   const w = world(['a', 'b'])
   for (const at of times) {
     while (w.nowMs < at) stepTug(w)
     pull(w, 'a')
+    pull(w, 'b')
   }
   return w.pullers.a.pull
 }
@@ -57,17 +58,17 @@ test('mashing pays, but an even rhythm beats bursts of the same taps', () => {
 
 test('the spring sags a lead back toward the centre', () => {
   const w = world(['a', 'b'])
-  run(w, 2000, (id) => id === 'b')
+  run(w, 800, (id) => id === 'b')
   const out = w.flag
-  assert.ok(out > 0.2, `one side pulling moves the flag toward its mark (${out})`)
+  assert.ok(out > 0.2 && out < 1, `one side pulling moves the flag toward its mark (${out})`)
   run(w, 3000, () => false)
   assert.ok(w.flag > 0 && w.flag < out * 0.8, `left alone it sags back (${w.flag})`)
 })
 
 test('a lead can be clawed back', () => {
   const w = world(['a', 'b'])
-  run(w, 2000, (id) => id === 'b')
-  assert.ok(w.flag > 0)
+  run(w, 800, (id) => id === 'b')
+  assert.ok(w.flag > 0.2 && w.flag < 1)
   run(w, 6000, (id, at) => id === 'a' || (id === 'b' && at % 300 === 0))
   assert.ok(w.flag < 0, `the other side drags it back past the centre (${w.flag})`)
 })

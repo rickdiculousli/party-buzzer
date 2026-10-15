@@ -1,38 +1,33 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { NO_CROSSING, easeToward, follow, watchCrossing } from './tug.ts'
+import { NO_CROSSING, easeToward, follow, tense, watchCrossing } from './tug.ts'
 
-test('the first excursion picks a half without a cue', () => {
-  const { next, crossed } = watchCrossing(NO_CROSSING, 0.3, 1000)
-  assert.equal(crossed, false)
-  assert.equal(next.half, 1)
+test('a swing cues on the frame the flag crosses the centre, once armed past the margin', () => {
+  let c = watchCrossing(NO_CROSSING, 0.03, 0).next
+  assert.equal(watchCrossing(c, -0.01, 100).crossed, false, 'a wobble that never cleared the margin is not a swing')
+  c = watchCrossing(c, 0.2, 200).next
+  assert.equal(watchCrossing(c, 0.04, 300).crossed, false, 'still on the armed side')
+  const over = watchCrossing(c, -0.001, 5000)
+  assert.equal(over.crossed, true, 'cues exactly at the centre line')
+  assert.equal(watchCrossing(over.next, -0.02, 5050).crossed, false, 'once')
 })
 
-test('a crossing needs to clear the margin and cues once', () => {
+test('no more than one swing cue per gap; a swing inside it passes silently', () => {
   let c = watchCrossing(NO_CROSSING, -0.4, 0).next
-  const near = watchCrossing(c, 0.03, 5000)
-  assert.equal(near.crossed, false)
-  const over = watchCrossing(near.next, 0.2, 5100)
-  assert.equal(over.crossed, true)
-  assert.equal(watchCrossing(over.next, 0.3, 5200).crossed, false)
-})
-
-test('a flag that creeps over the line long after passing it stays quiet', () => {
-  let c = watchCrossing(NO_CROSSING, -0.4, 0).next
-  c = watchCrossing(c, 0.01, 5000).next
-  const late = watchCrossing(c, 0.06, 5600)
-  assert.equal(late.crossed, false)
-  assert.equal(late.next.half, 1, 'the half is still taken')
-})
-
-test('a swing inside the gap is taken silently, never cued late', () => {
-  let c = watchCrossing(NO_CROSSING, -0.4, 0).next
-  const first = watchCrossing(c, 0.2, 5000)
+  const first = watchCrossing(c, 0.01, 5000)
   assert.equal(first.crossed, true)
-  const quick = watchCrossing(first.next, -0.2, 5500)
+  c = watchCrossing(first.next, 0.2, 5200).next
+  const quick = watchCrossing(c, -0.01, 5600)
   assert.equal(quick.crossed, false)
-  assert.equal(watchCrossing(quick.next, -0.2, 6600).crossed, false, 'still on the same half: no late cue')
-  assert.equal(watchCrossing(quick.next, 0.2, 6600).crossed, true, 'the next real swing cues')
+  c = watchCrossing(quick.next, -0.2, 5800).next
+  assert.equal(watchCrossing(c, 0.01, 7000).crossed, true, 'the next swing after the gap cues')
+})
+
+test('the flag shakes only in a stalemate, without flicker', () => {
+  assert.equal(tense(false, [0.7, 0.7], 0), true)
+  assert.equal(tense(false, [0.7, 0.3], 0), false, 'one side pulling alone is not a stalemate')
+  assert.equal(tense(false, [0.7, 0.7], 0.5), false, 'a running flag is not a stalemate')
+  assert.equal(tense(true, [0.55, 0.55], 0.25), true, 'once on, it holds through small dips')
 })
 
 test('easing approaches the target and is frame-rate independent', () => {

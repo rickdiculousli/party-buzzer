@@ -4,8 +4,6 @@
 export const CROSS_MARGIN = 0.05
 /** Fewest ms between two swing cues. A swing inside the gap is taken silently. */
 export const CROSS_GAP_MS = 1500
-/** A swing cues only this soon after the flag passed the centre line, so a creeping flag never stamps late. */
-export const CROSS_FRESH_MS = 250
 /** The rope's natural frequency, rad/s, and damping ratio: heavy, settling in about half a second with a slight carry. */
 export const ROPE_OMEGA = 9
 export const ROPE_ZETA = 0.8
@@ -54,26 +52,32 @@ export function lean(state: Rope, ropeV: number, dtMs: number): Rope {
   return { x: Math.max(-2 * SWING_MAX, Math.min(2 * SWING_MAX, x)), v }
 }
 
-/** Effort above this shakes the flag, and it stops below `TENSE_OFF`, so the shake never flickers. */
-export const TENSE_ON = 0.75
-export const TENSE_OFF = 0.65
-export const tense = (was: boolean, effort: [number, number]) => Math.min(...effort) > (was ? TENSE_OFF : TENSE_ON)
+/**
+ * A stalemate shakes the flag: both sides straining above `TENSE_ON` while the
+ * flag barely moves. It stops below `TENSE_OFF` or once the flag runs, so the
+ * shake never flickers and never drowns a real heave.
+ */
+export const TENSE_ON = 0.6
+export const TENSE_OFF = 0.5
+export const STILL = 0.2
+export const tense = (was: boolean, effort: [number, number], ropeV: number) =>
+  Math.min(...effort) > (was ? TENSE_OFF : TENSE_ON) && Math.abs(ropeV) < (was ? STILL * 1.5 : STILL)
 
-export type Crossing = { half: -1 | 0 | 1; at: number; side: -1 | 1; passedAt: number }
-export const NO_CROSSING: Crossing = { half: 0, at: -Infinity, side: 1, passedAt: -Infinity }
+export type Crossing = { armed: -1 | 0 | 1; at: number }
+export const NO_CROSSING: Crossing = { armed: 0, at: -Infinity }
 
 /**
- * Watches the drawn flag for a swing to the other half. The first excursion
- * from the centre only picks a half. A swing past `CROSS_MARGIN` cues when the
- * flag passed the centre line within `CROSS_FRESH_MS` and no cue sounded in
- * the last `CROSS_GAP_MS`; otherwise the half changes without a sound, so a
- * cue never arrives late on a flag that is creeping or has stopped.
+ * Watches the drawn flag for a swing to the other half. Once the flag has been
+ * past `CROSS_MARGIN` on one side, the swing is armed; it cues on the very
+ * frame the flag crosses the centre line to the other side, so the sound and
+ * the crossing are one event. No more than one cue per `CROSS_GAP_MS`; a swing
+ * inside the gap passes silently.
  */
 export function watchCrossing(prev: Crossing, flag: number, nowMs: number): { next: Crossing; crossed: boolean } {
-  const side = flag < 0 ? -1 : 1
-  const passed = side !== prev.side ? { side, passedAt: nowMs } as const : { side: prev.side, passedAt: prev.passedAt }
-  const half = flag > CROSS_MARGIN ? 1 : flag < -CROSS_MARGIN ? -1 : 0
-  if (half === 0 || half === prev.half) return { next: { ...prev, ...passed }, crossed: false }
-  const quiet = prev.half === 0 || nowMs - prev.at < CROSS_GAP_MS || nowMs - passed.passedAt > CROSS_FRESH_MS
-  return { next: { half, at: quiet ? prev.at : nowMs, ...passed }, crossed: !quiet }
+  if (prev.armed !== 0 && Math.sign(flag) === -prev.armed) {
+    const crossed = nowMs - prev.at >= CROSS_GAP_MS
+    return { next: { armed: 0, at: crossed ? nowMs : prev.at }, crossed }
+  }
+  const armed = flag > CROSS_MARGIN ? 1 : flag < -CROSS_MARGIN ? -1 : prev.armed
+  return { next: { armed, at: prev.at }, crossed: false }
 }
