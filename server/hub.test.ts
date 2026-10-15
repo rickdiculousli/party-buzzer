@@ -771,3 +771,29 @@ test('the night: a verdict appends a fact, undo retracts it, a refusal appends n
   assert.equal(hub.dispatch({ a: 'undo' }).status, 'applied')
   assert.deepEqual(state.night!.facts, [], 'undo takes the verdict and its standings back')
 })
+
+test('a steal on a picture reveal takes first place but keeps its own press, so the picture never snaps back', () => {
+  mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1_000_000 })
+  try {
+    const { state, hub, conn } = rig()
+    const ada = conn('player')
+    const bo = conn('player')
+    joinAs(hub, ada, 'Ada')
+    joinAs(hub, bo, 'Bo')
+    hub.dispatch({ a: 'setValue', value: 200 })
+    hub.dispatch({ a: 'arm', kind: 'reveal' })
+    const armedAt = state.round.armedAt
+    state.effects.push({ kind: 'steal', playerId: bo.playerId!, attemptId: state.round.attemptId })
+    mock.timers.tick(ARM_DELAY_MS + 6000)
+    hub.handle(ada, { t: 'buzz', at: Date.now() })
+    mock.timers.tick(100)
+    hub.handle(bo, { t: 'buzz', at: Date.now() })
+    mock.timers.tick(COLLECT_MS)
+    assert.equal(state.round.order[0].playerId, bo.playerId, 'the steal still jumps the queue')
+    assert.equal(state.round.order[0].at, armedAt + 6100, 'at its own press, not the arm')
+    hub.dispatch({ a: 'correct' })
+    assert.equal(state.round.award?.points, 300, 'priced where the picture stood: 6.1 s of 10 is the third quarter')
+  } finally {
+    mock.timers.reset()
+  }
+})

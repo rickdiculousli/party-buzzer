@@ -12,5 +12,5 @@ A: a stop sign | stop sign | stop
 V: 200
 K: reveal
 I: images/camel.svg
-What animal is this?
+What is this?
 A: a camel | dromedary

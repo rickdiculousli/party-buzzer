@@ -305,7 +305,7 @@ function RevealScene({ lead }: { lead: boolean }) {
       <div class="board__above" />
       <div class="board__mid">
         {!lead && <RevealPicture src={CAMEL} reveal={wall} now={now} />}
-        <p class="board__question">What animal is this?</p>
+        <p class="board__question">What is this?</p>
       </div>
       <div class="board__below" />
       {!lead && <RevealStakes value={200} reveal={wall} now={now} />}

@@ -222,13 +222,13 @@ A: 1889
 V: 200
 K: reveal
 I: images/camel.svg
-What animal is this?
+What is this?
 A: a camel | dromedary
 
 V: 200
 K: reveal
 I: images/lighthouse.svg
-What is this building?
+What is this?
 A: a lighthouse
 
 V: 200

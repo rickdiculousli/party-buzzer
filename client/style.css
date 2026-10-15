@@ -645,6 +645,9 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   right: var(--s6);
   opacity: 0.8;
 }
+/* A picture reveal's chip while a buzz pays more than the plain value: the
+   falling price is the reason to buzz, so it is not dimmed. */
+.board__stakes.is-lit { opacity: 1; }
 /* The milestone: one dim line under the stakes chip, in the same corner. The
    chip is one line tall in chip type; this sits below it, right-aligned, and
    never wider than the lane the setlist chips leave free. */
@@ -937,6 +940,13 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   max-height: 50vh;
   margin: 0 auto var(--s4);
   object-fit: contain;
+}
+/* A picture reveal's canvas: its box is the picture's, from the first frame,
+   inside the same limits as `.board__image`. */
+.board__reveal {
+  width: min(64rem, 90vw, calc(50vh * var(--ratio)));
+  height: auto;
+  aspect-ratio: var(--ratio);
 }
 .player__image {
   display: block;

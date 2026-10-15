@@ -13,7 +13,7 @@ plain value, as on any buzz question. Reference: the `K: reveal` questions in
 V: 200
 K: reveal
 I: images/camel.svg
-What animal is this?
+What is this?
 A: a camel | dromedary
 ```
 
@@ -23,10 +23,13 @@ A: a camel | dromedary
   vehicle, a landmark. The mosaic starts six cells across, so colour and
   silhouette carry the early guesses; a picture that is only recognisable
   from a small detail (a logo, text, a face) is never guessed until it is sharp.
-- Fill the frame with the subject on a plain background. A small subject in a
-  busy scene stays a blur for most of the reveal.
+- Fill the frame with the subject. The six-cell start is mostly background, so
+  a background that names the answer (desert for a camel, sea for a
+  lighthouse) gives it away at double value; a small subject in a busy scene
+  stays a blur for most of the reveal.
 - Never put the answer in the picture as text, and keep the question text
-  generic ("What animal is this?"): the board shows it whole from the start.
+  generic ("What is this?"): the board shows it whole from the start, and
+  "What animal is this?" is half the answer.
 - SVG, PNG and JPEG all work. Keep the long side at 1,000 to 2,000 pixels; the
   board draws it at 1,600.
 - Use only pictures you may share: your own, or CC0 / public-domain images,

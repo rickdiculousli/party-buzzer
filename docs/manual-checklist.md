@@ -264,9 +264,9 @@ npm run walk-images
 
 - [ ] The flag and the road sign are up sharp above their question from the
       arm, on the board and (mirror on) on the phones
-- [ ] The camel question arms as a mosaic six cells across, grey-blue over
-      sand; it sharpens in visible steps, staying coarse for its first half.
-      The stakes chip reads 400 pts and flips down a quarter at a time
+- [ ] The camel question arms as a mosaic six cells across; it sharpens in
+      visible steps through every quarter and goes whole only at ten seconds.
+      The stakes chip reads 400 pts, lit, and flashes down a quarter at a time
 - [ ] Cy buzzes three seconds in, while the chip reads 350, and says "a
       horse": the miss holds the wall, and the rebound brings the mosaic back
       exactly as coarse as Cy left it before it sharpens on

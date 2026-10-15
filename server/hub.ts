@@ -594,8 +594,14 @@ export class Hub {
     if (steal && !frozen.has(steal.playerId) && !excluded.includes(steal.playerId)) {
       const name =
         this.state.players.find((p) => p.id === steal.playerId)?.name ?? '?'
+      // On a picture reveal the stamp is also a price and where the picture
+      // holds: a steal takes first place but keeps its own press, or the
+      // room's first, rather than snapping a sharp picture back to the mosaic.
+      const at = round.reveal
+        ? (round.order.find((b) => b.playerId === steal.playerId) ?? round.order[0])?.at ?? round.armedAt
+        : round.armedAt
       round.order = [
-        { playerId: steal.playerId, name, at: round.armedAt, deltaMs: 0 },
+        { playerId: steal.playerId, name, at, deltaMs: 0 },
         ...round.order.filter((b) => b.playerId !== steal.playerId),
       ].map((b) => ({ ...b, deltaMs: Math.round(b.at - round.armedAt) }))
     }

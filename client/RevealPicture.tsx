@@ -1,43 +1,58 @@
-import { useEffect, useRef, useState } from 'preact/hooks'
-import { revealValue } from '../shared/scoring.ts'
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
+import { revealMultiplier, revealValue } from '../shared/scoring.ts'
 import type { RevealWall } from '../shared/wall.ts'
-import { REVEAL_STEP_MS, revealCells, revealShownAt } from './reveal.ts'
+import { nextRevealStep, revealCells, revealShownAt } from './reveal.ts'
 
-/** The canvas's long side in device pixels: sharp on a 1080p wall, and the mosaic's "full resolution". */
+/** The canvas's long side in device pixels: sharp on a 1080p wall. */
 const LONG_SIDE = 1600
 
 /**
- * The reveal-clock instant to show, re-read every `REVEAL_STEP_MS` while the
- * picture is sharpening. Undefined until there is one to show.
+ * Pictures already decoded, by URL. The hero takes the middle on every buzz, so
+ * the picture unmounts and comes back on the rebound; drawn from here, it is
+ * up in the same frame instead of a blank beat with the question jumping.
+ */
+const decoded = new Map<string, HTMLImageElement>()
+
+/**
+ * The reveal-clock instant to show, re-read on each step boundary of the
+ * reveal clock while the picture is sharpening. A timer aimed at the boundary,
+ * not an interval started whenever: the chip must drop when the price does,
+ * not up to a step later.
  */
 function useShownAt(r: RevealWall, now: () => number): number | undefined {
   const [at, setAt] = useState(() => revealShownAt(r, now()))
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined
     const read = () => {
       const next = revealShownAt(r, now())
       if (next !== undefined) setAt(next)
+      if (!r.live) return
+      // A hair past the boundary, so the read lands on the new step.
+      timer = setTimeout(read, Math.max(0, nextRevealStep(r, now()) - now()) + 5)
     }
     read()
-    if (!r.live) return
-    const id = setInterval(read, REVEAL_STEP_MS)
-    return () => clearInterval(id)
+    return () => clearTimeout(timer)
   }, [r.from, r.until, r.heldAt, r.live, r.sharp])
   return at
 }
 
 /**
  * A picture reveal's image on the wall: drawn through a canvas as a mosaic,
- * 6 cells across at the start, sharpening to the whole picture on the reveal
- * clock. A press holds it; the question ending shows it sharp.
+ * 6 cells across at the start, sharpening on the reveal clock and whole at its
+ * end. A press holds it; the question ending shows it sharp.
  */
 export function RevealPicture({ src, reveal, now }: { src: string; reveal: RevealWall; now: () => number }) {
   const canvas = useRef<HTMLCanvasElement>(null)
-  const [image, setImage] = useState<HTMLImageElement>()
+  const [image, setImage] = useState(() => decoded.get(src))
   const at = useShownAt(reveal, now)
 
   useEffect(() => {
+    if (decoded.get(src)) return setImage(decoded.get(src))
     const img = new Image()
-    img.onload = () => setImage(img)
+    img.onload = () => {
+      decoded.set(src, img)
+      setImage(img)
+    }
     img.src = src
     return () => {
       img.onload = null
@@ -46,7 +61,8 @@ export function RevealPicture({ src, reveal, now }: { src: string; reveal: Revea
 
   // The small canvas the image is averaged into; kept so a step allocates nothing.
   const cells = useRef<HTMLCanvasElement>()
-  useEffect(() => {
+  // Before paint, so a remount never shows an empty frame.
+  useLayoutEffect(() => {
     const c = canvas.current
     if (!c || !image || at === undefined) return
     const w0 = image.naturalWidth || LONG_SIDE
@@ -81,19 +97,40 @@ export function RevealPicture({ src, reveal, now }: { src: string; reveal: Revea
     ctx.drawImage(small, 0, 0, w, h)
   }, [image, at, reveal.from, reveal.until])
 
-  return <canvas ref={canvas} class="board__image board__reveal" data-review-id="board:reveal" width={0} height={0} />
+  // Sized from the first frame (3:2 until the picture says otherwise), so the
+  // question under it never drops when the image decodes.
+  const size = image ? { w: image.naturalWidth || LONG_SIDE, h: image.naturalHeight || LONG_SIDE } : { w: 3, h: 2 }
+  return (
+    <canvas
+      ref={canvas}
+      class="board__image board__reveal"
+      data-review-id="board:reveal"
+      style={{ '--ratio': size.w / size.h }}
+    />
+  )
 }
 
 /**
- * What the picture is worth right now, for the stakes chip: it decays with the
- * mosaic, on the same steps, and once a press holds the picture it reads what
- * that press is playing for — the same number the award will stamp.
+ * What the picture is worth right now, for the stakes chip: it decays on the
+ * mosaic's steps, and once a press holds the picture it reads what that press
+ * is playing for, the same number the award will stamp. While a buzz still
+ * pays more than the plain value it is lit (tungsten, the question's value),
+ * and each drop flashes it toward tally.
  */
 export function RevealStakes({ value, reveal, now }: { value: number; reveal: RevealWall; now: () => number }) {
   const at = useShownAt(reveal, now)
-  const points = revealValue(value, reveal, reveal.heldAt ?? at ?? reveal.from)
+  const t = reveal.heldAt ?? at ?? reveal.from
+  const points = revealValue(value, reveal, t)
+  const lit = reveal.live && revealMultiplier(reveal, t) > 1
+  const first = useRef(points)
+  const dropped = points !== first.current
   return (
-    <span key={points} class="chip board__stakes fx-flip" data-review-id="board:stakes">
+    <span
+      key={points}
+      class={`chip board__stakes${lit ? ' chip--armed is-lit' : ''}${dropped ? ' fx-flash fx-flash--tint' : ''}`}
+      style={{ '--fx-color': 'var(--tally)' }}
+      data-review-id="board:stakes"
+    >
       {points} pts
     </span>
   )
