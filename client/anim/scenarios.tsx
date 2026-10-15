@@ -21,6 +21,7 @@
  * properties on a wrapper and the real rules pick them up, so a scenario cannot
  * drift from what the board actually does.
  */
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { PokerStress } from './PokerStress.tsx'
 import { TugReplay } from './TugReplay.tsx'
 import { COLLECT_MS } from '../../shared/protocol.ts'
@@ -39,6 +40,9 @@ import { chain, flop, gather, pitch, receive, scatter, street, sweep, toss, turn
 import { mulberry32 } from '../../shared/random.ts'
 import type { BurstFrom } from '../fx.ts'
 import type { Recipe } from '../synth.ts'
+import { RevealPicture, RevealStakes } from '../RevealPicture.tsx'
+import { revealShownAt } from '../reveal.ts'
+import type { RevealWall } from '../../shared/wall.ts'
 
 /**
  * A number the harness can move.
@@ -266,6 +270,45 @@ function ClosestScene({ revealed }: { revealed: boolean }) {
       </div>
       <div class="board__mid"><p class="board__question">How many steps are in the Eiffel Tower to the top?</p></div>
       <div class="board__below"><ClosestLine c={c} closed={!revealed} colorOf={colorOf} /></div>
+    </section>
+  )
+}
+
+const CAMEL = new URL('../../packs/images/camel.svg', import.meta.url).href
+const REVEAL_MS = 10_000
+
+/**
+ * A picture reveal from mosaic to sharp. The board's clock is server time; here
+ * it is an invisible animation's `currentTime`, read every frame, so the
+ * filmstrip's stepped clock drives the mosaic exactly as it drives CSS. The
+ * mosaic still only changes on the 250 ms steps `revealShownAt` quantises to.
+ */
+function RevealScene({ lead }: { lead: boolean }) {
+  const clock = useRef<HTMLSpanElement>(null)
+  const [at, setAt] = useState(0)
+  useEffect(() => {
+    let id = 0
+    const read = () => {
+      const t = clock.current?.getAnimations()[0]?.currentTime
+      if (typeof t === 'number') setAt(revealShownAt({ from: 0, until: REVEAL_MS, live: true, sharp: false }, t) ?? 0)
+      id = requestAnimationFrame(read)
+    }
+    id = requestAnimationFrame(read)
+    return () => cancelAnimationFrame(id)
+  }, [])
+  // Held at the stepped instant: the picture and the chip show exactly that moment.
+  const wall: RevealWall = { from: 0, until: REVEAL_MS, heldAt: at, live: false, sharp: false }
+  const now = () => at
+  return (
+    <section class="board__wall">
+      <span ref={clock} class="reveal-clock" aria-hidden="true" style={{ position: 'absolute', opacity: 0, animation: `fx-flip ${REVEAL_MS + 500}ms linear both` }} />
+      <div class="board__above" />
+      <div class="board__mid">
+        {!lead && <RevealPicture src={CAMEL} reveal={wall} now={now} />}
+        <p class="board__question">What animal is this?</p>
+      </div>
+      <div class="board__below" />
+      {!lead && <RevealStakes value={200} reveal={wall} now={now} />}
     </section>
   )
 }
@@ -872,6 +915,16 @@ export const SCENARIOS: Scenario[] = [
     // Its timings are `CLOSEST_REVEAL` in shared/closest.ts, which the phones and the reader keep too.
     dials: [],
     render: (lead) => <ClosestScene revealed={!lead} />,
+  },
+  {
+    id: 'reveal',
+    label: 'A picture reveal',
+    family: 'Quiz',
+    note: 'A picture question arms as a mosaic six cells across and sharpens on 250 ms steps over ten seconds; the stakes chip falls from double to the plain value a quarter at a time.',
+    subject: '.board__reveal, .reveal-clock, .board__stakes',
+    // Its timings are `client/reveal.ts`; the length is the host's Reveal time.
+    dials: [],
+    render: (lead) => <RevealScene lead={lead} />,
   },
   {
     id: 'finale',
