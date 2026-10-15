@@ -1,7 +1,8 @@
-# One reviewer of another family than the builder (models in the sized order;
-# `--model` picks one): `bmesh routine queue review --model <m> --go --text "base: <sha>"`.
+# One reviewer per change that carries risk verify can't catch, on Opus in a
+# fresh session (eight single reviewers of either family each caught a six-defect
+# fixture whole); a rote change is done on verify alone.
 mode = "pooled"
-models = ["claude-opus-5-5", "claude-fable-5-1"]
+models = ["claude-opus-5-5"]
 allow = ["Bash(git diff:*)", "Bash(git log:*)"]
 prompt = """
 Review the change at this commit for correctness bugs.
