@@ -11,6 +11,7 @@ proposed_on: 2026-10-14
 built_by: 2259117e-fdd4-4c67-9780-a59ac56e0b62
 branch: t3code/8ebd7a4a
 host: k16
+scope_grew: [014]
 ---
 
 ## Opportunity
@@ -18,6 +19,8 @@ host: k16
 
 ## Proposal
 `K: closest` in `shared/pack.ts`, with a numeric `A:` and an optional `U: metres` unit line. The Reader runs it as it runs a choice: reads the question, publishes `round.guessing = { unit, closesAt }`, waits for every picker, the deadline (`choiceSec`), or the host's close, then dispatches `settleClosest`. Phones submit a `guess` act with a number; `Round.guesses` is redacted to the viewer's own in `viewFor`. Scoring in `shared/scoring.ts`: the nearest guess takes the value, ties share, and with six or more guessers the second-nearest takes half; an exact hit doubles. The board puts every guess on a number line scaled to the guesses, then slides the truth in and lights the winner. The phone has a number pad with the unit and the typed value large. In: pack kind and its style guide page, Round fields, Reader phase, legality, settle action, wall moment, phone pad, board line, ten questions added to `packs/game-night.txt`. Out: ranges or tolerance in the pack, wagering (see 011 and 021 for where risk lives), log-scaled lines.
+
+Scope grew: 014 (night recap) landed first, so a closest settle also records one `closest` verdict per paid player in the night ledger and counts as play for its standings fact.
 
 Judge: opus, because the rules and scoring are pinned and the work is threading a fourth kind through pack, reader, legality, wall and two surfaces along the groove `choice` cut.
 

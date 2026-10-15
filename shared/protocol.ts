@@ -748,7 +748,7 @@ export type NightFact =
       points: number; hit: boolean
       /** Buzz verdicts only: ms from the buzzers opening to the leader's press, and ms ahead of the next buzz (absent when alone). */
       reactionMs?: number; marginMs?: number
-      source: 'buzz' | 'choice'
+      source: 'buzz' | 'choice' | 'closest'
     }
   /** The standings whenever their key order changed or first place stopped being shared (and on the first applied action). Top-of-standings changes and comebacks derive from these. */
   | { kind: 'standings'; at: number; questionId?: string; matchId?: string; order: { key: ScoreKey; score: number }[] }

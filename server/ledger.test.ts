@@ -74,6 +74,18 @@ test('settleChoice: one choice verdict per right pick, with no buzz timing', () 
   assert.deepEqual(verdicts.map((v) => [v.playerId, v.source, v.points, v.reactionMs]), [['a', 'choice', 200, undefined], ['c', 'choice', 200, undefined]])
 })
 
+test('settleClosest: one closest verdict per player it paid, and the standings it moved', () => {
+  const state = room()
+  const was = before(state)
+  state.round.paid = { a: 200, c: 100 }
+  state.scores = { a: 200, b: 0, c: 100 }
+  const facts = nightFacts(was, state, { action: { a: 'settleClosest', truth: 1665 } }, 9)
+  const verdicts = facts.filter((f) => f.kind === 'verdict') as Extract<NightFact, { kind: 'verdict' }>[]
+  assert.deepEqual(verdicts.map((v) => [v.playerId, v.source, v.points, v.hit]), [['a', 'closest', 200, true], ['c', 'closest', 100, true]])
+  const standings = facts.find((f) => f.kind === 'standings')
+  assert.ok(standings && 'questionId' in standings && standings.questionId, 'a settle is play, so its standings are tagged')
+})
+
 test('setScore: a standings fact when the order moves, never a verdict', () => {
   const state = room()
   const was = before(state)

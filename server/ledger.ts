@@ -68,6 +68,15 @@ export function nightFacts(before: LedgerBefore, after: State, cause: Cause, now
           points: round.value, hit: true, source: 'choice',
         })
       }
+    } else if (action.a === 'settleClosest') {
+      // Everyone the settle paid: the nearest, and a half-paid second.
+      for (const [playerId, points] of Object.entries(after.round.paid ?? {})) {
+        facts.push({
+          kind: 'verdict', at: now, questionId, block,
+          playerId, key: scoreKey(after, playerId), name: name(playerId),
+          points, hit: true, source: 'closest',
+        })
+      }
     }
   } else if ('results' in cause) {
     facts.push({
@@ -98,7 +107,7 @@ export function nightFacts(before: LedgerBefore, after: State, cause: Cause, now
     // stand, so a later comeback is measured truthfully, but it is nobody's
     // moment and no milestone is ever shown for it.
     const play = 'results' in cause ||
-      ('action' in cause && (cause.action.a === 'correct' || cause.action.a === 'wrong' || cause.action.a === 'settleChoice'))
+      ('action' in cause && (cause.action.a === 'correct' || cause.action.a === 'wrong' || cause.action.a === 'settleChoice' || cause.action.a === 'settleClosest'))
     facts.push({
       kind: 'standings', at: now, order,
       ...(!play ? {} : 'results' in cause ? { matchId: cause.matchId } : round.questionId ? { questionId: round.questionId } : {}),
