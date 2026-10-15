@@ -133,5 +133,10 @@ A change is done when all of these hold: the repo's verify commands pass (`npm t
 
 <!-- command-center:proposals -->
 ## Proposals
-Half-page specs live in `docs/proposals/NNN-slug.md` (template and lifecycle in `command-center/templates/proposal.md`). The build thread owns its spec's status: `building` when dispatched, `done` with the merge SHA when merged, `blocked` with a reason if it can't finish. Rejected specs stay so they aren't re-proposed. Bulk work in this repo runs through the `delegation` skill.
+Half-page specs live in `docs/proposals/NNN-slug.md` (template and lifecycle in `command-center/templates/proposal.md`). The build thread owns its spec's status: `building` when dispatched, `done` with the merge SHA when merged, `blocked` with a reason if it can't finish. Rejected specs stay so they aren't re-proposed. Accepted specs are built by buildermesh leads (see Buildermesh below).
 <!-- /command-center:proposals -->
+
+<!-- command-center:mesh -->
+## Buildermesh
+Builds here run as nodes on a buildermesh mesh through the `bmesh` CLI: a lead owns one spec in its own worktree, executors build pieces on branches under the lead's and hand them back through the mesh, and routines run this repo's checks. The repo's routine kinds live in `.bmesh/routines/<kind>.toml` (`verify` runs `npm test`; `review` asks a model of another family for findings; add a kind rather than a script when a check should be recorded). Commit before queueing a job: a job names a commit, and every result is recorded under that commit's tree hash, so a deterministic kind answers a repeat run from its record. A spec is done only when its frontmatter carries a `verified` line (`verify ok t:<tree8>; review ok t:<tree8> m:<model>`), composed by `bmesh spec verified --write` from the results recorded for the landed tree, and `bmesh done` is the last word: it refuses until the spec on `origin/main` reads `done` with a merged commit and a result for every entry.
+<!-- /command-center:mesh -->

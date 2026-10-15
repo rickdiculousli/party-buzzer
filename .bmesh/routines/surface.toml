@@ -1,0 +1,9 @@
+# One screenshot of one surface at one viewport, from projects.md's UI surfaces:
+#   bmesh routine queue surface --go -- /host 1280x800
+#   bmesh routine queue surface --go -- / 390x844
+#   bmesh routine queue surface --go -- /board 1920x1080
+# The job args <path> <WxH> are appended as "$@"; the PNG lands in shots/.
+mode = "fresh"
+deterministic = true
+slots = ["browser"]
+command = "sh scripts/surface.sh"

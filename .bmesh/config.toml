@@ -1,0 +1,3 @@
+# buildermesh per-repo config: slot capacities for routine kinds that declare them.
+[slots]
+browser = 2

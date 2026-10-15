@@ -1,0 +1,5 @@
+# The repo's verify commands, run inline in the requester's worktree at HEAD and
+# recorded under HEAD's tree: `bmesh routine run verify`.
+mode = "inline"
+deterministic = true
+command = "npm test"

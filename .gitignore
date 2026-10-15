@@ -50,3 +50,6 @@ packs/phantom-ink.txt
 
 # Per-worktree scratch and caches (e.g. the incremental typecheck build info).
 /cache/
+
+# Surface screenshots from the `surface` routine kind (scripts/surface.sh).
+shots/
