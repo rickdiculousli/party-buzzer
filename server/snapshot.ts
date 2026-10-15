@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { State } from '../shared/protocol.ts'
-import { resumeReveal } from '../shared/scoring.ts'
+import { resumeReveal, revealHeldAt } from '../shared/scoring.ts'
 
 /** Undo owns game data, not connections, catalogs, or playback. */
 export function gameSnapshot(state: State) {
@@ -38,11 +38,13 @@ export function restoreGame(state: State, snapshot: GameSnapshot): void {
   // Raw buzz packets and their timers cannot be restored. Reopen that attempt;
   // a settled leader can still be judged manually after undoing a verdict.
   if (state.round.phase === 'COLLECTING' || state.round.held) {
+    // A picture a press or a miss was holding resumes with the reopened
+    // attempt, from where it stood. Read before the order goes.
+    const heldAt = revealHeldAt(state.round)
     state.round.phase = 'ARMED'
     state.round.order = []
     state.round.total = 0
-    // A picture a miss was holding resumes with the reopened attempt.
-    if (state.round.reveal) state.round.reveal = resumeReveal(state.round.reveal, Date.now())
+    if (state.round.reveal) state.round.reveal = resumeReveal({ ...state.round.reveal, heldAt }, Date.now())
   }
   delete state.round.held
   delete state.round.judge

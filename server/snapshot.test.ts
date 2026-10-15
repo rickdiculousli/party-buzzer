@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Hub, type Conn } from './hub.ts'
 import { newState, saveState, flushSave, loadState } from './state.ts'
-import { gameSnapshot, persistedSnapshot } from './snapshot.ts'
+import { gameSnapshot, persistedSnapshot, restoreGame } from './snapshot.ts'
 
 const host: Conn = { id: 'host', role: 'host', send() {} }
 
@@ -211,4 +211,17 @@ test('a version 2 file round-trips the ledger, and a version 1 file loads with a
   // A version 2 file whose ledger was damaged by hand is no better than none.
   writeFileSync(file, JSON.stringify({ version: 2, state: { ...withoutNight, night: { facts: 'x' } } }))
   assert.deepEqual(loadState(file).night, { facts: [] })
+})
+
+test('undo into a collecting picture reveal resumes it from the press, not from the clock', () => {
+  const state = newState()
+  state.round = { ...state.round, questionId: 'q', attemptId: 'a', phase: 'COLLECTING', armedAt: 1000, kind: 'reveal', reveal: { from: 1000, until: 11_000 },
+    order: [{ playerId: 'p', name: 'P', at: 4000, deltaMs: 0 }], total: 1 }
+  const snap = gameSnapshot(state)
+  restoreGame(state, snap)
+  const r = state.round.reveal!
+  assert.equal(state.round.phase, 'ARMED')
+  assert.equal(r.heldAt, undefined)
+  assert.equal(r.until - r.from, 10_000)
+  assert.ok(Math.abs(Date.now() - r.from - 3000) < 50, 'three seconds in, where the press held it')
 })

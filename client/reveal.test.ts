@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { REVEAL_FIRST_CELLS, nextRevealStep, revealCells, revealShownAt } from './reveal.ts'
+import { REVEAL_FIRST_CELLS, nextRevealStep, revealDrawnAt, revealCells, revealShownAt } from './reveal.ts'
 
 const r = { from: 1000, until: 11_000, live: true, sharp: false, opensAt: 1000 }
 
@@ -29,4 +29,11 @@ test('cells start at six across, never coarsen as the clock runs, and end at ful
   assert.ok(revealCells(r, 6000, full) < 25, 'still a guess at the midpoint')
   for (let at = 1000; at < 3500; at += 250) assert.ok(revealCells(r, at + 250, full) > revealCells(r, at, full), `${at}: every step changes the grid`)
   assert.ok(revealCells(r, 10_750, full) < 120, 'not sharp until the plain value: the last quarter still sharpens')
+})
+
+test('a live picture goes whole only after a grace, so a press published late never shows it whole', () => {
+  assert.equal(revealDrawnAt(r, 11_000, 11_050), 10_750, 'just past the end, still the last mosaic')
+  assert.equal(revealDrawnAt(r, 11_000, 11_150), 11_000)
+  assert.equal(revealDrawnAt({ ...r, live: false, sharp: true }, 11_000, 11_000), 11_000, 'a question over is whole at once')
+  assert.equal(revealDrawnAt(r, 6000, 6000), 6000)
 })

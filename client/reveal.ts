@@ -45,6 +45,21 @@ export function revealShownAt(r: RevealWall, now: number): number | undefined {
   return step(r, Math.max(now, r.opensAt))
 }
 
+/**
+ * How long a live picture waits past `until` before it goes whole. A press
+ * stops the board only when the round reaches it, a network trip or two after
+ * the press; a press just before the end would otherwise put the whole
+ * picture up for that beat and then hold it back at the mosaic it earned.
+ * The price still drops on time; only the picture waits.
+ */
+export const REVEAL_WHOLE_GRACE_MS = 150
+
+/** The instant the picture is drawn at: `shown`, except that a live one goes whole only after the grace. */
+export function revealDrawnAt(r: RevealWall, shown: number, now: number): number {
+  if (!r.live || shown < r.until || now >= r.until + REVEAL_WHOLE_GRACE_MS) return shown
+  return step(r, r.until - 1)
+}
+
 /** Server time of the step after `now`, for a timer that lands on the step rather than near it. */
 export function nextRevealStep(r: Pick<RevealWall, 'from'>, now: number): number {
   return step(r, now) + REVEAL_STEP_MS

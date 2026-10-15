@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { revealMultiplier, revealValue } from '../shared/scoring.ts'
 import type { RevealWall } from '../shared/wall.ts'
-import { nextRevealStep, revealCells, revealShownAt } from './reveal.ts'
+import { REVEAL_WHOLE_GRACE_MS, nextRevealStep, revealCells, revealDrawnAt, revealShownAt } from './reveal.ts'
 
 /** The canvas's long side in device pixels: sharp on a 1080p wall. */
 const LONG_SIDE = 1600
@@ -49,7 +49,15 @@ function useShownAt(r: RevealWall, now: () => number): number | undefined {
 export function RevealPicture({ src, reveal, now }: { src: string; reveal: RevealWall; now: () => number }) {
   const canvas = useRef<HTMLCanvasElement>(null)
   const [image, setImage] = useState(() => decoded.get(src))
-  const at = useShownAt(reveal, now)
+  const shown = useShownAt(reveal, now)
+  const at = shown === undefined ? undefined : revealDrawnAt(reveal, shown, now())
+  // The grace ends between steps, so it gets a render of its own.
+  const [, tick] = useState(0)
+  useEffect(() => {
+    if (!reveal.live) return
+    const t = setTimeout(() => tick((n) => n + 1), Math.max(0, reveal.until + REVEAL_WHOLE_GRACE_MS - now()) + 5)
+    return () => clearTimeout(t)
+  }, [reveal.until, reveal.live])
 
   useEffect(() => {
     if (decoded.get(src)) return setImage(decoded.get(src))
@@ -88,24 +96,27 @@ export function RevealPicture({ src, reveal, now }: { src: string; reveal: Revea
       ctx.drawImage(image, 0, 0, w, h)
       return
     }
-    // Square cells of a fractional count: the image fills `across` cells of the
-    // small canvas, the last one partial, and the canvas crops it at the edge.
+    // Square cells of a fractional count, the grid centred: the image fills
+    // `across` cells of the small canvas with a part-cell at each edge, and the
+    // canvas crops them evenly, so neither far edge crawls as the count grows.
     const cell = LONG_SIDE / across
     const cw = w / cell
     const ch = h / cell
     const small = (cells.current ??= document.createElement('canvas'))
     small.width = Math.ceil(cw)
     small.height = Math.ceil(ch)
+    const ox = (small.width - cw) / 2
+    const oy = (small.height - ch) / 2
     const sctx = small.getContext('2d')
     if (!sctx) return
     sctx.imageSmoothingEnabled = true
     sctx.imageSmoothingQuality = 'high'
-    // The partial cell at each far edge is only part-covered by the exact
-    // draw; the stretched one under it makes that cell opaque, in the edge's colour.
+    // The part-cells at the edges are only part-covered by the exact draw;
+    // the stretched one under it makes them opaque, in the edge's colour.
     sctx.drawImage(image, 0, 0, small.width, small.height)
-    sctx.drawImage(image, 0, 0, cw, ch)
+    sctx.drawImage(image, ox, oy, cw, ch)
     ctx.imageSmoothingEnabled = false
-    ctx.drawImage(small, 0, 0, small.width * cell, small.height * cell)
+    ctx.drawImage(small, -ox * cell, -oy * cell, small.width * cell, small.height * cell)
   }, [image, at, reveal.from, reveal.until])
 
   // Sized from the first frame (3:2 until the picture says otherwise), so the
