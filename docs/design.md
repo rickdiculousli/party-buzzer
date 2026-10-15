@@ -886,6 +886,18 @@ value large with its unit and **Lock in** beside it, then four columns of keys
 in three rows. Its verdict is **Nearest** (brass), **Exact**, **Second**
 (placed), or how far off it was.
 
+A **picture reveal** keeps the ordinary buzz layout, with the picture above
+the question in the middle band, drawn as a mosaic (`.board__reveal`, a canvas
+with the `.board__image` box). It starts six cells across and refines on a
+fixed 250 ms step, never per frame, holding coarse for the first half and
+sharpening into the answer over the last quarter (`client/reveal.ts`). The
+stakes chip says what a buzz is worth now and flips (`fx-flip`) at each
+quarter as it falls from double to the plain value; once someone has the
+floor it reads what they are playing for. A buzz holds the picture; the hero
+takes the middle while they answer, and a rebound brings the picture back
+where it stopped and sharpens on from there. Once the question is over it is
+drawn sharp.
+
 **The leader shows early, the field fills in.** A beat after the first buzz
 (150 ms — long enough for the true photo finish to land) the board lights up
 with the provisional leader, and the timeline keeps filling for the rest of the
@@ -1057,6 +1069,10 @@ disagree, the code is what gets renamed.
 - **cue / recipe / layer / bed / clip** — a cue is what a moment plays; a
   recipe is its layers; a layer is one source under an envelope; a bed is a
   loop; a clip is a rendered file. A "sample" is just a file-sourced layer.
+- **reveal** — a choice or closest question's reveal is its answer going up
+  (`choice:reveal`, `closest:reveal`); a picture reveal is the `K: reveal`
+  question, whose clock is `round.reveal`. The picture is held, never paused
+  or frozen: frozen is the item effect.
 - **hold / sustain** — the hold is the beat a miss holds the wall before its
   rebound opens (`round.held`); sustain is an envelope segment. The envelope
   never holds and the verdict never sustains.

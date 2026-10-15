@@ -5,7 +5,7 @@ import { colorForPlayer, lockedNames, setlistPosition, standings, willSeat } fro
 import { markGap, play, playSpaced, prime, startBed, stopBed, unlock } from './sound.ts'
 import { Votes } from './Votes.tsx'
 import { Spoken } from './Spoken.tsx'
-import { lastUp, wallOf, type ChoiceWall, type Wall } from '../shared/wall.ts'
+import { lastUp, wallOf, type ChoiceWall, type RevealWall, type Wall } from '../shared/wall.ts'
 import { LETTERS } from '../shared/choice.ts'
 import { recapCards, type RecapCard } from '../shared/recap.ts'
 import { isPenalty } from '../shared/protocol.ts'
@@ -18,6 +18,7 @@ import { usePracticeTime } from './usePractice.ts'
 import { Burst, Letters, ScoreChange, useFlip } from './fx.tsx'
 import { ClosestLine, closestStamp, closestStampDelay, useClosestHold } from './ClosestLine.tsx'
 import { allGuessed, scoresBeforeClosest } from '../shared/closest.ts'
+import { RevealPicture, RevealStakes } from './RevealPicture.tsx'
 
 type Mark = BuzzEntry & { lane: number }
 
@@ -425,7 +426,7 @@ function Choices({ c, now, colorOf }: { c: ChoiceWall; now: () => number; colorO
  * Without `whole` (a host reading by hand, an older snapshot) it degrades to
  * printing what has been said.
  */
-function Question({ whole, shown, image }: { whole?: string; shown: string; image?: string }) {
+function Question({ whole, shown, image, reveal, now }: { whole?: string; shown: string; image?: string; reveal: RevealWall | null; now: () => number }) {
   const text = !whole ? (
     <p class="board__question" data-review-id="board:question"><Said text={shown} /></p>
   ) : (
@@ -437,7 +438,7 @@ function Question({ whole, shown, image }: { whole?: string; shown: string; imag
   if (!image) return text
   return (
     <>
-      <img class="board__image" src={image} alt="" />
+      {reveal ? <RevealPicture src={image} reveal={reveal} now={now} /> : <img class="board__image" src={image} alt="" />}
       {text}
     </>
   )
@@ -759,7 +760,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
               )}
             </div>
           )}
-          {w.clue && <Question {...w.clue} />}
+          {w.clue && <Question {...w.clue} reveal={w.reveal} now={now} />}
           {/* The face-off yields the stage to the question text while the
               reader is speaking, and to the leader the moment someone buzzes. */}
           {w.faceoff && <FaceOff pair={w.faceoff} />}
@@ -787,9 +788,11 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
 
         {/* The stakes, dim in the corner for the whole question: the card
             between questions said it large, and the stage is the question's now. */}
-        {w.value !== null && (
+        {w.value !== null && (w.reveal ? (
+          <RevealStakes value={w.value} reveal={w.reveal} now={now} />
+        ) : (
           <span class="chip board__stakes" data-review-id="board:stakes">{w.value} pts</span>
-        )}
+        ))}
 
         {/* One dim line under the stakes chip, in the same corner; it never
             enters the middle band, so the hero keeps the stage to itself. */}

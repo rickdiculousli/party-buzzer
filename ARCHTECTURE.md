@@ -387,6 +387,23 @@ board's standings hold the pre-settle picture until it is done
 The board places the guesses on a line scaled by `shared/closest.ts` only at
 the reveal, so no number is up while the room is still guessing.
 
+A picture reveal (`K: reveal`, which needs an `I:` picture) is a buzz question
+read like a shown one. Its `arm` stamps `round.reveal = { from, until }`: the
+arm instant and `revealSec` after it, in server time. That one public fact
+drives both halves. `shared/scoring.ts` prices a buzz from its clamped stamp
+against it (`revealValue`: 2× in the first quarter, a quarter less each
+quarter, 1× once sharp), and `correct` pays `leaderValue` (quizbowl adds its
+power bonus to the same number). A `wrong` stamps `reveal.heldAt` with the
+leader's stamp, and `openRebound` (or an undo that reopens the attempt) moves
+the window with `resumeReveal` so the picture carries on from there. The wall
+projects it as `Wall.reveal` (`revealHeldAt`: a miss, else the leader's press),
+and `client/RevealPicture.tsx` draws the mosaic through a canvas on a fixed
+250 ms step (`client/reveal.ts`), beside a stakes chip that decays on the same
+steps. Under autoplay the reader's buzz window is the buzz beat after the
+picture is sharp, recomputed when a rebound moves it. `viewFor` keeps a reveal
+picture off phones until the question is over, and then sends it only with the
+mirror on.
+
 The Reader primes the Judge with private accepted answers. The Judge offers an
 answer window for the current locked leader, accepts a submission, transcribes
 when necessary, matches it, and sends the verdict through `Hub.dispatch`.

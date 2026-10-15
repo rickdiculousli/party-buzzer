@@ -284,8 +284,8 @@ verdict dwell, rebound pauses, and advancing through questions. With spoken
 answer recognition available, the judge can also apply verdicts automatically.
 The host can still judge manually.
 
-A question can also be **shown**, **multiple choice** or **closest**; one pack
-can mix all four. `K: shown` puts the whole question on the board at the arm while the
+A question can also be **shown**, **multiple choice**, **closest** or a
+**picture reveal**; one pack can mix all five. `K: shown` puts the whole question on the board at the arm while the
 voice still reads it, and buzzing works as usual. A `C: Mars | Venus | Saturn`
 line makes a multiple-choice question: the voice reads the question, the
 choices appear on the board and phones, the voice reads them, and every
@@ -304,6 +304,16 @@ the nearest: it takes the round value, doubled for an exact hit, and players
 tied share it. With six or more guessers the next-nearest takes half. Nobody
 sees another player's number until the reveal. See
 [game-night.txt](packs/game-night.txt).
+
+`K: reveal` with an `I:` picture makes a picture reveal: the board draws the
+picture as a coarse mosaic that sharpens to the whole image over **Reveal
+time** (10 s by default) while the voice reads the question once, and buzzing
+works as usual. The earlier the buzz, the more it pays: double the round value
+in the first quarter of the reveal, a quarter less in each quarter after, and
+the plain value once the picture is sharp. A buzz holds the picture where it
+is; after a wrong answer it carries on sharpening from there for the rebound.
+Phones never see the picture while it is sharpening; with the mirror on they
+get it once the question is over. See [game-night.txt](packs/game-night.txt).
 
 Export `ELEVENLABS_API_KEY` in your shell and run `npm run start:eleven`, and
 ElevenLabs v4 reads in the house voice (Buzzer Host – Dynamic;

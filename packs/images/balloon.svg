@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" width="1200" height="800">
+  <!-- Drawn for party-buzzer; dedicated to the public domain under CC0 1.0. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6fb1e4"/>
+      <stop offset="1" stop-color="#e4f1f8"/>
+    </linearGradient>
+    <clipPath id="envelope">
+      <path d="M600 90 C 790 90, 860 250, 820 360 C 790 440, 700 500, 650 560 L 550 560 C 500 500, 410 440, 380 360 C 340 250, 410 90, 600 90 Z"/>
+    </clipPath>
+  </defs>
+  <rect width="1200" height="800" fill="url(#sky)"/>
+  <ellipse cx="200" cy="170" rx="110" ry="32" fill="#fff" opacity="0.9"/>
+  <ellipse cx="270" cy="150" rx="70" ry="28" fill="#fff" opacity="0.9"/>
+  <ellipse cx="1010" cy="250" rx="120" ry="30" fill="#fff" opacity="0.85"/>
+  <path d="M0 700 C 220 620, 420 660, 620 700 C 820 740, 1000 640, 1200 660 L 1200 800 L 0 800 Z" fill="#7aa64a"/>
+  <path d="M0 760 C 300 720, 600 770, 900 740 C 1020 728, 1120 736, 1200 740 L 1200 800 L 0 800 Z" fill="#5d8a35"/>
+  <g clip-path="url(#envelope)">
+    <rect x="360" y="80" width="500" height="490" fill="#e8483a"/>
+    <path d="M600 80 C 520 200, 510 400, 560 570 L 600 570 Z" fill="#f6c12f"/>
+    <path d="M600 80 C 680 200, 690 400, 640 570 L 600 570 Z" fill="#f6c12f"/>
+    <path d="M600 80 C 440 180, 410 380, 500 570 L 540 570 C 470 380, 500 190, 600 80 Z" fill="#2f78c4"/>
+    <path d="M600 80 C 760 180, 790 380, 700 570 L 660 570 C 730 380, 700 190, 600 80 Z" fill="#2f78c4"/>
+    <rect x="360" y="320" width="500" height="26" fill="#fff" opacity="0.85"/>
+  </g>
+  <rect x="548" y="556" width="104" height="14" rx="4" fill="#7b4a22"/>
+  <g stroke="#5a3a1c" stroke-width="4">
+    <line x1="556" y1="570" x2="568" y2="640"/>
+    <line x1="644" y1="570" x2="632" y2="640"/>
+    <line x1="590" y1="570" x2="592" y2="640"/>
+    <line x1="610" y1="570" x2="608" y2="640"/>
+  </g>
+  <path d="M560 640 L 640 640 L 634 700 L 566 700 Z" fill="#a8672e"/>
+  <path d="M560 640 L 640 640 L 640 652 L 560 652 Z" fill="#7b4a22"/>
+  <ellipse cx="600" cy="770" rx="70" ry="10" fill="#4a6f2a" opacity="0.6"/>
+</svg>

@@ -253,6 +253,28 @@ npm run walk-read-trivia
       its own
 - [ ] Scores end Ada 800, Bo −300, Cy 700
 
+### Pictures — `npm run walk-images`
+
+Two picture questions and one picture reveal (`packs/walk-images.txt`), mirror
+on: three players, autoplay on, every answer spoken and judged. Needs the judge.
+
+```bash
+npm run walk-images
+```
+
+- [ ] The flag and the road sign are up sharp above their question from the
+      arm, on the board and (mirror on) on the phones
+- [ ] The camel question arms as a mosaic six cells across, grey-blue over
+      sand; it sharpens in visible steps, staying coarse for its first half.
+      The stakes chip reads 400 pts and flips down a quarter at a time
+- [ ] Cy buzzes three seconds in, while the chip reads 350, and says "a
+      horse": the miss holds the wall, and the rebound brings the mosaic back
+      exactly as coarse as Cy left it before it sharpens on
+- [ ] Ada buzzes two and a half seconds into the rebound, says "a camel", and
+      the stamp reads +300, the number the chip showed when she pressed
+- [ ] No phone shows the camel while it is a mosaic; once Ada is paid, the
+      phones show it sharp
+
 ### Two packs in one setlist — `npm run walk-packs`
 
 Five questions across three blocks and two packs: trivia from A, two quizbowl

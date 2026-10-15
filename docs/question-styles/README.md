@@ -8,6 +8,7 @@ documented in `shared/pack.ts`.
 | Quizbowl-lite | [quizbowl-lite.md](quizbowl-lite.md) |
 | Multiple choice | [choice.md](choice.md) |
 | Closest guess | [closest.md](closest.md) |
+| Picture reveal | [reveal.md](reveal.md) |
 | Voice performance (`S:`, `R:`, quip pools) | [voice.md](voice.md) |
 
 ## Accepted answers (`A:` line), all styles

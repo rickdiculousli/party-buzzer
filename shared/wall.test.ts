@@ -28,6 +28,7 @@ function room(): State {
     mirrorFragments: false,
     answerWindowSec: 0,
     choiceSec: 20,
+    revealSec: 10,
     autoplay: { on: false, nextSec: 4, buzzSec: 4, reboundSec: 3, introSec: 12 },
   }
 }

@@ -129,6 +129,22 @@ test('a question image reaches a phone only with the mirror on', () => {
   assert.equal(hub.viewFor(phone).round.image, state.round.image, 'on')
 })
 
+test('a reveal picture reaches a phone only once the question is over, and only with the mirror on', () => {
+  const { state, hub, conn } = rig()
+  const phone = conn('player')
+  hub.handle(phone, { t: 'hello', role: 'player', name: 'Ada' })
+  state.mirrorFragments = true
+  state.round.kind = 'reveal'
+  state.round.phase = 'ARMED'
+  state.round.image = '/pack-media/camel.svg'
+  assert.equal(hub.viewFor(phone).round.image, undefined, 'sharp on a phone would read ahead of the mosaic')
+  assert.equal(hub.viewFor(conn('board')).round.image, state.round.image)
+  state.round.phase = 'IDLE'
+  assert.equal(hub.viewFor(phone).round.image, state.round.image, 'over: the mirror shows it')
+  state.mirrorFragments = false
+  assert.equal(hub.viewFor(phone).round.image, undefined, 'a reveal question does not turn the mirror on')
+})
+
 test('the mirror never widens the buzz-order redaction', () => {
   const { state, hub, conn } = rig()
   const a = conn('player')

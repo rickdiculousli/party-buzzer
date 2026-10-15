@@ -46,6 +46,7 @@ const lifetimes = {
   mirrorFragments: { undo: 'yes', disk: 'yes', phone: 'full' },
   answerWindowSec: { undo: 'yes', disk: 'yes', phone: 'full' },
   choiceSec: { undo: 'yes', disk: 'yes', phone: 'full' },
+  revealSec: { undo: 'yes', disk: 'yes', phone: 'full' },
   autoplay: { undo: 'yes', disk: 'yes', phone: 'full' },
   readingActive: { undo: 'no', disk: 'no', phone: 'full' },
   reading: { undo: 'no', disk: 'no', phone: 'none' },

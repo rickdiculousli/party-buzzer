@@ -904,3 +904,44 @@ test('carrying on cuts an introduction announcement that is still rendering or p
   reader.stop()
   await settled(reader)
 })
+
+test('a picture reveal holds on a miss, resumes for the rebound, and pays by where it stood', async () => {
+  const { hub, state, reader } = rig('V: 200\nK: reveal\nI: images/camel.svg\nWhat animal is this?\nA: camel\n')
+  hub.dispatch({ a: 'setRevealTime', sec: 4 })
+  autoplay(hub, 5, 0.3)
+  const host = { id: 'h', role: 'host' as const, send: () => {} }
+  const [ada, bo] = withPhones(hub, ['ada', 'bo'])
+  await reader.select('one.txt')
+  reader.start()
+  while (!state.round.reveal || state.round.phase !== 'ARMED') await wait(5)
+  const first = { ...state.round.reveal }
+  assert.equal(first.from, state.round.armedAt)
+  assert.equal(first.until - first.from, 4000)
+
+  // Into the second quarter, after the voice has finished.
+  await wait(first.from + 1500 - Date.now())
+  assert.equal(state.round.image, '/pack-media/images/camel.svg')
+  hub.handle(ada, { t: 'buzz', at: Date.now() })
+  await wait(COLLECT_MS + 30)
+  const heldAt = state.round.order[0].at
+  hub.handle(host, { t: 'host', action: { a: 'wrong', neg: 0 } })
+  assert.equal(state.round.reveal?.heldAt, heldAt, 'the miss holds the picture where the press stopped it')
+  await wait(150)
+  assert.equal(state.round.reveal?.heldAt, heldAt, 'and it stays held through the beat')
+
+  while (state.round.phase !== 'ARMED' || state.round.held) await wait(5)
+  const resumed = state.round.reveal!
+  assert.equal(resumed.heldAt, undefined)
+  assert.equal(resumed.until - resumed.from, 4000, 'the same length of reveal')
+  assert.equal(state.round.armedAt - ARM_DELAY_MS - resumed.from, heldAt - first.from, 'carried on from where it stood')
+
+  // A second into the rebound: 2.8 s of 4 is the third quarter.
+  await wait(state.round.armedAt + 1000 - Date.now())
+  hub.handle(bo, { t: 'buzz', at: Date.now() })
+  await wait(COLLECT_MS + 30)
+  hub.handle(host, { t: 'host', action: { a: 'correct' } })
+  assert.deepEqual(state.round.award, { name: 'bo', points: 300 })
+  assert.equal(state.scores.bo, 300)
+  reader.stop()
+  await settled(reader)
+})

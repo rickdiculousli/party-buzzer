@@ -141,7 +141,7 @@ A: a
   assert.match(errors[1], /2 to 6/)
   assert.match(errors[2], /2 to 6/)
   assert.match(errors[3], /K: shown/)
-  assert.match(errors[4], /K: must be read, shown or closest/)
+  assert.match(errors[4], /K: must be read, shown, closest or reveal/)
 })
 
 test('S: lines are one performed script, kept beside the fragments', () => {
@@ -205,4 +205,29 @@ A: 4
   assert.match(errors[2], /must be a number/)
   assert.match(errors[3], /must be a number/)
   assert.match(errors[4], /U: line belongs to a K: closest/)
+})
+
+test('K: reveal needs an I: picture and takes no C: line', () => {
+  const { questions, errors } = parsePack(`V: 200
+K: reveal
+I: images/camel.svg
+What animal is this?
+A: a camel | camel
+
+K: reveal
+What animal is this?
+A: a camel
+
+K: reveal
+I: images/camel.svg
+C: camel | horse
+What animal is this?
+A: camel
+`)
+  assert.equal(questions.length, 1)
+  assert.equal(questions[0].kind, 'reveal')
+  assert.equal(questions[0].image, 'images/camel.svg')
+  assert.equal(errors.length, 2)
+  assert.match(errors[0], /a reveal question needs an I: line/)
+  assert.match(errors[1], /no C: line/)
 })

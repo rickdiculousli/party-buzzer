@@ -218,3 +218,21 @@ V: 200
 K: closest
 In what year was the Eiffel Tower completed?
 A: 1889
+
+V: 200
+K: reveal
+I: images/camel.svg
+What animal is this?
+A: a camel | dromedary
+
+V: 200
+K: reveal
+I: images/lighthouse.svg
+What is this building?
+A: a lighthouse
+
+V: 200
+K: reveal
+I: images/balloon.svg
+What is this?
+A: a hot-air balloon | balloon

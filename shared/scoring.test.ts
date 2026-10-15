@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { bump, closestAwards, lockedPlayerIds, scoreKey } from './scoring.ts'
+import { bump, closestAwards, leaderValue, lockedPlayerIds, resumeReveal, revealHeldAt, revealProgress, revealValue, scoreKey } from './scoring.ts'
 import type { Round } from './protocol.ts'
 
 test('scoring and lockouts use the same team key while unassigned players remain independent', () => {
@@ -48,4 +48,37 @@ test('closest: with six or more guessers the next-nearest takes half', () => {
   assert.deepEqual(closestAwards(five, 1665, 200), { cy: 200 })
   // An exact hit doubles first place only.
   assert.deepEqual(closestAwards({ ...five, fen: 1665 }, 1665, 200), { fen: 400, cy: 100 })
+})
+
+test('a picture reveal pays double in its first quarter and a quarter less each quarter after', () => {
+  const reveal = { from: 1000, until: 11_000 }
+  const at = (ms: number) => revealValue(200, reveal, ms)
+  assert.equal(at(0), 400, 'a press before the reveal starts (a steal pinned to the arm) is the first quarter')
+  assert.equal(at(1000), 400)
+  assert.equal(at(3499), 400)
+  assert.equal(at(3500), 350, 'the boundary belongs to the next quarter')
+  assert.equal(at(4000), 350, 'three seconds in')
+  assert.equal(at(6000), 300)
+  assert.equal(at(8500), 250)
+  assert.equal(at(10_999), 250)
+  assert.equal(at(11_000), 200, 'sharp pays the plain value')
+  assert.equal(at(60_000), 200, 'and so does any time after')
+  assert.equal(revealValue(300, reveal, 4000), 525, 'rounded to whole points')
+})
+
+test('a held reveal resumes from where it stood, and the leader is paid by the press', () => {
+  const held = { from: 1000, until: 11_000, heldAt: 4000 }
+  const resumed = resumeReveal(held, 20_000)
+  assert.deepEqual(resumed, { from: 17_000, until: 27_000 })
+  assert.equal(revealProgress(resumed, 20_000), revealProgress(held, 4000))
+  assert.deepEqual(resumeReveal({ from: 1000, until: 11_000 }, 20_000), { from: 1000, until: 11_000 }, 'nothing held, nothing moves')
+  // A miss after the picture was sharp resumes sharp, never past it.
+  assert.deepEqual(resumeReveal({ from: 0, until: 10_000, heldAt: 15_000 }, 20_000), { from: 10_000, until: 20_000 })
+
+  const order = [{ playerId: 'a', name: 'A', at: 22_600, deltaMs: 0 }]
+  assert.equal(leaderValue({ value: 200, reveal: resumed, order }), 300, 'the rebound press is read against the resumed clock')
+  assert.equal(leaderValue({ value: 200, order }), 200, 'no reveal, the round value')
+  assert.equal(revealHeldAt({ reveal: resumed, order }), 22_600, 'the leader holds the picture')
+  assert.equal(revealHeldAt({ reveal: held, order: [] }), 4000, 'a miss holds it with nobody in the order')
+  assert.equal(revealHeldAt({ reveal: resumed, order: [] }), undefined, 'refining')
 })

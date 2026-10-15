@@ -712,7 +712,11 @@ export class Hub {
         fragments: mirror ? round.fragments : undefined,
         // Unconditional, mirror or not: this is the unspoken remainder.
         whole: undefined,
-        image: mirror ? round.image : undefined,
+        // A reveal's picture is the question: whole on a phone it would read
+        // ahead of the board's mosaic, so it waits for the question to end.
+        image: round.kind === 'reveal'
+          ? (this.state.mirrorFragments && round.phase === 'IDLE' ? round.image : undefined)
+          : mirror ? round.image : undefined,
         answer: this.state.mirrorFragments ? round.answer : undefined,
         picks: own(round.picks),
         guesses: own(round.guesses),

@@ -33,6 +33,7 @@ function room(): State {
     mirrorFragments: false,
     answerWindowSec: 0,
     choiceSec: 20,
+    revealSec: 10,
     autoplay: { on: false, nextSec: 4, buzzSec: 4, reboundSec: 3, introSec: 12 },
   }
 }
@@ -80,6 +81,7 @@ const LEGAL: Record<HostAction['a'], [State, HostAction]> = {
   setValue: [locked(room()), { a: 'setValue', value: 400 }],
   setAnswerWindow: [locked(room()), { a: 'setAnswerWindow', sec: 10 }],
   setChoiceTime: [locked(room()), { a: 'setChoiceTime', sec: 20 }],
+  setRevealTime: [locked(room()), { a: 'setRevealTime', sec: 10 }],
   settleChoice: [(() => {
     const s = room()
     s.round.phase = 'ARMED'

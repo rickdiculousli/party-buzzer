@@ -6,7 +6,7 @@
  * the existing powerEnds act also lets a host-side script close it manually.
  */
 import type { GameModule, ModeContext } from '../../shared/modes/types.ts'
-import { bump, scoreKey } from '../../shared/scoring.ts'
+import { bump, leaderValue, scoreKey } from '../../shared/scoring.ts'
 
 export type QuizbowlState = { powerEndsAt?: number }
 export type QuizbowlOptions = {
@@ -80,7 +80,7 @@ export const quizbowl: GameModule<QuizbowlOptions, QuizbowlState> = {
       state.game.options.powerAfterFragment > 0 &&
       (cutoff === undefined || leader.at < cutoff)
     const points =
-      state.round.value + (powered ? state.game.options.powerBonus : 0)
+      leaderValue(state.round) + (powered ? state.game.options.powerBonus : 0)
     bump(state, scoreKey(state, leader.playerId), points)
     state.round.award = { name: leader.name, points }
   },

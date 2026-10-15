@@ -11,6 +11,9 @@
  *   K: closest                       optional; every phone types a number and the
  *                                    nearest takes it; A: must be a number
  *   U: metres                        optional, closest only; the unit on the pad
+ *   K: reveal                        optional; the I: picture sharpens from a
+ *                                    mosaic on the board and an early buzz
+ *                                    pays more; needs an I: line
  *   S: [curious] This composer...    optional; the performed read — tags,
  *                                    stress, ad-libs — spoken in place of the
  *                                    fragments by a paid voice; the board
@@ -33,7 +36,7 @@ export type Question = {
   /** Path relative to the pack directory. */
   image?: string
   /** Absent = read: revealed clause by clause as it is spoken. */
-  kind?: 'shown' | 'choice' | 'closest'
+  kind?: 'shown' | 'choice' | 'closest' | 'reveal'
   /** Closest questions only: `A:` as a number. Set exactly when `kind` is closest. */
   truth?: number
   /** Closest questions only, if the pack names one: what the number counts. */
@@ -59,7 +62,7 @@ export function parsePack(text: string): PackResult {
   let answer = ''
   let variants: string[] = []
   let image: string | undefined
-  let kind: 'shown' | 'closest' | undefined
+  let kind: 'shown' | 'closest' | 'reveal' | undefined
   let unit: string | undefined
   let choices: string[] | undefined
   let kindError: string | undefined
@@ -86,6 +89,8 @@ export function parsePack(text: string): PackResult {
         const plain = truth >= 1000 && !answer.includes(',')
         questions.push({ value, fragments, answer, answers: variants, kind, truth, ...(unit && { unit }), ...(plain && { plain: true as const }), ...(image && { image }), ...(script && { script }), ...(reaction && { reaction }) })
       }
+    } else if (kind === 'reveal' && (choices || !image)) {
+      errors.push(`line ${startLine}: ${choices ? 'a reveal question has no C: line' : 'a reveal question needs an I: line'}`)
     } else if (choices) {
       const correct = choices.findIndex((c) => c.toLowerCase() === answer.toLowerCase())
       if (kind === 'shown') {
@@ -139,8 +144,8 @@ export function parsePack(text: string): PackResult {
     }
     if (line.startsWith('K:')) {
       const k = line.slice(2).trim()
-      if (k === 'shown' || k === 'closest') kind = k
-      else if (k !== 'read') kindError = `line ${n}: K: must be read, shown or closest; a C: line makes a choice question`
+      if (k === 'shown' || k === 'closest' || k === 'reveal') kind = k
+      else if (k !== 'read') kindError = `line ${n}: K: must be read, shown, closest or reveal; a C: line makes a choice question`
       if (fragments.length === 0) startLine = n
       return
     }

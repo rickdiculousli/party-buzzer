@@ -1,4 +1,4 @@
-import type { PlayerId, ScoreKey, State } from './protocol.ts'
+import type { PlayerId, Reveal, Round, ScoreKey, State } from './protocol.ts'
 
 type Roster = Pick<State, 'players' | 'grouping'>
 
@@ -46,4 +46,49 @@ export function closestAwards(guesses: Record<PlayerId, number>, truth: number, 
     if (share) for (const o of tied) paid[o.id] = share
   })
   return paid
+}
+
+/** How far a picture reveal has got at server time `at`: 0 at `from`, 1 at `until`, clamped. */
+export function revealProgress(reveal: Reveal, at: number): number {
+  const span = reveal.until - reveal.from
+  if (span <= 0) return at < reveal.from ? 0 : 1
+  return Math.min(1, Math.max(0, (at - reveal.from) / span))
+}
+
+/**
+ * What a buzz at server time `at` multiplies a picture reveal's value by: 2 in
+ * the first quarter of the reveal (and before it), a quarter less in each
+ * quarter after, and 1 once the picture is sharp.
+ */
+export function revealMultiplier(reveal: Reveal, at: number): number {
+  if (at >= reveal.until) return 1
+  return 2 - Math.floor(revealProgress(reveal, at) * 4) / 4
+}
+
+/** The value on offer at server time `at`, in whole points. */
+export function revealValue(value: number, reveal: Reveal, at: number): number {
+  return Math.round(value * revealMultiplier(reveal, at))
+}
+
+/**
+ * Where a picture reveal stands still, or undefined while it is refining: a
+ * miss holds it until the rebound opens, and a leader holds it at their
+ * press. The leader's clamped stamp is the same time the payoff is read from,
+ * so the picture and the stamp agree.
+ */
+export function revealHeldAt(round: Pick<Round, 'reveal' | 'order'>): number | undefined {
+  return round.reveal?.heldAt ?? (round.reveal ? round.order[0]?.at : undefined)
+}
+
+/** What the round pays its leader if they are right: the reveal's value at their press, else the round value. */
+export function leaderValue(round: Pick<Round, 'reveal' | 'order' | 'value'>): number {
+  const at = round.order[0]?.at
+  return round.reveal && at !== undefined ? revealValue(round.value, round.reveal, at) : round.value
+}
+
+/** A held reveal carried on from where it stopped, starting again at server time `at`. */
+export function resumeReveal(reveal: Reveal, at: number): Reveal {
+  if (reveal.heldAt === undefined) return reveal
+  const done = Math.min(reveal.until, Math.max(reveal.from, reveal.heldAt)) - reveal.from
+  return { from: at - done, until: at - done + (reveal.until - reveal.from) }
 }

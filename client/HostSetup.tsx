@@ -202,6 +202,21 @@ function Reading({ state, act }: { state: State; act: Act }) {
             </label>
 
             <label class="field">
+              Reveal time
+              <input
+                class="input input--num"
+                type="number"
+                min={3}
+                max={60}
+                value={state.revealSec}
+                onInput={(e) =>
+                  act({ a: 'setRevealTime', sec: Number((e.target as HTMLInputElement).value) })
+                }
+              />
+              <span class="muted">sec for a picture to sharpen; an early buzz pays up to double</span>
+            </label>
+
+            <label class="field">
               Autoplay
               <input
                 type="checkbox"

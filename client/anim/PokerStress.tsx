@@ -8,7 +8,7 @@ const players = ['Ada', 'Bo', 'Cy', 'Dee', 'Eve', 'Fen', 'Gus', 'Hal'].map((name
 const state: State = {
   grouping: 'solo', readingActive: false, players, teams: [], scores: {},
   game: { id: 'trivia', options: {}, moduleState: {} }, items: {}, effects: [], games: [], duelRules: [],
-  setlists: [], packs: [], packSizes: {}, packCost: {}, mirrorFragments: false, answerWindowSec: 10, choiceSec: 20,
+  setlists: [], packs: [], packSizes: {}, packCost: {}, mirrorFragments: false, answerWindowSec: 10, choiceSec: 20, revealSec: 10,
   autoplay: { on: false, nextSec: 5, buzzSec: 10, reboundSec: 4, introSec: 12 },
   round: { questionId: '', attemptId: '', value: 100, phase: 'IDLE', armedAt: 0, order: [], total: 0, lockedOut: [] },
   minigame: { id: 'poker', matchId: 'motion-poker', phase: 'playing', participants: players.map((p) => p.id), options: { durationSec: 40, seed: 1, shotSec: 30 } },

@@ -8,7 +8,7 @@ import { duelOnArm, duelOnWrong, duelRule, resolveDuel, seatDuel } from './duel.
 import { advanceSetlist, applySetup, enterBlock, introduceBlock, sanitizeBlocks } from './setlist.ts'
 import { refuses } from '../shared/legality.ts'
 import { persistedSnapshot } from './snapshot.ts'
-import { bump, closestAwards, closestOff, scoreKey } from '../shared/scoring.ts'
+import { bump, closestAwards, closestOff, leaderValue, resumeReveal, scoreKey } from '../shared/scoring.ts'
 import { arrivalBlocksPlay, endLobby } from '../shared/arrival.ts'
 
 export { bump, scoreKey, lockedPlayerIds } from '../shared/scoring.ts'
@@ -50,6 +50,7 @@ export function newState(): State {
     // only runs while the reader drives a pack, so host-read games never feel it.
     answerWindowSec: 10,
     choiceSec: 20,
+    revealSec: 10,
     // Off by default: a host who has not asked for it should never find the
     // room moving on without them.
     // The rebound beat is long enough for the board to finish the miss: the
@@ -97,6 +98,10 @@ function openRebound(state: State): void {
   round.armedAt = Date.now() + ARM_DELAY_MS
   round.order = []
   round.total = 0
+  // A picture the miss held carries on from where it stopped. From now, not
+  // from the arm instant: the board would otherwise step back for the 300 ms
+  // between them.
+  if (round.reveal) round.reveal = resumeReveal(round.reveal, Date.now())
   for (const e of state.effects) e.attemptId = round.attemptId
 }
 
@@ -130,6 +135,7 @@ function clearQuestion(round: State['round']): void {
   delete round.paid
   delete round.nearest
   delete round.guessed
+  delete round.reveal
 }
 
 /** Next, reset, jump and clear move past the first block, so its introduction goes. */
@@ -176,6 +182,9 @@ function mutateHostAction(state: State, action: HostAction): void {
       round.total = 0
       clearQuestion(round)
       if (action.kind) round.kind = action.kind
+      if (action.kind === 'reveal') {
+        round.reveal = { from: round.armedAt, until: round.armedAt + state.revealSec * 1000 }
+      }
       delete round.judge
       delete round.spoken
       delete round.buzzable
@@ -196,10 +205,11 @@ function mutateHostAction(state: State, action: HostAction): void {
       if (mod.onCorrect) {
         mod.onCorrect(state)
       } else {
-        bump(state, scoreKey(state, leader.playerId), round.value)
+        const points = leaderValue(round)
+        bump(state, scoreKey(state, leader.playerId), points)
         // The order stays up. Clearing it here vanishes the result at the exact
         // moment the room looks at it; `arm` and `next` clear it.
-        round.award = { name: leader.name, points: round.value }
+        round.award = { name: leader.name, points }
       }
       round.phase = 'IDLE'
       round.lockedOut = []
@@ -218,6 +228,9 @@ function mutateHostAction(state: State, action: HostAction): void {
       // so the clear has to happen before `onWrong`, not after it.
       delete round.award
       delete round.held
+      // The picture stays where the press stopped it, through the verdict and
+      // any held beat, until the rebound opens.
+      if (round.reveal) round.reveal = { ...round.reveal, heldAt: leader.at }
       if (mod.onWrong) {
         mod.onWrong(state, action.neg)
       } else {
@@ -364,6 +377,10 @@ function mutateHostAction(state: State, action: HostAction): void {
 
     case 'setChoiceTime':
       state.choiceSec = Math.min(120, Math.max(5, Math.round(action.sec) || 20))
+      return
+
+    case 'setRevealTime':
+      state.revealSec = Math.min(60, Math.max(3, Math.round(action.sec) || 10))
       return
 
     case 'setAnswerWindow':
@@ -618,6 +635,7 @@ export function loadState(path: string): State {
     if (typeof loaded.mirrorFragments !== 'boolean') loaded.mirrorFragments = false
     if (typeof loaded.answerWindowSec !== 'number') loaded.answerWindowSec = 10
     if (typeof loaded.choiceSec !== 'number') loaded.choiceSec = 20
+    if (typeof loaded.revealSec !== 'number') loaded.revealSec = 10
     // A snapshot from before autoplay existed, or one hand-edited into nonsense.
     const auto = loaded.autoplay as Partial<State['autoplay']> | undefined
     loaded.autoplay = {

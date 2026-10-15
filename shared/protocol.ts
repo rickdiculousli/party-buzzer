@@ -163,10 +163,23 @@ export type Round = {
   nearest?: number
   /** How many guessed, set with `truth`: every surface times the reveal from it (`closestTimes`). */
   guessed?: number
+  /**
+   * A picture reveal's clock, set at the arm: the board's mosaic sharpens from
+   * `from` to `until` (server time), and the value on offer decays with it
+   * (`revealValue`). A leader's press holds the picture; a miss keeps it held
+   * at `heldAt` until the rebound opens and resumes it from there.
+   */
+  reveal?: Reveal
 }
 
-/** Absent = read aloud. `closest` is the room typing a number; the nearest takes it. */
-export type QuestionKind = 'shown' | 'choice' | 'closest'
+/** Server times. `heldAt` is set only between a miss and its rebound. */
+export type Reveal = { from: number; until: number; heldAt?: number }
+
+/**
+ * Absent = read aloud. `closest` is the room typing a number; the nearest takes
+ * it. `reveal` is a picture that sharpens on the board while an early buzz pays more.
+ */
+export type QuestionKind = 'shown' | 'choice' | 'closest' | 'reveal'
 
 /** The active game mode. `id` names a registered module; the rest is its data. */
 export type GameState = {
@@ -796,6 +809,8 @@ export type State = {
   answerWindowSec: number
   /** Seconds of picking after the voice has read a choice question's options, or of guessing on a closest one. */
   choiceSec: number
+  /** Seconds a picture reveal takes to go from mosaic to sharp. */
+  revealSec: number
   /** Hands-off reading: the reader supplies its own N and paces the beats. */
   autoplay: Autoplay
   /** Public gameplay fact, independent of private pack progress. */
@@ -817,6 +832,7 @@ export type HostAction =
   | { a: 'settleChoice'; correct: number }
   | { a: 'settleClosest'; truth: number }
   | { a: 'setChoiceTime'; sec: number }
+  | { a: 'setRevealTime'; sec: number }
   | { a: 'correct' }
   | { a: 'wrong'; neg: number }
   /** The buzzers were open and nobody took the question: shut them and keep it up for its answer. */

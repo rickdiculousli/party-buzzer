@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" width="1200" height="800">
+  <!-- Drawn for party-buzzer; dedicated to the public domain under CC0 1.0. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7fb8e0"/>
+      <stop offset="1" stop-color="#f4dcac"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#sky)"/>
+  <circle cx="230" cy="190" r="70" fill="#fff3c4"/>
+  <path d="M0 560 C 200 470, 420 520, 600 560 C 780 600, 980 480, 1200 520 L 1200 800 L 0 800 Z" fill="#dcae6a"/>
+  <path d="M0 660 C 260 610, 520 690, 760 650 C 940 620, 1080 650, 1200 640 L 1200 800 L 0 800 Z" fill="#c9954f"/>
+  <g fill="#9a6633">
+    <!-- far legs, a shade darker -->
+    <path d="M462 560 L 488 560 L 484 640 L 492 700 L 470 700 L 462 640 Z" fill="#7d5128"/>
+    <path d="M722 560 L 748 560 L 752 640 L 760 700 L 738 700 L 728 640 Z" fill="#7d5128"/>
+  </g>
+  <g fill="#a8743d">
+    <path d="M378 480 C 372 420, 420 380, 470 360 C 520 290, 610 280, 660 350 C 690 395, 720 420, 770 430 C 800 436, 812 470, 800 505 C 785 545, 740 565, 690 568 L 450 570 C 405 570, 382 530, 378 480 Z"/>
+    <path d="M770 440 C 800 410, 820 360, 832 312 C 838 290, 860 280, 880 284 L 900 290 C 898 330, 870 400, 820 470 C 805 490, 785 492, 770 480 Z"/>
+    <path d="M846 300 C 850 270, 880 258, 910 262 C 945 266, 972 280, 978 298 C 982 312, 966 320, 944 318 L 905 318 C 880 322, 852 320, 846 300 Z"/>
+    <path d="M868 266 L 874 246 L 886 262 Z"/>
+    <path d="M430 560 L 458 560 L 454 640 L 462 702 L 438 702 L 432 640 Z"/>
+    <path d="M690 560 L 718 560 L 722 640 L 730 702 L 706 702 L 698 640 Z"/>
+    <path d="M384 470 C 360 490, 352 530, 360 560 L 368 558 C 364 528, 372 498, 392 482 Z"/>
+  </g>
+  <g fill="#8a5a2b">
+    <circle cx="446" cy="636" r="11"/>
+    <circle cx="474" cy="636" r="10"/>
+    <circle cx="710" cy="636" r="11"/>
+    <circle cx="740" cy="636" r="10"/>
+    <ellipse cx="450" cy="704" rx="18" ry="6"/>
+    <ellipse cx="718" cy="704" rx="18" ry="6"/>
+  </g>
+  <circle cx="930" cy="284" r="5" fill="#2b1a0c"/>
+  <ellipse cx="600" cy="712" rx="230" ry="14" fill="#b07f3e" opacity="0.5"/>
+</svg>

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { State } from '../shared/protocol.ts'
+import { resumeReveal } from '../shared/scoring.ts'
 
 /** Undo owns game data, not connections, catalogs, or playback. */
 export function gameSnapshot(state: State) {
@@ -40,6 +41,8 @@ export function restoreGame(state: State, snapshot: GameSnapshot): void {
     state.round.phase = 'ARMED'
     state.round.order = []
     state.round.total = 0
+    // A picture a miss was holding resumes with the reopened attempt.
+    if (state.round.reveal) state.round.reveal = resumeReveal(state.round.reveal, Date.now())
   }
   delete state.round.held
   delete state.round.judge
@@ -84,6 +87,7 @@ export function persistedSnapshot(state: State) {
       mirrorFragments: state.mirrorFragments,
       answerWindowSec: state.answerWindowSec,
       choiceSec: state.choiceSec,
+      revealSec: state.revealSec,
       autoplay: state.autoplay,
       minigame: state.minigame && (state.minigame.phase === 'ready' || state.minigame.phase === 'results')
         ? state.minigame

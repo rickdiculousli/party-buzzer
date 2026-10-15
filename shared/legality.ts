@@ -224,6 +224,7 @@ export function refuses(s: State, a: HostAction): Refusal | null {
     case 'setValue':
     case 'setAnswerWindow':
     case 'setChoiceTime':
+    case 'setRevealTime':
     case 'setScore':
     case 'rename':
     case 'kick':

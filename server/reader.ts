@@ -673,14 +673,30 @@ export class Reader {
         // it.
         let deadAir = false
         while (this.running && !resolved(this.hub.state)) {
-          // The wall counts the room down to the moment this wait gives up.
-          const dwell = this.dwellMs('buzzSec')
+          // A miss after the voice has finished is held all the same, and
+          // opening its rebound is still the reader's beat.
+          if (this.hub.state.round.held) {
+            await this.waitOutBuzz(this.session.signal)
+            continue
+          }
+          // The wall counts the room down to the moment this wait gives up. A
+          // picture still sharpening gets its whole reveal first: the window
+          // is the buzz beat after the picture is sharp, and a rebound that
+          // resumed the reveal moves it.
+          const sharpAt = this.hub.state.round.reveal?.until
+          const beat = this.dwellMs('buzzSec')
+          const dwell = beat === undefined ? undefined : beat + Math.max(0, (sharpAt ?? 0) - Date.now())
           this.hub.send(this.conn, { t: 'act', act: 'closesAt', data: dwell === undefined ? undefined : Date.now() + dwell })
-          await this.until((s) => resolved(s) || !stillMine(), dwell, this.session.signal)
+          await this.until(
+            (s) => resolved(s) || !stillMine() || !!s.round.held || s.round.reveal?.until !== sharpAt,
+            dwell,
+            this.session.signal,
+          )
           if (!stillMine()) {
             if (this.hub.state.round.questionId) throw new DOMException('Question replaced', 'AbortError')
             break // The host's Next completed this question.
           }
+          if (this.hub.state.round.held || this.hub.state.round.reveal?.until !== sharpAt) continue
           const r = this.hub.state.round
           // Only silence passes itself. Anything else still pending is somebody
           // mid-answer, and their verdict is worth waiting out however long the

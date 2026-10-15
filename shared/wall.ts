@@ -27,7 +27,7 @@ import { isPenalty } from './protocol.ts'
 import { milestoneFor, setlistSpent } from './recap.ts'
 import { pickers } from './choice.ts'
 import { formatNumber, lineScale, placeOn } from './closest.ts'
-import { closestOff } from './scoring.ts'
+import { closestOff, revealHeldAt } from './scoring.ts'
 import { arrivalPresentation, type ArrivalPresentation } from './arrival.ts'
 import type { Award, State } from './protocol.ts'
 
@@ -249,7 +249,21 @@ export type Wall = {
    * arrival and at the finale, where the recap cards take over.
    */
   milestone: string | null
+  /**
+   * A picture reveal's clock, for the board's mosaic and the stakes it offers,
+   * whenever the round has one. Facts only: the board reads its own clock
+   * against them (`revealValue`, `revealProgress`).
+   */
+  reveal: RevealWall | null
 }
+
+/**
+ * `heldAt`: a leader's press or a miss holds the picture there. `live`: the
+ * buzzers are open, so it sharpens on the clock. `sharp`: the question is over.
+ * None of the three is the moment between a first press and the order being
+ * published, where the board simply holds what it has.
+ */
+export type RevealWall = { from: number; until: number; heldAt?: number; live: boolean; sharp: boolean }
 
 export type ChoiceWall = {
   options: string[]
@@ -476,6 +490,19 @@ function choiceWall(state: State, m: Moment): ChoiceWall | null {
   }
 }
 
+function revealWall(state: State): RevealWall | null {
+  const r = state.round
+  if (!r.reveal) return null
+  const heldAt = revealHeldAt(r)
+  return {
+    from: r.reveal.from,
+    until: r.reveal.until,
+    ...(heldAt !== undefined && { heldAt }),
+    live: r.phase === 'ARMED',
+    sharp: r.phase === 'IDLE',
+  }
+}
+
 function closestWall(state: State, m: Moment): ClosestWall | null {
   const r = state.round
   if (!isFamily(m, 'closest') || !r.guessing) return null
@@ -543,6 +570,7 @@ export function wallOf(state: State, local: Local): Wall {
       closest: null,
       arrival: arrivalPresentation(state),
       milestone: null,
+      reveal: null,
     }
   }
 
@@ -578,6 +606,7 @@ export function wallOf(state: State, local: Local): Wall {
     value: 'next' in middle || scoreless ? null : r.phase !== 'IDLE' || isFamily(m, 'answer') || isFamily(m, 'verdict') || isFamily(m, 'choice') || isFamily(m, 'closest') ? r.value : null,
     choices: choiceWall(state, m),
     closest: closestWall(state, m),
+    reveal: revealWall(state),
     arrival: null,
     milestone:
       state.night && m !== 'idle:finale'

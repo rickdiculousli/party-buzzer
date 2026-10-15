@@ -8,3 +8,9 @@ What is this road sign?
 I: images/sign.svg
 R: [tires screeching] [deadpan] Stop sign. Correct. Unlike my uncle, apparently.
 A: a stop sign | stop sign | stop
+
+V: 200
+K: reveal
+I: images/camel.svg
+What animal is this?
+A: a camel | dromedary
