@@ -7,7 +7,7 @@
 import type {
   HostAction, MinigameId, MinigameResult, NightFact, PlayerId, ScoreKey, State,
 } from '../shared/protocol.ts'
-import { scoreKey } from '../shared/scoring.ts'
+import { closestOff, scoreKey } from '../shared/scoring.ts'
 
 /** What the Hub still holds from before the change; a `GameSnapshot` satisfies it. */
 export type LedgerBefore = Pick<State, 'round' | 'setlist' | 'teams' | 'grouping' | 'scores' | 'night'> & {
@@ -69,12 +69,14 @@ export function nightFacts(before: LedgerBefore, after: State, cause: Cause, now
         })
       }
     } else if (action.a === 'settleClosest') {
-      // Everyone the settle paid: the nearest, and a half-paid second.
+      // Everyone the settle paid. Only the nearest got it: a half-paid second
+      // keeps its points but is a miss, so it never builds a streak.
       for (const [playerId, points] of Object.entries(after.round.paid ?? {})) {
+        const guess = round.guesses?.[playerId]
         facts.push({
           kind: 'verdict', at: now, questionId, block,
           playerId, key: scoreKey(after, playerId), name: name(playerId),
-          points, hit: true, source: 'closest',
+          points, hit: guess !== undefined && closestOff(guess, action.truth) === after.round.nearest, source: 'closest',
         })
       }
     }
