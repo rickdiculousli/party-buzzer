@@ -4,13 +4,14 @@ title: The fit check finishes on k16 inside the ten-minute limit
 kind: time-cost
 size: S
 judge: opus
-status: building
+status: done
 lens: eng
 proposed_by: rick
 proposed_on: 2026-10-15
 built_by: 7d66eea7-ebbc-4be7-b0eb-aa9361d6da62
 branch: t3code/01aa5206
 host: k16
+merged: 24392778273d11887c3b7a6ea1f57f2a6f5a373d
 ---
 
 ## Opportunity
