@@ -396,7 +396,7 @@ recording is handled by `Talk.tsx`, `recorder.ts`, and `wav.ts`.
 | Current round/question and mode memory | Yes, with restore rules | No; retain round value and mode configuration |
 | Playback state and judge window | No | No |
 | Setlist position | Yes | Yes |
-| The night's ledger (`night`), never sent to phones | Yes; undo retracts its facts | Yes |
+| The night's ledger (`night`), absent from phone views (`/recap` fetches the keepsake instead) | Yes; undo retracts its facts | Yes |
 | Arrival introduction (`blockKey` survives a restore, `id` does not) | Yes, restored under a fresh id | No |
 | Night automation timers and the match autoplay opened | No; undo clears them | No |
 | `autoplay.introSec`, minigame lobby `ready` | Yes | Yes |

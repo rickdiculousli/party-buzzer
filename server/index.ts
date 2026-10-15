@@ -242,7 +242,7 @@ export async function startServer(opts: {
       return
     }
     if ((req.url ?? '').startsWith('/recap.json')) {
-      res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(nightKeepsake(state, nightDate(new Date()))))
+      res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(nightKeepsake(state, nightDate(state))))
       return
     }
     if ((req.url ?? '').startsWith('/recap.svg')) {

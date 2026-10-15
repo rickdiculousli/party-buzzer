@@ -52,7 +52,9 @@ export function nightFacts(before: LedgerBefore, after: State, cause: Cause, now
           playerId: leader.playerId, key: scoreKey(after, leader.playerId), name: name(leader.playerId),
           points: after.round.award?.points ?? spent,
           hit,
-          reactionMs: Math.max(0, Math.round(leader.at - round.armedAt)),
+          // A press is never 0 ms: a steal pins its buzz to the arm and an early
+          // stamp is raised to it, so neither is a reaction worth a card.
+          ...(leader.at > round.armedAt ? { reactionMs: Math.round(leader.at - round.armedAt) } : {}),
           ...(margin === undefined ? {} : { marginMs: margin }),
           source: 'buzz',
         })
@@ -91,10 +93,15 @@ export function nightFacts(before: LedgerBefore, after: State, cause: Cause, now
   const changed = !last || last.order.length !== order.length ||
     last.order.some((o, i) => o.key !== order[i]!.key) || heldOutright(last.order) !== heldOutright(order)
   if (order.length > 0 && changed) {
-    const questionId = after.round.questionId || round.questionId
+    // Tagged with the question or match only when play moved the scores. A
+    // host's correction, kick or regrouping still records where the standings
+    // stand, so a later comeback is measured truthfully, but it is nobody's
+    // moment and no milestone is ever shown for it.
+    const play = 'results' in cause ||
+      ('action' in cause && (cause.action.a === 'correct' || cause.action.a === 'wrong' || cause.action.a === 'settleChoice'))
     facts.push({
       kind: 'standings', at: now, order,
-      ...('results' in cause ? { matchId: cause.matchId } : questionId ? { questionId } : {}),
+      ...(!play ? {} : 'results' in cause ? { matchId: cause.matchId } : round.questionId ? { questionId: round.questionId } : {}),
     })
   }
   return facts

@@ -28,13 +28,37 @@ export function setlistSpent(s: Pick<State, 'setlist'>): boolean {
   return !!setlist && setlist.blocks.length > 0 && setlist.at >= setlist.blocks.length
 }
 
-/** A team's name in a teams grouping, otherwise the player's; a key nobody holds anymore reads "?". */
-export function labelFor(roster: Pick<Roster, 'players' | 'teams' | 'grouping'>, key: ScoreKey): string {
+/**
+ * A team's name in a teams grouping, otherwise the player's. A player who has
+ * left the room is still named: the facts carry the name they played under.
+ */
+export function labelFor(roster: Pick<Roster, 'players' | 'teams' | 'grouping'>, key: ScoreKey, night?: Night): string {
   if (roster.grouping === 'teams') {
     const team = roster.teams.find((t) => t.id === key)
     if (team) return team.name
   }
-  return roster.players.find((p) => p.id === key)?.name ?? '?'
+  return roster.players.find((p) => p.id === key)?.name ?? rememberedName(night, key) ?? '?'
+}
+
+const labelOf = labelFor
+
+/** The last name the ledger saw a player under, when the key is a player's own. */
+function rememberedName(night: Night | undefined, key: ScoreKey): string | undefined {
+  if (!night) return undefined
+  for (let i = night.facts.length - 1; i >= 0; i--) {
+    const f = night.facts[i]!
+    if ((f.kind === 'verdict' || f.kind === 'item') && f.playerId === key) return f.name
+    if (f.kind === 'minigame') {
+      const r = f.results.find((r) => r.playerId === key)
+      if (r) return r.name
+    }
+  }
+  return undefined
+}
+
+/** When the night began: its first fact, if it has one. */
+export function nightStart(night: Night | undefined): number | undefined {
+  return night?.facts[0]?.at
 }
 
 function ordinal(n: number): string {
@@ -129,6 +153,7 @@ function comebacks(night: Night): Comeback[] {
 
 function ranked(night: Night, roster: Roster): { at: number; m: Milestone }[] {
   const out: { at: number; m: Milestone }[] = []
+  const labelFor = (r: Roster, key: ScoreKey) => labelOf(r, key, night)
   const firstHit = night.facts.findIndex((f) => f.kind === 'verdict' && f.hit)
   if (firstHit >= 0) {
     const f = night.facts[firstHit] as Verdict
@@ -161,7 +186,12 @@ export function milestones(night: Night, roster: Roster): Milestone[] {
   return ranked(night, roster).map((r) => r.m)
 }
 
-const RANK: Record<Milestone['kind'], number> = { leader: 3, comeback: 2, streak: 1, 'first-correct': 0 }
+/**
+ * The first correct answer of the night makes its scorer the first outright
+ * leader in the same breath, so it outranks that; after it, a change at the top
+ * beats a climb beats a run.
+ */
+const RANK: Record<Milestone['kind'], number> = { 'first-correct': 4, leader: 3, comeback: 2, streak: 1 }
 
 /** The single line worth saying at this question or match, if any. */
 export function milestoneFor(
@@ -197,7 +227,7 @@ function bestKeys<T>(items: [ScoreKey, T][], value: (t: T) => number, low: boole
 
 export function recapCards(night: Night, roster: Roster): RecapCard[] {
   const cards: RecapCard[] = []
-  const label = (key: ScoreKey) => labelFor(roster, key)
+  const label = (key: ScoreKey) => labelOf(roster, key, night)
   const names = (keys: ScoreKey[]) => join(keys.map(label))
 
   const timed = verdicts(night).filter((v) => v.source === 'buzz' && v.reactionMs !== undefined)
@@ -256,8 +286,9 @@ export function recapCards(night: Night, roster: Roster): RecapCard[] {
     })
   }
 
+  // Not when nobody scored, which is also what a scoreless mode looks like.
   const order = currentOrder(roster)
-  if (order.length >= 2) {
+  if (order.length >= 2 && order[0]!.score !== 0) {
     const [a, b] = order as [typeof order[0], typeof order[0]]
     cards.push(a.score === b.score
       ? { id: 'closest', title: 'Closest finish', name: `${label(a.key)} & ${label(b.key)}`, detail: `tied at ${a.score}` }
@@ -274,7 +305,7 @@ export function nightKeepsake(state: State, date: string) {
     grouping: state.grouping,
     players: state.players.map((p) => ({ id: p.id, name: p.name, teamId: p.teamId })),
     teams: state.teams,
-    standings: currentOrder(state).map((s) => ({ key: s.key, label: labelFor(state, s.key), score: s.score })),
+    standings: currentOrder(state).map((s) => ({ key: s.key, label: labelFor(state, s.key, state.night), score: s.score })),
     cards: recapCards(state.night ?? { facts: [] }, state),
     facts: state.night?.facts ?? [],
   }

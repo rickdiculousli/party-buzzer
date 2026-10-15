@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { milestoneFor, milestones, nightKeepsake, recapCards, setlistSpent, type RecapCard } from './recap.ts'
+import { milestoneFor, milestones, nightKeepsake, nightStart, recapCards, setlistSpent, type RecapCard } from './recap.ts'
 import type { Night, NightFact, State } from './protocol.ts'
 import { newState } from '../server/state.ts'
 
@@ -196,4 +196,29 @@ test('setlistSpent holds once every block has been played, and never with no blo
   assert.equal(setlistSpent({ setlist: { blocks: [], at: 0, done: 0 } }), false)
   assert.equal(setlistSpent({ setlist: { blocks: [block], at: 0, done: 0 } }), false)
   assert.equal(setlistSpent({ setlist: { blocks: [block], at: 1, done: 0 } }), true)
+})
+
+test('the first correct outranks the leader it makes in the same question', () => {
+  const r = roster()
+  const facts = night(
+    { kind: 'standings', at: 0, order: [{ key: 'a', score: 0 }, { key: 'b', score: 0 }] },
+    verdict({ q: 'q1', key: 'b', ms: 300 }),
+    { kind: 'standings', at: 0, questionId: 'q1', order: [{ key: 'b', score: 100 }, { key: 'a', score: 0 }] },
+  )
+  assert.equal(milestoneFor(facts, r, { questionId: 'q1' }), 'First correct: Bo')
+})
+
+test('a player who left is still named from the facts, and a tie at nothing makes no closest finish', () => {
+  const r = roster(['a', 'b'])
+  const facts = night(verdict({ q: 'q1', key: 'c', ms: 120, margin: 20 }), verdict({ q: 'q2', key: 'c', ms: 400 }), verdict({ q: 'q3', key: 'c' }))
+  assert.deepEqual(card(recapCards(facts, r), 'fastest'), { id: 'fastest', title: 'Fastest buzz', name: 'Cy', detail: '120 ms · 20 ms ahead' })
+  assert.equal(card(recapCards(facts, r), 'streak')?.name, 'Cy')
+  assert.equal(card(recapCards(facts, r), 'closest'), undefined)
+  assert.equal(card(recapCards(facts, roster(['a', 'b'], { a: 50, b: 50 })), 'closest')?.detail, 'tied at 50')
+})
+
+test('nightStart is the first fact, so a party past midnight keeps its evening', () => {
+  assert.equal(nightStart(undefined), undefined)
+  assert.equal(nightStart(night()), undefined)
+  assert.equal(nightStart(night({ ...verdict({ q: 'q1', key: 'a' }), at: 42 })), 42)
 })

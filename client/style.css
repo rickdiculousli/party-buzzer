@@ -487,13 +487,13 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .board__recap-card { display: grid; gap: var(--s2); justify-items: center; }
 .board__recap-card p { margin: 0; }
 .board__recap-title {
-  font-size: var(--t-sm);
+  font-size: var(--t-lg);
   letter-spacing: var(--track-label);
   text-transform: uppercase;
   color: var(--dim);
 }
 .board__recap-name { font-family: var(--display); font-weight: 800; font-size: var(--t-mega); line-height: 0.95; color: var(--chalk); }
-.board__recap-detail { color: var(--dim); font-size: var(--t-lg); }
+.board__recap-detail { color: var(--dim); font-size: var(--t-xl); }
 
 /* A zero-height line across the wall's middle, so each cannon fires from the
    midpoint of its edge. */
@@ -608,16 +608,16 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
    never wider than the lane the setlist chips leave free. */
 .board__milestone {
   position: absolute;
-  top: calc(var(--s5) + var(--t-chip-board) * 2.6);
+  top: calc(var(--s5) + var(--t-chip-board) * 2.4);
   right: var(--s6);
   max-width: 40vw;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: right;
-  font-size: var(--t-chip-board);
-  color: var(--dim);
-  opacity: 0.85;
+  font-size: var(--t-xl);
+  color: var(--chalk);
+  opacity: 0.7;
 }
 .board__barred {
   position: absolute;

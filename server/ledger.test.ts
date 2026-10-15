@@ -133,3 +133,28 @@ test('an item fact names its user and target', () => {
   const facts = nightFacts(state, state, { item: { itemId: 'freeze', playerId: 'a', targetId: 'b' } }, 9)
   assert.deepEqual(facts, [{ kind: 'item', at: 9, itemId: 'freeze', playerId: 'a', name: 'Ada', targetId: 'b', targetName: 'Bo', questionId: 'q1' }])
 })
+
+test('a host correction records untagged standings, so no milestone is ever shown for it', () => {
+  const state = room()
+  const was = before(state)
+  state.scores.c = 500
+  const facts = nightFacts(was, state, { action: { a: 'setScore', key: 'c', score: 500 } }, 1)
+  assert.deepEqual(kinds(facts), ['standings'])
+  assert.equal((facts[0] as Extract<NightFact, { kind: 'standings' }>).questionId, undefined)
+  state.scores.c = 0
+  const kicked = structuredClone(state)
+  kicked.players = kicked.players.filter((p) => p.id !== 'c')
+  const after = nightFacts({ ...before(state), night: { facts } }, kicked, { action: { a: 'kick', playerId: 'c' } }, 2)
+  assert.deepEqual(kinds(after), ['standings'])
+  assert.equal((after[0] as Extract<NightFact, { kind: 'standings' }>).questionId, undefined)
+})
+
+test('a press pinned to the arm (a steal, or an early stamp) has no reaction time', () => {
+  const state = room()
+  state.round.order[0]!.at = state.round.armedAt
+  const was = before(state)
+  state.round.award = { name: 'Bo', points: 200 }
+  const [v] = nightFacts(was, state, { action: { a: 'correct' } }, 1) as [Extract<NightFact, { kind: 'verdict' }>]
+  assert.equal(v.reactionMs, undefined)
+  assert.equal(v.marginMs, 60)
+})
