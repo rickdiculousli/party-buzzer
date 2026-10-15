@@ -3,7 +3,8 @@
 #   sh scripts/surface.sh <path> <WxH>     e.g. sh scripts/surface.sh /host 1280x800
 # Starts the server from this checkout on a free port (http, no speech helper, a
 # throwaway state file), waits until the page has connected to it (no "Connecting"
-# left on screen; a page that never connects fails the run), shoots, and stops it.
+# or "Disconnected" left on screen; a page that never connects fails the run),
+# shoots, and stops it.
 # The PNG is <SURFACE_DIR>/<path><size>.png with '/', 'x' and '×' as '_'
 # (_host1280_800.png); SURFACE_DIR defaults to ~/.bmesh/shots/party-buzzer/<tree>
 # (BMESH_TREE from the routine run, else "local"), outside every checkout, so a
@@ -23,8 +24,12 @@ out="$dir/$name.png"
 viewport=$(printf %s "$size" | sed 's/×/,/; s/x/,/')
 log=cache/surface-$$.log
 state=cache/surface-$$.json
-cleanup() { [ -n "${pid:-}" ] && kill "$pid" 2>/dev/null; rm -f "$log" "$state"; }
-trap cleanup EXIT INT TERM
+cleanup() {
+  if [ -n "${pid:-}" ]; then kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null; fi   # wait: close() flushes the state file
+  rm -f "$log" "$state"
+}
+trap cleanup EXIT
+trap 'cleanup; exit 130' INT TERM
 node --input-type=module -e '
   const { startServer } = await import("./server/index.ts")
   const s = await startServer({ port: 0, tls: false, transcribe: null, statePath: process.argv[1] })
@@ -48,8 +53,9 @@ node --input-type=module -e '
   try {
     const page = await browser.newPage({ viewport: { width, height } })
     await page.goto(url)
-    // The surfaces render "Connecting…" until their socket is up; a shot of that proves nothing.
-    await page.waitForFunction(() => !/Connecting/.test(document.body.innerText), null, { timeout: 15000 })
+    // Host and board render "Connecting…" and the phone's lamp reads "Disconnected" until the
+    // socket is up; a shot of either proves nothing.
+    await page.waitForFunction(() => !/Connecting|Disconnected/.test(document.body.innerText), null, { timeout: 15000 })
     await page.waitForTimeout(500)
     await page.screenshot({ path: out })
   } finally {
