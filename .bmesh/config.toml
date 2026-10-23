@@ -1,3 +1,7 @@
 # buildermesh per-repo config: slot capacities for routine kinds that declare them.
 [slots]
 browser = 2
+
+[setup]
+command = "npm ci"
+inputs = ["package-lock.json"]

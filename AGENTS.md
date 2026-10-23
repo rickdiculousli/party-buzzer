@@ -140,3 +140,18 @@ Half-page specs live in `docs/proposals/NNN-slug.md` (the template is `bmesh spe
 ## Buildermesh
 Builds here run as nodes on a buildermesh mesh through the `bmesh` CLI: a lead owns one spec in its own worktree, executors build pieces on branches under the lead's and hand them back through the mesh, and routines run this repo's checks. The repo's routine kinds live in `.bmesh/routines/<kind>.toml` (`verify` runs `npm test`; `review` asks Opus, in a session that never saw the change, for findings; add a kind rather than a script when a check should be recorded). Commit before queueing a job: a job names a commit, and every result is recorded under that commit's tree hash, so a deterministic kind answers a repeat run from its record. A spec is done only when its frontmatter carries a `verified` line (`verify ok t:<tree8>; review ok t:<tree8> m:<model>`), composed by `bmesh spec verified --write` from the results recorded for the landed tree, and `bmesh done` is the last word: it refuses until the spec on `origin/main` reads `done` with a merged commit and a result for every entry.
 <!-- /bmesh:mesh -->
+
+<!-- bmesh:rules core 202c29c7 -->
+## Engineering rules
+From bmesh's rule set `core`. Where the rest of this file says otherwise, the rest wins. Edit them freely: `bmesh scaffold` keeps an edited block and marks it customized.
+
+### core
+- Make the smallest change that solves the problem. Delete what's dead before adding.
+- Read the code before you change it, and say what you learned before deciding.
+- Fix the first place it went wrong, not where it showed. A guard is a fix only when the state it handles is legitimate.
+- Prove it works on the real thing: run it the way a user would. Passing tests prove only what they reach.
+- When two fixes have failed on the same assumption, stop and test the assumption.
+- A rule you've had to state twice becomes a check or a script, not a third sentence.
+- Do reversible work, then report it. Ask only what no experiment or reading can settle.
+- Before trusting a number (a timing, a speedup, a count), find what limits it and rule out that it measured something else.
+<!-- /bmesh:rules -->
