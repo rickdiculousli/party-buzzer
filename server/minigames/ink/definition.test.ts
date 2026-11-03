@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mulberry32 } from '../bow/world.ts'
-import { makeInk } from './definition.ts'
+import { inkTeamWord, makeInk } from './definition.ts'
 import { CARDS } from './fixtures.ts'
-import type { InkWorld } from './types.ts'
+import type { InkStep, InkWorld } from './types.ts'
 
 const lobby = { teams: { sw: 'sun', s1: 'sun', mw: 'moon', m1: 'moon' } as const, volunteers: ['sw', 'mw'], ready: [] }
 const clock = (ms: number) => ms
@@ -114,4 +114,27 @@ test('the game is finished once over', () => {
   assert.equal(ink.finished!(world), false)
   ;(world as InkWorld).step = { at: 'over', winner: null }
   assert.equal(ink.finished!(world), true)
+})
+
+test('host rows: a team per row, unscored, each naming its part of the step', () => {
+  const { ink, world } = setup()
+  assert.deepEqual(ink.hostRows!(world, clock), [
+    { players: ['sw', 's1'], word: 'choosing' }, { players: ['mw', 'm1'], word: 'choosing' },
+  ])
+  // Sun's turn throughout; [sun's word, moon's word] for every step variant.
+  const words: [InkStep, string, string][] = [
+    [{ at: 'choosing' }, 'choosing', 'choosing'],
+    [{ at: 'peekPick' }, 'picking a peek', 'waiting'],
+    [{ at: 'peekWrite', team: 'moon', row: 2, from: 0 }, 'waiting', 'peeking'],
+    [{ at: 'choose' }, 'voting', 'waiting'],
+    [{ at: 'offer' }, 'offering', 'waiting'],
+    [{ at: 'keep', offered: [1, 2] }, 'keeping', 'waiting'],
+    [{ at: 'clue', prompt: 1, stopped: false }, 'drawing', 'waiting'],
+    [{ at: 'guess', holder: null }, 'guessing', 'waiting'],
+    [{ at: 'over', winner: 'sun' }, 'won', 'lost'],
+    [{ at: 'over', winner: null }, 'out of rows', 'out of rows'],
+  ]
+  for (const [step, sun, moon] of words) {
+    assert.deepEqual([inkTeamWord(step, 'sun', 'sun'), inkTeamWord(step, 'sun', 'moon')], [sun, moon], step.at)
+  }
 })

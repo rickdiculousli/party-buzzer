@@ -121,6 +121,10 @@ export const poker: MinigameDefinition<PokerWorld> = {
     const world = resumeTable(data as PokerCheckpoint, optionsOf(options))
     return { world, participants: world.seats.map((seat) => seat.player) }
   },
+  hostRows: (w) => w.seats.map((seat) => {
+    const word = seat.out ? 'out' : seat.folded ? 'folded' : seat.hole && seat.stack === 0 ? 'all in' : undefined
+    return { players: [seat.player], score: seat.stack, ...(word ? { word } : {}) }
+  }),
   hostStatus(w, clock) {
     const seats = w.seats.filter((seat) => !seat.out).length
     return [

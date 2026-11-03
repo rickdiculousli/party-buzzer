@@ -67,4 +67,8 @@ export const tank: MinigameDefinition<TankWorld> = {
     }
   },
   results: tankResults,
+  hostRows: (world) => world.tanks.map((tank) => ({
+    players: [...new Set([tank.crew.driver, tank.crew.gunner])], score: tank.score,
+    ...(tank.deadUntilMs !== null ? { word: 'destroyed' } : {}),
+  })),
 }

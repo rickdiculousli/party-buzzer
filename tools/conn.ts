@@ -102,8 +102,8 @@ export async function connect(
       frame = msg.frame
       // Ink frames carry the full pad only when it changed; later frames keep the last one.
       if (
-        frame.id === 'ink' && frame.role !== 'spectator' && !frame.pad &&
-        prev?.id === 'ink' && prev.role !== 'spectator' && prev.matchId === frame.matchId
+        frame.id === 'ink' && (frame.role === 'board' || frame.role === 'player') && !frame.pad &&
+        prev?.id === 'ink' && (prev.role === 'board' || prev.role === 'player') && prev.matchId === frame.matchId
       ) frame = { ...frame, pad: prev.pad }
     }
   }

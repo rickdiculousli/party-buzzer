@@ -156,7 +156,10 @@ Start, a session holding a checkpoint calls `resume` instead of `create`, and
 reset of a playing match spreads the session, so the checkpoint rides along.
 `presence` hands the definition the connected player ids before each pump's
 steps. `hostStatus` returns lines for the host desk, stored in
-`state.minigame.status` when they change. Poker checkpoints at the start of
+`state.minigame.status` when they change. Every minigame also
+has `hostRows`, the live match for the desk: a row per player, crew or team,
+with an optional score and word. Rows are never state; they ride the host's own
+frame at the board's cadence, and the desk adds each player's colour and lamp. Poker checkpoints at the start of
 each hand, because its deck follows from the seed and the hand number; a resume
 deals that hand again. Minigame results may carry a finishing `place` in place
 of points.

@@ -1,4 +1,4 @@
-import type { ActionResult, HostAction, ScoreKey, State } from '../shared/protocol.ts'
+import type { ActionResult, HostAction, HostRow, ScoreKey, State } from '../shared/protocol.ts'
 import { isMinigameId } from '../shared/protocol.ts'
 import type { Refusal } from '../shared/legality.ts'
 import { MINIGAME_INFO } from './minigame-info.ts'
@@ -187,3 +187,9 @@ export function ordinal(n: number): string {
   const suffix = teen ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th'
   return `${n}${suffix}`
 }
+
+/** Scored rows first, highest score on top; unscored rows keep the minigame's order. */
+export const sortHostRows = (rows: HostRow[]) =>
+  [...rows].sort((a, b) => a.score === undefined || b.score === undefined
+    ? Number(a.score === undefined) - Number(b.score === undefined)
+    : b.score - a.score)

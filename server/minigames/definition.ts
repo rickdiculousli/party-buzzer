@@ -1,4 +1,4 @@
-import type { MinigameCheckpoint, MinigameInputAck, MinigameLobby, MinigameResult, PlayerId, State, TankCrew } from '../../shared/protocol.ts'
+import type { HostRow, MinigameCheckpoint, MinigameInputAck, MinigameLobby, MinigameResult, PlayerId, State, TankCrew } from '../../shared/protocol.ts'
 import type { Refusal } from '../../shared/legality.ts'
 
 export type InputOutcome =
@@ -56,6 +56,8 @@ export type MinigameDefinition<W> = {
   presence?(world: W, connected: PlayerId[]): void
   /** Lines for the host desk; `until` is a world time in ms, which the runtime maps to server time. */
   hostStatus?(world: W, clock: Clock): { text: string; until?: number }[]
+  /** The host desk's live rows, sent in the host's frame at the board's cadence. */
+  hostRows?(world: W, clock: Clock): HostRow[]
 }
 
 export function numberOption(value: unknown, fallback: number, min: number, max: number): number {

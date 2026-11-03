@@ -46,4 +46,6 @@ export const bow: MinigameDefinition<BowWorld> = {
     return { player: projectPlayer(world.players[playerId], clock), trajectory: sampleBowTrajectory(world, playerId, 18) }
   },
   results: bowResults,
+  hostRows: (world) => Object.values(world.players).map((player) =>
+    ({ players: [player.id], score: player.score, ...(player.shots === 0 ? { word: 'no shot' } : {}) })),
 }

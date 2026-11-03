@@ -75,3 +75,16 @@ test('strokes ride a frame when they change and once a second, and malformed inp
   assert.equal(def.classify({ kind: 'guess', text: 'x', at: 1 }), 'discrete')
   assert.equal(def.classify({ kind: 'ink', points: [[0.5, 0.5]] }), 'continuous')
 })
+
+test('host rows: scores, "drawing" for the drawer and "guessed" once a guesser has the word', () => {
+  const { def, w } = started()
+  const drawer = drawerOf(w)!
+  const [g1, g2] = w.participants.filter((id) => id !== drawer)
+  def.apply(w, drawer, { kind: 'pickWord', index: 0, at: 1 })
+  def.apply(w, g1, { kind: 'guess', text: w.word, at: 2 })
+  const rows = Object.fromEntries(def.hostRows!(w, clock).map((row) => [row.players[0], row]))
+  assert.equal(rows[drawer].word, 'drawing')
+  assert.equal(rows[g1].word, 'guessed')
+  assert.ok(rows[g1].score! > 0)
+  assert.deepEqual(rows[g2], { players: [g2], score: 0 })
+})

@@ -427,3 +427,14 @@ test('a timed tug ignores countdown taps and ends early once the flag is past a 
   assert.equal(results.find((result) => result.playerId === 'ada')!.points, 0)
   assert.ok(seq < 100 + 30_000 / 50, 'the match ended before the clock')
 })
+
+test('the host gets a host frame of rows while a phone still gets its own frame', () => {
+  const r = rig()
+  r.runtime.host({ a: 'prepareMinigame', id: 'bow', options: { seed: 7 } })
+  r.runtime.host({ a: 'startMinigame' })
+  const host = r.runtime.frameFor('host')
+  assert.equal(host?.role, 'host')
+  assert.deepEqual(host?.role === 'host' && host.rows.map((row) => row.word), ['no shot', 'no shot'])
+  assert.equal(r.runtime.frameFor('player', 'ada')?.role, 'player')
+  assert.equal(r.runtime.frameFor('player', 'stranger')?.role, 'spectator')
+})

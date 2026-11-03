@@ -4,6 +4,7 @@ import { mulberry32 } from '../bow/world.ts'
 import { COLS, ROWS } from './types.ts'
 import { applyTankInput, createTankWorld, formCrews, gunDirection, stepTank, tankResults } from './world.ts'
 import type { TankCrew } from '../../../shared/protocol.ts'
+import { tank } from './definition.ts'
 
 const close = (actual: number, expected: number, epsilon = 1e-9) =>
   assert.ok(Math.abs(actual - expected) < epsilon, `${actual} is not ${expected}`)
@@ -254,4 +255,21 @@ test('results give each crew member the crew score, and a solo player once', () 
   assert.deepEqual(tankResults(world).map((result) => [result.playerId, result.points]), [
     ['s', 70], ['d', 40], ['g', 40],
   ])
+})
+
+test('host rows: one per crew with its score, "destroyed" while down', () => {
+  const world = open([DG, YZ], [{ x: 800, y: 450 }, { x: 1000, y: 450 }])
+  world.tanks[1].hp = 5
+  pullGun(world)
+  while (world.tanks[1].deadUntilMs === null) stepTank(world)
+  assert.deepEqual(tank.hostRows!(world, (ms) => ms), [
+    { players: ['d', 'g'], score: 55 }, { players: ['y', 'z'], score: 0, word: 'destroyed' },
+  ])
+  steps(world, 180)
+  assert.equal(tank.hostRows!(world, (ms) => ms)[1].word, undefined)
+})
+
+test('host rows name a solo crew once', () => {
+  const world = open([{ id: 'crew-0', driver: 'd', gunner: 'd' }])
+  assert.deepEqual(tank.hostRows!(world, (ms) => ms)[0].players, ['d'])
 })
