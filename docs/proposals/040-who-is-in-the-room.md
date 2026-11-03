@@ -4,7 +4,7 @@ title: The board and phones show who is actually in the room
 kind: ux
 size: S
 judge: sonnet
-status: proposed
+status: done
 lens: ux
 proposed_by: f3e13ca3-5996-4d39-839c-6ee6289499ff
 proposed_on: 2026-10-14
@@ -46,6 +46,16 @@ PLAYERS"; the lobby wall shows the two phones that are here first.
 `npm run build`, `npm test` (a `viewFor` case that `connected` reaches
 phones and the board stays as it is). Join three probe players, let the
 probe exit, and confirm all three surfaces dim them within a second.
+
+## Shown
+- Chip reads "2 OF 10 PLAYERS": disposable server, 5 ws players, 3 closed, board at 1920x1080 -> `2 OF 5 PLAYERS`, 3 `.chip--away` in standings (screenshot read: Ada/Bo bright, Cy/Dee/Eve dim with "AWAY").
+- Away players keep their rank: same run, Cy 3rd, Dee/Eve unranked below -> order unchanged; `standings flag a disconnected player away and keep their rank` in `client/ui.test.ts`.
+- Lobby shows the present phones first: openLobby with 1 of 5 connected -> roster `[ 'BO', 'ADA', 'CY', 'DEE', 'EVE' ]`, Bo the only connected.
+- `viewFor` case: `connected reaches phones and the board: a dropped phone is away for everyone` in `server/hub.test.ts`.
+- `npm run build` -> `built in 858ms`; `npm run test:review` -> `294 passed`.
+- Easy to miss: the 2s grace so a blink does not flicker: `.chip--away` animation delay and `.is-away` transition delay (2s) in `client/style.css`; coming back is immediate.
+- Not shown: the phone dial live: it shares `standings()` and the same `.is-away` rule, but I did not screenshot it.
+- Not shown: "dim within a second": the hub has no disconnect grace, so I used the spec's own 2s CSS delay; the dim lands about 2.3s after the drop.
 
 ## Risks and the alternative considered
 A phone that drops for a second during a question would flicker; apply the
