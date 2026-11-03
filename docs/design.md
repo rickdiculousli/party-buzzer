@@ -1009,8 +1009,8 @@ explanation is the worst thing this app can do:
 
 The verdict is the one state about someone else: the whole room is being told
 it at once, and a phone face-down learns nothing from the dial. The name takes
-the tone the board's hero takes. It waits for the board to finish typing the
-transcript, so it never reads the result out ahead of the line; a payoff stays
+the tone the board's hero takes. The name waits for the board to finish typing
+the transcript, so it never names the result ahead of the line; a payoff stays
 until the next arm, a miss only while a held rebound waits. The player who
 answered keeps Right or Out.
 
@@ -1026,7 +1026,7 @@ Feedback is layered, since a phone may be face-down on a knee:
 | Buzzers open | `[40, 40, 40]` | 440 Hz, 150 ms |
 | You buzzed | `60` | 660 Hz, 150 ms |
 | Locked out | `[120, 60, 120]` | 180 Hz, 260 ms |
-| Someone else's verdict | `[30, 90, 30]` | — (the room hears the board) |
+| Someone else's verdict | `[20, 70, 20, 70, 20]` | — (the room hears the board) |
 
 Low and long means bad news; short and high means go. You can tell them apart
 from another room.

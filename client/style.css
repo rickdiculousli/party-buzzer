@@ -1401,7 +1401,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   /* The no-mic slab is a div, which doesn't centre its text the way a button does. */
   text-align: center;
   gap: var(--s2);
-  transition: background var(--fast) var(--ease), color var(--fast) var(--ease), border-color var(--fast) var(--ease);
+  transition: background var(--fast) var(--ease), color var(--fast) var(--ease);
 }
 .buzzer:disabled { opacity: 1; }
 .buzzer__sub {
@@ -1415,7 +1415,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 
 /* The six moods `phoneOf` returns, one selector each. `waiting` is the resting
    slab `.buzzer` already paints, so it restates nothing — it is named so that
-   every mood has somewhere to land and a sixth would be visibly missing. */
+   every mood has somewhere to land and a seventh would be visibly missing. */
 .buzzer.is-waiting { /* the base */ }
 .buzzer.is-open { background: var(--tally); border-color: var(--tally); color: var(--hot); }
 .buzzer.is-open:active { background: #ff6a5f; }

@@ -66,7 +66,6 @@ function blip(ctx: AudioContext | null, hz = 660, ms = 150) {
   osc.stop(ctx.currentTime + ms / 1000)
 }
 
-
 /**
  * The standings as a picker dial: three rows through a clear window, the rest
  * of the field a scroll away under frosted edges. Rows tilt around a shared
@@ -111,9 +110,9 @@ export function StandingsDial({ state, playerId }: { state: State; playerId?: st
   )
 }
 
-/** Someone else's verdict, felt once per verdict: two light taps, unlike every other cue. */
+/** Someone else's verdict, felt once per verdict: three light ticks, unlike every other cue. */
 function VerdictTap() {
-  useEffect(() => { navigator.vibrate?.([30, 90, 30]) }, [])
+  useEffect(() => { navigator.vibrate?.([20, 70, 20, 70, 20]) }, [])
   return null
 }
 
@@ -313,7 +312,6 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     blip(audio.current)
   }
 
-
   // The rounded displayed margin can be zero for a later buzz too. The hub
   // projects this player's actual place without exposing anyone else's order.
   const won = mine?.leader === true
@@ -363,7 +361,6 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     // shortcut: matched by name, as `Award` carries no id; two players sharing a name miss each other's verdict, upgrade if names stop being distinct.
     told: told && told.name !== me?.name ? told : undefined,
   })
-
 
   const arrival = state ? arrivalPresentation(state) : null
 
@@ -436,8 +433,8 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
             onPointerDown={buzz}
             disabled={!open || barred || pressed || frozen || spectator || choice}
           >
-            {frozen ? <span class="buzzer__hit fx-wobble">{label}</span>
-              : mood === 'verdict' ? <span class="buzzer__name" style={{ '--len': Math.max(5, label.length) }}>{label}</span>
+            {mood === 'verdict' ? <span class="buzzer__name" style={{ '--len': Math.max(5, label.length) }}>{label}</span>
+              : frozen ? <span class="buzzer__hit fx-wobble">{label}</span>
               : label}
             {sub && <span class="buzzer__sub">{sub}</span>}
           </button>
