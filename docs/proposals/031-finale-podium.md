@@ -79,7 +79,7 @@ with a phone and the board side by side.
 - the recap cards and standings follow as they do now: same run at 13.5 s -> `settled-in   board: "ADA ADA MOST FIRST BUZZES Ada first to buzz 2 times" side x=986`
 - Replay finale restarts the ceremony: same run after `jump:3` -> `replay-3rd   board: "3RD CY & DEE 0" side x=1280`
 - tiers and `finaleStep` at each boundary: `shared/wall.test.ts` ("the podium: distinct places 1 to 3, a tie for 2nd leaves no 3rd, one and two players, teams", "finaleStep walks build, 3rd, 2nd, 1st at the schedule, skipping places the podium lacks", "finaleCalled: ...")
-- `next` and `setlistJump` stamp, undo restores: `server/setlist.test.ts` ("spending the setlist stamps the finale clock; entering a block clears it"), `server/state.test.ts` ("next and a jump to the end stamp the finale clock; a jump back clears it"), `server/hub.test.ts` ("undo restores the finale stamp a Replay replaced")
+- `next` and `setlistJump` stamp, undo restores: `server/setlist.test.ts` ("spending the setlist stamps the finale clock; entering a block clears it"), `server/state.test.ts` ("next and a jump to the end stamp the finale clock; a jump back clears it", "a jump to the end drops the question on the wall, so the finale is up when its clock starts"), `server/hub.test.ts` ("undo restores the finale stamp a Replay replaced")
 - the schedule's build time equals `--finale-build-dur`: `client/tunables.test.ts` ("the finale schedule builds for exactly the flash animation")
 - `npm run test:review`: `302 passed (1.2m)`, with the new `finale-third` and `finale-second` fixtures
 - `adversarial-qa` on the podium motion: three rounds (timing, aesthetics, readability, consistency); round three returned nothing above a nit

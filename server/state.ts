@@ -137,6 +137,20 @@ function clearQuestion(round: State['round']): void {
   delete round.reveal
 }
 
+/**
+ * Drop the question and everything the room could still read of it: the
+ * result, the transcript, the typed clue, the judge's window. What `next`
+ * does, and what a jump to the end of the setlist does, so the finale is what
+ * the room sees when its clock is stamped.
+ */
+function dropQuestion(state: State): void {
+  forgetQuestion(state.round)
+  delete state.typed
+  delete state.round.judge
+  delete state.round.spoken
+  delete state.round.buzzable
+}
+
 /** Next, reset, jump and clear move past the first block, so its introduction goes. */
 function dropIntroduction(state: State): void {
   if (arrivalBlocksPlay(state)) delete state.arrival
@@ -290,11 +304,7 @@ function mutateHostAction(state: State, action: HostAction): void {
       // question from a double-tap on N or a stale award being cleared.
       const played = round.armedAt > 0
       round.phase = 'IDLE'
-      forgetQuestion(round)
-      delete state.typed
-      delete round.judge
-      delete round.spoken
-      delete round.buzzable
+      dropQuestion(state)
       // A duel is one question. The host re-opens (or rematches by arming
       // before next) rather than the pair leaking into the next round.
       delete state.duel
@@ -534,6 +544,9 @@ function mutateHostAction(state: State, action: HostAction): void {
       setlist.at = Math.min(Math.max(0, at), setlist.blocks.length)
       setlist.done = 0
       dropIntroduction(state)
+      // Skipping to the end is the finale, now: a result or transcript left on
+      // the wall would hold the stage while the ceremony's clock ran under it.
+      if (setlist.at >= setlist.blocks.length) dropQuestion(state)
       enterBlock(state, apply, true, Date.now())
       introduceBlock(state, false)
       return

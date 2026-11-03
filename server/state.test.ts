@@ -8,6 +8,7 @@ import { duelCatalog } from './duel.ts'
 import { persistedSnapshot } from './snapshot.ts'
 import { catalog } from './modes/index.ts'
 import { refuses } from '../shared/legality.ts'
+import { momentOf, type Local } from '../shared/wall.ts'
 import type { HostAction, SetlistBlock, State } from '../shared/protocol.ts'
 
 function withPlayer(state: State): string {
@@ -237,6 +238,8 @@ test('a host switching modes by hand still wipes the standings', () => {
   applyHostAction(state, { a: 'setMode', id: 'quizbowl', options: {} })
   assert.deepEqual(state.scores, {})
 })
+
+const LOCAL: Local = { open: false, settled: true, retired: true }
 
 const setlistBlocks: SetlistBlock[] = [
   { game: 'trivia', options: {}, count: 2, value: 100 },
@@ -696,4 +699,24 @@ test('a disk file with a spent setlist and no stamp loads as a settled finale', 
   assert.equal(loaded.setlist!.at, setlistBlocks.length)
   assert.equal(loaded.setlist!.spentAt, undefined, 'a stamp that is not a number is dropped')
   rmSync(dir, { recursive: true })
+})
+
+test('a jump to the end drops the question on the wall, so the finale is up when its clock starts', () => {
+  const state = newState()
+  applyHostAction(state, { a: 'setSetlist', blocks: setlistBlocks })
+  if (state.arrival) applyHostAction(state, { a: 'closeArrival', arrivalId: state.arrival.id })
+  applyHostAction(state, { a: 'arm' })
+  // The last question shut with nobody scoring: the unanswered result holds the wall.
+  state.round.phase = 'IDLE'
+  state.round.spoken = { name: 'Ada', transcript: 'no idea', hit: false }
+  state.typed = 'Who painted it?'
+  assert.equal(momentOf(state, LOCAL), 'verdict:unanswered')
+  applyHostAction(state, { a: 'setlistJump', at: setlistBlocks.length })
+  assert.equal(momentOf(state, LOCAL), 'idle:finale')
+  assert.deepEqual([state.round.questionId, state.round.spoken, state.typed], ['', undefined, undefined])
+  const stamped = state.setlist!.spentAt!
+  assert.ok(stamped > 0)
+  // Nothing was played since, so Next spends nothing and the ceremony keeps its stamp.
+  applyHostAction(state, { a: 'next' })
+  assert.equal(state.setlist!.spentAt, stamped)
 })
