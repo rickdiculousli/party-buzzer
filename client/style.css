@@ -183,6 +183,16 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .chip--armed { border-color: var(--tungsten); color: var(--tungsten); }
 .chip--won { border-color: var(--brass); color: var(--brass); }
 .chip--barred { border-color: #4a2420; color: #b0705f; }
+/* Away: a phone that is not in the room. Everything waits out the 2s grace so a
+   phone that blinks mid-question does not flicker; coming back is immediate. */
+.chip--away { color: var(--dim); font-size: calc(var(--t-chip-board) * 0.8); animation: away-in .3s 2s backwards; }
+@keyframes away-in { from { opacity: 0; } }
+.board__standings .row.is-away, .dial__row.is-away, .arrival-board__player.is-away {
+  border-left-color: color-mix(in srgb, var(--id) 50%, transparent);
+  transition: border-left-color .3s 2s;
+}
+.is-away :is(.row__label, .row__score, .dial__name, .dial__score, .arrival-board__name) { color: var(--dim); transition: color .3s 2s; }
+.board__standings .row { border-left-color: var(--id, var(--rule)); }
 .chip--data { border-color: #1f3b40; color: var(--cyan); }
 
 /* --- Lamp: a connection indicator ------------------------------------ */

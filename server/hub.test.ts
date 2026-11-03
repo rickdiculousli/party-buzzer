@@ -31,6 +31,19 @@ function joinAs(hub: Hub, conn: Conn, name: string): void {
   hub.handle(conn, { t: 'hello', role: 'player', name })
 }
 
+test('connected reaches phones and the board: a dropped phone is away for everyone', () => {
+  const { hub, conn } = rig()
+  const ada = conn('player')
+  const bo = conn('player')
+  joinAs(hub, ada, 'Ada')
+  joinAs(hub, bo, 'Bo')
+  hub.remove(bo)
+  for (const role of ['player', 'board', 'host'] as const) {
+    const players = hub.viewFor(role === 'player' ? ada : conn(role)).players
+    assert.deepEqual(players.map((p) => [p.name, p.connected]), [['Ada', true], ['Bo', false]], role)
+  }
+})
+
 test('host acts append fragments and reveal the answer; player acts of that kind are dropped', () => {
   const { hub, conn, lastState } = rig()
   const host = conn('host')

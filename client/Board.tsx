@@ -588,6 +588,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
   const leader = round.order[0]
   const armed = round.phase === 'ARMED' || round.phase === 'COLLECTING'
   const here = state.players.filter((p) => p.connected).length
+  const total = state.players.length
   const barred = lockedNames(state)
   // `buzzable` is only stamped at the arm, so between the host seating a pair and
   // opening the buzzers there is a gap with nothing in it — the room would watch
@@ -613,7 +614,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
           {open && <span class="chip chip--open">Open</span>}
           {armed && !open && <span class="chip chip--armed">Standing by</span>}
           <span class="chip">
-            {here} {here === 1 ? 'player' : 'players'}
+            {here === total ? here : `${here} of ${total}`} {(here === total ? here : total) === 1 ? 'player' : 'players'}
           </span>
           {/* Position, not drama. The stage belongs to the question; a setlist that
               pulls the eye during a buzz has failed at its job. */}
@@ -817,13 +818,14 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
           <p class="eyebrow">Standings</p>
           <ol class="stack" ref={standingsList}>
             {standings(holding ? { ...state, scores: scoresBeforeClosest(state) } : state).map((r, i) => (
-              <li key={r.key} data-key={r.key} data-review-id={`board:standing:${r.key}`} class="row fx-pop" style={{ borderLeftColor: r.color }}>
+              <li key={r.key} data-key={r.key} data-review-id={`board:standing:${r.key}`} class={r.away ? 'row fx-pop is-away' : 'row fx-pop'} style={{ '--id': r.color }}>
                 {/* Medals for the podium only, but the space is kept either
                     way so every name lines up. */}
                 <span class={i < 3 ? `rank rank--${i + 1}` : 'rank'}>
                   {i < 3 ? ['1st', '2nd', '3rd'][i] : ''}
                 </span>
                 <span class="row__label">{r.label}</span>
+                {r.away && <span class="chip chip--away">away</span>}
                 <ScoreChange class="row__score readout" score={r.score} />
               </li>
             ))}

@@ -81,14 +81,14 @@ export function chunks(text: string): string[] {
   return out
 }
 
-export type Standing = { key: ScoreKey; label: string; color: string; score: number }
+export type Standing = { key: ScoreKey; label: string; color: string; score: number; away?: boolean }
 
 /** Whoever holds the score this game: teams in a teams grouping, players in solo. */
 export function standings(state: State, sorted = true): Standing[] {
   const rows: Standing[] =
     state.grouping === 'teams'
       ? state.teams.map((t) => ({ key: t.id, label: t.name, color: t.color, score: 0 }))
-      : state.players.map((p) => ({ key: p.id, label: p.name, color: colorFor(p.id), score: 0 }))
+      : state.players.map((p) => ({ key: p.id, label: p.name, color: colorFor(p.id), score: 0, away: !p.connected }))
   const withScores = rows.map((r) => ({ ...r, score: state.scores[r.key] ?? 0 }))
   return sorted ? withScores.sort((a, b) => b.score - a.score) : withScores
 }

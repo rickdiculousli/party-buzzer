@@ -35,19 +35,21 @@ export function ArrivalBoard({ state, arrival, feedback, pulseNow }: {
       <h2 class="arrival-board__title">Test buzzer</h2>
       <p class="arrival-board__goal">Practice only · no points</p>
       <ul class="arrival-board__roster" data-review-id="board:arrival-roster">
-        {state.players.map((p) => {
+        {/* Connected first; the sort is stable, so join order holds within each group. */}
+        {[...state.players].sort((a, b) => Number(b.connected) - Number(a.connected)).map((p) => {
           const on = lit.includes(p.id)
           const seq = feedback.pulses[p.id]?.seq ?? 0
           return (
             <li
               key={p.id}
-              class={on ? 'arrival-board__player is-lit' : 'arrival-board__player'}
+              class={`arrival-board__player${on ? ' is-lit' : ''}${p.connected ? '' : ' is-away'}`}
               style={{ '--id': colorForPlayer(state, p.id), '--fx-color': colorForPlayer(state, p.id) }}
             >
               {/* Keyed on the receipt so a repeat press replays the flash. */}
               <span key={on ? seq : 0} class={on ? 'arrival-board__name fx-flash fx-flash--tint' : 'arrival-board__name'}>
                 {p.name}
               </span>
+              {!p.connected && <span class="chip chip--away">away</span>}
               <span class={tested.includes(p.id) ? 'chip chip--won' : 'chip'}>
                 {tested.includes(p.id) ? 'Tested' : 'Not yet'}
               </span>

@@ -360,6 +360,13 @@ loud — a dot alone is ambiguous from across the room.
 A bare `.lamp-dot` (no word) is only for repeating rows, like the per-player
 list on the host panel, where a word on every line would be noise.
 
+A player whose phone is gone is **away** on the board standings, the lobby
+roster and the phone dial: the name and score go `--dim`, the identity bar
+halves, and an `away` chip (`.chip--away`) joins the row, all after a 2s grace
+so a phone that blinks mid-question does not flicker. Away players keep their
+rank; their score is still in the race. The board's players chip reads "2 of
+10 players" when the two numbers differ.
+
 ### Readout — `.readout`
 
 Any number that is data. Tabular figures and slashed zero. Add `--ms` when the

@@ -96,11 +96,12 @@ export function StandingsDial({ state, playerId }: { state: State; playerId?: st
     <div class="dial" aria-label="Standings" data-review-id="phone:standings">
       <ol class="dial__list" ref={list} onPointerDown={() => { touched.current = Date.now() }}>
         {rows.map((r, i) => (
-          <li key={r.key} data-key={r.key} data-review-id={`phone:standing:${r.key}`} class="dial__row fx-pop" style={{ '--id': r.color }}>
+          <li key={r.key} data-key={r.key} data-review-id={`phone:standing:${r.key}`} class={r.away ? 'dial__row fx-pop is-away' : 'dial__row fx-pop'} style={{ '--id': r.color }}>
             <span class={i < 3 ? `dial__rank rank rank--${i + 1}` : 'dial__rank rank'}>
               {ordinal(i)}
             </span>
             <span class="dial__name">{r.label}</span>
+            {r.away && <span class="chip chip--away">away</span>}
             <ScoreChange class="dial__score readout" score={r.score} />
           </li>
         ))}

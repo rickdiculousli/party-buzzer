@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { actionFeedback, chunks, setlistPosition, sortHostRows } from './ui.ts'
+import type { State } from '../shared/protocol.ts'
+import { actionFeedback, chunks, standings, setlistPosition, sortHostRows } from './ui.ts'
 
 test('board setlist position names the mode, block, and question', () => {
   const state = {
@@ -49,4 +50,17 @@ test('chunks: mostly pairs, a single every third beat', () => {
 test('host rows sort by score, unscored rows after in the minigame order', () => {
   const rows = [{ players: ['dee'], word: 'waiting' }, { players: ['sam'], score: 80 }, { players: ['cy'] }, { players: ['nia'], score: 120 }]
   assert.deepEqual(sortHostRows(rows).map((row) => row.players[0]), ['nia', 'sam', 'dee', 'cy'])
+})
+
+test('standings flag a disconnected player away and keep their rank', () => {
+  const state = {
+    grouping: 'solo',
+    teams: [],
+    players: [
+      { id: 'a', name: 'Ada', connected: false },
+      { id: 'b', name: 'Bo', connected: true },
+    ],
+    scores: { a: 5, b: 1 },
+  } as unknown as State
+  assert.deepEqual(standings(state).map((r) => [r.label, r.away]), [['Ada', true], ['Bo', false]])
 })
