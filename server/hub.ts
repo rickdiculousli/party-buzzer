@@ -8,7 +8,7 @@ import { useItem } from './items.ts'
 import { duelAct, duelCatalog } from './duel.ts'
 import { listPacks, packSizes } from './packs.ts'
 import { listSetlists, readSetlist, writeSetlist } from './setlists.ts'
-import { refuses } from '../shared/legality.ts'
+import { clueBlockReason, refuses } from '../shared/legality.ts'
 import { arrivalBlocksPlay, arrivalPresentation, endLobby, introductionLine, practiceAllowed } from '../shared/arrival.ts'
 import { READY_FALLBACK_MS, beginFor, everyoneReady } from './night.ts'
 import { COLLECT_MS } from '../shared/protocol.ts'
@@ -407,12 +407,22 @@ export class Hub {
       const update = data as ReadingUpdate | undefined
       this.state.reading = update?.progress
       this.state.readingActive = update?.active ?? false
-      // Reading accepted is real play starting: the lobby is over.
-      if (this.state.readingActive) endLobby(this.state)
+      // Reading accepted is real play starting: the lobby is over, and the
+      // pack's clue replaces a typed one.
+      if (this.state.readingActive) {
+        endLobby(this.state)
+        delete this.state.typed
+      }
     } else if (name === 'selectPack' && typeof data === 'string') {
       // Mid-question would cut the room off; refuse it the way setMode does.
       if (this.state.round.phase !== 'IDLE') return
       this.reader?.select(data).catch((e) => console.warn(`[hub] selectPack failed: ${e}`))
+    } else if (name === 'typeClue' && typeof data === 'string') {
+      // Runtime, not a host action: no undo step. Empty clears it.
+      const text = data.trim()
+      if (clueBlockReason(this.state) || text === (this.state.typed ?? '')) return
+      if (text) this.state.typed = text
+      else delete this.state.typed
     } else if (name === 'read') {
       // An introduction holds play: nothing starts, so nothing changed.
       if (arrivalBlocksPlay(this.state)) return
@@ -728,6 +738,7 @@ export class Hub {
         guesses: own(round.guesses),
       },
       reading: undefined,
+      typed: this.state.mirrorFragments ? this.state.typed : undefined,
       night: undefined,
       minigame,
     }

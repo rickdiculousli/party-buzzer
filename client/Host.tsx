@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { useOpen, useSocket } from './useSocket.ts'
 import { REFUSAL_TEXT, colorForPlayer, credits, ordinal, playerName, standings } from './ui.ts'
-import { refuses } from '../shared/legality.ts'
+import { clueBlockReason, refuses } from '../shared/legality.ts'
 import { DuelPanel } from './DuelPanel.tsx'
 import { HostGames, HostPlayers, LobbyTeams } from './HostSetup.tsx'
 import { Spoken } from './Spoken.tsx'
@@ -316,6 +316,42 @@ export function Host() {
 }
 
 /**
+ * A question read from paper, typed onto the wall. Enter shows it; Clear and
+ * Next take it down, and the field empties with it.
+ */
+function TypedClue({ state, fire }: { state: State; fire: (a: string, data?: unknown) => void }) {
+  const [draft, setDraft] = useState(state.typed ?? '')
+  useEffect(() => {
+    if (!state.typed) setDraft('')
+  }, [state.typed])
+  const blocked = !!clueBlockReason(state)
+  return (
+    <form
+      class="host__reader"
+      onSubmit={(e) => {
+        e.preventDefault()
+        fire('typeClue', draft)
+      }}
+    >
+      <input
+        class="input host__typed"
+        placeholder="Question for the wall"
+        aria-label="Question for the wall"
+        value={draft}
+        disabled={blocked}
+        onInput={(e) => setDraft((e.target as HTMLInputElement).value)}
+      />
+      <button class="btn" type="submit" disabled={blocked || !draft.trim()}>
+        Show<span class="key">Enter</span>
+      </button>
+      <button class="btn btn--ghost" type="button" disabled={!state.typed} onClick={() => fire('typeClue', '')}>
+        Clear
+      </button>
+    </form>
+  )
+}
+
+/**
  * The Play tab while the quiz is up: the value, where the setlist is, the
  * three keys, the reader's transport and the buzz order. Nothing that is setup.
  */
@@ -612,6 +648,7 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
             )}
           </div>
         )}
+        {!scoreless && <TypedClue state={state} fire={fire} />}
         </>}
       </section>
 

@@ -798,3 +798,56 @@ test('a steal on a picture reveal takes first place but keeps its own press, so 
     mock.timers.reset()
   }
 })
+
+test('a typed question is the wall clue, survives arm and undo, mirrors to phones, and Next clears it', () => {
+  const { state, hub, conn, lastState } = rig()
+  const host = conn('host')
+  const phone = conn('player')
+  joinAs(hub, phone, 'Ada')
+  const local: Local = { open: false, settled: true, retired: true }
+  const q = 'Which Beatle was the youngest?'
+
+  hub.handle(phone, { t: 'act', act: 'typeClue', data: 'forged' })
+  assert.equal(state.typed, undefined, 'a phone cannot type')
+  hub.handle(host, { t: 'act', act: 'typeClue', data: `  ${q} ` })
+  assert.equal(lastState(0).typed, q)
+  assert.deepEqual(wallOf(state, local).clue, { shown: q })
+  assert.equal(lastState(1).typed, undefined, 'mirror off: phones get nothing')
+
+  hub.dispatch({ a: 'arm' })
+  assert.equal(state.typed, q, 'arming keeps it')
+  hub.dispatch({ a: 'setMirror', on: true })
+  assert.equal(lastState(1).typed, q, 'mirror on: phones get it')
+  hub.dispatch({ a: 'undo' })
+  assert.equal(state.typed, q, 'undo does not touch it')
+
+  hub.handle(host, { t: 'act', act: 'typeClue', data: '' })
+  hub.dispatch({ a: 'setMirror', on: true })
+  assert.equal(lastState(1).typed, undefined, 'a cleared clue leaves no trace, mirror or not')
+  assert.equal(wallOf(state, local).clue, null)
+
+  hub.handle(host, { t: 'act', act: 'typeClue', data: q })
+  hub.dispatch({ a: 'next' })
+  assert.equal(state.typed, undefined, 'Next clears it')
+})
+
+test('typing a question is refused during an introduction, a minigame and a read, like Read', () => {
+  const { state, hub, conn } = rig()
+  const host = conn('host')
+  state.arrival = { kind: 'introduction', id: 'i', blockAt: 0, blockKey: 'k' }
+  hub.handle(host, { t: 'act', act: 'typeClue', data: 'Q?' })
+  assert.equal(state.typed, undefined)
+  delete state.arrival
+  state.minigame = { id: 'bow', matchId: 'm', phase: 'ready', options: { durationSec: 60, seed: 1 }, participants: [] }
+  hub.handle(host, { t: 'act', act: 'typeClue', data: 'Q?' })
+  assert.equal(state.typed, undefined)
+  delete state.minigame
+  state.readingActive = true
+  hub.handle(host, { t: 'act', act: 'typeClue', data: 'Q?' })
+  assert.equal(state.typed, undefined)
+  state.readingActive = false
+  hub.handle(host, { t: 'act', act: 'typeClue', data: 'Q?' })
+  assert.equal(state.typed, 'Q?')
+  hub.handle(host, { t: 'act', act: 'reading', data: { active: true } })
+  assert.equal(state.typed, undefined, "a starting reader's clue replaces it")
+})

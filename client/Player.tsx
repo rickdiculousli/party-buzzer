@@ -365,8 +365,8 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
       ) : (
         <>
         {round?.image && <img class="player__image" data-review-id="phone:image" src={round.image} alt="" />}
-        {!!round?.fragments?.length && (
-          <p class="player__question" data-review-id="phone:question">{round.fragments.join(' ')}</p>
+        {(round?.fragments?.length || state?.typed) && (
+          <p class="player__question" data-review-id="phone:question">{round?.fragments?.join(' ') || state?.typed}</p>
         )}
 
         {state && <PlayerDuel state={state} playerId={playerId} send={send} />}

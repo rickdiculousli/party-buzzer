@@ -7,7 +7,7 @@
  * live. This names the dozen instead.
  *
  * `momentOf` is universal. `viewFor` redacts `order`, `whole`, and (without the
- * mirror) `fragments` and `answer` — but keeps `phase`, `armedAt`, `spoken`,
+ * mirror) `fragments`, `typed` and `answer` — but keeps `phase`, `armedAt`, `spoken`,
  * `award`, `held`, `duel` and `buzzable`, which is every field a moment is
  * derived from. So the wall and the phones compute the same word from different
  * data and cannot drift. Nothing here may read `order`, for exactly that reason:
@@ -378,11 +378,11 @@ function middleOf(state: State, m: Moment): Middle {
 
   // The question, while there is one on the stage: the box is mid-read, or what
   // it has read so far is still up. Empty at the arm, filling as the voice
-  // reaches each clause.
+  // reaches each clause. With no box reading, the host may have typed one.
   const clue: Middle | null =
     state.readingActive || r.fragments?.length
       ? { clue: { whole: r.whole, shown: r.fragments?.join(' ') ?? '', ...(r.image && { image: r.image }) } }
-      : null
+      : state.typed ? { clue: { shown: state.typed } } : null
 
   // The duel's pair, not who may buzz right now — a rebound narrows `buzzable`
   // to one, and who is on the stage does not change when one of them misses.
@@ -457,7 +457,7 @@ function middleOf(state: State, m: Moment): Middle {
     // card for the whole beat before the arm; only words already said keep
     // the clue. Welcome has nothing lined up yet, so it keeps "Ready".
     case 'idle:ready':
-      return or(r.fragments?.length ? clue : null, { next: r.value })
+      return or(r.fragments?.length || state.typed ? clue : null, { next: r.value })
     case 'idle:welcome':
       return or(clue, { call: 'ready' })
   }

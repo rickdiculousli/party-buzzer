@@ -291,6 +291,7 @@ function mutateHostAction(state: State, action: HostAction): void {
       const played = round.armedAt > 0
       round.phase = 'IDLE'
       forgetQuestion(round)
+      delete state.typed
       delete round.judge
       delete round.spoken
       delete round.buzzable

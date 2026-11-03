@@ -1259,6 +1259,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   margin-top: var(--s3);
 }
 
+.host__typed { flex: 1; min-width: 12rem; }
+
 .host__order { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s1); }
 .host__standings {
   list-style: none;

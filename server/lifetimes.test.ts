@@ -50,6 +50,8 @@ const lifetimes = {
   autoplay: { undo: 'yes', disk: 'yes', phone: 'full' },
   readingActive: { undo: 'no', disk: 'no', phone: 'full' },
   reading: { undo: 'no', disk: 'no', phone: 'none' },
+  // Phone `none` in the fixture, whose mirror is off; with it on, a phone gets it whole (hub.test.ts).
+  typed: { undo: 'live', disk: 'no', phone: 'none' },
   minigame: { undo: 'yes', disk: 'reset', phone: 'full' },
   arrival: { undo: 'yes', disk: 'no', phone: 'full' },
   night: { undo: 'yes', disk: 'yes', phone: 'none' },
@@ -82,6 +84,7 @@ function everyField(): State {
   state.setlist = { blocks: [{ game: 'trivia', options: {}, count: 2 }], at: 0, done: 1 }
   state.readingActive = true
   state.reading = { pack: 'one.txt', qIndex: 1, qTotal: 3, fragIndex: 2, fragTotal: 5, paused: false }
+  state.typed = 'Which Beatle was the youngest?'
   state.minigame = {
     id: 'poker',
     matchId: 'm',

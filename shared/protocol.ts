@@ -816,6 +816,12 @@ export type State = {
   /** Public gameplay fact, independent of private pack progress. */
   readingActive: boolean
   reading?: ReadingState
+  /**
+   * A question the host typed for the wall, read from paper rather than a pack.
+   * The clue while no reader is putting one up; Next and a starting reader
+   * clear it. Runtime: neither undo nor disk, and phones get it only with the mirror.
+   */
+  typed?: string
   /** Durable lifecycle only. The live world travels in role-specific frames. */
   minigame?: MinigameState
   /** A lobby or first-block introduction covering the room. */

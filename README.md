@@ -89,6 +89,11 @@ A **setlist** is a sequence of blocks, each choosing a game, options, value,
 duel rule, question count, and optionally a pack. A block without a pack is
 read aloud by the host. Saved setlists are JSON files in `setlists/`.
 
+Reading from paper, the host can still put the question on the wall: type it
+into **Question for the wall** on the Play desk and press Enter. The board shows
+it as it would a read question, phones get it when the mirror is on, arming
+keeps it and Next clears it. Typed questions are not saved, and undo leaves them be.
+
 Two starter setlists ship in `setlists/`. **quick-night** is about twenty
 minutes: eight spoken trivia questions from `game-night.txt`, a Tug of war match, and
 four quizbowl questions from `quizbowl-lite.txt` with the room voting two

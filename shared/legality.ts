@@ -237,3 +237,11 @@ export function refuses(s: State, a: HostAction): Refusal | null {
       return null
   }
 }
+
+/** Whether the host may type a question onto the wall: when Read could start, and not over a reader. */
+export function clueBlockReason(s: State): Refusal | null {
+  if (s.minigame) return 'minigame-active'
+  if (arrivalBlocksPlay(s)) return 'introduction-active'
+  if (s.readingActive) return 'reading-active'
+  return null
+}
