@@ -1004,15 +1004,15 @@ explanation is the worst thing this app can do:
 | Locked out | Out | Wrong answer — you sit out the rest of this question |
 | Locked, no press | Locked | Someone else is answering |
 | Correct answer | Right | The points actually awarded, including a mode bonus |
-| Someone else scored | *Their name*, in brass | +400 · right, until the next arm |
-| Someone else missed | *Their name*, in tally | −200 · wrong, rebound opening, while a held rebound waits |
+| Someone else scored | *Their name*, in brass | +400 · right |
+| Someone else missed | *Their name*, in tally | −200 · wrong, rebound opening |
 
 The verdict is the one state about someone else: the whole room is being told
 it at once, and a phone face-down learns nothing from the dial. The name takes
-the tone the board's hero takes, and the card's edge takes the scorer's
-identity colour, as the dial's stripe does. It waits for the board to finish
-typing the transcript, so it never reads the result out ahead of the line. The
-player who answered keeps Right or Out.
+the tone the board's hero takes. It waits for the board to finish typing the
+transcript, so it never reads the result out ahead of the line; a payoff stays
+until the next arm, a miss only while a held rebound waits. The player who
+answered keeps Right or Out.
 
 "In" is the phone knowing something the room does not. It is purely local — the
 room sees nothing for the first 150 ms, and a buzzer that looks unchanged after

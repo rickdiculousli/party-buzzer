@@ -1425,10 +1425,13 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .buzzer:is(.is-waiting, .is-barred) .buzzer__sub { opacity: 1; }
 .buzzer.is-barred .buzzer__sub { color: var(--dim); }
 /* Someone else's verdict on the resting slab: the name in the tone the wall's
-   hero takes, so phone and wall say it in one colour; whose it is rides the
-   edge, as identity rides the dial's stripe, never the letters (an identity
-   red would read as a miss). A name is the one label that can be long. */
-.buzzer.is-verdict { border-color: var(--id, var(--rule)); grid-template-columns: 100%; overflow-wrap: anywhere; }
+   hero takes, so phone and wall say it in one colour. Identity stays off the
+   letters and the edge, both of which mean a state here (an identity red would
+   read as a miss); the dial's stripe carries it. A name is the one label that
+   can be long: it shrinks by its length, like the pad's digits, and breaks
+   only past that. */
+.buzzer.is-verdict { container-type: inline-size; grid-template-columns: 100%; overflow-wrap: anywhere; }
+.buzzer__name { font-size: min(1em, calc(150cqw / var(--len))); }
 .buzzer.is-verdict.is-awarded { color: var(--brass); }
 .buzzer.is-verdict.is-penalised { color: var(--tally); }
 .buzzer.is-verdict .buzzer__sub { opacity: 1; color: var(--chalk); }

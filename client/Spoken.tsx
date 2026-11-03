@@ -18,8 +18,8 @@ const partsOf = (transcript: string) => chunks(transcript || 'no answer')
 
 /**
  * How long after it arrives a line settles: every chunk, then the hold. The
- * timer below runs exactly this; a phone that cannot mount the line reads it
- * here instead, so a change to the pace reaches both.
+ * line's own settle timer is this, and so is a phone's, which cannot mount
+ * the line, so a change to the pace reaches both.
  */
 export const settleMs = (transcript: string, scope?: Element) =>
   partsOf(transcript).length * tune('--type-chunk', scope) + tune('--verdict-hold', scope)
@@ -72,21 +72,17 @@ export function Spoken({
     // dialled values on a wrapper, and a property read at the root never sees
     // them — the same reason `markGap` takes a scope.
     const scope = line.current ?? undefined
-    const ms = tune('--type-chunk', scope)
-    const hold = tune('--verdict-hold', scope)
     let n = 0
-    let after: ReturnType<typeof setTimeout>
     const t = setInterval(() => {
       n += 1
       play('type')
       setShown(n)
-      if (n < parts.length) return
-      clearInterval(t)
-      after = setTimeout(() => {
-        setSettled(true)
-        fire.current?.()
-      }, hold)
-    }, ms)
+      if (n >= parts.length) clearInterval(t)
+    }, tune('--type-chunk', scope))
+    const after = setTimeout(() => {
+      setSettled(true)
+      fire.current?.()
+    }, settleMs(transcript, scope))
     return () => {
       clearInterval(t)
       clearTimeout(after)

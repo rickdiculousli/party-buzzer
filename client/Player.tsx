@@ -360,10 +360,10 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     awardPoints: round?.award && !round.award.penalty ? round.award.points : undefined,
     // Your own verdict is Right or Out, never your name: a mode that locks
     // nobody out leaves the one who missed neither leader nor barred.
+    // shortcut: matched by name, as `Award` carries no id; two players sharing a name miss each other's verdict, upgrade if names stop being distinct.
     told: told && told.name !== me?.name ? told : undefined,
   })
 
-  const scorer = mood === 'verdict' ? state?.players.find((p) => p.name === told?.name) : undefined
 
   const arrival = state ? arrivalPresentation(state) : null
 
@@ -433,11 +433,12 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
           <button
             data-review-id="phone:buzzer"
             class={`buzzer ${MOOD_CLASS[mood]}${tone ? ` is-${tone}` : ''}`}
-            style={{ '--id': state && scorer ? colorForPlayer(state, scorer.id) : undefined }}
             onPointerDown={buzz}
             disabled={!open || barred || pressed || frozen || spectator || choice}
           >
-            {frozen ? <span class="buzzer__hit fx-wobble">{label}</span> : label}
+            {frozen ? <span class="buzzer__hit fx-wobble">{label}</span>
+              : mood === 'verdict' ? <span class="buzzer__name" style={{ '--len': Math.max(5, label.length) }}>{label}</span>
+              : label}
             {sub && <span class="buzzer__sub">{sub}</span>}
           </button>
         )}
