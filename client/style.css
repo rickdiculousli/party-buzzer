@@ -1262,7 +1262,10 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .host__typed { flex: 1; min-width: 12rem; }
 
 .host__order { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s1); }
-.host__crew { display: flex; flex-wrap: wrap; gap: var(--s1); }
+.host__match { margin-bottom: var(--s3); }
+.host__crew { display: flex; flex-wrap: wrap; gap: var(--s3); }
+/* One player in a match row: their identity colour, their lamp, their name. */
+.host__who { display: inline-flex; align-items: center; gap: var(--s2); padding-left: var(--s2); border-left: 3px solid var(--rule); }
 .host__standings {
   list-style: none;
   margin: 0;

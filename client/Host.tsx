@@ -36,10 +36,10 @@ const readyCount = (state: State) =>
 
 /** The match as the minigame reports it: each row's players with their colour and lamp, then score and word. */
 function MatchRows({ state, rows }: { state: State; rows: HostRow[] }) {
-  return <ol class="host__order">
+  return <ol class="host__order host__match">
     {sortHostRows(rows).map((row) => <li key={row.players[0]} class="row">
       <span class="row__label host__crew">
-        {row.players.map((id) => <span key={id} class="chip" style={{ borderLeft: `3px solid ${colorForPlayer(state, id)}` }}>
+        {row.players.map((id) => <span key={id} class="host__who" style={{ borderLeftColor: colorForPlayer(state, id) }}>
           <span class={state.players.find((p) => p.id === id)?.connected ? 'lamp-dot is-on' : 'lamp-dot is-off'} />
           {playerName(state, id)}
         </span>)}
