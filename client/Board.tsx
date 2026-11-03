@@ -220,7 +220,8 @@ const CALL_TEXT: Record<NonNullable<Wall['call']>, string> = {
  * they should. Measure with a ResizeObserver if that ever actually bites.
  */
 function labelWidth(name: string): number {
-  const rem = Math.max(2.5, name.length * 0.68)
+  // The board's labels are ~2.2x the old fixed sizes (style.css, .board__wall .timeline).
+  const rem = Math.max(5.5, name.length * 1.5)
   return (rem / 58) * 100
 }
 
