@@ -66,7 +66,8 @@ try {
       return runs.map((a) => {
         const t = a.effect!.getComputedTiming()
         const el = (a.effect as KeyframeEffect).target as Element
-        return { target: `${el.tagName.toLowerCase()}.${[...el.classList].join('.')}`, kind: a.constructor.name, delay: t.delay, duration: t.duration, endTime: t.endTime, easing: t.easing }
+        // A CSS animation's curve lives on its keyframes; the effect timing reads 'linear'.
+        return { target: `${el.tagName.toLowerCase()}.${[...el.classList].join('.')}`, kind: a.constructor.name, delay: t.delay, duration: t.duration, endTime: t.endTime, easing: (a.effect as KeyframeEffect).getKeyframes()[0]?.easing ?? t.easing }
       })
     })
     if (!timing.length) throw new Error(`scenario ${id} mounted no animations on the stage`)
