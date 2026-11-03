@@ -24,14 +24,14 @@
 }
 .arrival-board__goal { margin: 0; font-size: var(--t-xl); color: var(--dim); text-wrap: balance; }
 
-/* Up to a screenful of names at any roster size: columns wrap, names clip. */
+/* Up to a screenful of names at any roster size: columns wrap, long names wrap too. */
 .arrival-board__roster {
   list-style: none;
   margin: var(--s4) 0 0;
   padding: 0;
   width: 100%;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
   gap: var(--s3);
 }
 .arrival-board__player {
@@ -48,14 +48,14 @@
 }
 .arrival-board__player.is-lit { background: var(--raise); }
 .arrival-board__name {
+  flex: 1 1 auto;
   min-width: 0;
   font-family: var(--display);
-  font-size: var(--t-xl);
+  font-size: clamp(var(--t-lg), 2.4vw, var(--t-xl));
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
   color: var(--id);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
+.arrival-board .arrival-board__player .chip { flex: none; font-size: calc(var(--t-chip-board) * 0.85); }
