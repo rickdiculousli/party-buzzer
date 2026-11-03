@@ -49,8 +49,7 @@ is legible through the drawing at 1280.
 
 ## Risks and the alternative considered
 A faded number behind a busy drawing could be hard to read at the last ten
-seconds; the choice question already solves this with its opacity ramp, and
-proposal 032 would carry the clock in its frame if both land. Alternative:
+seconds; the choice question already solves this with its opacity ramp. Alternative:
 shrink the chips; rejected because the room reads them.
 
 ## Needs from Rick

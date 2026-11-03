@@ -1,6 +1,6 @@
 ---
 id: 032
-title: One wall for the whole night: a shared match frame
+title: The room's sidebar stays up between plays of a match
 kind: ux
 size: M
 judge: fable
@@ -11,55 +11,68 @@ proposed_on: 2026-10-14
 ---
 
 ## Opportunity
-The quiz board and the minigame boards are different products on the same
-TV. The quiz keeps a setlist chip, a players chip, a standings sidebar and
-the QR; the moment a block opens Bow, all of it vanishes.
+As soon as a match opens, `Board.tsx` hands the whole screen to that
+minigame's board (`client/Board.tsx:574-577`), and the quiz sidebar goes with
+it: the standings, the join QR and the lamp (`Board.tsx:814`). Each of the six
+minigames then draws its own frame. Ink, Sketch and Poker show the block chip
+(`setlistPosition`, `InkBoard.tsx:18`, `SketchBoard.tsx:20`,
+`PokerBoard.tsx:75`). Bow, Tank and Tug of war show only their name
+(`BowBoard.tsx:44`, `TankBoard.tsx:61`, `TugBoard.tsx:141`). Sketch alone
+brings back night standings, at ready (`SketchBoard.tsx:56`). A guest who
+arrives during a match has no code to scan, and at the results nobody sees
+how the match moved the night's standings. Those standings are already in `state.scores` by
+then (`hub.ts:764`).
 
 ![quiz board on a setlist](assets/032-board-quiz.png)
 ![Bow at 1920×1080](assets/032-board-bow.png)
 ![Sketch at 1920×1080](assets/032-board-sketch.png)
 
-Measured at 1920×1080: Bow's header is "Bow" in 24px mono top-left and "16s"
-top-right, no block chip, no standings, no QR, and the night's scores are
-nowhere; the match scores sit as 24px mono labels under the bows. Sketch
-keeps a sidebar but calls it "SKETCH POINTS" with its own chips ("SKETCH",
-"TURN 1/10") styled like the quiz chips but placed differently. Poker is its
-own world (fine, it is a table). A guest who joins during Bow has no code to
-scan. PRODUCT.md principle 3: "Preserve one continuous game night across the
-quiz, setlist blocks, and minigames." The design guide §7 gives the board one
-grid: wall left, sidebar right.
-
 ## Proposal
-A match frame every minigame board renders inside, owned by `Board.tsx`, not
-by each minigame: the status row top-left keeps the setlist chip
-(`BOW · BLOCK 2/3`) and players chip; the match clock sits top-right in
-cyan at `--t-xl` (measurement colour, design guide §1); the sidebar stays,
-showing the match standings while the match runs and the night standings
-with the match's points folded in on results, and the small QR and lamp stay
-at its foot. The field gets the wall's area, so Bow, Tank and Sketch shrink
-from full-bleed to the wall; Sketch's own sidebar and chips go. Poker keeps
-its table on the wall and gains only the status row and clock.
-In: the frame, chip and clock placement, sidebar content per phase, the
-four boards' layouts. Out: the fields' drawing code, phone changes, Poker's
-table.
+`Board.tsx` owns it, by phase. While a match is in `ready` or `results`, so
+no field is being played, `Board.tsx` renders the minigame's board in the
+wall column and the quiz's own sidebar beside it. That sidebar is the standings,
+the small QR and the lamp, pulled out of the quiz render as one `RoomSide`
+component rather than copied. At results the standings show the night with the
+match folded in, and `ScoreChange` animates the jump. Through `countdown` and
+`playing`, the minigame's board keeps the whole screen as it does today.
+Sketch's own sidebar at ready and results (`SketchBoard.tsx:40,56`) goes,
+since `RoomSide` replaces it. Bow, Tank and Tug of war change their title to
+`setlistPosition(state) ?? name`, the line Ink, Sketch and Poker already use.
+In: `RoomSide`, the phase switch in `Board.tsx`, CSS so the six ready and results
+screens fit the wall column, Sketch's two sidebars, three title lines, the
+missing review scenarios. Out:
+any field's size or drawing during play, clocks, phones, Poker's table, a
+QR during play.
 
-Judge: fable, because the field-to-sidebar proportions and what the sidebar
-shows mid-match need an eye.
+How it fits with 041 (Sketch keeps its feed off the canvas, being built): 041
+changes Sketch's drawing phase (its feed column and its clock). This spec
+touches only Sketch's ready and results branches, so the two don't overlap.
+How it fits with 040 (who is in the room): `RoomSide` is the quiz's sidebar,
+so 040's dimmed away rows show here too.
+
+Judge: fable, because how the six ready and results screens sit in a narrower
+wall needs an eye.
 
 ## What you'll see
-The board looks like one night: the same chips in the same corner, the same
-standings column, a clock where a clock always is, and the QR for a late
-arrival whether the room is buzzing or shooting arrows.
+Bow opens and the standings and QR are still there while phones tap Ready.
+The arrows fly full-screen. At the buzzer, the results sit beside the night's
+standings as Nia jumps from 4th to 2nd.
 
 ## Verification
-`npm run build`, `npm test`. `npm run sim-bow -- 1 20`, `sim-tank`,
-`sim-sketch`, `sim-poker` on a disposable room at 1920×1080 and 1280×720;
-each field still fits without scroll. `npm run review` scenario per minigame.
+`npm run build`, `npm test`, then `npm run test:review` in full. Only Ink
+and Sketch have review scenarios today (`tools/review/fixtures.ts`), so the
+build adds a ready and a results scenario for Bow, Tank, Poker and Tug of
+war. All twelve must fit at 1920×1080 and 1280×720. Run `sim-bow`, `sim-tank`, `sim-ink`, `sim-sketch`, `sim-poker` and
+`sim-tug` on a disposable room: the sidebar is up at ready and results and
+gone during play.
 
 ## Risks and the alternative considered
-Bow and Tank fields are sized to the viewport; inside the wall they lose
-about 23% of width, which changes aim distances, so the field must scale,
-not crop. Alternative: a minigame-owned header component each board calls;
-rejected because four owners drift, as they already have.
+The fields are SVG viewBoxes in world units (`BOW_FIELD`, 1600×900), and aim
+comes from the phone, so the board's size never changes gameplay. A sidebar
+during play would still cost a quarter of the field's width at 3 m, which is
+why it stays out. A long untimed match (Poker, Sketch, Ink) still shows no QR
+mid-play. A later upgrade is a corner tag, once review scenarios show a corner that is free in all six.
+Alternative considered: a frame around every phase (the first draft). Rejected because it
+shrinks the fields while they are being played.
 
 ## Needs from Rick
