@@ -74,8 +74,8 @@ test('a disabled buzzer can be annotated and the note survives reload', async ({
   )
 })
 
-test('Send copies the batch handoff line when no agent queue is configured', async ({ page, context }) => {
-  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: 'http://127.0.0.1:4174' })
+test('Send copies the batch handoff line when no agent queue is configured', async ({ page, context, baseURL }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: baseURL })
   let submitted: {
     batchId: string
     threadId: string
@@ -168,7 +168,7 @@ test('Send posts the saved note to the exact conversation and Refresh remounts p
   )
 })
 
-test('a rotated ink pad captures instead of stalling the readiness wait', async () => {
+test('a rotated ink pad captures instead of stalling the readiness wait', async ({ baseURL }) => {
   const dir = await mkdtemp(join(tmpdir(), 'review-capture-'))
   const note = {
     id: 'pad', scenarioId: 'ink-clue', surface: 'phone' as const, playerId: 'ada',
@@ -176,13 +176,13 @@ test('a rotated ink pad captures instead of stalling the readiness wait', async 
     bounds: { x: 0, y: 0, width: 0, height: 0 },
   }
   const started = Date.now()
-  const captures = await capturePreviews('http://127.0.0.1:4174', [note], dir)
+  const captures = await capturePreviews(baseURL!, [note], dir)
   expect(captures['phone:ink-clue:ada']).toBe('phone-ink-clue-ada.png')
   expect(Date.now() - started).toBeLessThan(15_000)
   await rm(dir, { recursive: true, force: true })
 })
 
-test('a located suggestion is outlined on the shot, an unlocatable one is not', async () => {
+test('a located suggestion is outlined on the shot, an unlocatable one is not', async ({ baseURL }) => {
   const dir = await mkdtemp(join(tmpdir(), 'review-capture-'))
   const note = (id: string, targetId?: string) => ({
     id, scenarioId: 'rebound', surface: 'phone' as const, playerId: 'ada',
@@ -191,7 +191,7 @@ test('a located suggestion is outlined on the shot, an unlocatable one is not', 
   })
   const shot = async (targetId?: string) => {
     const into = await mkdtemp(join(dir, 'shot-'))
-    const captures = await capturePreviews('http://127.0.0.1:4174', [note('one', targetId)], into)
+    const captures = await capturePreviews(baseURL!, [note('one', targetId)], into)
     expect(captures['phone:rebound:ada']).toBe('phone-rebound-ada.png')
     return readFile(join(into, 'phone-rebound-ada.png'))
   }
