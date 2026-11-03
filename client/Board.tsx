@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { createPortal } from 'preact/compat'
-import { useFinale, useOpen, useSecondsLeft, useSocket, type SocketFixture } from './useSocket.ts'
+import { useFinale, useOpen, useSocket, type SocketFixture } from './useSocket.ts'
 import { colorForPlayer, lockedNames, ordinal, setlistPosition, standings, willSeat } from './ui.ts'
 import { markGap, play, playSpaced, prime, startBed, stopBed, unlock } from './sound.ts'
 import { Votes } from './Votes.tsx'
@@ -17,6 +17,7 @@ import { practiceLobbyId } from './arrival-feedback.ts'
 import { useLitTime, usePracticeTime } from './usePractice.ts'
 import { LIFTS, PILL_CAP, PILL_FADE_MS, PILL_MS, freshReactions, shownPills, type Pill } from './reactions.ts'
 import { Burst, Letters, ScoreChange, useFlip } from './fx.tsx'
+import { Countdown } from './Countdown.tsx'
 import { ClosestLine, closestStamp, closestStampDelay, useClosestHold } from './ClosestLine.tsx'
 import { allGuessed, scoresBeforeClosest } from '../shared/closest.ts'
 import { RevealPicture, RevealStakes } from './RevealPicture.tsx'
@@ -432,20 +433,6 @@ function NomList({
         </li>
       ))}
     </ol>
-  )
-}
-
-/**
- * The room's window closing — picking, or an autoplay buzz window: the seconds
- * left, huge and faded behind the whole wall, so it is felt rather than read
- * and takes no room from the stage.
- */
-function Countdown({ until, now }: { until: number; now: () => number }) {
-  const left = useSecondsLeft(until, now)
-  return (
-    <p class="board__countdown" data-review-id="board:countdown" data-overlap aria-label={`${left} seconds`}>
-      {left}
-    </p>
   )
 }
 

@@ -1,14 +1,15 @@
 import type { MinigameBoardProps } from './minigames.tsx'
 import { matchFrame } from './minigame-info.ts'
 import { Blanks, SketchChat, SketchInk, SketchStandings, useSketchCues, useSketchStrokes, type SketchRow } from './SketchParts.tsx'
-import { SKETCH_RULES, revealStamp, secondsLeft, stepLine } from './sketch.ts'
+import { SKETCH_RULES, revealStamp, stepLine } from './sketch.ts'
+import { Countdown } from './Countdown.tsx'
 import { colorForPlayer, playerName, setlistPosition, standings } from './ui.ts'
 
 /**
  * Sketch on the big screen, in the quiz's frame: the stage on the left, the
- * standings beside it. The drawing is the stage; the word and the guesses sit
- * above and below it, and the reveal stamps the result the way a scored
- * question does.
+ * standings beside it. The drawing is the stage; the word sits above it, the
+ * guesses beside it and the seconds left loom through it, and the reveal
+ * stamps the result the way a scored question does.
  */
 export function SketchBoard({ state, frame, now }: MinigameBoardProps) {
   const session = state.minigame!
@@ -71,13 +72,13 @@ export function SketchBoard({ state, frame, now }: MinigameBoardProps) {
         {sketch.step === 'reveal' && (sketch.end === 'pass'
           ? <p class="sketch-who">{drawer} passed</p>
           : <p class="sketch-who">{stepLine(sketch, nameOf)}</p>)}
-        {timed && <p class="sketch-clock readout" aria-label="seconds left">{secondsLeft(sketch.endsAt, now())}</p>}
       </header>
 
       {sketch.step === 'choosing' ? (
         // Nothing to look at yet, so the stage says whose turn it is instead of
         // showing an empty frame.
         <div class="sketch-stage">
+          <Countdown until={sketch.endsAt} now={now} />
           <div class="board__next fx-rise" key={sketch.turn}>
             <p class="board__next-label">Choosing a word</p>
             <p class="board__next-value sketch-name" style={{ '--id': colorForPlayer(state, sketch.drawer) }}>{nameOf(sketch.drawer)}</p>
@@ -96,6 +97,7 @@ export function SketchBoard({ state, frame, now }: MinigameBoardProps) {
           <div class="sketch-stage">
             <div class="sketch-frame">
               <SketchInk strokes={strokes} live={sketch.live} />
+              {timed && <Countdown until={sketch.endsAt} now={now} />}
               <SketchChat
                 turn={`${sketch.matchId}:${sketch.turn}`}
                 misses={sketch.misses}

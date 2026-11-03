@@ -546,13 +546,12 @@ A stream of what the room is typing, the way a stream's chat overlay runs:
 Sketch's guesses on the board. `SketchChat` in `client/SketchParts.tsx`; the
 rules it runs on are pure functions in `client/sketch.ts`.
 
-**How it looks.** A column centred on the drawing's right border, half over the
-drawing and half beside it, so it reads as laid over the work without hiding
-it. Each line is one line tall (a long guess ends in an ellipsis): the name in
+**How it looks.** Its own column beside the drawing, as tall as it (the
+drawing takes the width it leaves), so the room guesses from a clean picture.
+The word above centres on the drawing, not on the pair. Each line is one line tall (a long guess ends in an ellipsis): the name in
 its identity colour, bold display caps, then the text. Every line sits on its
-own backing of `--stone` at 55%, a true grey that shows over the lit drawing
-and the black stage alike. A right guess is brass, "got it" and its time as a
-cyan `.readout`. The type steps down on a short stage so ten lines still fit.
+own backing of `--stone` at 55%, translucent over the black stage. A right guess is brass, "got it" and its time as a
+cyan `.readout`. The type steps down with a short drawing so ten lines still fit.
 
 ```html
 <div class="sketch-chat">
@@ -869,7 +868,9 @@ While picking, a row above the grid holds a small pill bar (`.board__slots`)
 with a slot per player, filling in that player's colour when they pick, in pick
 order, so the room sees who is still out but never what anyone chose, and the
 countdown is the seconds left, huge and faded behind the whole wall
-(`.board__countdown`). The row keeps its space at the reveal so the grid never
+(`.board__countdown`). Sketch uses the same countdown for a turn's seconds,
+but while drawing it sits on the drawing, centred and sized to it, over the
+drawing's opaque fill, so it looms through the picture. The row keeps its space at the reveal so the grid never
 moves. When the last pick lands, or the countdown runs out, the bar warms to
 brass for a beat (`.is- closed`, with a brass `fx-ripple`) so the room sees
 that everyone is in before it is told who was right. On the reveal each pick's

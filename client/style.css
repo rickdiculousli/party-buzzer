@@ -3196,7 +3196,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .sketch-top { grid-area: top; justify-self: stretch; display: flex; align-items: center; gap: var(--s2); }
 .sketch-who { margin: 0 0 0 var(--s3); font: 600 var(--t-xl)/1 var(--display); color: var(--dim); }
 .sketch-who .sketch-name { font-weight: 800; }
-.sketch-clock { margin: 0 0 0 auto; font: 800 var(--t-xl)/1 var(--display); color: var(--dim); }
 .sketch-head { grid-area: head; display: grid; justify-items: center; gap: var(--s3); }
 /* The reveal's word is the hero, one step down so a long word still fits
    above the drawing it names. */
@@ -3205,10 +3204,18 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 
 /* The drawing keeps its 4:3 and takes whatever the stage gives it. */
 .sketch-stage { grid-area: stage; min-height: 0; width: 100%; display: grid; place-items: center; container-type: size; }
-/* On the board the stage keeps half a chat column free on each side, so the
-   chat can straddle the drawing's right border and the drawing stays centred. */
-.sketch-wall .sketch-stage { --chat-w: 14rem; }
-.sketch-frame { position: relative; width: min(100cqw - var(--chat-w), 100cqh * 4 / 3); }
+/* On the board the drawing and the guesses share the stage side by side: the
+   drawing takes what the feed column leaves, and the pair stays centred. The
+   word above keeps the feed's width free on its right, so it centres on the
+   drawing rather than on the pair. */
+.sketch-wall { --chat-w: clamp(14rem, 18vw, 22rem); --chat-gap: var(--s4); }
+.sketch-wall .sketch-head { padding-right: calc(var(--chat-w) + var(--chat-gap)); }
+.sketch-frame {
+  --ink-w: min(100cqw - var(--chat-w) - var(--chat-gap), 100cqh * 4 / 3);
+  display: grid;
+  grid-template-columns: var(--ink-w) var(--chat-w);
+  gap: var(--chat-gap);
+}
 .sketch-ink, .sketch-canvas {
   display: block;
   width: min(100cqw, 100cqh * 4 / 3);
@@ -3217,24 +3224,33 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   border: 1px solid var(--rule);
   border-radius: var(--r-md);
 }
-.sketch-frame > .sketch-ink { width: 100%; }
+.sketch-frame > .sketch-ink { grid-area: 1 / 1; width: 100%; }
+/* While drawing, the wall's countdown sits on the drawing, centred on it and
+   sized to fit even three digits, over its fill: the fill is opaque, and the
+   seconds should loom through the picture. */
+.sketch-frame > .board__countdown {
+  grid-area: 1 / 1;
+  place-self: center;
+  position: relative;
+  inset: auto;
+  z-index: 1;
+  font-size: min(70vh, var(--ink-w) * 0.68);
+}
+.sketch-frame > .sketch-chat { grid-area: 1 / 2; contain: size; } /* the drawing sets the row, never the feed */
 
-/* The guesses as a stream's chat, centred on the drawing's right border: half
-   over the drawing, half beside it. One bottom-anchored list of at most ten
-   one-line entries (SketchChat); each sits on its own translucent backing so
-   it reads over ink. The type steps down on a short stage so ten still fit. */
+/* The guesses as a stream's chat, in their own column beside the drawing, as
+   tall as it. One bottom-anchored list of at most ten one-line entries
+   (SketchChat), each on its own translucent backing. The type steps down with
+   a short drawing so ten still fit. */
 .sketch-chat {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: calc(100% - var(--chat-w) / 2);
-  width: var(--chat-w);
+  position: relative;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   overflow: hidden;
   text-align: left;
-  font: 600 clamp(var(--t-md), 100cqh / 18, var(--t-lg))/1.2 var(--display);
+  font: 600 clamp(var(--t-md), var(--ink-w) * 3 / 4 / 18, var(--t-lg))/1.2 var(--display);
   color: var(--chalk);
   pointer-events: none;
 }
