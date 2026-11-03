@@ -16,6 +16,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { parseTune, TUNE } from './sound.ts'
+import { FINALE_SCHEDULE } from '../shared/wall.ts'
 
 const css = readFileSync(new URL('./style.css', import.meta.url), 'utf8')
 const start = css.indexOf('/* anim:tunables')
@@ -45,4 +46,13 @@ test('every --fx-* default the kit or its gallery reads is declared in the block
     if (OVERRIDES.has(name)) continue
     assert.match(block, new RegExp(`^\\s*${name}:`, 'm'), `${name} is not declared in anim:tunables`)
   }
+})
+
+test('the finale schedule builds for exactly the flash animation', () => {
+  // `--finale-build-dur` sits on `.board__finale-flash`, outside the tunables
+  // block: the step after the build is timed from the server's stamp while
+  // the flash runs on its own animation, so the two must agree.
+  const m = css.match(/\.board__finale-flash\s*\{[^}]*--finale-build-dur:\s*([^;]+);/)
+  assert.ok(m, '--finale-build-dur is not declared on .board__finale-flash')
+  assert.equal(parseTune(m[1], NaN), FINALE_SCHEDULE.build)
 })

@@ -4,7 +4,7 @@ title: The finale is a podium, not a name
 kind: feature
 size: M
 judge: fable
-status: proposed
+status: done
 lens: ux
 proposed_by: f3e13ca3-5996-4d39-839c-6ee6289499ff
 proposed_on: 2026-10-14
@@ -72,6 +72,20 @@ motion, and a probe on a disposable room
 (`npm run probe -- join:Ada,Bo,Cy,Dee setlist:trivia*1 arm buzz:Ada@0 correct next`)
 with a phone and the board side by side.
 
+## Shown
+- 3rd lights on the wall and the phones hold: `node cache/finale-probe.mjs` (the spec's probe line with `setlist:trivia*3` so the podium has three tiers, a headless board and Bo's phone open through the spend) -> `third        board: "3RD CY & DEE 0" side x=1280 name y=277..443 | phone: "FINAL WATCH THE BOARD"`
+- then 2nd, and Bo's phone with it: same run -> `second       board: "2ND BO 100" side x=1280 name y=277..443 | phone: "FINAL 2ND PLACE"`
+- then the winner in confetti, the sidebar still out: same run -> `first        board: "ADA ADA" side x=1280 name y=277..443 | phone: "FINAL 2ND PLACE"`
+- the recap cards and standings follow as they do now: same run at 13.5 s -> `settled-in   board: "ADA ADA MOST FIRST BUZZES Ada first to buzz 2 times" side x=986`
+- Replay finale restarts the ceremony: same run after `jump:3` -> `replay-3rd   board: "3RD CY & DEE 0" side x=1280`
+- tiers and `finaleStep` at each boundary: `shared/wall.test.ts` ("the podium: distinct places 1 to 3, a tie for 2nd leaves no 3rd, one and two players, teams", "finaleStep walks build, 3rd, 2nd, 1st at the schedule, skipping places the podium lacks", "finaleCalled: ...")
+- `next` and `setlistJump` stamp, undo restores: `server/setlist.test.ts` ("spending the setlist stamps the finale clock; entering a block clears it"), `server/state.test.ts` ("next and a jump to the end stamp the finale clock; a jump back clears it"), `server/hub.test.ts` ("undo restores the finale stamp a Replay replaced")
+- the schedule's build time equals `--finale-build-dur`: `client/tunables.test.ts` ("the finale schedule builds for exactly the flash animation")
+- `npm run test:review`: `302 passed (1.2m)`, with the new `finale-third` and `finale-second` fixtures
+- `adversarial-qa` on the podium motion: three rounds (timing, aesthetics, readability, consistency); round three returned nothing above a nit
+- Easy to miss: a board that mounts after the ceremony shows the settled finale, not a replay: same run after `board.reload()` -> `reloaded     board: "ADA ADA MOST FIRST BUZZES Ada first to buzz 2 times" side x=986` (no confetti, sidebar and recap in place at once)
+- Not shown: a real phone beside the real TV: the probe drove headless browsers on one box; the room's devices and clocks are the manual checklist's.
+
 ## Risks and the alternative considered
 A board or phone that mounts after the schedule has run (a reload, or a
 restart from disk) must show the settled finale, not replay the build: `FinaleShow` takes a
@@ -83,3 +97,5 @@ it. Alternative considered: start the schedule when each surface first sees
 ceremony and Replay would need an action of its own.
 
 ## Needs from Rick
+- Decide whether the standings (board sidebar, phone dial, host, recap) rank a tie as the podium does (a shared place, so Dee is 3rd with Cy) or keep §5's row ranking (Dee 4th); today the podium and each phone's own label share the place and the lists do not.
+- Watch one finale on the TV with two phones (manual checklist, the setlist section): the podium's pacing and the phones' hold are taste the probe cannot judge.

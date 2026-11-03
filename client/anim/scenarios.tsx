@@ -34,7 +34,8 @@ import { FaceOff, Finale } from '../Board.tsx'
 import { ClosestLine, closestStamp, closestStampDelay } from '../ClosestLine.tsx'
 import { formatNumber, lineScale, placeOn } from '../../shared/closest.ts'
 import { closestAwards } from '../../shared/scoring.ts'
-import type { ClosestWall } from '../../shared/wall.ts'
+import type { ClosestWall, Tier } from '../../shared/wall.ts'
+import { useFinale } from '../useSocket.ts'
 import { ChipStack, Corral, Piece, PlayingCard } from '../PokerParts.tsx'
 import { chain, flop, gather, pitch, receive, scatter, street, sweep, toss, turnUp, CHIP_FACE, FOLD, RECEIVE, REVEAL, TOSS } from '../toss.ts'
 import { mulberry32 } from '../../shared/random.ts'
@@ -314,6 +315,33 @@ function RevealScene({ lead }: { lead: boolean }) {
       <div class="board__below" />
       {!lead && <RevealStakes value={200} reveal={wall} now={now} />}
     </section>
+  )
+}
+
+const PODIUM: Tier[] = [{ place: 1, names: ['Ada'], score: 900 }, { place: 2, names: ['Bo'], score: 700 }, { place: 3, names: ['Cy'], score: 400 }]
+
+/** The whole ceremony from a spend at mount, on this browser's clock. */
+function FinaleScene() {
+  const [spentAt] = useState(() => performance.now())
+  const room = {
+    grouping: 'solo' as const,
+    players: [{ id: 'a', name: 'Ada', connected: true }, { id: 'b', name: 'Bo', connected: true }, { id: 'c', name: 'Cy', connected: true }],
+    teams: [],
+    scores: { a: 900, b: 700, c: 400 },
+    setlist: { blocks: [{ game: 'trivia', options: {}, count: 1 }], at: 1, done: 0, spentAt },
+  }
+  const { step, elapsed } = useFinale(room, () => performance.now(), true)
+  return (
+    <Finale
+      tiers={PODIUM}
+      step={step}
+      elapsedMs={elapsed}
+      cards={[
+        { id: 'fastest', title: 'Fastest buzz', name: 'Bo', detail: '41 ms · 12 ms ahead' },
+        { id: 'comeback-h', title: 'Comeback', name: 'Hal', detail: '8th to 2nd' },
+        { id: 'minigame-1', title: 'Sketch', name: 'Ada', detail: '300 points' },
+      ]}
+    />
   )
 }
 
@@ -934,22 +962,31 @@ export const SCENARIOS: Scenario[] = [
     id: 'finale',
     label: 'The finale',
     family: 'Quiz',
-    note: 'The last block of the setlist is done. A brass spotlight comes up, a white flash, then the winner takes the stage in the effect palette. After the confetti the recap cards cycle under the name.',
-    subject: '.board__finale-flash, .board__finale',
+    note: 'The last block of the setlist is done. A brass spotlight comes up, a white flash, then 3rd in bronze and 2nd in silver take the stage in turn, then the winner in the effect palette. After the confetti the recap cards cycle under the name.',
+    subject: '.board__finale-flash, .board__finale-step, .board__finale',
     dials: [ms('--fx-rainbow-dur', 6000), ms('--fx-burst-dur', 2000, 'Confetti')],
+    render: (lead) => <Stage mid={lead ? <div class="harness__ghost" /> : <FinaleScene />} />,
+  },
+  {
+    id: 'finale-third',
+    label: 'The podium: 3rd',
+    family: 'Quiz',
+    note: 'The build has played. 3rd takes the middle lane in bronze: the place pops, the name slams in with the hero\u2019s glow, the score rises under it. The sidebar stays off-screen.',
+    subject: '.board__finale-step',
+    dials: [ms('--slam-dur', 700, 'Slam'), ms('--flare-dur', 1400, 'Glow')],
     render: (lead) => (
-      <Stage
-        mid={lead ? <div class="harness__ghost" /> : (
-          <Finale
-            names={['Ada']}
-            cards={[
-              { id: 'fastest', title: 'Fastest buzz', name: 'Bo', detail: '41 ms · 12 ms ahead' },
-              { id: 'comeback-h', title: 'Comeback', name: 'Hal', detail: '8th to 2nd' },
-              { id: 'minigame-1', title: 'Sketch', name: 'Ada', detail: '300 points' },
-            ]}
-          />
-        )}
-      />
+      <Stage mid={lead ? <div class="harness__ghost" /> : <Finale tiers={PODIUM} step={3} elapsedMs={3000} />} />
+    ),
+  },
+  {
+    id: 'finale-second',
+    label: 'The podium: 2nd',
+    family: 'Quiz',
+    note: '3rd has had its beat. 2nd replaces it in silver, the same way; the winner follows in the rainbow.',
+    subject: '.board__finale-step',
+    dials: [ms('--slam-dur', 700, 'Slam'), ms('--flare-dur', 1400, 'Glow')],
+    render: (lead) => (
+      <Stage mid={lead ? <Finale tiers={PODIUM} step={3} elapsedMs={4000} /> : <Finale tiers={PODIUM} step={2} elapsedMs={5500} />} />
     ),
   },
   {

@@ -489,6 +489,11 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   inherits: false;
   initial-value: 20%;
 }
+.board__wall {
+  /* Inside a podium step: the name lands this long after the place, the score after the name. */
+  --podium-name-delay: 260ms;
+  --podium-score-delay: 480ms;
+}
 .board__finale-flash {
   --finale-build-dur: 2400ms;
   position: absolute;
@@ -510,28 +515,57 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 
 /* The finale is a whole-screen scene: the wall spans both columns and the
-   sidebar sits over its right edge, off-screen for the build and the winner's
-   first seconds. Then the sidebar slides in and the scene moves left by half
-   its width, back to the centre of the wall. Both are translates, so the GPU
-   does them and nothing is laid out again mid-slide. Wide layout only; the
-   narrow one stacks the sidebar underneath. */
+   sidebar sits over its right edge, off-screen for the build and the podium
+   (the standings, 1st on top, would spoil it) and the winner's first seconds.
+   Then the sidebar slides in and the scene moves left by half its width, back
+   to the centre of the wall. Both are translates, so the GPU does them and
+   nothing is laid out again mid-slide, and both are transitions, so the
+   standings leave the way they arrive when the build starts or Replay starts
+   it again. A board that mounts on the settled finale (a reload) starts in
+   place: a first style never transitions. Wide layout only; the narrow one
+   stacks the sidebar underneath. */
 @media (min-width: 40rem) {
-  .board:has(.board__finale-flash, .board__finale) .board__wall { grid-area: 1 / 1 / 2 / -1; }
-  .board:has(.board__finale-flash, .board__finale) .board__side { grid-area: 1 / 2; z-index: 1; }
-  .board:has(.board__finale-flash) .board__side { translate: 100% 0; }
-  .board:has(.board__finale) {
-    --finale-side-wait: 4s;
-    --finale-side-dur: 700ms;
-  }
-  .board:has(.board__finale) .board__side {
-    animation: fx-finale-side var(--finale-side-dur) var(--ease) var(--finale-side-wait) both;
-  }
+  .board { --finale-side-dur: 700ms; }
+  .board:has(.board__finale-flash, .board__finale-step, .board__finale) .board__wall { grid-area: 1 / 1 / 2 / -1; }
+  .board:has(.board__finale-flash, .board__finale-step, .board__finale) .board__side { grid-area: 1 / 2; z-index: 1; }
+  .board__side, .board__above, .board__mid, .board__below { transition: translate var(--finale-side-dur) var(--ease); }
+  .board:has(.board__finale-flash, .board__finale-step) .board__side { translate: 100% 0; }
+  .board:has(.board__finale) { --finale-side-wait: 4s; }
+  /* The ceremony already played (an undo of Replay): no wait before the sidebar. */
+  .board:has(.board__finale.is-settled) { --finale-side-wait: 0s; }
+  .board:has(.board__finale) .board__side { translate: 0 0; transition-delay: var(--finale-side-wait); }
   .board:has(.board__finale) :is(.board__above, .board__mid, .board__below) {
-    animation: fx-finale-scene var(--finale-side-dur) var(--ease) var(--finale-side-wait) both;
+    translate: calc(var(--side-w) / -2) 0;
+    transition-delay: var(--finale-side-wait);
   }
+  /* Replay: the bands snap back rather than slide. A band mid-translate would
+     be the flash's containing block, and the lane is empty at that instant. */
+  .board:has(.board__finale-flash) :is(.board__above, .board__mid, .board__below) { transition: none; }
 }
-@keyframes fx-finale-side { from { translate: 100% 0; } }
-@keyframes fx-finale-scene { to { translate: calc(var(--side-w) / -2) 0; } }
+
+/* The podium's lower steps: the place (a `.rank` medal, wall-sized) over the
+   name, the score under it. The place pops first; the name slams in with the
+   hero's glow a beat later, in the medal's colour; the score rises last. The
+   place and the score are out of flow, like the recap band, so the name keeps
+   the lane's line and the winner lands where it stood. */
+.board__finale-step { margin: 0; display: grid; justify-items: center; }
+.board__finale-step.rank--3 .board__hero { color: var(--bronze); --fx-color: var(--bronze); }
+.board__finale-step.rank--2 .board__hero { color: var(--silver); --fx-color: var(--silver); }
+.board__finale-step .board__hero-tone { display: block; }
+/* Two classes deep, so the delays outrank the kit's own `animation` shorthand. */
+.board__finale-step :is(.board__finale-name, .board__hero-tone) { animation-delay: var(--podium-name-delay); animation-fill-mode: both; }
+.board__finale-step .board__finale-score { animation-delay: var(--podium-score-delay); animation-fill-mode: both; }
+.board__finale-place,
+.board__finale-score {
+  position: absolute;
+  left: 50%;
+  translate: -50% 0;
+  width: max-content;
+  line-height: 1;
+  text-shadow: none;
+}
+.board__finale-place { bottom: calc(100% + var(--s3)); font-family: var(--display); font-weight: 800; font-size: var(--t-mega); text-transform: uppercase; }
+.board__finale-score { top: calc(100% + var(--s3)); font-size: var(--t-xl); font-weight: 600; color: var(--chalk); }
 
 /* The finale's name with the recap band hung under it. The band is out of
    flow, so the name keeps the lane's centre and the band arriving moves
@@ -1540,6 +1574,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
    Rows tilt around a shared horizontal axis as they leave the centre (JS
    sets the angle from scroll position), which is what makes it a dial and
    not a list. */
+/* Blank through the podium: the places are the wall's to call. The glass stays, so nothing moves. */
+.dial.is-held .dial__list { visibility: hidden; }
 .dial {
   /* Shorter rows on a short phone, so the buzzer keeps its share. */
   --dial-row: min(2.75rem, 6vh);

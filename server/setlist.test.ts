@@ -26,19 +26,19 @@ function recorder(): { seen: HostAction[]; apply: (a: HostAction) => void } {
 test('a block spends one question per advance, then rolls over', () => {
   const state = stateWithSetlist([block({ count: 2 }), block({ game: 'quizbowl' })])
   const { apply } = recorder()
-  advanceSetlist(state, apply)
+  advanceSetlist(state, apply, 0)
   assert.deepEqual([state.setlist!.at, state.setlist!.done], [0, 1])
-  advanceSetlist(state, apply)
+  advanceSetlist(state, apply, 0)
   assert.deepEqual([state.setlist!.at, state.setlist!.done], [1, 0])
 })
 
 test('a spent setlist sits at its end rather than wrapping', () => {
   const state = stateWithSetlist([block({ count: 1 })])
   const { seen, apply } = recorder()
-  advanceSetlist(state, apply)
+  advanceSetlist(state, apply, 0)
   assert.equal(state.setlist!.at, 1)
   const after = seen.length
-  advanceSetlist(state, apply)
+  advanceSetlist(state, apply, 0)
   assert.equal(state.setlist!.at, 1)
   assert.equal(seen.length, after, 'a spent setlist applies nothing')
 })
@@ -46,10 +46,10 @@ test('a spent setlist sits at its end rather than wrapping', () => {
 test('the mode is applied once per block, not once per question', () => {
   const state = stateWithSetlist([block({ count: 3 }), block({ game: 'quizbowl' })])
   const { seen, apply } = recorder()
-  advanceSetlist(state, apply) // 1 of 3
-  advanceSetlist(state, apply) // 2 of 3
+  advanceSetlist(state, apply, 0) // 1 of 3
+  advanceSetlist(state, apply, 0) // 2 of 3
   assert.equal(seen.filter((a) => a.a === 'setMode').length, 0)
-  advanceSetlist(state, apply) // rolls into quizbowl
+  advanceSetlist(state, apply, 0) // rolls into quizbowl
   assert.deepEqual(seen.filter((a) => a.a === 'setMode'), [
     { a: 'setMode', id: 'quizbowl', options: {}, keepScores: true },
   ])
@@ -58,7 +58,7 @@ test('the mode is applied once per block, not once per question', () => {
 test('entering a block keeps the standings across a mode switch', () => {
   const state = stateWithSetlist([block({ game: 'quizbowl', options: { powerAfterFragment: 2 } })])
   const { seen, apply } = recorder()
-  enterBlock(state, apply, true)
+  enterBlock(state, apply, true, 0)
   assert.deepEqual(seen[0], {
     a: 'setMode',
     id: 'quizbowl',
@@ -70,20 +70,20 @@ test('entering a block keeps the standings across a mode switch', () => {
 test('the value applies only when the block declares one', () => {
   const withValue = stateWithSetlist([block({ value: 400 })])
   const r1 = recorder()
-  enterBlock(withValue, r1.apply, true)
+  enterBlock(withValue, r1.apply, true, 0)
   assert.deepEqual(r1.seen[1], { a: 'setValue', value: 400 })
 
   const without = stateWithSetlist([block()])
   const r2 = recorder()
-  enterBlock(without, r2.apply, true)
+  enterBlock(without, r2.apply, true, 0)
   assert.equal(r2.seen.some((a) => a.a === 'setValue'), false)
 })
 
 test('a duel block opens a duel every question; a plain block opens none', () => {
   const state = stateWithSetlist([block({ count: 3, duel: 'vote' })])
   const { seen, apply } = recorder()
-  advanceSetlist(state, apply)
-  advanceSetlist(state, apply)
+  advanceSetlist(state, apply, 0)
+  advanceSetlist(state, apply, 0)
   assert.deepEqual(
     seen.filter((a) => a.a === 'openDuel'),
     [{ a: 'openDuel', rule: 'vote' }, { a: 'openDuel', rule: 'vote' }],
@@ -91,16 +91,16 @@ test('a duel block opens a duel every question; a plain block opens none', () =>
 
   const plain = stateWithSetlist([block({ count: 3 })])
   const r = recorder()
-  advanceSetlist(plain, r.apply)
+  advanceSetlist(plain, r.apply, 0)
   assert.equal(r.seen.length, 0)
 })
 
 test('the value is stamped on entry, not re-stamped by every question within the block', () => {
   const state = stateWithSetlist([block({ count: 3, value: 400 })])
   const { seen, apply } = recorder()
-  enterBlock(state, apply, true) // the initial, fresh entry — as the setlist's own setup would do
-  advanceSetlist(state, apply) // still inside the block: not fresh
-  advanceSetlist(state, apply) // still inside the block: not fresh
+  enterBlock(state, apply, true, 0) // the initial, fresh entry — as the setlist's own setup would do
+  advanceSetlist(state, apply, 0) // still inside the block: not fresh
+  advanceSetlist(state, apply, 0) // still inside the block: not fresh
   assert.equal(
     seen.filter((a) => a.a === 'setValue').length,
     1,
@@ -143,6 +143,23 @@ test('a minigame block is one visit: no pack, duel or value, and the quiz mode s
   assert.deepEqual(b, { game: 'ink', options: {}, count: 1 })
   const state = stateWithSetlist([b])
   const { seen, apply } = recorder()
-  enterBlock(state, apply, true)
+  enterBlock(state, apply, true, 0)
   assert.deepEqual(seen, [])
+})
+
+test('spending the setlist stamps the finale clock; entering a block clears it', () => {
+  const state = stateWithSetlist([block({ count: 1 }), block({ count: 1 })])
+  const { apply } = recorder()
+  advanceSetlist(state, apply, 1000)
+  assert.equal(state.setlist!.spentAt, undefined, 'block 2 is not the end')
+  advanceSetlist(state, apply, 2000)
+  assert.equal(state.setlist!.spentAt, 2000)
+  advanceSetlist(state, apply, 3000)
+  assert.equal(state.setlist!.spentAt, 2000, 'a next on a spent setlist spends nothing and keeps the stamp')
+  state.setlist!.at = 0
+  enterBlock(state, apply, true, 4000)
+  assert.equal(state.setlist!.spentAt, undefined, 'a jump back ends the finale')
+  state.setlist!.at = 2
+  enterBlock(state, apply, true, 5000)
+  assert.equal(state.setlist!.spentAt, 5000, 'a jump to the end replays it')
 })

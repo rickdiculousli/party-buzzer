@@ -1,11 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
-import { useOpen, useSecondsLeft, useSocket, type SocketFixture } from './useSocket.ts'
+import { useFinale, useOpen, useSecondsLeft, useSocket, type SocketFixture } from './useSocket.ts'
 import { Talk } from './Talk.tsx'
 import { colorForPlayer, standings } from './ui.ts'
 import { settleMs } from './Spoken.tsx'
 import { PlayerDuel } from './PlayerDuel.tsx'
 import { PlayerItems } from './PlayerItems.tsx'
-import { lastUp, momentOf, phoneOf } from '../shared/wall.ts'
+import { finaleCalled, lastUp, momentOf, phoneOf } from '../shared/wall.ts'
 import type { Mood } from '../shared/wall.ts'
 import type { Award, State } from '../shared/protocol.ts'
 import { scoreKey } from '../shared/scoring.ts'
@@ -71,7 +71,7 @@ function blip(ctx: AudioContext | null, hz = 660, ms = 150) {
  * of the field a scroll away under frosted edges. Rows tilt around a shared
  * cylinder axis by their distance from the middle, like the old time pickers.
  */
-export function StandingsDial({ state, playerId }: { state: State; playerId?: string | null }) {
+export function StandingsDial({ state, playerId, held = false }: { state: State; playerId?: string | null; held?: boolean }) {
   const rows = standings(state)
   const list = useRef<HTMLOListElement>(null)
   const touched = useRef(-Infinity)
@@ -93,7 +93,7 @@ export function StandingsDial({ state, playerId }: { state: State; playerId?: st
     i === 0 ? '1st' : i === 1 ? '2nd' : i === 2 ? '3rd' : `${i + 1}th`
 
   return (
-    <div class="dial" aria-label="Standings" data-review-id="phone:standings">
+    <div class={held ? 'dial is-held' : 'dial'} aria-label="Standings" data-review-id="phone:standings">
       <ol class="dial__list" ref={list} onPointerDown={() => { touched.current = Date.now() }}>
         {rows.map((r, i) => (
           <li key={r.key} data-key={r.key} data-review-id={`phone:standing:${r.key}`} class={r.away ? 'dial__row fx-pop is-away' : 'dial__row fx-pop'} style={{ '--id': r.color }}>
@@ -326,6 +326,11 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
   const moment = holding && reached === 'closest:reveal' ? 'closest:guessing' : reached
   // Past the deadline, settled, or the board still revealing: a pad here would take a guess the server refuses.
   const guessingClosed = holding || round?.truth !== undefined || (!!round?.guessing && now() >= round.guessing.closesAt)
+  const place = shownState ? 1 + standings(shownState).filter((r) => r.score > score).length : undefined
+  const finale = useFinale(state, now, !preview).step
+  const called = place !== undefined && finaleCalled(finale, place)
+  // The dial would call every place at once: it waits for the winner, as the board's sidebar does.
+  const dialHeld = moment === 'idle:finale' && finale !== 1
   const me = state?.players.find((p) => p.id === playerId)
   const { label, sub, mood, talk, tone } = phoneOf(moment, {
     frozen,
@@ -342,7 +347,8 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     armed,
     open,
     judging: !!round?.judge,
-    place: shownState ? 1 + standings(shownState).filter((r) => r.score > score).length : undefined,
+    place,
+    called,
     next: round?.value,
     last: !!state && lastUp(state),
     pick: myPick,
@@ -447,7 +453,7 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
         </>
       )}
 
-      {shownState && <StandingsDial state={shownState} playerId={playerId} />}
+      {shownState && <StandingsDial state={shownState} playerId={playerId} held={dialHeld} />}
     </main>
   )
 }

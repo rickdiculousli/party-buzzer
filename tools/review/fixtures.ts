@@ -3,6 +3,7 @@ import { newState } from '../../server/state.ts'
 import type { Conn } from '../../server/hub.ts'
 import type { State } from '../../shared/protocol.ts'
 import { closestAwards } from '../../shared/scoring.ts'
+import { FINALE_SCHEDULE } from '../../shared/wall.ts'
 import type { PracticeFeedback } from '../../client/arrival-feedback.ts'
 import type { ReviewScenario } from '../../client/review/model.ts'
 import { INK_LONG_NAMES, INK_PLAYERS, InkGame, inkSession } from './ink.ts'
@@ -176,6 +177,11 @@ export function makeReviewScenarios(): ReviewScenario[] {
     at: 1,
     done: 0,
   }
+  // The podium's two steps, frozen a beat into each: the stamp is read against NOW.
+  const third = base()
+  third.setlist = { ...spent.setlist, spentAt: NOW - FINALE_SCHEDULE.build - 500 }
+  const second = base()
+  second.setlist = { ...spent.setlist, spentAt: NOW - FINALE_SCHEDULE.build - FINALE_SCHEDULE.third - 500 }
 
   // Four in the room: two on one answer, one on another, one yet to pick.
   const picking = question()
@@ -355,6 +361,8 @@ export function makeReviewScenarios(): ReviewScenario[] {
     build('duel', 'Duel selection', duel, at()),
     build('faceoff', 'Face-off seated', faceoff, at()),
     build('setlist-complete', 'Setlist complete', spent, at()),
+    build('finale-third', 'Finale, 3rd called', third, at()),
+    build('finale-second', 'Finale, 2nd called', second, at()),
     build('choice-picking', 'Choice question, picking', picking, at({ open: true })),
     build('choice-reveal', 'Choice question, revealed', revealed, at()),
     build('closest-guessing', 'Closest question, guessing', guessing, at({ open: true })),

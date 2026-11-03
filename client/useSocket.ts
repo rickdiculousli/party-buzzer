@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { ARM_DELAY_MS } from '../shared/protocol.ts'
+import { finaleStep, finaleTiers, type FinaleStep } from '../shared/wall.ts'
+import { setlistSpent } from '../shared/recap.ts'
 import type { MinigameInputAck, ClientMsg, MinigameFrame, Role, ServerMsg, State } from '../shared/protocol.ts'
 import { actionFeedback } from './ui.ts'
 import { freshTouches, type TimedTouch } from './ink.ts'
@@ -41,6 +43,34 @@ export function useSecondsLeft(until: number, now: () => number): number {
     return () => clearInterval(id)
   }, [until])
   return Math.max(0, Math.ceil((until - now()) / 1000))
+}
+
+/**
+ * Where the finale's ceremony is, from the server's `setlist.spentAt` on this
+ * surface's synced clock, re-rendering at each boundary of the schedule. The
+ * board and the phones call each place together from the one stamp; a spent
+ * setlist with no stamp (an older disk file) is settled. `elapsed` lets the
+ * board position its flash where the schedule already is.
+ */
+export function useFinale(
+  state: Pick<State, 'setlist' | 'grouping' | 'players' | 'teams' | 'scores'> | null | undefined,
+  now: () => number,
+  active: boolean,
+): { step: FinaleStep; elapsed: number } {
+  const spentAt = state && setlistSpent(state) ? state.setlist!.spentAt ?? -Infinity : undefined
+  const tiers = spentAt === undefined ? [] : finaleTiers(state!)
+  const [ticks, tick] = useState(0)
+  const elapsed = spentAt === undefined ? 0 : now() - spentAt
+  const { step, until } = finaleStep(tiers, elapsed)
+  // `ticks` is a dependency on purpose: a timer can fire a fraction of a
+  // millisecond before the boundary, leaving the step where it was, and the
+  // only cure is scheduling again from where the clock now is.
+  useEffect(() => {
+    if (!active || spentAt === undefined || until === Infinity) return
+    const t = setTimeout(() => tick((n) => n + 1), Math.max(0, until - (now() - spentAt)))
+    return () => clearTimeout(t)
+  }, [active, spentAt, until, ticks])
+  return { step, elapsed }
 }
 
 /**

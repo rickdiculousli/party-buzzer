@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { applyHostAction, buzzBlockReason, loadState, newState } from './state.ts'
 import { duelCatalog } from './duel.ts'
+import { persistedSnapshot } from './snapshot.ts'
 import { catalog } from './modes/index.ts'
 import { refuses } from '../shared/legality.ts'
 import type { HostAction, SetlistBlock, State } from '../shared/protocol.ts'
@@ -660,4 +661,39 @@ test('every action the table refuses is refused by the server too', () => {
       )
     }
   }
+})
+
+test('next and a jump to the end stamp the finale clock; a jump back clears it', () => {
+  const state = newState()
+  applyHostAction(state, { a: 'setSetlist', blocks: setlistBlocks })
+  const before = Date.now()
+  playRound(state)
+  assert.equal(state.setlist!.spentAt, undefined)
+  playRound(state)
+  playRound(state)
+  assert.equal(state.setlist!.at, 2, 'spent')
+  const stamped = state.setlist!.spentAt!
+  assert.ok(stamped >= before, 'next stamps the spend')
+  applyHostAction(state, { a: 'setlistJump', at: 0 })
+  assert.equal(state.setlist!.spentAt, undefined)
+  const result = applyHostAction(state, { a: 'setlistJump', at: setlistBlocks.length })
+  assert.equal(result.status, 'applied')
+  assert.ok(state.setlist!.spentAt! >= stamped, 'Replay finale re-stamps')
+})
+
+test('a disk file with a spent setlist and no stamp loads as a settled finale', () => {
+  const state = newState()
+  applyHostAction(state, { a: 'setSetlist', blocks: setlistBlocks })
+  applyHostAction(state, { a: 'setlistJump', at: setlistBlocks.length })
+  const file = persistedSnapshot(state)
+  assert.equal(file.state.setlist!.spentAt, state.setlist!.spentAt, 'the stamp rides the disk file')
+  delete file.state.setlist!.spentAt
+  ;(file.state.setlist as { spentAt?: unknown }).spentAt = 'yesterday'
+  const dir = mkdtempSync(join(tmpdir(), 'pb-state-'))
+  const path = join(dir, 'state.json')
+  writeFileSync(path, JSON.stringify(file))
+  const loaded = loadState(path)
+  assert.equal(loaded.setlist!.at, setlistBlocks.length)
+  assert.equal(loaded.setlist!.spentAt, undefined, 'a stamp that is not a number is dropped')
+  rmSync(dir, { recursive: true })
 })

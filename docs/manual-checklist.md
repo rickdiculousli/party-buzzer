@@ -158,6 +158,7 @@ npm run walk-setlist
 - [ ] `resetRound` (the host taking a question back) does not spend a question
 - [ ] The board's chip tracks the strip and never grows past a chip
 - [ ] Skip block jumps forward; the setlist sits at "Setlist complete" at the end
+- [ ] At "Setlist complete" the board calls 3rd, 2nd, then the winner, and each phone shows its place at the same step; Replay finale plays it again; a reloaded board shows the settled winner
 - [ ] Saving, clearing and loading the same setlist returns the same blocks
 - [ ] `clear` leaves the room with no setlist
 

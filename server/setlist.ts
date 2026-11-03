@@ -48,9 +48,16 @@ export function applyDuel(state: State, apply: Apply): void {
 /**
  * Set up the block the setlist is on. `fresh` means the block itself changed, so
  * the mode and the value are re-applied; a duel opens either way, because a
- * duel block is a duel per question.
+ * duel block is a duel per question. Entering the end stamps the finale's
+ * clock (`now` is the server's, passed in to keep this file pure); entering a
+ * block clears it, so a jump back ends the finale.
  */
-export function enterBlock(state: State, apply: Apply, fresh: boolean): void {
+export function enterBlock(state: State, apply: Apply, fresh: boolean, now: number): void {
+  const setlist = state.setlist
+  if (setlist) {
+    if (setlist.at >= setlist.blocks.length) setlist.spentAt = now
+    else delete setlist.spentAt
+  }
   if (fresh) applySetup(state, apply)
   applyDuel(state, apply)
 }
@@ -60,7 +67,7 @@ export function enterBlock(state: State, apply: Apply, fresh: boolean): void {
  * when the count runs out. A spent setlist sits at its end rather than wrapping —
  * the host reads the position off the board and decides whether to jump back.
  */
-export function advanceSetlist(state: State, apply: Apply): void {
+export function advanceSetlist(state: State, apply: Apply, now: number): void {
   const setlist = state.setlist
   if (!setlist || !setlist.blocks[setlist.at]) return
   setlist.done += 1
@@ -70,7 +77,7 @@ export function advanceSetlist(state: State, apply: Apply): void {
     setlist.done = 0
     fresh = true
   }
-  enterBlock(state, apply, fresh)
+  enterBlock(state, apply, fresh, now)
   if (fresh) introduceBlock(state, false)
 }
 

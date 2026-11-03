@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { lastUp, momentOf, phoneOf, wallOf, type Local, type Wall } from './wall.ts'
+import { FINALE_SCHEDULE, finaleCalled, finaleStep, finaleTiers, lastUp, momentOf, phoneOf, wallOf, type Local, type Wall } from './wall.ts'
 import type { State } from './protocol.ts'
 
 const LOCAL: Local = { open: false, settled: true, retired: false }
@@ -530,7 +530,56 @@ test('a spent setlist is the finale, with every tied leader named', () => {
   const w = wallOf(s, LOCAL)
   oneOf(w, 'finale')
   assert.equal(w.moment, 'idle:finale')
-  assert.deepEqual(w.finale, ['Ada', 'Bo'])
+  assert.deepEqual(w.finale, [{ place: 1, names: ['Ada', 'Bo'], score: 400 }])
+})
+
+test('the podium: distinct places 1 to 3, a tie for 2nd leaves no 3rd, one and two players, teams', () => {
+  const s = room()
+  s.players.push({ id: 'c', name: 'Cy', connected: true }, { id: 'd', name: 'Dee', connected: true })
+  s.scores = { a: 400, b: 200, c: 200, d: 100 }
+  assert.deepEqual(finaleTiers(s), [
+    { place: 1, names: ['Ada'], score: 400 },
+    { place: 2, names: ['Bo', 'Cy'], score: 200 },
+  ])
+  s.scores = { a: 400, b: 300, c: 200, d: 100 }
+  assert.deepEqual(finaleTiers(s).map((t) => [t.place, t.names]), [[1, ['Ada']], [2, ['Bo']], [3, ['Cy']]])
+  s.scores = { a: 0, b: 0, c: 0, d: 0 }
+  assert.deepEqual(finaleTiers(s), [{ place: 1, names: ['Ada', 'Bo', 'Cy', 'Dee'], score: 0 }])
+  const two = room()
+  two.scores = { a: 100, b: 50 }
+  assert.deepEqual(finaleTiers(two).map((t) => t.place), [1, 2])
+  const one = room()
+  one.players = [one.players[0]]
+  one.scores = { a: 0 }
+  assert.deepEqual(finaleTiers(one), [{ place: 1, names: ['Ada'], score: 0 }])
+  const teams = room()
+  teams.grouping = 'teams'
+  teams.teams = [{ id: 't1', name: 'Reds', color: '#f00' }, { id: 't2', name: 'Blues', color: '#00f' }]
+  teams.scores = { t1: 100, t2: 300, a: 900 }
+  assert.deepEqual(finaleTiers(teams).map((t) => [t.place, t.names]), [[1, ['Blues']], [2, ['Reds']]], 'by team, not by member')
+  const empty = room()
+  empty.players = []
+  empty.scores = {}
+  assert.deepEqual(finaleTiers(empty), [])
+})
+
+test('finaleStep walks build, 3rd, 2nd, 1st at the schedule, skipping places the podium lacks', () => {
+  const { build, third, second } = FINALE_SCHEDULE
+  const three = [{ place: 1 }, { place: 2 }, { place: 3 }] as const
+  assert.deepEqual(finaleStep(three, 0), { step: 'build', until: build })
+  assert.deepEqual(finaleStep(three, build - 1), { step: 'build', until: build })
+  assert.deepEqual(finaleStep(three, build), { step: 3, until: build + third })
+  assert.deepEqual(finaleStep(three, build + third - 1).step, 3)
+  assert.deepEqual(finaleStep(three, build + third), { step: 2, until: build + third + second })
+  assert.deepEqual(finaleStep(three, build + third + second), { step: 1, until: Infinity })
+  // A tie for 2nd: no 3rd, so 2nd follows the build.
+  const tied = [{ place: 1 }, { place: 2 }]
+  assert.deepEqual(finaleStep(tied, build), { step: 2, until: build + second })
+  assert.equal(finaleStep(tied, build + second).step, 1)
+  // Everyone tied for first: the winner follows the build.
+  assert.deepEqual(finaleStep([{ place: 1 }], build), { step: 1, until: Infinity })
+  // A surface that mounts after the ceremony, or a disk file with no stamp.
+  assert.equal(finaleStep(three, Infinity).step, 1)
 })
 
 test('a milestone shows for its question, not the next one, and not at the finale', () => {
@@ -569,13 +618,25 @@ test('a payoff on the last question outranks the finale', () => {
   assert.equal(momentOf(s, LOCAL), 'verdict:award')
 })
 
-test('the finale tells each phone where it finished', () => {
-  const mine = { frozen: false, barred: false, spectator: false, dead: false, won: false, pressed: false, armed: false, open: false, judging: false }
+test('the finale tells each phone where it finished, once the wall has called its place', () => {
+  const mine = { frozen: false, barred: false, spectator: false, dead: false, won: false, pressed: false, armed: false, open: false, judging: false, called: true }
   assert.equal(phoneOf('idle:finale', { ...mine, place: 1 }).label, 'Winner')
   const second = phoneOf('idle:finale', { ...mine, place: 2 })
   assert.equal(second.label, 'Final')
   assert.equal(second.sub, '2nd place')
   assert.equal(phoneOf('idle:finale', { ...mine, place: 11 }).sub, '11th place')
+  const held = phoneOf('idle:finale', { ...mine, place: 1, called: false })
+  assert.deepEqual([held.label, held.sub, held.mood], ['Final', 'Watch the board', 'waiting'], 'no place before its turn, not even the winner')
+})
+
+test('finaleCalled: each podium place at its own step, everyone else with the winner', () => {
+  assert.equal(finaleCalled('build', 1), false)
+  assert.deepEqual([3, 2, 1].map((s) => finaleCalled(s as 3 | 2 | 1, 3)), [true, true, true])
+  assert.deepEqual([3, 2, 1].map((s) => finaleCalled(s as 3 | 2 | 1, 2)), [false, true, true])
+  assert.deepEqual([3, 2, 1].map((s) => finaleCalled(s as 3 | 2 | 1, 1)), [false, false, true])
+  assert.deepEqual([3, 2, 1].map((s) => finaleCalled(s as 3 | 2 | 1, 4)), [false, false, true])
+  // A tie for 2nd skips the 3rd step: 2nd is called at the first step after the build.
+  assert.equal(finaleCalled(finaleStep([{ place: 1 }, { place: 2 }], FINALE_SCHEDULE.build).step, 2), true)
 })
 
 test('the stakes chip stays up while an answer is typed and judged', () => {

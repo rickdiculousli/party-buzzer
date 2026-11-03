@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { createPortal } from 'preact/compat'
-import { useOpen, useSecondsLeft, useSocket, type SocketFixture } from './useSocket.ts'
-import { colorForPlayer, lockedNames, setlistPosition, standings, willSeat } from './ui.ts'
+import { useFinale, useOpen, useSecondsLeft, useSocket, type SocketFixture } from './useSocket.ts'
+import { colorForPlayer, lockedNames, ordinal, setlistPosition, standings, willSeat } from './ui.ts'
 import { markGap, play, playSpaced, prime, startBed, stopBed, unlock } from './sound.ts'
 import { Votes } from './Votes.tsx'
 import { Spoken } from './Spoken.tsx'
-import { lastUp, wallOf, type ChoiceWall, type RevealWall, type Wall } from '../shared/wall.ts'
+import { lastUp, wallOf, type ChoiceWall, type FinaleStep, type RevealWall, type Tier, type Wall } from '../shared/wall.ts'
 import { LETTERS } from '../shared/choice.ts'
 import { recapCards, type RecapCard } from '../shared/recap.ts'
 import { isPenalty } from '../shared/protocol.ts'
@@ -58,13 +58,39 @@ function Hero({ name, tone }: NonNullable<Wall['hero']>) {
 
 /**
  * The end of the setlist: a brass spotlight comes up on the empty stage, a
- * white flash, then the winner. The build's own animation end is the cue, so it is
- * tuned in the stylesheet alone.
+ * white flash, then 3rd and 2nd take the stage in turn, then the winner. The
+ * step comes from the server's stamp (`useFinale`), so every surface calls
+ * each place together; the caller keys this on the stamp, so a Replay mounts
+ * the ceremony afresh.
  */
-export function Finale({ names, cards = [] }: { names: string[]; cards?: RecapCard[] }) {
-  const [shown, setShown] = useState(false)
-  if (!shown) return <span class="board__finale-flash" aria-hidden="true" onAnimationEnd={() => setShown(true)} />
-  return <FinaleShow names={names} cards={cards} />
+export function Finale({ tiers, step, elapsedMs, cards = [] }: { tiers: Tier[]; step: FinaleStep; elapsedMs: number; cards?: RecapCard[] }) {
+  // Mounted after the ceremony (a reload, a restart from disk): the settled
+  // winner, with nothing replayed.
+  const [settled] = useState(step === 1)
+  // A board that mounts mid-build joins the flash where the schedule is, so the
+  // flash and the step change end together whatever this clock's skew.
+  const [delay] = useState(-elapsedMs)
+  if (step === 'build') return <span class="board__finale-flash" aria-hidden="true" style={{ animationDelay: `${delay}ms` }} />
+  const tier = tiers.find((t) => t.place === step)
+  if (step !== 1) return tier ? <Podium key={step} tier={tier} /> : null
+  return <FinaleShow names={tier?.names ?? []} cards={cards} settled={settled} />
+}
+
+/**
+ * 3rd, then 2nd, each in its medal: the place is called first, then the name
+ * slams in with the hero's glow, then the score. The place and the score hang
+ * out of flow, so the name keeps the lane's line and the winner lands on it.
+ */
+function Podium({ tier }: { tier: Tier }) {
+  return (
+    <p class={`board__finale-step rank--${tier.place} fx-anchor`} data-review-id="board:podium">
+      <span class={`rank rank--${tier.place} board__finale-place fx-pop`}>{ordinal(tier.place)}</span>
+      <span class="board__hero board__hero--toned board__finale-name">
+        <span class="board__hero-tone">{tier.names.join(' & ')}</span>
+      </span>
+      <span class="board__finale-score readout fx-rise">{tier.score}</span>
+    </p>
+  )
 }
 
 /** The recap band starts this long after the name appears: after the second volley has landed. */
@@ -77,10 +103,11 @@ const RECAP_CARD_MS = 4000
  * change mounts afresh and rises in; the index is taken modulo the length so
  * a card list that shrinks mid-cycle cannot point past its end.
  */
-function RecapBand({ cards }: { cards: RecapCard[] }) {
-  const [started, setStarted] = useState(false)
+function RecapBand({ cards, settled }: { cards: RecapCard[]; settled: boolean }) {
+  const [started, setStarted] = useState(settled)
   const [i, setI] = useState(0)
   useEffect(() => {
+    if (settled) return
     const t = setTimeout(() => setStarted(true), RECAP_START_MS)
     return () => clearTimeout(t)
   }, [])
@@ -105,8 +132,10 @@ function RecapBand({ cards }: { cards: RecapCard[] }) {
 /**
  * The winner in the effect palette, with confetti on arrival and once more a
  * beat later, from the name and from both edges. Ties share the stage.
+ * `settled` is the ceremony having already played: no confetti, and the recap
+ * band and the sidebar (`.is-settled` in the stylesheet) skip their waits.
  */
-function FinaleShow({ names, cards }: { names: string[]; cards: RecapCard[] }) {
+function FinaleShow({ names, cards, settled }: { names: string[]; cards: RecapCard[]; settled: boolean }) {
   const [again, setAgain] = useState(false)
   // The cannons go on the wall itself: the stage moves over for the sidebar,
   // and a moving box would take the cannons' edges with it.
@@ -114,18 +143,19 @@ function FinaleShow({ names, cards }: { names: string[]; cards: RecapCard[] }) {
   const [wall, setWall] = useState<Element | null>(null)
   useEffect(() => {
     setWall(name.current?.closest('.board__wall') ?? null)
+    if (settled) return
     const t = setTimeout(() => setAgain(true), 1200)
     return () => clearTimeout(t)
   }, [])
   return (
     <div class="board__finale-stack">
-      <p ref={name} class="board__hero board__finale fx-anchor" data-review-id="board:finale">
+      <p ref={name} class={`board__hero board__finale fx-anchor${settled ? ' is-settled' : ''}`} data-review-id="board:finale">
         <Letters text={names.join(' & ')} class="fx-rainbow" />
-        <Burst kind="confetti" from="top" />
+        {!settled && <Burst kind="confetti" from="top" />}
         {again && <Burst kind="confetti" from="top" />}
-        {wall && createPortal(<Cannons />, wall)}
+        {wall && !settled && createPortal(<Cannons />, wall)}
       </p>
-      {cards.length > 0 && <RecapBand cards={cards} />}
+      {cards.length > 0 && <RecapBand cards={cards} settled={settled} />}
     </div>
   )
 }
@@ -570,6 +600,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
   const onSettled = preview ? undefined : reveal.onSettled
   // The standings wait out a closest reveal, so they do not call the winner before the line does.
   const holding = useClosestHold(state?.round, !preview)
+  const finale = useFinale(state, now, !preview)
 
   if (!state) return <main class="board"><p class="board__idle">Connecting</p></main>
   if (state.minigame) {
@@ -712,7 +743,9 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
             band below never moves (style.css, .board__mid). */}
         <div class="board__mid">
           {w.hero && <Hero {...w.hero} />}
-          {w.finale && <Finale names={w.finale} cards={state.night ? recapCards(state.night, state) : []} />}
+          {w.finale && (
+            <Finale key={state.setlist?.spentAt} tiers={w.finale} step={finale.step} elapsedMs={finale.elapsed} cards={state.night ? recapCards(state.night, state) : []} />
+          )}
           {w.next !== null && (
             <div class="board__next fx-rise" data-review-id="board:next">
               {lastUp(state) ? (

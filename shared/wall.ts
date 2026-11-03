@@ -212,8 +212,8 @@ export type Wall = {
   nominations: 'solo' | 'teams' | null
   faceoff: [string, string] | null
   call: 'buzz' | 'ready' | 'dead' | null
-  /** Everyone tied for the top when the setlist is spent. */
-  finale: string[] | null
+  /** The podium when the setlist is spent: places 1 to 3, ties sharing a tier. */
+  finale: Tier[] | null
   /** Between questions: what the next one is worth. */
   next: number | null
   /** Nobody took the question; the answer they missed, when the pack has one. */
@@ -355,14 +355,65 @@ const EMPTY_MIDDLE = {
  * compile until it has a row, and `or` returns exactly one occupant by
  * construction.
  */
-/** Everyone tied for the top of the standings, by the name the room knows. */
-function leaders(state: State): string[] {
+/** One step of the podium: everyone on it, by the name the room knows. Ties share a tier. */
+export type Tier = { place: 1 | 2 | 3; names: string[]; score: number }
+
+/**
+ * The podium: the distinct places 1 to 3 of the standings, by score key, as
+ * the phones count their own place (one plus the rows strictly ahead). A tie
+ * for 2nd leaves no 3rd. Empty only with nobody in the room.
+ */
+export function finaleTiers(state: Pick<State, 'grouping' | 'players' | 'teams' | 'scores'>): Tier[] {
   const rows =
     state.grouping === 'teams'
       ? state.teams.map((t) => ({ name: t.name, score: state.scores[t.id] ?? 0 }))
       : state.players.map((p) => ({ name: p.name, score: state.scores[p.id] ?? 0 }))
-  const best = Math.max(...rows.map((r) => r.score))
-  return rows.filter((r) => r.score === best).map((r) => r.name)
+  const scores = [...new Set(rows.map((r) => r.score))].sort((a, b) => b - a)
+  const tiers: Tier[] = []
+  for (const score of scores) {
+    const place = 1 + rows.filter((r) => r.score > score).length
+    if (place > 3) break
+    tiers.push({ place: place as Tier['place'], names: rows.filter((r) => r.score === score).map((r) => r.name), score })
+  }
+  return tiers
+}
+
+/**
+ * The finale's schedule, in ms from `setlist.spentAt`: the spotlight builds,
+ * then 3rd holds the stage, then 2nd, then the winner for good. `build` is
+ * the flash's `--finale-build-dur` (client/tunables.test.ts holds them equal).
+ */
+export const FINALE_SCHEDULE = { build: 2400, third: 2600, second: 2600 }
+
+/** `build` is the spotlight; a number is the place on the stage. */
+export type FinaleStep = 'build' | 3 | 2 | 1
+
+/**
+ * Where the ceremony is `elapsedMs` after the spend, and the elapsed time at
+ * which it moves on (`Infinity` once the winner is up). A step with no tier
+ * is skipped. Every surface computes this from the server's stamp and its
+ * own synced clock, so the board and the phones call each place together
+ * and a surface that mounts late lands on the settled winner.
+ */
+export function finaleStep(tiers: readonly { place: number }[], elapsedMs: number): { step: FinaleStep; until: number } {
+  const has = (place: number) => tiers.some((t) => t.place === place)
+  let until = FINALE_SCHEDULE.build
+  if (elapsedMs < until) return { step: 'build', until }
+  if (has(3)) {
+    until += FINALE_SCHEDULE.third
+    if (elapsedMs < until) return { step: 3, until }
+  }
+  if (has(2)) {
+    until += FINALE_SCHEDULE.second
+    if (elapsedMs < until) return { step: 2, until }
+  }
+  return { step: 1, until: Infinity }
+}
+
+/** The ceremony has reached this place: its own step for the podium, the winner's for 4th and below. */
+export function finaleCalled(step: FinaleStep, place: number): boolean {
+  if (step === 'build') return false
+  return place <= 3 ? step <= place : step === 1
 }
 
 function middleOf(state: State, m: Moment): Middle {
@@ -449,8 +500,8 @@ function middleOf(state: State, m: Moment): Middle {
     case 'buzz:arming':
       return or(clue, isPenalty(r.award) ? scorer : null, { next: r.value })
     case 'idle:finale': {
-      const top = leaders(state)
-      return top.length ? { finale: top } : { call: 'ready' }
+      const tiers = finaleTiers(state)
+      return tiers.length ? { finale: tiers } : { call: 'ready' }
     }
     // Between questions the stage says what is coming and what it is worth.
     // An active reader alone puts an empty clue up, and that would hide the
@@ -655,6 +706,8 @@ export type Mine = {
   judging: boolean
   /** Where this player (or their team) finished: 1 is the top, ties share. */
   place?: number
+  /** The finale's ceremony has reached this phone's place (`finaleStep`): 4th and below are called with the winner. */
+  called?: boolean
   /** What the next question is worth, for the wait between questions. */
   next?: number
   /** That next question is the setlist's last. */
@@ -703,6 +756,8 @@ export function phoneOf(m: Moment, f: Mine): Phone {
     return { label: 'Wait', sub: 'Waiting for the host', mood: 'waiting', talk: false }
   }
   if (m === 'idle:finale') {
+    // The wall calls each place in turn; a phone says nothing before its turn.
+    if (!f.called) return { label: 'Final', sub: 'Watch the board', mood: 'waiting', talk: false }
     return f.place === 1
       ? { label: 'Winner', sub: 'Top of the standings', mood: 'first', talk: false }
       : { label: 'Final', sub: f.place ? `${ordinal(f.place)} place` : '', mood: 'waiting', talk: false }
