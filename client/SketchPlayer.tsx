@@ -7,7 +7,7 @@ import { nextBowSequence } from './bow-control.ts'
 import { PendingBar } from './InkParts.tsx'
 import { StandingsDial } from './Player.tsx'
 import { Blanks, SketchCanvas, SketchInk, focusInPlace, useKeyboardLift, useSketchCues, useSketchStrokes } from './SketchParts.tsx'
-import { ScoreChange } from './fx.tsx'
+import { PlayerBar } from './PlayerBar.tsx'
 import { SKETCH_RULES, fmtSeconds, ordinal, revealStamp, secondsLeft, stepLine } from './sketch.ts'
 import { colorForPlayer, playerName } from './ui.ts'
 import { sidewaysClass, useSideways } from './useSideways.ts'
@@ -55,14 +55,7 @@ export function SketchPlayer({ state, playerId, connected = true, frame, now, se
   const me = playerId ?? ''
   // This match's points while it runs; the night's once it is over.
   const score = sketch && session.phase === 'playing' ? sketch.scores[me] ?? 0 : state.scores[me] ?? 0
-  const bar = <div class="player__bar">
-    <span class="player__name" style={{ '--id': playerId ? colorForPlayer(state, playerId) : undefined }}>{nameOf(me)}</span>
-    <span class="lamp">
-      <span class={connected ? 'lamp-dot is-on' : 'lamp-dot is-off'} />
-      {connected ? 'Connected' : 'Disconnected'}
-    </span>
-    <ScoreChange class="player__score readout" score={score} />
-  </div>
+  const bar = <PlayerBar state={state} playerId={playerId} connected={connected} score={score} />
 
   if (session.phase === 'ready') return <Screen
     bar={bar}

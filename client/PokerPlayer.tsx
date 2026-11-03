@@ -11,6 +11,7 @@ import { contacts, pitch, simplifyFrames } from './toss.ts'
 import { play } from './sound.ts'
 import { PokerPeekRenderer } from './poker-peek-renderer.ts'
 import { bendProfile } from './poker-bend.ts'
+import { Lamp } from './PlayerBar.tsx'
 import { colorForPlayer, ordinal, playerName } from './ui.ts'
 
 const AUTO_NOTE_MS = 2_000
@@ -134,7 +135,7 @@ function DealtCard({ card, up, turned, squared, index, delay, seed }: {
  * fold, double tap the felt to check or call, hold low on the cards to bend up their bottom edge and peek. Raise
  * and all in sit on the rail, because an amount wants a slider.
  */
-export function PokerPlayer({ state, playerId, frame, now, send, ack }: MinigamePlayerProps) {
+export function PokerPlayer({ state, playerId, connected, frame, now, send, ack }: MinigamePlayerProps) {
   const session = state.minigame!
   const poker = matchFrame(frame, 'poker', 'player', session.matchId)
   const me = playerId ?? ''
@@ -281,7 +282,7 @@ export function PokerPlayer({ state, playerId, frame, now, send, ack }: Minigame
   }, [poker?.feed])
   useEffect(() => () => clearTimeout(noteTimer.current), [])
 
-  const name = <p class="poker-phone__name" style={{ color: playerId ? colorForPlayer(state, playerId) : undefined }}>{playerName(state, me)}</p>
+  const name = <><p class="poker-phone__name" style={{ color: playerId ? colorForPlayer(state, playerId) : undefined }}>{playerName(state, me)}</p><Lamp connected={connected} /></>
 
   if (session.phase === 'results') {
     const place = session.results?.find((row) => row.playerId === me)?.place

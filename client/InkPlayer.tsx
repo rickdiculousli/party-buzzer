@@ -6,7 +6,8 @@ import type { MinigamePlayerProps } from './minigames.tsx'
 import { matchFrame } from './minigame-info.ts'
 import { TEAM_LABEL, stepLine, waitLine } from './ink.ts'
 import { sidewaysClass, useSideways } from './useSideways.ts'
-import { colorForPlayer, playerName } from './ui.ts'
+import { playerName } from './ui.ts'
+import { PlayerBar } from './PlayerBar.tsx'
 import { HoldButton, InkCanvas, InkDefs, InkLobby, InkPad, InkRowCell, InkScreen, LetterEntry, PendingBar, Touchable, VotePips, useInkPad } from './InkParts.tsx'
 
 export function InkPlayer({ state, playerId, connected = true, frame, now, send, touches }: MinigamePlayerProps) {
@@ -23,14 +24,7 @@ export function InkPlayer({ state, playerId, connected = true, frame, now, send,
 
   const nameOf = (id: string) => playerName(state, id)
   // The quiz phone's identity bar, so you can tell whose phone you picked up.
-  const bar = (extra?: ComponentChildren) => <div class="player__bar">
-    <span class="player__name" style={{ '--id': playerId ? colorForPlayer(state, playerId) : undefined }}>{nameOf(playerId ?? '')}</span>
-    <span class="lamp">
-      <span class={connected ? 'lamp-dot is-on' : 'lamp-dot is-off'} />
-      {connected ? 'Connected' : 'Disconnected'}
-    </span>
-    {extra}
-  </div>
+  const bar = (extra?: ComponentChildren) => <PlayerBar state={state} playerId={playerId} connected={connected}>{extra}</PlayerBar>
 
   if (session.phase === 'ready') return <main class="ink-phone">{bar()}<InkLobby state={state} playerId={playerId} send={send} /></main>
   if (!ink || !pad) return <main class="ink-phone">{bar()}<p class="ink-phone__status">{frame?.role === 'spectator' ? 'Watching this game' : 'Starting…'}</p></main>

@@ -1,8 +1,9 @@
 import { useRef, useState } from 'preact/hooks'
 import { aimDegrees, aimFromDrag, canBowShoot, nextBowSequence } from './bow-control.ts'
 import type { MinigamePlayerProps } from './minigames.tsx'
+import { PlayerBar } from './PlayerBar.tsx'
 
-export function BowPlayer({ state, frame, now, send, ack }: MinigamePlayerProps) {
+export function BowPlayer({ state, playerId, connected, frame, now, send, ack }: MinigamePlayerProps) {
   const session = state.minigame!
   const mine = frame?.matchId === session.matchId && frame.role === 'player' && frame.id === 'bow' ? frame : null
   const spectator = frame?.matchId === session.matchId && frame.role === 'spectator'
@@ -51,9 +52,10 @@ export function BowPlayer({ state, frame, now, send, ack }: MinigamePlayerProps)
 
   return (
     <main class="bow-phone">
+      <PlayerBar state={state} playerId={playerId} connected={connected} score={mine?.player.score ?? state.scores[playerId ?? ''] ?? 0} />
       <header class="bow-phone__instructions">
         <strong>{session.phase === 'countdown' ? `Starts in ${countdown}` : landing ? 'Finishing arrows' : session.phase === 'playing' ? 'Drag down and release' : session.phase === 'results' ? 'Match complete' : 'Waiting for host'}</strong>
-        <span>{spectator ? 'Spectating until the next match' : reloading ? 'Reloading…' : `${mine?.player.score ?? 0} points`}</span>
+        {(spectator || reloading) && <span>{spectator ? 'Spectating until the next match' : 'Reloading…'}</span>}
         {ack?.matchId === session.matchId && <small>{ack.status === 'accepted' ? 'Shot sent' : 'Shot refused'}</small>}
       </header>
       <div

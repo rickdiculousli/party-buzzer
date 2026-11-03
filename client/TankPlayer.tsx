@@ -3,6 +3,7 @@ import { useRef, useState } from 'preact/hooks'
 import type { TankFrameWeapon, TankInput } from '../shared/protocol.ts'
 import { nextBowSequence } from './bow-control.ts'
 import type { MinigamePlayerProps } from './minigames.tsx'
+import { PlayerBar } from './PlayerBar.tsx'
 import { useSideways } from './useSideways.ts'
 import { reloadProgress, wheelTurns, type TankViewRotation } from './tank-control.ts'
 
@@ -96,7 +97,7 @@ function WeaponButton({ name, weapon, now, onHold }: {
   )
 }
 
-export function TankPlayer({ state, playerId, frame, now, send }: MinigamePlayerProps) {
+export function TankPlayer({ state, playerId, connected, frame, now, send }: MinigamePlayerProps) {
   const session = state.minigame!
   const mine = frame?.matchId === session.matchId && frame.role === 'player' && frame.id === 'tank' ? frame : null
   const crew = session.crews?.find((c) => c.driver === playerId || c.gunner === playerId)
@@ -126,8 +127,6 @@ export function TankPlayer({ state, playerId, frame, now, send }: MinigamePlayer
     : session.phase === 'ready' ? 'Waiting for host'
     : respawn !== null ? `Respawning in ${respawn}`
     : role
-  const controlMessage = driver ? 'Point the dial where you want to go · hold Forward or Back to drive'
-    : gunner ? 'Point the dial where you want to fire' : 'Watching this match'
   const rotationClass = viewRotation === 90 ? ' tank-phone--rotate-cw'
     : viewRotation === -90 ? ' tank-phone--rotate-ccw'
     : viewRotation === 180 ? ' tank-phone--rotate-half'
@@ -135,10 +134,10 @@ export function TankPlayer({ state, playerId, frame, now, send }: MinigamePlayer
 
   return (
     <main class={`tank-phone${rotationClass}`}>
+      <PlayerBar state={state} playerId={playerId} connected={connected} score={mine?.tank.score ?? state.scores[playerId ?? ''] ?? 0} />
       <header class="bow-phone__instructions">
         <strong>{status}</strong>
-        <span>{crew ? `${role}${partner && !solo ? ` with ${partner}` : ''} · ${mine?.tank.hp ?? 100} HP · ${mine?.tank.score ?? 0} pts` : 'Spectating until the next match'}</span>
-        <span>{controlMessage}</span>
+        <span>{crew ? `${role}${partner && !solo ? ` with ${partner}` : ''} · ${mine?.tank.hp ?? 100} HP` : 'Spectating until the next match'}</span>
         {viewRotation !== 0 && <span class="tank-orientation-hint">Turn sideways · speaker end left</span>}
       </header>
       <div class={mine && session.phase === 'playing' ? 'tank-phone__roles is-active' : 'tank-phone__roles'}>

@@ -4,7 +4,7 @@ title: Minigame phones keep the status bar
 kind: ux
 size: S
 judge: sonnet
-status: proposed
+status: done
 lens: ux
 proposed_by: f3e13ca3-5996-4d39-839c-6ee6289499ff
 proposed_on: 2026-10-14
@@ -48,6 +48,14 @@ below it the bow, the tank dial, the sketch canvas or the felt.
 `npm run build`. `npm run sim-bow -- 1 20` and `sim-tank -- 1 30` with a real
 phone joined; the bar is there and rotates with Tank. `npm run review` phone
 scenarios for each minigame.
+
+## Shown
+- Bow phone has the bar: real browser phone at 390x844 beside `sim-bow -- 1 30`, `.player__bar` text -> `DeeConnected0`
+- Tank phone has the bar, rotated with the view: same run with `sim-tank`, `.player__bar` text -> `DeeConnected0`; the 390x844 screenshot shows it on the rotated top edge, with the duplicate "Point where you want to go" line gone
+- Poker gets the lamp: `sim-poker -- solo`, `.poker-phone__top` text -> `DeeConnectedStack 1,490Pot 30`
+- Easy to miss: the Bow and Tank instruction stays as the sub-line under the bar: Bow keeps "Drag down and release" in `client/BowPlayer.tsx`
+- `npm run build` -> `built in 1.03s`; `npm run test:review` -> `302 passed (1.3m)`
+- Not shown: `npm run review` phone scenarios for each minigame: the review deck has no Bow, Tank or Poker phone scenario (only a Tank intro), so the layout fit check does not reach them; the real-phone screenshots stand in
 
 ## Risks and the alternative considered
 Tank's sideways view is height-tight at 390×844 rotated; the bar costs about

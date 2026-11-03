@@ -1005,6 +1005,8 @@ control separated from the switch that enables it reads as belonging to neither.
 
 The buzzer fills everything below a single status bar. The player's name is
 rendered in their identity colour, so you can tell whose phone you picked up.
+Minigame phones keep the bar: name, connection lamp and, where the game scores,
+the score (Poker carries name and lamp in its felt header).
 Below the buzzer, the standings sit behind glass as a dial (see `.dial`):
 five rows through a clear window, the rest of the field a scroll away under
 frosted edges.
