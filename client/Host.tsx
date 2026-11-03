@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { useOpen, useSocket } from './useSocket.ts'
-import { REFUSAL_TEXT, colorForPlayer, credits, ordinal, playerName, standings } from './ui.ts'
+import { REFUSAL_TEXT, colorForPlayer, credits, ordinal, playerName, sortHostRows, standings } from './ui.ts'
 import { clueBlockReason, refuses } from '../shared/legality.ts'
 import { DuelPanel } from './DuelPanel.tsx'
 import { HostGames, HostPlayers, LobbyTeams } from './HostSetup.tsx'
@@ -8,7 +8,7 @@ import { Spoken } from './Spoken.tsx'
 import { ArrivalHost, readBlockedReason } from './ArrivalHost.tsx'
 import { momentOf, type Moment } from '../shared/wall.ts'
 import { isMinigameId, isPenalty } from '../shared/protocol.ts'
-import type { HostAction, MinigameId, State } from '../shared/protocol.ts'
+import type { HostAction, HostRow, MinigameFrame, MinigameId, State } from '../shared/protocol.ts'
 import { MINIGAMES } from './minigames.tsx'
 import { MINIGAME_CATALOG } from './minigame-info.ts'
 
@@ -34,11 +34,28 @@ const clockLeft = (ms: number) => {
 const readyCount = (state: State) =>
   state.players.filter((p) => p.connected && state.minigame?.lobby?.ready?.includes(p.id)).length
 
+/** The match as the minigame reports it: each row's players with their colour and lamp, then score and word. */
+function MatchRows({ state, rows }: { state: State; rows: HostRow[] }) {
+  return <ol class="host__order">
+    {sortHostRows(rows).map((row) => <li key={row.players[0]} class="row">
+      <span class="row__label host__crew">
+        {row.players.map((id) => <span key={id} class="chip" style={{ borderLeft: `3px solid ${colorForPlayer(state, id)}` }}>
+          <span class={state.players.find((p) => p.id === id)?.connected ? 'lamp-dot is-on' : 'lamp-dot is-off'} />
+          {playerName(state, id)}
+        </span>)}
+      </span>
+      {row.word && <span class="muted">{row.word}</span>}
+      {row.score !== undefined && <span class="row__score">{row.score}</span>}
+    </li>)}
+  </ol>
+}
+
 /** The Play tab while a minigame is up: its clock, its lobby and its way out. */
-function MatchDesk({ state, act, now }: {
+function MatchDesk({ state, act, now, frame }: {
   state: State
   act: (action: HostAction) => void
   now: () => number
+  frame: MinigameFrame | null
 }) {
   const session = state.minigame!
   const game = MINIGAMES[session.id]
@@ -63,6 +80,8 @@ function MatchDesk({ state, act, now }: {
         </button>
         {close}
       </div>}
+      {(session.phase === 'countdown' || session.phase === 'playing') && frame?.role === 'host' && frame.matchId === session.matchId && frame.rows.length > 0 &&
+        <MatchRows state={state} rows={frame.rows} />}
       {(session.phase === 'countdown' || session.phase === 'playing') && <button class="btn btn--major btn--no" onClick={() => act({ a: 'cancelMinigame' })}>Cancel match</button>}
       {session.phase === 'results' && <>
         <ol class="host__order">
@@ -189,7 +208,7 @@ function notesFor(
 }
 
 export function Host() {
-  const { state, connected, send, now, actionMessage } = useSocket('host')
+  const { state, connected, send, now, actionMessage, minigameFrame } = useSocket('host')
   const act = (action: HostAction) => send({ t: 'host', action })
   const fire = (a: string, data?: unknown) => send({ t: 'act', act: a, data })
   const { open } = useOpen(state?.round, now)
@@ -308,7 +327,7 @@ export function Host() {
       {tab === 'games' && <HostGames state={state} act={act} fire={fire} play={() => go('play')} />}
       {tab === 'players' && <HostPlayers state={state} act={act} />}
       {tab === 'play' && (state.minigame
-        ? <MatchDesk state={state} act={act} now={now} />
+        ? <MatchDesk state={state} act={act} now={now} frame={minigameFrame} />
         : <QuizDesk state={state} act={act} fire={fire} open={open} upNext={upNext}
             judgeableRef={judgeableRef} reopenableRef={reopenableRef} />)}
     </main>

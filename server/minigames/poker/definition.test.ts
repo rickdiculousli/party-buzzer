@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { poker } from './definition.ts'
-import { act, legal, stepTable } from './table.ts'
+import { act, createTable, legal, stepTable } from './table.ts'
 import type { PokerWorld } from './types.ts'
 
 const clock = (worldMs: number) => 1_000 + worldMs
@@ -99,4 +99,26 @@ test('a busted seat carries its place, however long ago it went out', () => {
   const seats = (poker.boardFrame(w, clock) as { seats: { player: string; place: number | null }[] }).seats
   assert.equal(seats.find((seat) => seat.player === w.seats[0].player)?.place, 3)
   assert.equal(seats.find((seat) => seat.player === w.seats[1].player)?.place, null)
+})
+
+test('host rows: chip stacks, then folded, all in and out as each happens', () => {
+  const w = createTable(13, ['a', 'b', 'c', 'd', 'e'], { stack: 1500, bigBlind: 20, levelMin: 10, shotSec: 30, evaluations: 100 })
+  const seat = (id: string) => w.seats.find((s) => s.player === id)!
+  Object.assign(seat('a'), { stack: 300, startStack: 300 })
+  seat('a').hole = ['7c', '2d']
+  seat('c').hole = ['Ah', 'As']
+  w.deck = ['4s', '9h', 'Td', 'Jc', 'Kd']
+  untilBet(w)
+  const rowOf = (id: string) => poker.hostRows!(w, clock).find((row) => row.players[0] === id)!
+  assert.equal(rowOf('b').word, undefined)
+  while (w.phase.at === 'bet') {
+    const id = actorId(w)
+    act(w, id, { kind: id === 'a' || id === 'c' ? 'allIn' : 'fold' })
+    if (id === 'b') assert.equal(rowOf('b').word, 'folded')
+    if (id === 'a') assert.deepEqual(rowOf('a'), { players: ['a'], score: 0, word: 'all in' })
+  }
+  for (let i = 0; i < 2_000 && w.phase.at !== 'deal'; i++) stepTable(w)
+  assert.deepEqual(rowOf('a'), { players: ['a'], score: 0, word: 'out' })
+  assert.ok(rowOf('c').score! > 1500)
+  assert.equal(rowOf('c').word, undefined)
 })

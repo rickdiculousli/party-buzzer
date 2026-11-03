@@ -4,6 +4,7 @@ import { BOW_FIELD, BOW_STEP_MS } from './types.ts'
 import type { BowArrow, BowWorld, CreateBowWorld } from './types.ts'
 import { closestPointOnSegment, segmentDistance } from './geometry.ts'
 import { createBowWorld, releaseBow, setBowAim, stepBow, sampleBowTrajectory, bowResults } from './world.ts'
+import { bow } from './definition.ts'
 
 const world = () => createBowWorld({
   seed: 7,
@@ -506,4 +507,13 @@ test('simultaneous contacts at the final instant of a tick all resolve in that t
   stepBow(w)
   assert.deepEqual(w.arrows.map(a => a.state), ['lodged-boundary', 'lodged-boundary'])
   assert.deepEqual(w.arrows.map(a => a.velocity), [{ x: 0, y: 0 }, { x: 0, y: 0 }])
+})
+
+test('host rows: a score per archer, "no shot" until their first release', () => {
+  const w = createBowWorld({ seed: 7, playerIds: ['ada', 'bo'] })
+  assert.deepEqual(bow.hostRows!(w, (ms) => ms), [
+    { players: ['ada'], score: 0, word: 'no shot' }, { players: ['bo'], score: 0, word: 'no shot' },
+  ])
+  assert.equal(releaseBow(w, 'ada').status, 'accepted')
+  assert.deepEqual(bow.hostRows!(w, (ms) => ms)[0], { players: ['ada'], score: 0 })
 })

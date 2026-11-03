@@ -98,6 +98,14 @@ export function makeSketch(load: () => string[] | null, rand: () => number = Mat
       return mine && { ...shared(world, clock), ...mine }
     },
     results: sketchResults,
+    hostRows(world) {
+      const drawer = drawerOf(world)
+      return world.participants.map((id) => {
+        const word = id === drawer && world.step !== 'over' ? 'drawing'
+          : world.correct.some((c) => c.player === id) ? 'guessed' : undefined
+        return { players: [id], score: world.scores[id] ?? 0, ...(word ? { word } : {}) }
+      })
+    },
   }
 }
 

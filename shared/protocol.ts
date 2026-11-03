@@ -601,6 +601,9 @@ export type TugShared = {
 
 type FrameBase<Id extends MinigameId> = { id: Id; matchId: string; tick: number; serverTime: number }
 
+/** One line of the host's match desk: a player, crew or team, with its score and a word for its state. */
+export type HostRow = { players: PlayerId[]; score?: number; word?: string }
+
 export type TankFrameTank = {
   id: string
   crew: TankCrew
@@ -654,6 +657,7 @@ export type MinigameFrame =
   | (FrameBase<'poker'> & { role: 'player' } & PokerShared & PokerPrivate)
   | (FrameBase<'tug'> & { role: 'board' } & TugShared)
   | (FrameBase<'tug'> & { role: 'player' } & TugShared & { side: 0 | 1; pull: number })
+  | (FrameBase<MinigameId> & { role: 'host'; rows: HostRow[] })
   | (FrameBase<MinigameId> & { role: 'spectator' })
 
 export type InkStrokeView = { points: InkPoint[]; author: PlayerId; peek?: true }

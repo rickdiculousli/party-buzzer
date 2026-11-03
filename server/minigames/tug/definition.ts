@@ -33,4 +33,6 @@ export const tug: MinigameDefinition<TugWorld> = {
     return { ...shared(world, clock), side: puller.side, pull: Math.round(puller.pull) }
   },
   results: tugResults,
+  hostRows: (world) => Object.entries(world.pullers).map(([id, puller]) =>
+    ({ players: [id], score: Math.round(puller.pull), word: world.sides[puller.side].name })),
 }

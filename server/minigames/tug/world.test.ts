@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import type { Player, Team } from '../../../shared/protocol.ts'
 import type { MinigameRoom } from '../definition.ts'
 import { BEAT_MS, createTugWorld, pull, splitSides, stepTug, TUG_STEP_MS, tugFinished, tugPresence, tugResults, type TugWorld } from './world.ts'
+import { tug } from './definition.ts'
 
 const players = (...names: string[]): Player[] => names.map((id) => ({ id, name: id, connected: true }))
 const solo = (names: string[], scores: Record<string, number> = {}): MinigameRoom =>
@@ -161,4 +162,14 @@ test('a disconnected puller counts for nothing, either way', () => {
   run(w, 3000, (id) => id !== gone)
   assert.ok(Math.abs(w.flag) < 1e-9, `the side is not weaker for the empty place (${w.flag})`)
   assert.ok(w.pullers[stays].pull > 0)
+})
+
+test('host rows: each player\'s pull as the score and their side as the word', () => {
+  const w = world(['a', 'b'])
+  run(w, 1_000, (id) => id === 'a')
+  const rows = tug.hostRows!(w, (ms) => ms)
+  const a = rows.find((row) => row.players[0] === 'a')!
+  assert.ok(a.score! > 0)
+  assert.deepEqual(rows.find((row) => row.players[0] === 'b'), { players: ['b'], score: 0, word: w.sides[w.pullers.b.side].name })
+  assert.equal(a.word, w.sides[w.pullers.a.side].name)
 })

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { actionFeedback, chunks, setlistPosition } from './ui.ts'
+import { actionFeedback, chunks, setlistPosition, sortHostRows } from './ui.ts'
 
 test('board setlist position names the mode, block, and question', () => {
   const state = {
@@ -44,4 +44,9 @@ test('chunks: mostly pairs, a single every third beat', () => {
   assert.deepEqual(chunks('paris'), ['paris'])
   assert.deepEqual(chunks(''), [])
   assert.deepEqual(chunks('  spaced   out '), ['spaced', 'out'])
+})
+
+test('host rows sort by score, unscored rows after in the minigame order', () => {
+  const rows = [{ players: ['dee'], word: 'waiting' }, { players: ['sam'], score: 80 }, { players: ['cy'] }, { players: ['nia'], score: 120 }]
+  assert.deepEqual(sortHostRows(rows).map((row) => row.players[0]), ['nia', 'sam', 'dee', 'cy'])
 })

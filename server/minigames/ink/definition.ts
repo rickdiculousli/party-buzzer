@@ -1,9 +1,9 @@
-import type { InkPrivate, InkShared, InkStepView, PlayerId } from '../../../shared/protocol.ts'
+import type { InkPrivate, InkShared, InkStepView, InkTeamName, PlayerId } from '../../../shared/protocol.ts'
 import type { MinigameDefinition } from '../definition.ts'
 import { validPoints } from '../../../shared/protocol.ts'
 import { lobbyStartable } from '../lobby.ts'
 import { INK_CARDS_PATH, loadInkCards, type InkCards } from './cards.ts'
-import type { InkWorld } from './types.ts'
+import { TEAMS, type InkStep, type InkWorld } from './types.ts'
 import {
   applyInk, createInkWorld, inkFinished, inkResults, inkTarget, peekTargets, roleOf,
 } from './world.ts'
@@ -42,6 +42,21 @@ function shared(w: InkWorld): InkShared {
     discard: { sun: w.discard.sun.map((id) => w.cards.prompts[id]), moon: w.discard.moon.map((id) => w.cards.prompts[id]) },
     deck: w.deck.length,
     secret: w.step.at === 'over' ? w.secret : null,
+  }
+}
+
+/** Each team's part of the turn's step, one plain word per variant; the team whose turn it isn't waits. */
+export function inkTeamWord(step: InkStep, turn: InkTeamName, team: InkTeamName): string {
+  switch (step.at) {
+    case 'choosing': return 'choosing'
+    case 'over': return step.winner === null ? 'out of rows' : step.winner === team ? 'won' : 'lost'
+    case 'peekWrite': return step.team === team ? 'peeking' : 'waiting'
+    case 'peekPick': return team === turn ? 'picking a peek' : 'waiting'
+    case 'choose': return team === turn ? 'voting' : 'waiting'
+    case 'offer': return team === turn ? 'offering' : 'waiting'
+    case 'keep': return team === turn ? 'keeping' : 'waiting'
+    case 'clue': return team === turn ? 'drawing' : 'waiting'
+    case 'guess': return team === turn ? 'guessing' : 'waiting'
   }
 }
 
@@ -130,6 +145,10 @@ export function makeInk(load: () => InkCards | string, rand: () => number = Math
       return { ...view, ...mine, secret: mine.me.role === 'writer' ? world.secret : view.secret }
     },
     results: inkResults,
+    hostRows: (world) => TEAMS.map((team) => ({
+      players: [world.roster[team].writer, ...world.roster[team].guessers],
+      word: inkTeamWord(world.step, world.turn, team),
+    })),
     touchAudience(world, playerId, target) {
       if (!touchable(world, playerId, target)) return null
       if (world.step.at === 'choosing') {

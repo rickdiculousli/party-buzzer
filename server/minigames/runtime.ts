@@ -216,6 +216,7 @@ export class MinigameRuntime {
     const base = { id: session.id, matchId: session.matchId, tick: definition.tick(world), serverTime: this.now() }
     const clock = this.clock(session)
     if (role === 'board') return { ...base, role: 'board', ...definition.boardFrame(world, clock) } as MinigameFrame
+    if (role === 'host') return { ...base, role: 'host', rows: definition.hostRows?.(world, clock) ?? [] }
     const player = playerId ? definition.playerFrame(world, playerId, clock) : null
     if (!player) return { ...base, role: 'spectator' } as MinigameFrame
     return { ...base, role: 'player', ...player } as MinigameFrame
