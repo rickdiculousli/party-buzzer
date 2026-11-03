@@ -1,12 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { useOpen, useSecondsLeft, useSocket, type SocketFixture } from './useSocket.ts'
 import { Talk } from './Talk.tsx'
-import { colorForPlayer, standings } from './ui.ts'
+import { chunks, colorForPlayer, standings } from './ui.ts'
+import { tune } from './sound.ts'
 import { PlayerDuel } from './PlayerDuel.tsx'
 import { PlayerItems } from './PlayerItems.tsx'
 import { lastUp, momentOf, phoneOf } from '../shared/wall.ts'
 import type { Mood } from '../shared/wall.ts'
-import type { State } from '../shared/protocol.ts'
+import type { Award, State } from '../shared/protocol.ts'
 import { scoreKey } from '../shared/scoring.ts'
 import { MINIGAMES } from './minigames.tsx'
 import { MinigameReady, readyShown } from './MinigameReady.tsx'
@@ -27,6 +28,26 @@ const MOOD_CLASS: Record<Mood, string> = {
   placed: 'is-placed',
   first: 'is-first',
   barred: 'is-barred',
+  verdict: 'is-verdict',
+}
+
+/**
+ * The award, once the board has told the room. Under the judge the board types
+ * the transcript and holds `--verdict-hold` before it stamps the award; a phone
+ * showing it sooner would read the result out ahead of the line. Same pace as
+ * `Spoken`, read off the same tunables.
+ */
+function useTold(round: State['round'] | undefined, instant: boolean): Award | undefined {
+  const spoken = round?.spoken
+  const spokenKey = spoken ? `${spoken.name}:${spoken.hit}:${spoken.transcript}` : ''
+  const [toldKey, setToldKey] = useState('')
+  useEffect(() => {
+    if (!spokenKey || instant) return
+    const typed = chunks(spoken!.transcript || 'no answer').length * tune('--type-chunk')
+    const t = setTimeout(() => setToldKey(spokenKey), typed + tune('--verdict-hold'))
+    return () => clearTimeout(t)
+  }, [spokenKey, instant])
+  return !spokenKey || instant || toldKey === spokenKey ? round?.award : undefined
 }
 
 /**
@@ -90,6 +111,12 @@ export function StandingsDial({ state, playerId }: { state: State; playerId?: st
       <div class="dial__glass" aria-hidden="true" />
     </div>
   )
+}
+
+/** Someone else's verdict, felt once per verdict: two light taps, unlike every other cue. */
+function VerdictTap() {
+  useEffect(() => { navigator.vibrate?.([30, 90, 30]) }, [])
+  return null
 }
 
 export type PlayerPreview = {
@@ -172,6 +199,7 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
   // this phone keeps its "Locked" and the old scores until it has, so the
   // room learns the result from the wall rather than from a hand.
   const holding = useClosestHold(round, !preview)
+  const told = useTold(round, !!preview)
   const shownState = state && holding ? { ...state, scores: scoresBeforeClosest(state) } : state
   const score = key ? shownState?.scores[key] ?? 0 : 0
   const armed = round?.phase === 'ARMED' || round?.phase === 'COLLECTING'
@@ -301,7 +329,7 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
   const moment = holding && reached === 'closest:reveal' ? 'closest:guessing' : reached
   // Past the deadline, settled, or the board still revealing: a pad here would take a guess the server refuses.
   const guessingClosed = holding || round?.truth !== undefined || (!!round?.guessing && now() >= round.guessing.closesAt)
-  const { label, sub, mood, talk } = phoneOf(moment, {
+  const { label, sub, mood, talk, tone } = phoneOf(moment, {
     frozen,
     barred,
     spectator,
@@ -331,7 +359,10 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     nearest: round?.nearest,
     value: round?.value,
     awardPoints: round?.award && !round.award.penalty ? round.award.points : undefined,
+    told,
   })
+
+  const scorer = mood === 'verdict' ? state?.players.find((p) => p.name === told?.name) : undefined
 
   const me = state?.players.find((p) => p.id === playerId)
   const arrival = state ? arrivalPresentation(state) : null
@@ -401,7 +432,8 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
         ) : (
           <button
             data-review-id="phone:buzzer"
-            class={`buzzer ${MOOD_CLASS[mood]}`}
+            class={`buzzer ${MOOD_CLASS[mood]}${tone ? ` is-${tone}` : ''}`}
+            style={{ '--id': state && scorer ? colorForPlayer(state, scorer.id) : undefined }}
             onPointerDown={buzz}
             disabled={!open || barred || pressed || frozen || spectator || choice}
           >
@@ -409,6 +441,8 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
             {sub && <span class="buzzer__sub">{sub}</span>}
           </button>
         )}
+
+        {mood === 'verdict' && !preview && <VerdictTap key={`${label}:${sub}`} />}
 
         {state && <PlayerItems state={state} playerId={playerId} send={send} />}
         </>

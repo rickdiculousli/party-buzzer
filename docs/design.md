@@ -1004,6 +1004,13 @@ explanation is the worst thing this app can do:
 | Locked out | Out | Wrong answer — you sit out the rest of this question |
 | Locked, no press | Locked | Someone else is answering |
 | Correct answer | Right | The points actually awarded, including a mode bonus |
+| Someone else scored | *Their name*, in their identity colour | +400 · right, in brass, until the next arm |
+| Someone else missed | *Their name*, in their identity colour | −200 · wrong, rebound opening, in tally, until the buzzers open |
+
+The verdict is the one state about someone else: the whole room is being told
+it at once, and a phone face-down learns nothing from the dial. It waits for
+the board to finish typing the transcript, so it never reads the result out
+ahead of the line. The player who answered keeps Right or Out.
 
 "In" is the phone knowing something the room does not. It is purely local — the
 room sees nothing for the first 150 ms, and a buzzer that looks unchanged after
@@ -1017,6 +1024,7 @@ Feedback is layered, since a phone may be face-down on a knee:
 | Buzzers open | `[40, 40, 40]` | 440 Hz, 150 ms |
 | You buzzed | `60` | 660 Hz, 150 ms |
 | Locked out | `[120, 60, 120]` | 180 Hz, 260 ms |
+| Someone else's verdict | `[30, 90, 30]` | — (the room hears the board) |
 
 Low and long means bad news; short and high means go. You can tell them apart
 from another room.

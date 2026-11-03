@@ -621,8 +621,9 @@ export function wallOf(state: State, local: Local): Wall {
 }
 
 /** What is on one phone. Everything here is that player's own. */
-export type Mood = 'waiting' | 'open' | 'placed' | 'first' | 'barred'
-export type Phone = { label: string; sub: string; mood: Mood; talk: boolean }
+export type Mood = 'waiting' | 'open' | 'placed' | 'first' | 'barred' | 'verdict'
+/** `tone` rides only the `verdict` mood: the scorer's name, toned as the wall's hero is. */
+export type Phone = { label: string; sub: string; mood: Mood; talk: boolean; tone?: Exclude<HeroTone, 'answering'> }
 export type Mine = {
   frozen: boolean
   barred: boolean
@@ -676,6 +677,8 @@ export type Mine = {
   value?: number
   /** Actual award for a buzz answer; modes may add a power bonus. */
   awardPoints?: number
+  /** `round.award`, once the room has been told it: the phone holds it back while the board types the transcript. */
+  told?: Award
 }
 
 /**
@@ -684,9 +687,11 @@ export type Mine = {
  * Two rules hold it together. Only the player actually answering gets a screen
  * of their own — everyone else is some flavour of "not you", and flavouring it
  * further just puts information on a phone whose job right now is to be quiet.
+ * The one exception is a verdict, which the whole room is being told at once:
+ * a phone face-down on a knee would otherwise learn nothing of it.
  * And the phone never learns anything the room has not been told: `viewFor`
- * redacts the buzz order down to your own entry, so there is no name to show
- * even if it wanted to.
+ * redacts the buzz order down to your own entry, so the only other name it
+ * shows is the award's, which the wall is showing too.
  */
 export function phoneOf(m: Moment, f: Mine): Phone {
   // Above every personal state: nothing is live under an arrival. The phone's
@@ -701,6 +706,11 @@ export function phoneOf(m: Moment, f: Mine): Phone {
     return f.place === 1
       ? { label: 'Winner', sub: 'Top of the standings', mood: 'first', talk: false }
       : { label: 'Final', sub: f.place ? `${ordinal(f.place)} place` : '', mood: 'waiting', talk: false }
+  }
+  // A payoff ends the question, so it outranks every "not you" of that
+  // question below. Until the next arm clears the award, like the wall's.
+  if (f.told && !isPenalty(f.told) && !f.won && (m === 'verdict:award' || m === 'idle:ready')) {
+    return verdict(f.told)
   }
   if (f.frozen) {
     return {
@@ -729,6 +739,11 @@ export function phoneOf(m: Moment, f: Mine): Phone {
       mood: 'barred',
       talk: false,
     }
+  }
+  // A miss leaves the question live, so it sits under them, and only until the
+  // rebound opens: the moments here are the hold and the delay before it.
+  if (isPenalty(f.told) && !f.open && (m === 'verdict:hold' || m === 'verdict:penalty' || m === 'buzz:arming')) {
+    return verdict(f.told!)
   }
   if (m === 'verdict:unanswered') {
     return { label: 'Nobody', sub: 'The answer is on the board', mood: 'waiting', talk: false }
@@ -819,6 +834,20 @@ export function phoneOf(m: Moment, f: Mine): Phone {
     return { label: 'Wait', sub: `${f.last ? 'Last' : 'Next'} question · ${f.next} points`, mood: 'waiting', talk: false }
   }
   return { label: 'Wait', sub: 'The host has not armed yet', mood: 'waiting', talk: false }
+}
+
+/** Someone else's verdict: their name, what it moved, and what happens next. */
+function verdict(a: Award): Phone {
+  const miss = isPenalty(a)
+  // A scoreless mode, a free miss or a question worth nothing: no number to show.
+  const points = a.points === 0 ? '' : `${a.points > 0 ? '+' : '−'}${Math.abs(a.points)} · `
+  return {
+    label: a.name,
+    sub: points + (miss ? 'wrong, rebound opening' : 'right'),
+    mood: 'verdict',
+    talk: false,
+    tone: miss ? 'penalised' : 'awarded',
+  }
 }
 
 const withUnit = (n: number, unit?: string, plain?: boolean) => (unit ? `${formatNumber(n, plain)} ${unit}` : formatNumber(n, plain))

@@ -291,6 +291,45 @@ test('a correct answerer sees the actual award before the next question', () => 
   assert.deepEqual([right.label, right.sub, right.mood], ['Right', '+450', 'first'])
   assert.equal(phoneOf('idle:ready', mine).label, 'Right')
   assert.equal(phoneOf('verdict:award', { ...mine, won: false }).label, 'Wait')
+  // Told the award, the leader still reads their own result, not their name.
+  assert.equal(phoneOf('idle:ready', { ...mine, told: { name: 'Ada', points: 450 } }).label, 'Right')
+})
+
+test('every other phone feels the verdict, and only while it stands', () => {
+  const mine = {
+    frozen: false, barred: false, spectator: false, dead: false,
+    won: false, pressed: false, armed: false, open: false, judging: false, next: 400,
+  }
+  const paid = { name: 'Ada', points: 400 }
+  const right = phoneOf('idle:ready', { ...mine, told: paid })
+  assert.deepEqual(right, { label: 'Ada', sub: '+400 · right', mood: 'verdict', talk: false, tone: 'awarded' })
+  // Not told yet (the board is still typing the transcript): the card it had.
+  assert.equal(phoneOf('idle:ready', mine).sub, 'Next question · 400 points')
+  // The question is over, so its stale "not you" states give way to it.
+  assert.equal(phoneOf('idle:ready', { ...mine, spectator: true, buzzableNames: ['Ada', 'Bo'], told: paid }).label, 'Ada')
+  assert.equal(phoneOf('idle:ready', { ...mine, frozen: true, told: paid }).label, 'Ada')
+  // But not the end of the setlist, nor the next arm, which clears the award.
+  assert.equal(phoneOf('idle:finale', { ...mine, place: 2, told: paid }).label, 'Final')
+  assert.equal(phoneOf('buzz:arming', { ...mine, armed: true, told: paid }).sub, 'Any moment')
+
+  const miss = { name: 'Ada', points: -200, penalty: true as const }
+  const wrong = phoneOf('verdict:hold', { ...mine, told: miss })
+  assert.deepEqual(wrong, { label: 'Ada', sub: '−200 · wrong, rebound opening', mood: 'verdict', talk: false, tone: 'penalised' })
+  assert.equal(phoneOf('buzz:arming', { ...mine, armed: true, told: miss }).mood, 'verdict')
+  assert.equal(phoneOf('verdict:penalty', { ...mine, armed: true, told: miss }).mood, 'verdict')
+  // The rebound opening ends it: this phone may press.
+  assert.equal(phoneOf('verdict:penalty', { ...mine, armed: true, open: true, told: miss }).label, 'Buzz')
+  // Someone took the rebound, or time ran out on it: the miss is history.
+  assert.equal(phoneOf('answer:locked', { ...mine, told: miss }).label, 'Locked')
+  assert.equal(phoneOf('idle:ready', { ...mine, told: miss }).label, 'Wait')
+  // The player who missed keeps "Out"; a phone that cannot take the rebound keeps its why.
+  assert.equal(phoneOf('verdict:hold', { ...mine, barred: true, told: miss }).label, 'Out')
+  assert.equal(phoneOf('verdict:hold', { ...mine, spectator: true, buzzableNames: ['Bo'], told: miss }).label, 'Duel')
+  assert.equal(phoneOf('verdict:hold', { ...mine, frozen: true, told: miss }).label, 'Frozen')
+
+  // No number where nothing moved: a free miss, a scoreless mode.
+  assert.equal(phoneOf('verdict:hold', { ...mine, told: { name: 'Ada', points: 0, penalty: true } }).sub, 'wrong, rebound opening')
+  assert.equal(phoneOf('idle:ready', { ...mine, told: { name: 'Ada', points: 0 } }).sub, 'right')
 })
 
 test('a penalty comes down when someone takes the question over', () => {

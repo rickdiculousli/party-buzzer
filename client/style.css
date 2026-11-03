@@ -1413,7 +1413,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   opacity: 0.75;
 }
 
-/* The five moods `phoneOf` returns, one selector each. `waiting` is the resting
+/* The six moods `phoneOf` returns, one selector each. `waiting` is the resting
    slab `.buzzer` already paints, so it restates nothing — it is named so that
    every mood has somewhere to land and a sixth would be visibly missing. */
 .buzzer.is-waiting { /* the base */ }
@@ -1424,6 +1424,14 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .buzzer.is-barred { background: #1c1210; border-color: #3a221e; color: #9c6a5c; }
 .buzzer:is(.is-waiting, .is-barred) .buzzer__sub { opacity: 1; }
 .buzzer.is-barred .buzzer__sub { color: var(--dim); }
+/* Someone else's verdict: their name in their identity colour on the resting
+   slab, edged and subtitled in the tone the wall's hero takes. */
+.buzzer.is-verdict { color: var(--id, var(--chalk)); }
+.buzzer.is-verdict.is-awarded { border-color: var(--brass); }
+.buzzer.is-verdict.is-penalised { border-color: var(--tally); }
+.buzzer.is-verdict .buzzer__sub { opacity: 1; }
+.buzzer.is-awarded .buzzer__sub { color: var(--brass); }
+.buzzer.is-penalised .buzzer__sub { color: var(--tally); }
 
 /* The push-to-talk zone: the buzzer, re-purposed while the judge listens.
    `.buzzer` already carries the 2px --rule border, so the swap never shifts.
