@@ -882,3 +882,54 @@ test('undo restores the finale stamp a Replay replaced', () => {
   assert.equal(hub.dispatch({ a: 'undo' }).status, 'applied')
   assert.equal(state.setlist!.spentAt, first - 10, 'undo brings the earlier stamp back')
 })
+
+test('a reaction is checked, rate-limited per player on the clock, relayed to boards only, and never gameplay', () => {
+  mock.timers.enable({ apis: ['Date'], now: 10_000 })
+  try {
+    const state = newState()
+    let changes = 0
+    const hub = new Hub(state, { onChange: () => changes++ })
+    const boxes: ServerMsg[][] = []
+    const conn = (role: Role): Conn => {
+      const box: ServerMsg[] = []
+      boxes.push(box)
+      const c: Conn = { id: Math.random().toString(36).slice(2), role, send: (m) => box.push(m) }
+      hub.add(c)
+      return c
+    }
+    const ada = conn('player')
+    const bo = conn('player')
+    const board = conn('board')
+    const host = conn('host')
+    joinAs(hub, ada, 'Ada')
+    joinAs(hub, bo, 'Bo')
+    const joined = changes
+    const receipts = (i: number) => boxes[i].flatMap((m) => (m.t === 'reaction' ? [m.receipt] : []))
+
+    hub.handle(bo, { t: 'react', kind: 'ooh' })
+    assert.deepEqual(receipts(2), [], 'nothing to react to while idle')
+
+    state.round = { ...state.round, questionId: 'q1', attemptId: 'a1', phase: 'LOCKED', order: [{ playerId: ada.playerId!, name: 'Ada', at: 1, deltaMs: 0 }], total: 1 }
+    const round = structuredClone(state.round)
+    hub.handle(ada, { t: 'react', kind: 'ooh' })
+    hub.handle(bo, { t: 'react', kind: 'ooh' })
+    hub.handle(bo, { t: 'react', kind: 'legend' })
+    hub.handle(bo, { t: 'react', kind: 'nope' as never })
+    hub.handle(host, { t: 'react', kind: 'ooh' })
+    assert.deepEqual(receipts(2), [{ questionId: 'q1', seq: 1, playerId: bo.playerId, kind: 'ooh' }], 'the leader, a repeat inside 3 s, an unknown word and the host emit nothing')
+
+    mock.timers.tick(2999)
+    hub.handle(bo, { t: 'react', kind: 'legend' })
+    assert.equal(receipts(2).length, 1, 'still cooling')
+    mock.timers.tick(1)
+    hub.handle(bo, { t: 'react', kind: 'legend' })
+    assert.deepEqual(receipts(2).map((r) => [r.seq, r.kind]), [[1, 'ooh'], [2, 'legend']], 'the cooldown is 3 s from the last accepted one')
+
+    assert.deepEqual([receipts(0), receipts(1), receipts(3)], [[], [], []], 'phones and the host never see receipts')
+    assert.deepEqual(state.round, round)
+    assert.equal(changes, joined, 'never notifies persistence, reader or judge')
+    assert.equal(hub.dispatch({ a: 'undo' }).status, 'unchanged', 'nothing entered history')
+  } finally {
+    mock.timers.reset()
+  }
+})

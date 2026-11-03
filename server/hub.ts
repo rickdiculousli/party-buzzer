@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { resolveBuzzes, type RawBuzz, type Resolved } from './resolve.ts'
 import { applyHostAction } from './state.ts'
-import { buzzBlockReason, guessBlockReason, pickBlockReason } from './eligibility.ts'
+import { buzzBlockReason, guessBlockReason, pickBlockReason, reactBlockReason } from './eligibility.ts'
 import { bump, lockedPlayerIds, scoreKey } from '../shared/scoring.ts'
 import { catalog, moduleFor } from './modes/index.ts'
 import { useItem } from './items.ts'
@@ -11,7 +11,7 @@ import { listSetlists, readSetlist, writeSetlist } from './setlists.ts'
 import { clueBlockReason, refuses } from '../shared/legality.ts'
 import { arrivalBlocksPlay, arrivalPresentation, endLobby, introductionLine, practiceAllowed } from '../shared/arrival.ts'
 import { READY_FALLBACK_MS, beginFor, everyoneReady } from './night.ts'
-import { COLLECT_MS } from '../shared/protocol.ts'
+import { COLLECT_MS, QUIZ_REACT_LABEL, REACT_COOLDOWN_MS, type QuizReactKind } from '../shared/protocol.ts'
 import { makeTracer, type Tracer } from './trace.ts'
 import { gameSnapshot, restoreGame, type GameSnapshot } from './snapshot.ts'
 import { nightFacts } from './ledger.ts'
@@ -96,6 +96,9 @@ export class Hub {
   private minigame: MinigameRuntime | undefined
   /** Practice receipts in the current lobby. Private, never in State; restarts per lobby. */
   private practiceSeq = 0
+  /** Reactions relayed to the boards. Private, never in State; the cooldown is each player's last accepted one. */
+  private reactSeq = 0
+  private reactedAt = new Map<PlayerId, number>()
   /**
    * The night's automation, private runtime memory beside the collection
    * timers: one timer per slot, each keyed by the thing it waits on (an
@@ -193,6 +196,10 @@ export class Hub {
 
       case 'practiceBuzz':
         this.practice(conn, msg.lobbyId)
+        return
+
+      case 'react':
+        this.react(conn, msg.kind)
         return
 
       case 'minigameInput':
@@ -495,6 +502,25 @@ export class Hub {
     }
     const out: ServerMsg = { t: 'practiceBuzz', receipt: { lobbyId, seq: ++this.practiceSeq, playerId } }
     for (const other of this.conns) other.send(out)
+  }
+
+  /**
+   * A reaction from a phone that cannot buzz. Checked against state the server
+   * has and a per-player cooldown, then relayed to the boards as a receipt.
+   * Never `changed()`, never State: the room's chatter is not gameplay.
+   */
+  private react(conn: Conn, kind: unknown): void {
+    const playerId = conn.playerId
+    if (conn.role !== 'player' || !playerId || !this.conns.has(conn)) return
+    if (typeof kind !== 'string' || !(kind in QUIZ_REACT_LABEL)) return
+    if (reactBlockReason(this.state, playerId)) return
+    const now = Date.now()
+    const last = this.reactedAt.get(playerId)
+    if (last !== undefined && now - last < REACT_COOLDOWN_MS) return
+    this.reactedAt.set(playerId, now)
+    const receipt = { questionId: this.state.round.questionId, seq: ++this.reactSeq, playerId, kind: kind as QuizReactKind }
+    const out: ServerMsg = { t: 'reaction', receipt }
+    for (const other of this.conns) if (other.role === 'board') other.send(out)
   }
 
   private loadSetlist(name: string): ActionResult {

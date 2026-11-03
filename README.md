@@ -44,6 +44,12 @@ certificate is a browser convenience, not an access-control boundary.
    play reopens immediately or after a rebound pause.
 4. **Next question** clears the question's lockouts and advances a setlist.
 
+While one player answers, every other phone shows four reactions under its
+card (Ooh, No way, Too slow, Legend), and once the verdict is up, so does the
+answerer's. Each tap rises as a pill in that player's colour from the foot of
+the board; a phone gets one every three seconds, and the board shows six at a
+time with a "+N" count for the rest. Reactions score nothing and are not saved.
+
 **Open lobby** (host Play desk, in a quiet room) puts a Test buzzer on every
 phone and the board. A press only lights that player's name on the board and
 marks them tested; it scores nothing, never starts a round, and nothing waits on

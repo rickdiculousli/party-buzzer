@@ -73,7 +73,7 @@ async function start() {
   if (surface === 'board') {
     render(
       <Board preview={{
-        socket: { state: scenario.board, connected: true, now: presentation.now, frame: scenario.boardFrame, practice: scenario.practice },
+        socket: { state: scenario.board, connected: true, now: presentation.now, frame: scenario.boardFrame, practice: scenario.practice, reactions: scenario.reactions },
         practiceNow: scenario.practiceNow,
         open: presentation.open,
         settled: presentation.settled,

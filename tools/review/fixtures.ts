@@ -5,6 +5,8 @@ import type { State } from '../../shared/protocol.ts'
 import { closestAwards } from '../../shared/scoring.ts'
 import { FINALE_SCHEDULE } from '../../shared/wall.ts'
 import type { PracticeFeedback } from '../../client/arrival-feedback.ts'
+import { recordReaction, type TimedReaction } from '../../client/reactions.ts'
+import type { QuizReactKind } from '../../shared/protocol.ts'
 import type { ReviewScenario } from '../../client/review/model.ts'
 import { INK_LONG_NAMES, INK_PLAYERS, InkGame, inkSession } from './ink.ts'
 import { SKETCH_PLAYERS, SketchGame, sketchSession } from './sketch.ts'
@@ -317,6 +319,20 @@ export function makeReviewScenarios(): ReviewScenario[] {
     lobbyId: 'review-lobby',
     pulses: Object.fromEntries(received.map(([id, receivedAt], i) => [id, { seq: i + 1, receivedAt }])),
   })
+  // Reactions frozen mid-rise: `n` receipts for the question, from Bo and Cy in
+  // turn, the oldest a second up and the rest a beat apart.
+  const KINDS: QuizReactKind[] = ['tooslow', 'ooh', 'noway', 'legend']
+  const reacting = (n: number): TimedReaction[] => Array.from({ length: n }, (_, i) => i).reduce<TimedReaction[]>(
+    (list, i) => recordReaction(list, { questionId: 'review-question', seq: i + 1, playerId: ['bo', 'cy'][i % 2], kind: KINDS[i % 4] }, 'review-question', PULSE_NOW - 1000 + i * 90),
+    [],
+  )
+  // A near tie puts Bo on a second timeline row, which the pill band must sit under.
+  const answeringTwoRows = structuredClone(answering)
+  answeringTwoRows.round.order = [
+    { playerId: 'ada', name: 'Ada', at: NOW - 300, deltaMs: 0 },
+    { playerId: 'bo', name: 'Bo', at: NOW - 240, deltaMs: 60 },
+  ]
+  answeringTwoRows.round.total = 2
   const arrivalScenario = (
     id: string, label: string, state: State, extra: Partial<ReviewScenario> = {},
   ): ReviewScenario => ({ ...build(id, label, state, at()), ...extra })
@@ -354,9 +370,12 @@ export function makeReviewScenarios(): ReviewScenario[] {
     build('setlist-quizbowl', 'Setlist: Quizbowl-lite, question 1 of 2', setlistQuizbowl, at({ open: true })),
     build('collecting', 'Collecting buzzes', collecting, at({ open: true })),
     build('leader-answering', 'Leader answering', answering, at()),
+    { ...build('answering-reactions', 'Ada answering, a two-row timeline, the room reacting', answeringTwoRows, at()), reactions: reacting(6), practiceNow: PULSE_NOW },
+    { ...build('correct-reactions', 'Correct award, nine reactions', correct, at()), reactions: reacting(9), practiceNow: PULSE_NOW },
     build('correct', 'Correct award', correct, at()),
     build('wrong-hold', 'Wrong answer hold', wrong, at({ settled: true })),
     build('rebound', 'Rebound with lockout', rebound, at({ open: true })),
+    { ...build('rebound-reactions', 'Rebound with lockout, eight reactions', rebound, at({ open: true })), reactions: reacting(8), practiceNow: PULSE_NOW },
     build('frozen', 'Frozen by an item', frozen, at({ open: true })),
     build('duel', 'Duel selection', duel, at()),
     build('faceoff', 'Face-off seated', faceoff, at()),

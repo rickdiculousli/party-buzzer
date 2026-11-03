@@ -24,7 +24,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { PokerStress } from './PokerStress.tsx'
 import { TugReplay } from './TugReplay.tsx'
-import { COLLECT_MS } from '../../shared/protocol.ts'
+import { COLLECT_MS, QUIZ_REACT_LABEL } from '../../shared/protocol.ts'
 import type { Cue } from '../sound.ts'
 import { NUMERIC, type NumericField } from '../cues.ts'
 import { Votes } from '../Votes.tsx'
@@ -43,6 +43,7 @@ import type { BurstFrom } from '../fx.ts'
 import type { Recipe } from '../synth.ts'
 import { RevealPicture, RevealStakes } from '../RevealPicture.tsx'
 import type { RevealWall } from '../../shared/wall.ts'
+import { LIFTS, PILL_CAP } from '../reactions.ts'
 
 /**
  * A number the harness can move.
@@ -197,6 +198,16 @@ const MARKS = [
   { name: 'Dee', ms: 720, id: 'var(--id-4)' },
 ]
 
+/** Six reactions in six columns, in the identity colours of six phones. */
+const REACTIONS = [
+  { word: QUIZ_REACT_LABEL.tooslow, id: 'var(--id-2)' },
+  { word: QUIZ_REACT_LABEL.ooh, id: 'var(--id-3)' },
+  { word: QUIZ_REACT_LABEL.tooslow, id: 'var(--id-5)' },
+  { word: QUIZ_REACT_LABEL.legend, id: 'var(--id-6)' },
+  { word: QUIZ_REACT_LABEL.noway, id: 'var(--id-1)' },
+  { word: QUIZ_REACT_LABEL.tooslow, id: 'var(--id-4)' },
+]
+
 /**
  * `held` marks are left out. Keyed by name, so the ones already on screen keep
  * their DOM when the last one appears and therefore do not re-stamp — the same
@@ -349,16 +360,20 @@ function Stage({
   above,
   mid,
   below,
+  over,
 }: {
   above?: preact.JSX.Element | false
   mid?: preact.JSX.Element | false
   below?: preact.JSX.Element | false
+  /** A layer floating over the bands, positioned against the wall. */
+  over?: preact.JSX.Element | false
 }) {
   return (
     <section class="board__wall">
       <div class="board__above">{above}</div>
       <div class="board__mid">{mid}</div>
       <div class="board__below">{below}</div>
+      {over}
     </section>
   )
 }
@@ -831,6 +846,37 @@ export const SCENARIOS: Scenario[] = [
         above={!lead && <p class="board__award is-neg">−400</p>}
         mid={<p class={lead ? 'board__hero' : 'board__hero is-penalised'}>Ada</p>}
         below={<Timeline />}
+      />
+    ),
+  },
+  {
+    id: 'reaction',
+    family: 'Quiz',
+    label: 'The room reacts',
+    note: 'Ada has the floor and the timeline is down. Six phones say so at once: each pill rises from above the lockout chips in its sender\'s colour, holds under the timeline and fades.',
+    subject: '.board__pills',
+    dials: [
+      { var: '--pill-rise-dur', label: 'Rise', min: 200, max: 2000, step: 50, unit: 'ms' },
+      { var: '--pill-rise-amp', label: 'Rise height', min: 4, max: 30, step: 1, unit: 'vh' },
+      { var: '--pill-fade-at', label: 'Fade at', min: 0, max: 2200, step: 50, unit: 'ms' },
+      { var: '--pill-fade-dur', label: 'Fade', min: 100, max: 1200, step: 50, unit: 'ms' },
+    ],
+    render: (lead) => (
+      <Stage
+        mid={<p class="board__hero">Ada</p>}
+        below={<Timeline />}
+        over={!lead && (
+          <div class="board__pills" style={{ '--cols': PILL_CAP, '--rows': 1 }}>
+            {REACTIONS.map((r, i) => (
+              <span key={i} class="board__pill-slot fx-fade fx-fade--out" style={{ '--col': i, '--lift': LIFTS[i] }}>
+                <span class="board__pill fx-rise" style={{ '--id': r.id }}>{r.word}</span>
+              </span>
+            ))}
+            <span class="board__pills-more-slot fx-fade fx-fade--out" style={{ '--fx-delay': 'var(--pill-fade-at)' }}>
+              <span class="chip board__pills-more fx-fade">+3</span>
+            </span>
+          </div>
+        )}
       />
     ),
   },

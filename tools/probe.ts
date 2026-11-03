@@ -58,6 +58,9 @@
  *   ready            every joined player taps Ready in the open minigame lobby
  *   in:A,B | out:A   volunteer / back off, from those players' own sockets
  *   vote:A=B,C=B     A votes for B, C votes for B (`=`, not `>`: no quoting)
+ *   react:A=ooh,B=legend
+ *                    reactions from those players' phones (ooh, noway, tooslow,
+ *                    legend); the hub keeps one per player per 3 s
  *   unvote:A         A takes their vote back — the tally counts down
  *   seat[:A,B]       close the window: resolve by rule, or seat those two
  *   cancel           call the duel off
@@ -80,7 +83,7 @@ import { join } from 'node:path'
 import { connect, reachable, type Conn } from './conn.ts'
 import { link } from '../server/net.ts'
 import { clipPath, run } from '../server/speech.ts'
-import { ARM_DELAY_MS, COLLECT_MS, type MinigameId } from '../shared/protocol.ts'
+import { ARM_DELAY_MS, COLLECT_MS, type MinigameId, type QuizReactKind } from '../shared/protocol.ts'
 
 const args = process.argv.slice(2)
 const URL = await reachable(process.env.URL)
@@ -126,7 +129,7 @@ async function main() {
     // The header comment is the manual; printing a second copy is a second
     // thing to keep true.
     log('\n  usage: npm run probe -- join:Ada,Bo arm buzz:Ada@0,Bo@120 correct')
-    log('  steps: loop join value arm buzz correct wrong next reset undo pack mode direct autoplay rewind read armed act speak say pick guess done teams setlist jump duel minigame ready in out vote unvote seat cancel wait clear')
+    log('  steps: loop join value arm buzz correct wrong next reset undo pack mode direct autoplay rewind read armed act speak say pick guess done teams setlist jump duel minigame ready in out vote unvote seat cancel react wait clear')
     log('  walks: npm run walk-duel   walk-teams   walk-setlist   walk-read-quizbowl   walk-read-trivia   walk-packs\n')
     return
   }
@@ -606,6 +609,15 @@ async function main() {
               t: 'act',
               act: verb === 'in' ? 'duelVolunteer' : 'duelBackOff',
             })
+          break
+
+        // react:Ada=ooh,Bo=tooslow — sent at once from each phone, which is
+        // what twenty phones do the moment someone buzzes.
+        case 'react':
+          for (const pair of arg.split(',').filter(Boolean)) {
+            const [name, kind] = pair.split('=')
+            player(name).send({ t: 'react', kind: kind as QuizReactKind })
+          }
           break
 
         case 'vote':

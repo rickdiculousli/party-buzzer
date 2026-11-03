@@ -292,6 +292,17 @@ pulse lasts `PRACTICE_PULSE_MS` and is lobby-scoped, so a stale lobby's receipt 
 `ArrivalBoard`, `ArrivalPhone`, and `ArrivalHost` are mounted by their surfaces; the
 host's disabled controls follow `refuses` and `arrivalBlocksPlay` rather than a second ladder.
 
+Quiz reactions take the same path. A phone that cannot buzz (`phoneOf`'s `react`
+flag: locked out behind the leader, or a verdict up) sends `react` with one of
+`QUIZ_REACT_LABEL`'s four words. The Hub checks `reactBlockReason`
+(`server/eligibility.ts`, the same facts) and a 3 s per-player cooldown it keeps
+in private memory, then relays a `ReactionReceipt` (question id, room-wide
+`reactSeq`, player, kind) to board connections only. Nothing enters State, undo,
+the snapshot or `viewFor`. The board keeps receipts with local receipt time
+(`client/reactions.ts`): `shownPills` shows at most `PILL_CAP` for the current
+question and counts the rest into one chip, and a receipt for another question
+is dropped. Poker's reactions are a world input and stay as they are.
+
 `client/main.tsx` chooses a surface by pathname. Each surface uses `useSocket`
 for its own connection. That hook handles reconnection, stored player identity,
 clock-offset sampling, and scheduled opening. Host controls use shared legality;
@@ -444,6 +455,7 @@ recording is handled by `Talk.tsx`, `recorder.ts`, and `wav.ts`.
 | Night automation timers and the match autoplay opened | No; undo clears them | No |
 | `autoplay.introSec`, minigame lobby `ready` | Yes | Yes |
 | Arrival lobby, tested ids, practice sequence | No; undo cancels a lobby | No |
+| Reaction sequence and cooldowns | No; never State | No |
 | Reader per-pack cursor | No | No |
 | Attempt-bound effects | Restored and restamped | Excluded; unassigned effects can persist |
 

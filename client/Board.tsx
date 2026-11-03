@@ -10,11 +10,12 @@ import { LETTERS } from '../shared/choice.ts'
 import { recapCards, type RecapCard } from '../shared/recap.ts'
 import { isPenalty } from '../shared/protocol.ts'
 import { useReveal } from './useReveal.ts'
-import { COLLECT_MS, type BuzzEntry, type State } from '../shared/protocol.ts'
+import { COLLECT_MS, QUIZ_REACT_LABEL, type BuzzEntry, type State } from '../shared/protocol.ts'
 import { MINIGAMES } from './minigames.tsx'
 import { ArrivalBoard } from './ArrivalBoard.tsx'
 import { practiceLobbyId } from './arrival-feedback.ts'
-import { usePracticeTime } from './usePractice.ts'
+import { useLitTime, usePracticeTime } from './usePractice.ts'
+import { LIFTS, PILL_CAP, PILL_FADE_MS, PILL_MS, freshReactions, shownPills, type Pill } from './reactions.ts'
 import { Burst, Letters, ScoreChange, useFlip } from './fx.tsx'
 import { ClosestLine, closestStamp, closestStampDelay, useClosestHold } from './ClosestLine.tsx'
 import { allGuessed, scoresBeforeClosest } from '../shared/closest.ts'
@@ -280,6 +281,62 @@ function lay(entries: BuzzEntry[], width: number): Mark[] {
  * once when the mark is first seen and never recomputed, so a re-render cannot
  * move a landing that has already been scheduled.
  */
+/** How many rows the marks need; the pill band drops by the extra ones. */
+const rowsOf = (order: BuzzEntry[]) => Math.max(0, ...lay(order, COLLECT_MS).map((m) => m.lane)) + 1
+
+/**
+ * The room's voice over the lower band: each reaction rises from above the
+ * lockout chips in its sender's colour, holds under the timeline and fades.
+ * Never stage content and never a layout. A receipt's fate, a pill or a
+ * count, is decided the first time it is seen: a timeline three rows deep
+ * leaves the band no room, and a change in the rows must never birth or cut
+ * a pill mid-life. The count chip mounts once per wave and fades with the
+ * newest pill, so it never stands alone over an empty band.
+ */
+function Reactions({ state, reacted, rows, now, frozen }: {
+  state: State
+  reacted: { pills: Pill[]; more: number }
+  rows: number
+  now: number
+  frozen: boolean
+}) {
+  const fate = useRef(new Map<number, 'pill' | 'count'>())
+  const chipAt = useRef<number | undefined>(undefined)
+  if (reacted.pills.length === 0 && reacted.more === 0) {
+    fate.current.clear()
+    chipAt.current = undefined
+    return null
+  }
+  for (const p of reacted.pills) if (!fate.current.has(p.seq)) fate.current.set(p.seq, rows > 2 ? 'count' : 'pill')
+  const pills = reacted.pills.filter((p) => fate.current.get(p.seq) === 'pill')
+  const more = reacted.more + reacted.pills.length - pills.length
+  if (more > 0 && chipAt.current === undefined) chipAt.current = now
+  if (more === 0) chipAt.current = undefined
+  const newest = Math.max(...reacted.pills.map((p) => p.at))
+  const fadeIn = Math.max(0, newest + PILL_MS - PILL_FADE_MS - (chipAt.current ?? now))
+  // With no pill up the chip is the whole voice: it carries the latest word.
+  const latest = reacted.pills[reacted.pills.length - 1]
+  return (
+    <div
+      class={frozen ? 'board__pills is-frozen' : 'board__pills'}
+      data-review-id="board:reactions"
+      style={{ '--cols': PILL_CAP, '--rows': rows }}
+    >
+      {pills.map((p) => (
+        // Under a deeper timeline the band is too shallow for a scatter: one clean row.
+        <span key={p.seq} class="board__pill-slot fx-fade fx-fade--out" style={{ '--col': p.col, '--lift': rows > 1 ? 1 : LIFTS[p.col] }}>
+          <span class="board__pill fx-rise" style={{ '--id': colorForPlayer(state, p.playerId) }}>{QUIZ_REACT_LABEL[p.kind]}</span>
+        </span>
+      ))}
+      {more > 0 && (
+        <span class="board__pills-more-slot fx-fade fx-fade--out" style={{ '--fx-delay': `${fadeIn}ms` }}>
+          <span class="chip board__pills-more fx-fade">{pills.length === 0 && latest ? `${QUIZ_REACT_LABEL[latest.kind]} ` : ''}+{more}</span>
+        </span>
+      )}
+    </div>
+  )
+}
+
 function Timeline({
   state,
   round,
@@ -294,7 +351,7 @@ function Timeline({
   // finish instead of being stretched across the wall, and two questions can be
   // compared by eye.
   const marks = lay(round.order, COLLECT_MS)
-  const lanes = Math.max(...marks.map((m) => m.lane)) + 1
+  const lanes = rowsOf(round.order)
 
   return (
     <div class="timeline" data-review-id="board:timeline">
@@ -477,7 +534,7 @@ function Question({ whole, shown, image, reveal, now }: { whole?: string; shown:
 
 export type BoardPreview = {
   socket: SocketFixture
-  /** The frozen clock the fixture's practice pulses are read against. */
+  /** The frozen clock the fixture's practice pulses and reactions are read against. */
   practiceNow?: number
   open: boolean
   settled: boolean
@@ -485,8 +542,11 @@ export type BoardPreview = {
 }
 
 export function Board({ preview }: { preview?: BoardPreview } = {}) {
-  const { state, now, connected, minigameFrame, minigameTouches, practice } = useSocket('board', preview?.socket)
+  const { state, now, connected, minigameFrame, minigameTouches, practice, reactions } = useSocket('board', preview?.socket)
   const pulseNow = usePracticeTime(practice, practiceLobbyId(state), preview?.practiceNow)
+  // Pills tick on the same local clock as pulses, only while one is up.
+  const pillNow = useLitTime(freshReactions(reactions, preview?.practiceNow ?? performance.now()).length > 0, preview?.practiceNow)
+  const reacted = shownPills(reactions, state?.round.questionId, pillNow)
   // The big screen is what the room watches, so it must not light up before
   // the phones do. Same countdown to armedAt as every other surface.
   const opening = useOpen(state?.round, now, undefined, !preview)
@@ -843,6 +903,10 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
               <span key={n} class="chip chip--barred">{n} out</span>
             ))}
           </div>
+        )}
+
+        {!w.arrival && (
+          <Reactions state={state} reacted={reacted} rows={w.timeline ? rowsOf(round.order) : 1} now={pillNow} frozen={!!preview} />
         )}
       </section>
 

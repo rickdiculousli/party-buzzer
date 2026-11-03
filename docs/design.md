@@ -124,7 +124,7 @@ it probably doesn't have one.
 | `--t-md` | `1rem` | Body. |
 | `--t-sm` | `0.8125rem` | Controls, inputs, secondary text. |
 | `--t-xs` | `0.6875rem` | Eyebrows, chips, key hints. Always uppercase and tracked. |
-| `--t-chip-board` | `clamp(0.95rem, 1.25vw, 1.6rem)` | Board only. Every chip on the board, the QR captions and the join address; the setlist chip at 1.2×. |
+| `--t-chip-board` | `clamp(0.95rem, 1.25vw, 1.6rem)` | Board only. Every chip on the board, the QR captions and the join address; the setlist chip and the reaction count at 1.2×, a reaction pill at 1.5×. |
 
 Board type is viewport-relative because it is read across a room. Host and phone
 type is fixed because it is read at arm's length. Don't mix the two.
@@ -196,8 +196,9 @@ a scenario in the motion harness (`npm run motion`) to preview and tune it.
   cyan, with one exception: `<Glitch>` uses pure cyan, magenta and yellow
   (Display-P3 where the screen has it), because a channel split only reads as
   one in the printer's primaries.
-- Tune one element with `--fx-dur`, `--fx-amp`, `--fx-color` and (slides)
-  `--fx-ease`. Defaults live in `anim:tunables`. An override also reaches effects nested inside it.
+- Tune one element with `--fx-dur`, `--fx-amp`, `--fx-color`, (slides,
+  rises and fades) `--fx-ease`, and (fades) `--fx-delay`. Defaults live in
+  `anim:tunables`. An override also reaches effects nested inside it.
 - A one-shot replays when its class is removed and re-added, or when the element
   remounts with a new `key`. An exit leaves the element invisible but in place;
   unmount it on `animationend`.
@@ -217,10 +218,10 @@ move all eight; tune them in the harness's Palette scenario.
 
 | Class | `--fx-amp` | Use for |
 |---|---|---|
-| `fx-fade` / `fx-fade--out` | — | Anything that should arrive quietly |
+| `fx-fade` / `fx-fade--out` | —; wait from `--fx-delay`; rate from `--fx-ease` (reversed for the out, so a long out takes a symmetric rate) | Anything that should arrive quietly |
 | `fx-pop` | overshoot scale | Chips, badges, a new item |
 | `fx-drop` | fall distance | Something landing: a card dealt, a token placed |
-| `fx-rise` | distance | Text coming up into view |
+| `fx-rise` | distance; rate from `--fx-ease` | Text coming up into view |
 | `fx-slide` | distance; side from `--fx-from` (-1/1); rate from `--fx-ease` | Rows joining a list |
 | `fx-flip` | — | A reveal: a card turning over |
 | `fx-zoom` | start scale | A title slamming in from the camera |
@@ -849,6 +850,16 @@ States, in priority order:
    card, or the miss on a rebound.
 4. **Idle** — "Ready", dim.
 
+**Reactions** (`.board__pills`) float over the lower band: each is a pill in
+its sender's identity colour that rises from above the lockout chips
+(`fx-rise`), holds, and fades (`fx-fade--out` on its slot) under the timeline,
+at most six up, one column each, with a `+N` chip at the band's foot for the
+rest, which never take a column. The type is chip type and a half because six
+"Too slow" must fit across the wall. A second timeline row lowers the band; a
+third leaves it no room, and every reaction counts in the chip instead. They
+are never stage content: the hero, the stamp and the timeline sit where they
+always do.
+
 A **choice question** keeps the three bands, but lifts the middle one
 (`.board__wall.is-choice`, a 0.55 : 1.45 split, the lane sized to the question)
 for the whole question so the grid has room. The question holds the middle from
@@ -1028,6 +1039,12 @@ explanation is the worst thing this app can do:
 | Correct answer | Right | The points actually awarded, including a mode bonus |
 | Someone else scored | *Their name*, in brass | +400 · right |
 | Someone else missed | *Their name*, in tally | −200 · wrong, rebound opening |
+
+Under the card, a phone that cannot buzz gets the **reaction row**
+(`.react-row`, four `.btn`): Ooh, No way, Too slow and Legend, while someone
+else answers and while a verdict is up. A tap disables the row for its three
+seconds, so a dropped tap is never silent. The row is a flag beside the card's
+mood, not a state of the card, so it sits under the verdict too.
 
 The verdict is the one state about someone else: the whole room is being told
 it at once, and a phone face-down learns nothing from the dial. The name takes

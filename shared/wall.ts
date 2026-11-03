@@ -673,11 +673,19 @@ export function wallOf(state: State, local: Local): Wall {
 
 /** What is on one phone. Everything here is that player's own. */
 export type Mood = 'waiting' | 'open' | 'placed' | 'first' | 'barred' | 'verdict'
-/** `tone` rides only the `verdict` mood: the scorer's name, toned as the wall's hero is. */
-export type Phone = { label: string; sub: string; mood: Mood; talk: boolean; tone?: Exclude<HeroTone, 'answering'> }
+/**
+ * `tone` rides only the `verdict` mood: the scorer's name, toned as the wall's
+ * hero is. `react` is a flag beside the mood, not a mood: the reaction row shows
+ * under whatever card is up, so it composes with the verdict.
+ */
+export type Phone = { label: string; sub: string; mood: Mood; talk: boolean; tone?: Exclude<HeroTone, 'answering'>; react: boolean }
 export type Mine = {
   frozen: boolean
   barred: boolean
+  /** `phase === 'LOCKED'`: somebody has the floor, or a miss is held. */
+  locked?: boolean
+  /** `!!round.award`: a verdict is up, until the next arm clears it. */
+  scored?: boolean
   /** A duel this player is not in. */
   spectator: boolean
   /**
@@ -747,6 +755,14 @@ export type Mine = {
  * shows is the award's, which the wall is showing too.
  */
 export function phoneOf(m: Moment, f: Mine): Phone {
+  // The room may react while it cannot buzz: locked out behind the leader, or
+  // with a verdict up. The same facts `reactBlockReason` checks on the server.
+  const react = !isFamily(m, 'arrival') && ((!!f.locked && !f.won) || !!f.scored)
+  return { ...card(m, f), react }
+}
+
+/** The card itself: label, subtitle and mood. */
+function card(m: Moment, f: Mine): Omit<Phone, 'react'> {
   // Above every personal state: nothing is live under an arrival. The phone's
   // arrival copy comes from `arrivalPresentation`; these are its fallback words.
   if (m === 'arrival:lobby') {
@@ -893,7 +909,7 @@ export function phoneOf(m: Moment, f: Mine): Phone {
 }
 
 /** Someone else's verdict: their name, what it moved, and what happens next. */
-function verdict(a: Award): Phone {
+function verdict(a: Award): Omit<Phone, 'react'> {
   const miss = isPenalty(a)
   // A scoreless mode, a free miss or a question worth nothing: no number to show.
   const points = a.points === 0 ? '' : `${a.points > 0 ? '+' : '−'}${Math.abs(a.points)} · `

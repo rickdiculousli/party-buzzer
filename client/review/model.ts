@@ -1,4 +1,5 @@
 import type { PracticeFeedback } from '../arrival-feedback.ts'
+import type { TimedReaction } from '../reactions.ts'
 import type { MinigameFrame, State } from '../../shared/protocol.ts'
 
 export type ReviewPhone = {
@@ -26,6 +27,8 @@ export type ReviewScenario = {
   /** Frozen practice pulses and the clock they are read against, for arrival lobbies. */
   practice?: PracticeFeedback
   practiceNow?: number
+  /** Frozen reactions for the board, read against `practiceNow`. */
+  reactions?: TimedReaction[]
   phones: ReviewPhone[]
   presentation: ReviewPresentation
 }

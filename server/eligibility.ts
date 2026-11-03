@@ -34,3 +34,18 @@ export function guessBlockReason(state: State, playerId: PlayerId, guess: unknow
   if (!pickers(state).includes(playerId)) return 'not-eligible'
   return null
 }
+
+/**
+ * Why this player may not react right now, or null. Reactions are for the
+ * phones that cannot buzz: the room while the leader answers, and everyone
+ * once a verdict is up. Never under an arrival or a minigame.
+ */
+export function reactBlockReason(state: State, playerId: PlayerId): string | null {
+  if (state.arrival) return 'arrival'
+  if (state.minigame) return 'minigame'
+  const r = state.round
+  if (r.award) return null
+  if (r.phase !== 'LOCKED') return 'not-locked'
+  if (r.order[0]?.playerId === playerId) return 'answering'
+  return null
+}

@@ -747,6 +747,19 @@ export type PracticeReceipt = {
   playerId: PlayerId
 }
 
+/** The quiz room's four words, for the phones locked out while one player answers. Poker keeps its own. */
+export type QuizReactKind = 'ooh' | 'noway' | 'tooslow' | 'legend'
+export const QUIZ_REACT_LABEL: Record<QuizReactKind, string> = { ooh: 'Ooh', noway: 'No way', tooslow: 'Too slow', legend: 'Legend' }
+/** One reaction per player this often; the phone dims its row for the same span. */
+export const REACT_COOLDOWN_MS = 3000
+/** The server's relay of one accepted reaction, to boards only. `seq` rises for the room's life. */
+export type ReactionReceipt = {
+  questionId: string
+  seq: number
+  playerId: PlayerId
+  kind: QuizReactKind
+}
+
 /**
  * Autoplay: the two beats a human host provides by instinct and the reader
  * otherwise waits on forever. `on` only removes keypresses — the host still
@@ -903,6 +916,8 @@ export type ClientMsg =
   | { t: 'minigameTouch'; matchId: string; target: string; x: number; y: number }
   /** A buzzer test in the open lobby. Never a buzz. */
   | { t: 'practiceBuzz'; lobbyId: string }
+  /** A reaction from a phone that cannot buzz right now. Never enters State. */
+  | { t: 'react'; kind: QuizReactKind }
 
 export type ServerMsg =
   | { t: 'welcome'; playerId: PlayerId; serverTime: number }
@@ -913,6 +928,7 @@ export type ServerMsg =
   | { t: 'minigameAck'; ack: MinigameInputAck }
   | { t: 'minigameTouch'; touch: MinigameTouch }
   | { t: 'practiceBuzz'; receipt: PracticeReceipt }
+  | { t: 'reaction'; receipt: ReactionReceipt }
 
 /** A command outcome, distinct from the state updates it may produce. */
 export type ActionResult =

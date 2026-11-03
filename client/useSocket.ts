@@ -6,6 +6,7 @@ import type { MinigameInputAck, ClientMsg, MinigameFrame, Role, ServerMsg, State
 import { actionFeedback } from './ui.ts'
 import { freshTouches, type TimedTouch } from './ink.ts'
 import { emptyPractice, practiceLobbyId, prunePractice, recordPractice, type PracticeFeedback } from './arrival-feedback.ts'
+import { recordReaction, type TimedReaction } from './reactions.ts'
 
 const SAMPLES = 7
 const RESYNC_MS = 30_000
@@ -18,6 +19,8 @@ export type SocketFixture = {
   frame?: MinigameFrame
   /** Frozen pulses; review fixtures pair them with `usePracticeTime`'s `frozenNow`. */
   practice?: PracticeFeedback
+  /** Frozen reactions, stamped on the same frozen clock. */
+  reactions?: TimedReaction[]
 }
 
 /**
@@ -128,6 +131,9 @@ export function useSocket(role: Role, fixture?: SocketFixture) {
   const [practice, setPractice] = useState<PracticeFeedback>(() => fixture?.practice ?? emptyPractice())
   // The lobby receipts are checked against, read inside the message handler.
   const lobbyId = useRef<string | undefined>(undefined)
+  // Reactions, as the board keeps them: receipts for the current question only.
+  const [reactions, setReactions] = useState<TimedReaction[]>(() => fixture?.reactions ?? [])
+  const questionId = useRef<string | undefined>(undefined)
 
   const socket = useRef<WebSocket | null>(null)
   // Seeded from this device's own wall clock so `now()` is in the server's
@@ -187,12 +193,17 @@ export function useSocket(role: Role, fixture?: SocketFixture) {
           if (!msg.state.minigame) setMinigameFrame(null)
           // A new or closed lobby clears pulses; a departed player loses theirs.
           lobbyId.current = practiceLobbyId(msg.state)
+          questionId.current = msg.state.round.questionId
           const ids = msg.state.players.map((p) => p.id)
           setPractice((f) => prunePractice(f, lobbyId.current, ids))
         }
         else if (msg.t === 'practiceBuzz') {
           const at = performance.now()
           setPractice((f) => recordPractice(f, msg.receipt, lobbyId.current, at))
+        }
+        else if (msg.t === 'reaction') {
+          const at = performance.now()
+          setReactions((list) => recordReaction(list, msg.receipt, questionId.current, at))
         }
         else if (msg.t === 'actionResult') setActionMessage(actionFeedback(msg.action, msg.result))
         else if (msg.t === 'minigameFrame') setMinigameFrame(msg.frame)
@@ -221,6 +232,8 @@ export function useSocket(role: Role, fixture?: SocketFixture) {
         // A pulse is never replayed: the next connection starts from tested marks alone.
         lobbyId.current = undefined
         setPractice(emptyPractice())
+        questionId.current = undefined
+        setReactions([])
         clearInterval(resync)
         if (closed) return
         setTimeout(connect, retry)
@@ -248,6 +261,7 @@ export function useSocket(role: Role, fixture?: SocketFixture) {
     minigameAck,
     minigameTouches,
     practice,
+    reactions,
     now: () => fixture?.now ?? performance.now() + offset.current,
     send,
   }

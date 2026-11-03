@@ -7,7 +7,7 @@ import { PlayerDuel } from './PlayerDuel.tsx'
 import { PlayerItems } from './PlayerItems.tsx'
 import { finaleCalled, lastUp, momentOf, phoneOf } from '../shared/wall.ts'
 import type { Mood } from '../shared/wall.ts'
-import type { Award, State } from '../shared/protocol.ts'
+import { QUIZ_REACT_LABEL, REACT_COOLDOWN_MS, type Award, type QuizReactKind, type State } from '../shared/protocol.ts'
 import { scoreKey } from '../shared/scoring.ts'
 import { MINIGAMES } from './minigames.tsx'
 import { MinigameReady, readyShown } from './MinigameReady.tsx'
@@ -303,6 +303,24 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     blip(audio.current)
   }
 
+  // One reaction per cooldown, as the server counts it; the row dims for the
+  // same span whether or not the server kept the tap, so a dropped tap is never
+  // silent. A beat longer than the server, so a tap the instant the row relights
+  // is not refused on the jitter between the two clocks.
+  const [coolingUntil, setCoolingUntil] = useState(0)
+  const cooling = coolingUntil > now()
+  useEffect(() => {
+    if (!cooling) return
+    const id = setTimeout(() => setCoolingUntil(0), Math.max(0, coolingUntil - now()))
+    return () => clearTimeout(id)
+  }, [coolingUntil])
+  const reactWith = (kind: QuizReactKind) => {
+    if (preview || !connected || cooling) return
+    send({ t: 'react', kind })
+    setCoolingUntil(now() + REACT_COOLDOWN_MS + 250)
+    navigator.vibrate?.(20)
+  }
+
   const buzz = () => {
     if (preview) return
     if (!open || barred || pressed || frozen || spectator || choice) return
@@ -332,10 +350,12 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
   // The dial would call every place at once: it waits for the winner, as the board's sidebar does.
   const dialHeld = moment === 'idle:finale' && finale !== 1
   const me = state?.players.find((p) => p.id === playerId)
-  const { label, sub, mood, talk, tone } = phoneOf(moment, {
+  const { label, sub, mood, talk, tone, react } = phoneOf(moment, {
     frozen,
     barred,
     spectator,
+    locked: round?.phase === 'LOCKED',
+    scored: !!round?.award,
     // Not taken from the moment: `verdict:hold` outranks `duel:dead` on the
     // wall, and telling a phone "reopening in a moment" when both seated players
     // have missed is a promise nothing will keep.
@@ -445,6 +465,16 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
               : label}
             {sub && <span class="buzzer__sub">{sub}</span>}
           </button>
+        )}
+
+        {react && (
+          <div class="react-row" data-review-id="phone:reactions">
+            {(Object.keys(QUIZ_REACT_LABEL) as QuizReactKind[]).map((kind) => (
+              <button key={kind} class="btn" disabled={cooling} onClick={() => reactWith(kind)}>
+                {QUIZ_REACT_LABEL[kind]}
+              </button>
+            ))}
+          </div>
         )}
 
         {mood === 'verdict' && !preview && <VerdictTap key={`${label}:${sub}`} />}

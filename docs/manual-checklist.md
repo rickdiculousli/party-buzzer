@@ -64,6 +64,10 @@ These need real hardware — run them once before a real game night.
 
 - [ ] `/board` is readable from the far side of the room
 - [ ] Ten or more phones joined at once, all appearing on the host panel
+- [ ] While one phone answers, the others show Ooh / No way / Too slow /
+      Legend under the card; a tap greys the row for three seconds and a pill
+      in that player's colour rises at the foot of the board under the
+      timeline; several phones tapping at once never cover a name or the stamp
 - [ ] Two players buzzing near-simultaneously produce a plausible winner and a
       believable millisecond gap
 - [ ] Host laptop sleeping and waking does not lose scores

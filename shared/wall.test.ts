@@ -302,7 +302,7 @@ test('every other phone feels the verdict, and only while it stands', () => {
   }
   const paid = { name: 'Ada', points: 400 }
   const right = phoneOf('idle:ready', { ...mine, told: paid })
-  assert.deepEqual(right, { label: 'Ada', sub: '+400 · right', mood: 'verdict', talk: false, tone: 'awarded' })
+  assert.deepEqual(right, { label: 'Ada', sub: '+400 · right', mood: 'verdict', talk: false, tone: 'awarded', react: false })
   // Not told yet (the board is still typing the transcript): the card it had.
   assert.equal(phoneOf('idle:ready', mine).sub, 'Next question · 400 points')
   // The question is over, so its stale "not you" states give way to it.
@@ -314,7 +314,7 @@ test('every other phone feels the verdict, and only while it stands', () => {
 
   const miss = { name: 'Ada', points: -200, penalty: true as const }
   const wrong = phoneOf('verdict:hold', { ...mine, told: miss })
-  assert.deepEqual(wrong, { label: 'Ada', sub: '−200 · wrong, rebound opening', mood: 'verdict', talk: false, tone: 'penalised' })
+  assert.deepEqual(wrong, { label: 'Ada', sub: '−200 · wrong, rebound opening', mood: 'verdict', talk: false, tone: 'penalised', react: false })
   // Only a held rebound shows it: one that opens at once has a 300ms delay,
   // and the rebound opening ends it: this phone may press.
   assert.equal(phoneOf('buzz:arming', { ...mine, armed: true, told: miss }).sub, 'Any moment')
@@ -851,4 +851,21 @@ test('the hero is tungsten-open while answering and brass only once awarded', ()
   const w = wallOf(s, LOCAL)
   assert.equal(w.moment, 'verdict:award')
   assert.deepEqual(w.hero, { name: 'Ada', tone: 'awarded' }, 'same name, new tone')
+})
+
+test('the reaction row shows while locked out behind the leader or with a verdict up, never for the answerer or under an arrival', () => {
+  const mine = {
+    frozen: false, barred: false, spectator: false, dead: false,
+    won: false, pressed: false, armed: false, open: false, judging: false,
+  }
+  assert.equal(phoneOf('idle:ready', mine).react, false)
+  assert.equal(phoneOf('buzz:open', { ...mine, armed: true, open: true }).react, false)
+  assert.equal(phoneOf('answer:locked', { ...mine, locked: true }).react, true)
+  assert.equal(phoneOf('answer:locked', { ...mine, locked: true, won: true }).react, false, 'the answerer has no row')
+  assert.equal(phoneOf('verdict:hold', { ...mine, locked: true, scored: true }).react, true)
+  // The award outlives the lock; the answerer may react to their own verdict, as the server allows.
+  assert.equal(phoneOf('idle:ready', { ...mine, won: true, scored: true, awardPoints: 400 }).react, true)
+  assert.equal(phoneOf('verdict:award', { ...mine, scored: true, told: { name: 'Ada', points: 400 } }).mood, 'verdict', 'the flag composes with the verdict mood')
+  assert.equal(phoneOf('verdict:award', { ...mine, scored: true, told: { name: 'Ada', points: 400 } }).react, true)
+  assert.equal(phoneOf('arrival:lobby', { ...mine, locked: true, scored: true }).react, false)
 })
