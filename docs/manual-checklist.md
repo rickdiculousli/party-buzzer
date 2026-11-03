@@ -364,6 +364,9 @@ npm run walk-packs
       nothing
 - [ ] Press and hold shows the cards; letting go hides them
 - [ ] Out of turn: a flick springs back with a shake, a double tap does nothing
+- [ ] Folded by flick and by the clock: the phone says which, shows the street's
+      cards and the pot, and Raise and All in fade away without moving the
+      reactions; busted, it says your place the same way
 - [ ] If flicks or double taps misfire, tune `GESTURE` in `client/poker.ts`
 - [ ] Board on the TV: folded cards fly in, linger, and land on the pile; seats
       and cards stay clear of each other at seven or more players

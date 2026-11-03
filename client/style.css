@@ -3823,6 +3823,11 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .poker-phone__still { position: relative; z-index: 1; flex: 1; display: grid; place-content: center; justify-items: center; gap: var(--s3); text-align: center; }
 .poker-phone__big { font-size: var(--t-mega); }
 .poker-phone__small { font-size: var(--t-lg); }
+/* Out of the hand: the street's cards and the pot, as the board shows them, and one line saying why and until when. */
+.poker-phone__street { display: grid; justify-items: center; gap: var(--s4); }
+.poker-phone__board { --card-w: min(16vw, 4.5rem); display: flex; gap: calc(var(--card-w) * 0.1); }
+.poker-phone__out { display: grid; width: fit-content; max-width: 18rem; margin-inline: auto; padding-bottom: var(--s3); font-size: var(--t-lg); line-height: 1.2; text-align: center; text-wrap: balance; }
+.poker-rail__row.is-off { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 300ms ease, visibility 0s 300ms; }
 .poker-tokens { position: relative; z-index: 1; display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s2); padding: var(--s2) var(--s3) var(--s3); }
 .poker-token {
   min-height: 2.5rem;

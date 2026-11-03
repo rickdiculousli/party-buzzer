@@ -225,7 +225,10 @@ and a feed of every action. Each phone is a small felt table holding that
 player's two cards, face down until pressed:
 
 - **Fold:** flick the cards up off the top of the phone. On the board they fly
-  toward the middle, lie where they stop for a beat, and pop away.
+  toward the middle, lie where they stop for a beat, and pop away. Your phone
+  then follows the hand (the cards on the table and the pot), says you folded,
+  or that the clock did, and offers only reactions until the next deal. A
+  busted phone shows the same table and your finishing place.
 - **Check or call:** double tap the felt. The line at the bottom says which,
   and how much.
 - **Peek:** drag up from below the dashed line on the felt (just above the
