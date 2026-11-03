@@ -3841,7 +3841,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .recap__title { font-size: var(--t-sm); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); }
 .recap__name { font-family: var(--display); font-weight: 800; font-size: var(--t-xl); }
 .recap__detail { color: var(--dim); }
-=======
 /* --- the closest question's pad: the typed number large, then the keys ---- */
 .pad { flex: 1; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--s2); }
 .pad__top { display: flex; gap: var(--s2); min-width: 0; }
