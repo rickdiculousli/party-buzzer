@@ -740,9 +740,10 @@ export function phoneOf(m: Moment, f: Mine): Phone {
       talk: false,
     }
   }
-  // A miss leaves the question live, so it sits under them, and only until the
-  // rebound opens: the moments here are the hold and the delay before it.
-  if (isPenalty(f.told) && !f.open && (m === 'verdict:hold' || m === 'verdict:penalty' || m === 'buzz:arming')) {
+  // A miss leaves the question live, so it sits under them, and only for a
+  // held rebound. One that opens at once has 300ms of delay, too short to read
+  // and ending in the buzzers-open cue: there the opening is the news.
+  if (isPenalty(f.told) && m === 'verdict:hold') {
     return verdict(f.told!)
   }
   if (m === 'verdict:unanswered') {

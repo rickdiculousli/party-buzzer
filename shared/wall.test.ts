@@ -315,9 +315,10 @@ test('every other phone feels the verdict, and only while it stands', () => {
   const miss = { name: 'Ada', points: -200, penalty: true as const }
   const wrong = phoneOf('verdict:hold', { ...mine, told: miss })
   assert.deepEqual(wrong, { label: 'Ada', sub: '−200 · wrong, rebound opening', mood: 'verdict', talk: false, tone: 'penalised' })
-  assert.equal(phoneOf('buzz:arming', { ...mine, armed: true, told: miss }).mood, 'verdict')
-  assert.equal(phoneOf('verdict:penalty', { ...mine, armed: true, told: miss }).mood, 'verdict')
-  // The rebound opening ends it: this phone may press.
+  // Only a held rebound shows it: one that opens at once has a 300ms delay,
+  // and the rebound opening ends it: this phone may press.
+  assert.equal(phoneOf('buzz:arming', { ...mine, armed: true, told: miss }).sub, 'Any moment')
+  assert.equal(phoneOf('verdict:penalty', { ...mine, armed: true, told: miss }).sub, 'Any moment')
   assert.equal(phoneOf('verdict:penalty', { ...mine, armed: true, open: true, told: miss }).label, 'Buzz')
   // Someone took the rebound, or time ran out on it: the miss is history.
   assert.equal(phoneOf('answer:locked', { ...mine, told: miss }).label, 'Locked')

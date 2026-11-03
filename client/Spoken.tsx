@@ -13,6 +13,17 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import { play, tune, unlock } from './sound.ts'
 import { chunks } from './ui.ts'
 
+/** The line as it types, a chunk per `--type-chunk`. */
+const partsOf = (transcript: string) => chunks(transcript || 'no answer')
+
+/**
+ * How long after it arrives a line settles: every chunk, then the hold. The
+ * timer below runs exactly this; a phone that cannot mount the line reads it
+ * here instead, so a change to the pace reaches both.
+ */
+export const settleMs = (transcript: string, scope?: Element) =>
+  partsOf(transcript).length * tune('--type-chunk', scope) + tune('--verdict-hold', scope)
+
 export function Spoken({
   transcript,
   hit,
@@ -32,7 +43,7 @@ export function Spoken({
   /** Development previews render the final line without timers or sound. */
   instant?: boolean
 }) {
-  const parts = chunks(transcript || 'no answer')
+  const parts = partsOf(transcript)
   const [shown, setShown] = useState(instant ? parts.length : 0)
   const [settled, setSettled] = useState(instant)
   const line = useRef<HTMLParagraphElement>(null)

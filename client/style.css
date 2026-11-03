@@ -1401,7 +1401,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   /* The no-mic slab is a div, which doesn't centre its text the way a button does. */
   text-align: center;
   gap: var(--s2);
-  transition: background var(--fast) var(--ease), color var(--fast) var(--ease);
+  transition: background var(--fast) var(--ease), color var(--fast) var(--ease), border-color var(--fast) var(--ease);
 }
 .buzzer:disabled { opacity: 1; }
 .buzzer__sub {
@@ -1424,14 +1424,14 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .buzzer.is-barred { background: #1c1210; border-color: #3a221e; color: #9c6a5c; }
 .buzzer:is(.is-waiting, .is-barred) .buzzer__sub { opacity: 1; }
 .buzzer.is-barred .buzzer__sub { color: var(--dim); }
-/* Someone else's verdict: their name in their identity colour on the resting
-   slab, edged and subtitled in the tone the wall's hero takes. */
-.buzzer.is-verdict { color: var(--id, var(--chalk)); }
-.buzzer.is-verdict.is-awarded { border-color: var(--brass); }
-.buzzer.is-verdict.is-penalised { border-color: var(--tally); }
-.buzzer.is-verdict .buzzer__sub { opacity: 1; }
-.buzzer.is-awarded .buzzer__sub { color: var(--brass); }
-.buzzer.is-penalised .buzzer__sub { color: var(--tally); }
+/* Someone else's verdict on the resting slab: the name in the tone the wall's
+   hero takes, so phone and wall say it in one colour; whose it is rides the
+   edge, as identity rides the dial's stripe, never the letters (an identity
+   red would read as a miss). A name is the one label that can be long. */
+.buzzer.is-verdict { border-color: var(--id, var(--rule)); grid-template-columns: 100%; overflow-wrap: anywhere; }
+.buzzer.is-verdict.is-awarded { color: var(--brass); }
+.buzzer.is-verdict.is-penalised { color: var(--tally); }
+.buzzer.is-verdict .buzzer__sub { opacity: 1; color: var(--chalk); }
 
 /* The push-to-talk zone: the buzzer, re-purposed while the judge listens.
    `.buzzer` already carries the 2px --rule border, so the swap never shifts.

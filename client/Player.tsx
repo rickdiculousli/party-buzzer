@@ -1,8 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { useOpen, useSecondsLeft, useSocket, type SocketFixture } from './useSocket.ts'
 import { Talk } from './Talk.tsx'
-import { chunks, colorForPlayer, standings } from './ui.ts'
-import { tune } from './sound.ts'
+import { colorForPlayer, standings } from './ui.ts'
+import { settleMs } from './Spoken.tsx'
 import { PlayerDuel } from './PlayerDuel.tsx'
 import { PlayerItems } from './PlayerItems.tsx'
 import { lastUp, momentOf, phoneOf } from '../shared/wall.ts'
@@ -34,8 +34,7 @@ const MOOD_CLASS: Record<Mood, string> = {
 /**
  * The award, once the board has told the room. Under the judge the board types
  * the transcript and holds `--verdict-hold` before it stamps the award; a phone
- * showing it sooner would read the result out ahead of the line. Same pace as
- * `Spoken`, read off the same tunables.
+ * showing it sooner would read the result out ahead of the line.
  */
 function useTold(round: State['round'] | undefined, instant: boolean): Award | undefined {
   const spoken = round?.spoken
@@ -43,8 +42,7 @@ function useTold(round: State['round'] | undefined, instant: boolean): Award | u
   const [toldKey, setToldKey] = useState('')
   useEffect(() => {
     if (!spokenKey || instant) return
-    const typed = chunks(spoken!.transcript || 'no answer').length * tune('--type-chunk')
-    const t = setTimeout(() => setToldKey(spokenKey), typed + tune('--verdict-hold'))
+    const t = setTimeout(() => setToldKey(spokenKey), settleMs(spoken!.transcript))
     return () => clearTimeout(t)
   }, [spokenKey, instant])
   return !spokenKey || instant || toldKey === spokenKey ? round?.award : undefined
@@ -329,6 +327,7 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
   const moment = holding && reached === 'closest:reveal' ? 'closest:guessing' : reached
   // Past the deadline, settled, or the board still revealing: a pad here would take a guess the server refuses.
   const guessingClosed = holding || round?.truth !== undefined || (!!round?.guessing && now() >= round.guessing.closesAt)
+  const me = state?.players.find((p) => p.id === playerId)
   const { label, sub, mood, talk, tone } = phoneOf(moment, {
     frozen,
     barred,
@@ -359,12 +358,13 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     nearest: round?.nearest,
     value: round?.value,
     awardPoints: round?.award && !round.award.penalty ? round.award.points : undefined,
-    told,
+    // Your own verdict is Right or Out, never your name: a mode that locks
+    // nobody out leaves the one who missed neither leader nor barred.
+    told: told && told.name !== me?.name ? told : undefined,
   })
 
   const scorer = mood === 'verdict' ? state?.players.find((p) => p.name === told?.name) : undefined
 
-  const me = state?.players.find((p) => p.id === playerId)
   const arrival = state ? arrivalPresentation(state) : null
 
   return (
