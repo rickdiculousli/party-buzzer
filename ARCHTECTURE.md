@@ -384,6 +384,11 @@ own. The result (`truth`, `paid`, `nearest`, `guessed`) is public once settled.
 The board plays the reveal on the `closestTimes` schedule, and phones and the
 board's standings hold the pre-settle picture until it is done
 (`useClosestHold`); under autoplay the reader adds that time to the dwell.
+The finale follows the same pattern: `enterBlock` stamps `setlist.spentAt`
+when the setlist is spent (re-stamped by a jump to its end, which is Replay),
+and `finaleStep` in `shared/wall.ts` turns the elapsed time into the
+ceremony's step; `useFinale` re-renders the board and the phones at each
+boundary on their synced clocks, so nothing writes state on a timer.
 The board places the guesses on a line scaled by `shared/closest.ts` only at
 the reveal, so no number is up while the room is still guessing.
 

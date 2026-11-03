@@ -851,3 +851,21 @@ test('typing a question is refused during an introduction, a minigame and a read
   hub.handle(host, { t: 'act', act: 'reading', data: { active: true } })
   assert.equal(state.typed, undefined, "a starting reader's clue replaces it")
 })
+
+test('undo restores the finale stamp a Replay replaced', () => {
+  const { state, hub, conn } = rig()
+  const host = conn('host')
+  const act = (action: import('../shared/protocol.ts').HostAction) => hub.handle(host, { t: 'host', action })
+  act({ a: 'setSetlist', blocks: [{ game: 'trivia', options: {}, count: 1 }] })
+  act({ a: 'closeArrival', arrivalId: state.arrival!.id })
+  act({ a: 'arm' })
+  act({ a: 'next' })
+  const first = state.setlist!.spentAt!
+  assert.ok(first > 0, 'the spend is stamped')
+  // Forced apart: two stamps in one millisecond would read as no change.
+  state.setlist!.spentAt = first - 10
+  assert.equal(hub.dispatch({ a: 'setlistJump', at: 1 }).status, 'applied', 'Replay finale re-stamps')
+  assert.ok(state.setlist!.spentAt! > first - 10)
+  assert.equal(hub.dispatch({ a: 'undo' }).status, 'applied')
+  assert.equal(state.setlist!.spentAt, first - 10, 'undo brings the earlier stamp back')
+})

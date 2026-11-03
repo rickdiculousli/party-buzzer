@@ -502,13 +502,16 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
                 <span class="chip chip--data">Setlist complete</span>
               )}
               <span class="host__spacer" />
-              <button
-                class="btn btn--ghost"
-                disabled={!!jump || at >= state.setlist.blocks.length}
-                onClick={() => act({ a: 'setlistJump', at: at + 1 })}
-              >
-                Skip block
-              </button>
+              {block ? (
+                <button class="btn btn--ghost" disabled={!!jump} onClick={() => act({ a: 'setlistJump', at: at + 1 })}>
+                  Skip block
+                </button>
+              ) : (
+                // A jump to the end re-stamps the finale's clock, and the ceremony plays again.
+                <button class="btn btn--ghost" disabled={!!jump} onClick={() => act({ a: 'setlistJump', at: state.setlist!.blocks.length })}>
+                  Replay finale
+                </button>
+              )}
               {/* A `title` on a disabled button never fires — the control eats
                   its own pointer events — so the reason is printed. This strip
                   is one flex row of chips, so it is a `span` here rather than

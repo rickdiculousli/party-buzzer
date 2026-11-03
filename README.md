@@ -344,7 +344,8 @@ phones and board; the question voice plays on the server machine.
 ## Saving and undo
 
 `state.json` stores versioned game settings, players, teams, scores, inventories,
-setlist position, and the night's ledger of facts behind the recap. Existing
+setlist position (with the finale's stamp, so a restart shows the settled
+finale rather than replaying it), and the night's ledger of facts behind the recap. Existing
 unversioned snapshots and version 1 files (which start with an empty ledger) are
 also supported. At the finale the recap is also written to `nights/<date>.json`.
 Restart begins with an idle round and disconnected players until they reconnect.

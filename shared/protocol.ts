@@ -268,6 +268,13 @@ export type SetlistState = {
   at: number
   /** Questions gone by inside the current block. */
   done: number
+  /**
+   * Server time the setlist was spent, re-stamped by a jump to its end. The
+   * board and the phones read the finale's step from it, so a reload or a
+   * restart shows the settled finale rather than replaying the ceremony. An
+   * older disk file has none: that finale counts as settled.
+   */
+  spentAt?: number
 }
 
 /**

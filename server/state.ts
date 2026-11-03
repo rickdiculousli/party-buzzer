@@ -302,7 +302,7 @@ function mutateHostAction(state: State, action: HostAction): void {
       // After the reset, never before: the block's `openDuel` needs an IDLE
       // round and a cleared duel to land on. `resetRound` is the host taking a
       // question back, so it spends nothing.
-      if (action.a === 'next' && played) advanceSetlist(state, apply)
+      if (action.a === 'next' && played) advanceSetlist(state, apply, Date.now())
       return
     }
 
@@ -516,7 +516,7 @@ function mutateHostAction(state: State, action: HostAction): void {
         // The last setlist's question is not the first block's: its award
         // must not resurface after Continue or count toward block 0 on Next.
         forgetQuestion(round)
-        enterBlock(state, apply, true)
+        enterBlock(state, apply, true, Date.now())
         // A fresh start introduces its first block, after setup and any duel
         // window are in place, and replaces a lobby. A kept position leaves
         // a pending introduction and its id alone.
@@ -534,7 +534,7 @@ function mutateHostAction(state: State, action: HostAction): void {
       setlist.at = Math.min(Math.max(0, at), setlist.blocks.length)
       setlist.done = 0
       dropIntroduction(state)
-      enterBlock(state, apply, true)
+      enterBlock(state, apply, true, Date.now())
       introduceBlock(state, false)
       return
     }
@@ -618,6 +618,7 @@ export function loadState(path: string): State {
       else {
         loaded.setlist.at = Math.min(Math.max(0, loaded.setlist.at | 0), loaded.setlist.blocks.length)
         loaded.setlist.done = Math.max(0, loaded.setlist.done | 0)
+        if (!Number.isFinite(loaded.setlist.spentAt)) delete loaded.setlist.spentAt
       }
     }
     // A minigame lobby from before the ready flag existed.

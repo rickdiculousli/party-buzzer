@@ -927,11 +927,24 @@ third there is no number, because the order already says it.
 
 **The milestone is a murmur, the recap is the encore.** A milestone (`.board__milestone`)
 is one dim line in the stakes corner, under the chip, for the question or match
-it belongs to; it never enters the middle band and never covers the hero. At the
-finale the winner and confetti play as before; about 2.5 s after the name
-appears, a recap band (`.board__recap`) hangs under it and cycles the night's
-recap cards, one every 4 s, each rising in. The sidebar's code then points at
-`/recap` ("Scan to keep the night"), so a phone can keep the cards and the final standings.
+it belongs to; it never enters the middle band and never covers the hero.
+
+**The finale is a podium.** The server stamps the spend (`setlist.spentAt`),
+and every surface reads the ceremony's step from that stamp on its own synced
+clock (`finaleStep` in `shared/wall.ts`): the brass build, then 3rd in bronze
+and 2nd in silver each take the middle lane (`.board__finale-step`: the place
+over the name, the score under it, the hero's slam and glow), then the winner
+and confetti play as before; about 2.5 s after the name appears, a recap band
+(`.board__recap`) hangs under it and cycles the night's recap cards, one every
+4 s, each rising in. The sidebar stays off-screen until the winner is up, and
+the phone's dial is blank until then, so the standings never call a place first. A tie shares a step, and a step with
+nobody on it (a tie for 2nd leaves no 3rd) is skipped. A phone says "Final"
+with no place until the wall calls its tier; 4th and below are called with the
+winner. "Replay finale" on the host desk re-stamps the spend and plays it all
+again; a board or phone that mounts after the ceremony shows the settled
+finale, with the sidebar and the recap band in place at once. The sidebar's
+code then points at `/recap` ("Scan to keep the night"), so a phone can keep
+the cards and the final standings.
 
 ### Arrival — the lobby and the introduction
 
@@ -1060,6 +1073,8 @@ disagree, the code is what gets renamed.
   buzz and no leader.
 - **order / standings** — `round.order` is the buzz order. The score ranking
   is the standings, never "the order".
+- **tier / step** — a tier is the people sharing one place on the podium; a
+  step is where the finale's ceremony is (build, 3rd, 2nd, winner).
 - **leader / hero** — the leader is `order[0]`, a fact about the round; the
   hero is the `Wall`'s big name, a thing on the screen.
 - **read** — the box reads; nothing else does. `Reader`, `state.reading` and
