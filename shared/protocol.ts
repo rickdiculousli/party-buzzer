@@ -194,11 +194,15 @@ export type GameState = {
 
 export type ModeStatus = { label: string; tone: 'active' | 'inactive' }
 
-/** A mode option, declared as data so the host settings form needs no per-mode code. */
+/**
+ * A mode option, declared as data so the host settings form needs no per-mode
+ * code. `label` is a sentence-case name; `hint` is the reason or the unit, shown
+ * under it.
+ */
 export type OptionSpec =
-  | { kind: 'int'; key: string; label: string; default: number; min: number; max: number }
-  | { kind: 'bool'; key: string; label: string; default: boolean }
-  | { kind: 'choice'; key: string; label: string; default: string; choices: string[] }
+  | { kind: 'int'; key: string; label: string; hint?: string; default: number; min: number; max: number }
+  | { kind: 'bool'; key: string; label: string; hint?: string; default: boolean }
+  | { kind: 'choice'; key: string; label: string; hint?: string; default: string; choices: string[] }
 
 /** One registered mode, for the host's settings form. Ships in the state payload. */
 export type GameInfo = { id: string; name: string; options: OptionSpec[]; scoreless?: boolean }
@@ -307,24 +311,24 @@ export type MinigameId = 'bow' | 'tank' | 'ink' | 'sketch' | 'poker' | 'tug'
  */
 export const MINIGAME_OPTIONS: Record<MinigameId, Extract<OptionSpec, { kind: 'int' }>[]> = {
   bow: [
-    { kind: 'int', key: 'durationSec', label: 'Seconds', default: 40, min: 5, max: 180 },
-    { kind: 'int', key: 'reloadMs', label: 'Reload ms', default: 100, min: 0, max: 5_000 },
+    { kind: 'int', key: 'durationSec', label: 'Time limit', hint: 'Seconds', default: 40, min: 5, max: 180 },
+    { kind: 'int', key: 'reloadMs', label: 'Reload', hint: 'Milliseconds between shots', default: 100, min: 0, max: 5_000 },
   ],
-  tank: [{ kind: 'int', key: 'durationSec', label: 'Seconds', default: 40, min: 5, max: 180 }],
+  tank: [{ kind: 'int', key: 'durationSec', label: 'Time limit', hint: 'Seconds', default: 40, min: 5, max: 180 }],
   ink: [],
   sketch: [
-    { kind: 'int', key: 'drawSec', label: 'Draw seconds', default: 80, min: 30, max: 180 },
-    { kind: 'int', key: 'drawers', label: 'Drawers (0 = everyone)', default: 0, min: 0, max: 30 },
+    { kind: 'int', key: 'drawSec', label: 'Drawing time', hint: 'Seconds per turn', default: 80, min: 30, max: 180 },
+    { kind: 'int', key: 'drawers', label: 'Drawers', hint: 'How many take a turn; 0 means everyone', default: 0, min: 0, max: 30 },
   ],
   poker: [
-    { kind: 'int', key: 'stack', label: 'Starting stack', default: 1500, min: 100, max: 100_000 },
-    { kind: 'int', key: 'bigBlind', label: 'Starting big blind', default: 20, min: 2, max: 10_000 },
-    { kind: 'int', key: 'levelMin', label: 'Minutes per level', default: 10, min: 1, max: 60 },
-    { kind: 'int', key: 'shotSec', label: 'Shot clock seconds', default: 30, min: 5, max: 120 },
+    { kind: 'int', key: 'stack', label: 'Starting stack', hint: 'Chips each player sits down with', default: 1500, min: 100, max: 100_000 },
+    { kind: 'int', key: 'bigBlind', label: 'Starting big blind', hint: 'Chips; the small blind is half', default: 20, min: 2, max: 10_000 },
+    { kind: 'int', key: 'levelMin', label: 'Level length', hint: 'Minutes before the blinds double', default: 10, min: 1, max: 60 },
+    { kind: 'int', key: 'shotSec', label: 'Shot clock', hint: 'Seconds to act, then you check or fold', default: 30, min: 5, max: 120 },
   ],
   tug: [
-    { kind: 'int', key: 'durationSec', label: 'Seconds', default: 30, min: 10, max: 120 },
-    { kind: 'int', key: 'value', label: 'Points per winner', default: 100, min: 0, max: 1_000 },
+    { kind: 'int', key: 'durationSec', label: 'Time limit', hint: 'Seconds', default: 30, min: 10, max: 120 },
+    { kind: 'int', key: 'value', label: 'Points per winner', hint: 'Everyone on the winning side gains this', default: 100, min: 0, max: 1_000 },
   ],
 }
 

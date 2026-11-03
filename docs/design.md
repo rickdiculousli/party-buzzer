@@ -453,8 +453,36 @@ shows it; a shortcut nobody can discover isn't a feature.
 </label>
 ```
 
-The label is uppercase and tracked; the input resets to sentence case, because
-you type into it.
+Inline, the label is uppercase and tracked like a chip; the input resets to
+sentence case, because you type into it. This is the form for a control riding
+in a bar or a setlist block, where the label is a tag on the control.
+
+Inside a game fold (`.host__game`) the same class is the desk grammar: one row
+per control, the label a sentence in chalk at `--t-sm`, the control in one
+column for every fold, and the reason or unit a dim `--t-xs` line beneath.
+
+```html
+<div class="field">
+  <label class="field__label" for="answer-window">Answer window</label>
+  <span class="stepper">…</span>
+  <span class="field__hint">Seconds; 0 means you end a stall by hand</span>
+</div>
+```
+
+`NumberField`, `ToggleField` and `ChoiceField` (`client/GameSettings.tsx`)
+render it; an option's `hint` in its schema is where the reason lives, so a
+fold and a setlist block read the same spec. The row is a `<div>`, not a
+`<label>`, because a label's click lands on its first button.
+
+### Toggle — `.toggle`
+
+A checkbox drawn as a switch: a short rail with a square knob that slides
+right and turns brass when on. Tight corners like every other control, so it
+reads as equipment rather than a phone setting.
+
+```html
+<input class="toggle" type="checkbox" />
+```
 
 ### Stepper — `.stepper`
 
@@ -1006,6 +1034,8 @@ that always says what is running and holds Undo:
 - **Games** — how the night runs (direct play or setlist), the setlist builder,
   then one fold per game (`.host__game`, a `<details name="game">` accordion):
   the quiz (mode, pack, reading) and each minigame (its options and Open).
+  Inside a fold every control is a desk-grammar field, so the controls of
+  every game sit in one column and each label's reason sits under it.
 - **Players** — roster, the minigame lobby's sides, teams, scores. Reachable
   during a match, and the roster actions stay legal there.
 

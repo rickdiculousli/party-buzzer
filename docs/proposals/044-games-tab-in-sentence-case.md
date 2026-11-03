@@ -4,7 +4,7 @@ title: The Games tab reads like a desk, not a terminal
 kind: ux
 size: M
 judge: fable
-status: proposed
+status: done
 lens: ux
 proposed_by: f3e13ca3-5996-4d39-839c-6ee6289499ff
 proposed_on: 2026-10-14
@@ -53,9 +53,22 @@ reason under its label, the same in Poker's fold.
 check every label is sentence case and every control sits on the same x.
 `npm test` is unaffected.
 
+## Shown
+- Every label sentence case, chalk, `--t-sm`: `NO_OPEN=1 node cache/044/shoot.ts` (a Playwright pass over every fold at 1280×800) -> `x=435 none 13px rgb(245, 240, 230) | Power ends after fragment | 0 turns powers off`, and the same `none 13px rgb(245, 240, 230)` on all 28 fields.
+- Every control on one x, in every fold: the same run -> `x=435` on every field line under Quiz, Bow, Tank battle, Sketch, Poker and Tug of war.
+- The reason under its label, not inside it: `assets/044-after-quiz.png` ("Power ends after fragment [− 2 +]" with "0 turns powers off" beneath; "Bouncebacks [on]" with "Wrong answerers sit out the rebound" beneath).
+- The same in Poker's fold: `assets/044-after-poker.png`.
+- `--s5` between the quiz fold's three sections: the same run -> `## Quiz · Quizbowl-lite · game-night.txt sections top=-227,152,241 bottom=128,217,788` (24px between each section's bottom and the next top).
+- `npm run build` -> `✓ built in 829ms`.
+- `npm test` -> 879 pass, 0 fail across the five locations.
+- `npm run test:review` (the layout fit check, run on port 4175 from `cache/044/playwright.config.ts` because another build held 4174) -> `307 passed`, `1 failed`: `answering-reactions board fits` (`span.timeline__name × span.board__pill`), which fails identically on `main` at ab7aa52 with this branch's files absent, so it is the reactions pill's, not this change's.
+- Easy to miss: the `--s5` the spec asks for was already written on `.host__manage[open]`, but Chromium wraps a details' children in `::details-content` so the gap never reached the sections; `.host__manage::details-content { display: grid; gap: var(--s5) }` is what the measurement above shows.
+- Not shown: "the existing toggle style": no switch existed in `client/style.css`, so `.toggle` (a checkbox drawn as a short rail with a brass knob) was added and the guide's §5 documents it.
+
 ## Risks and the alternative considered
 Longer sentence-case labels wrap at 1280; the two-line explanation slot
 absorbs that. Alternative: shorten the labels and keep uppercase; rejected
 because the guide's rule is about what a sentence is, not how long.
 
 ## Needs from Rick
+- nothing: the Games tab reads this way the next time the host page loads a build.

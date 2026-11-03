@@ -315,6 +315,33 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .stepper { display: flex; align-items: center; gap: var(--s1); }
 .stepper .btn { padding: var(--s1) var(--s2); min-width: 1.75rem; }
 
+/* --- Toggle: a checkbox drawn as a switch ----------------------------- */
+.toggle {
+  appearance: none;
+  margin: 0;
+  width: 2.25rem;
+  height: 1.25rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  background: var(--stage);
+  position: relative;
+  cursor: pointer;
+  transition: background var(--fast) var(--ease), border-color var(--fast) var(--ease);
+}
+.toggle::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(1.25rem - 6px);
+  height: calc(1.25rem - 6px);
+  background: var(--dim);
+  transition: translate var(--fast) var(--ease), background var(--fast) var(--ease);
+}
+.toggle:checked { background: #241d0c; border-color: var(--brass); }
+.toggle:checked::before { translate: 1rem 0; background: var(--brass); }
+.toggle:disabled { opacity: 0.3; cursor: default; }
+
 /* --- Row: one competitor, one line ------------------------------------ */
 .row {
   display: flex;
@@ -1429,6 +1456,37 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 /* One game per fold on the Games tab, sitting on --panel like a setlist block. */
 .host__game { background: var(--panel); border-left: 3px solid var(--rule); padding: 0 var(--s3); }
 .host__game[open] { border-left-color: var(--brass); padding-bottom: var(--s3); }
+/* Chromium wraps a details' children in ::details-content, so the fold's own
+   grid gap stops at that box; the sections inside get the same rhythm here. */
+.host__manage::details-content { display: grid; gap: var(--s5); }
+
+/* The desk grammar inside a fold: one row per control. The label is a sentence
+   in chalk, the control sits in one column for every fold, and the reason (or
+   the unit) is a dim line beneath, so the label says what and the hint says
+   why. The section spaces its rows; the eyebrow gives up its own margin. */
+.host__game section { display: grid; gap: var(--s3); }
+.host__game section > .eyebrow { margin-bottom: 0; }
+.host__game section > .btn { justify-self: start; }
+.host__game .field {
+  display: grid;
+  grid-template-columns: 16rem 1fr;
+  /* The control row is a stepper tall whether it holds a stepper or a toggle,
+     so the rows keep one rhythm. */
+  grid-template-rows: 1.75rem;
+  column-gap: var(--s3);
+  row-gap: var(--s1);
+  align-items: center;
+  justify-content: start;
+  font-size: var(--t-sm);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--chalk);
+}
+.host__game .field__label { grid-column: 1; grid-row: 1; }
+.host__game .field > :is(.input, .stepper, .toggle) { grid-column: 2; grid-row: 1; justify-self: start; }
+.host__game .field__hint { grid-column: 1 / -1; grid-row: 2; font-size: var(--t-xs); color: var(--dim); }
+/* A setlist block is one line; the option's reason lives on its fold. */
+.setlist__block .field__hint { display: none; }
 
 .host__side { align-items: center; margin-bottom: var(--s1); }
 .host__side .row__label { min-width: 7rem; }

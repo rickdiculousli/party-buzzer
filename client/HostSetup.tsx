@@ -1,5 +1,5 @@
 import { useState } from 'preact/hooks'
-import { GameSettings, OptionField } from './GameSettings.tsx'
+import { ChoiceField, GameSettings, NumberField, OptionField, ToggleField } from './GameSettings.tsx'
 import { SetlistPanel } from './SetlistPanel.tsx'
 import { REFUSAL_TEXT, colorForPlayer, packLabel, playerName, standings } from './ui.ts'
 import { MINIGAME_INFO } from './minigame-info.ts'
@@ -89,20 +89,16 @@ export function HostGames({ state, act, fire, play }: { state: State; act: Act; 
                 this restates it because it must. What it does not restate is
                 the sentence: the reason is the same reason, so the line under
                 it comes from the same place as every other one on this desk. */}
-            <select
-              class="input"
+            <ChoiceField
+              label="Pack"
               value={state.reading?.pack ?? ''}
+              choices={[
+                { value: '', label: 'Choose a pack…' },
+                ...state.packs.map((p) => ({ value: p, label: packLabel(state, p) })),
+              ]}
               disabled={packBlocked}
-              onChange={(e) => {
-                const name = (e.target as HTMLSelectElement).value
-                if (name) fire('selectPack', name)
-              }}
-            >
-              <option value="">Choose a pack…</option>
-              {state.packs.map((p) => (
-                <option key={p} value={p}>{packLabel(state, p)}</option>
-              ))}
-            </select>
+              onChange={(name) => name && fire('selectPack', name)}
+            />
             {packBlocked && <p class="muted">{REFUSAL_TEXT['not-idle']}</p>}
           </section>
         )}
@@ -127,18 +123,16 @@ function Launcher({ state, id, act, play }: { state: State; id: MinigameId; act:
   const refusal = refuses(state, { a: 'prepareMinigame', id, options })
   return (
     <section>
-      <div class="host__toggles">
-        {MINIGAME_INFO[id].timed || <p class="muted">No time limit — it ends on its own rules.</p>}
-        {MINIGAME_OPTIONS[id].map((spec) => (
-          <OptionField
-            key={spec.key}
-            spec={spec}
-            value={options[spec.key]}
-            disabled={false}
-            onChange={(v) => setOptions({ ...options, [spec.key]: v })}
-          />
-        ))}
-      </div>
+      {MINIGAME_INFO[id].timed || <p class="muted">No time limit — it ends on its own rules.</p>}
+      {MINIGAME_OPTIONS[id].map((spec) => (
+        <OptionField
+          key={spec.key}
+          spec={spec}
+          value={options[spec.key]}
+          disabled={false}
+          onChange={(v) => setOptions({ ...options, [spec.key]: v })}
+        />
+      ))}
       <button
         class="btn btn--primary"
         disabled={!!refusal}
@@ -156,161 +150,92 @@ function Launcher({ state, id, act, play }: { state: State; id: MinigameId; act:
 
 /** Reading behaviour, not the reading itself — true of whichever way the night runs. */
 function Reading({ state, act }: { state: State; act: Act }) {
+  const autoplay = (patch: Partial<typeof state.autoplay>) => act({ ...state.autoplay, ...patch, a: 'setAutoplay' })
   return (
     <section>
       <p class="eyebrow">Reading</p>
-      <div class="host__toggles">
-        <label class="field">
-          Mirror question text to phones
-          <input
-            type="checkbox"
-            checked={state.mirrorFragments}
-            onChange={(e) => act({ a: 'setMirror', on: (e.target as HTMLInputElement).checked })}
+      <ToggleField
+        label="Mirror question text to phones"
+        hint="Phones see the words as they are read"
+        checked={state.mirrorFragments}
+        onChange={(on) => act({ a: 'setMirror', on })}
+      />
+
+      {state.packs.length > 0 && (
+        <>
+          <NumberField
+            label="Answer window"
+            hint="Seconds; 0 means you end a stall by hand"
+            value={state.answerWindowSec}
+            min={0}
+            max={120}
+            onChange={(sec) => act({ a: 'setAnswerWindow', sec })}
           />
-        </label>
+          <NumberField
+            label="Choice time"
+            hint="Seconds after the options are read, or a closest question"
+            value={state.choiceSec}
+            min={5}
+            max={120}
+            onChange={(sec) => act({ a: 'setChoiceTime', sec })}
+          />
+          <NumberField
+            label="Reveal time"
+            hint="Seconds for a picture to sharpen; an early buzz pays up to double"
+            value={state.revealSec}
+            min={3}
+            max={60}
+            onChange={(sec) => act({ a: 'setRevealTime', sec })}
+          />
+          <ToggleField
+            label="Autoplay"
+            hint="The reader presses N for you"
+            checked={state.autoplay.on}
+            onChange={(on) => autoplay({ on })}
+          />
 
-        {state.packs.length > 0 && (
-          <>
-            <label class="field">
-              Answer window
-              <input
-                class="input input--num"
-                type="number"
+          {state.autoplay.on && (
+            <>
+              <NumberField
+                label="Answer sits for"
+                hint="Seconds, then the next question arms"
+                value={state.autoplay.nextSec}
                 min={0}
-                max={120}
-                value={state.answerWindowSec}
-                onInput={(e) =>
-                  act({ a: 'setAnswerWindow', sec: Number((e.target as HTMLInputElement).value) })
-                }
-              />
-              <span class="muted">sec · 0 = you end a stall by hand</span>
-            </label>
-
-            <label class="field">
-              Choice time
-              <input
-                class="input input--num"
-                type="number"
-                min={5}
-                max={120}
-                value={state.choiceSec}
-                onInput={(e) =>
-                  act({ a: 'setChoiceTime', sec: Number((e.target as HTMLInputElement).value) })
-                }
-              />
-              <span class="muted">sec after the options are read, or a closest question</span>
-            </label>
-
-            <label class="field">
-              Reveal time
-              <input
-                class="input input--num"
-                type="number"
-                min={3}
                 max={60}
-                value={state.revealSec}
-                onInput={(e) =>
-                  act({ a: 'setRevealTime', sec: Number((e.target as HTMLInputElement).value) })
-                }
+                step={0.5}
+                onChange={(nextSec) => autoplay({ nextSec })}
               />
-              <span class="muted">sec for a picture to sharpen; an early buzz pays up to double</span>
-            </label>
-
-            <label class="field">
-              Autoplay
-              <input
-                type="checkbox"
-                checked={state.autoplay.on}
-                onChange={(e) =>
-                  act({ ...state.autoplay, a: 'setAutoplay', on: (e.target as HTMLInputElement).checked })
-                }
+              <NumberField
+                label="Buzzers stay open"
+                hint="Seconds after the read, then the answer shows"
+                value={state.autoplay.buzzSec}
+                min={0}
+                max={60}
+                step={0.5}
+                onChange={(buzzSec) => autoplay({ buzzSec })}
               />
-              <span class="muted">the reader presses N for you</span>
-            </label>
-
-            {state.autoplay.on && (
-              <>
-                <label class="field">
-                  Answer sits for
-                  <input
-                    class="input input--num"
-                    type="number"
-                    min={0}
-                    max={60}
-                    step={0.5}
-                    value={state.autoplay.nextSec}
-                    onInput={(e) =>
-                      act({
-                        ...state.autoplay,
-                        a: 'setAutoplay',
-                        nextSec: Number((e.target as HTMLInputElement).value),
-                      })
-                    }
-                  />
-                  <span class="muted">sec, then the next question arms</span>
-                </label>
-                <label class="field">
-                  Buzzers stay open
-                  <input
-                    class="input input--num"
-                    type="number"
-                    min={0}
-                    max={60}
-                    step={0.5}
-                    value={state.autoplay.buzzSec}
-                    onInput={(e) =>
-                      act({
-                        ...state.autoplay,
-                        a: 'setAutoplay',
-                        buzzSec: Number((e.target as HTMLInputElement).value),
-                      })
-                    }
-                  />
-                  <span class="muted">sec after the read, then the answer shows</span>
-                </label>
-                <label class="field">
-                  Rebound pause
-                  <input
-                    class="input input--num"
-                    type="number"
-                    min={0}
-                    max={60}
-                    step={0.5}
-                    value={state.autoplay.reboundSec}
-                    onInput={(e) =>
-                      act({
-                        ...state.autoplay,
-                        a: 'setAutoplay',
-                        reboundSec: Number((e.target as HTMLInputElement).value),
-                      })
-                    }
-                  />
-                  <span class="muted">sec after a wrong answer, before the clue resumes</span>
-                </label>
-                <label class="field">
-                  Introductions last
-                  <input
-                    class="input input--num"
-                    type="number"
-                    min={0}
-                    max={60}
-                    step={0.5}
-                    value={state.autoplay.introSec}
-                    onInput={(e) =>
-                      act({
-                        ...state.autoplay,
-                        a: 'setAutoplay',
-                        introSec: Number((e.target as HTMLInputElement).value),
-                      })
-                    }
-                  />
-                  <span class="muted">sec between blocks, then the next block begins</span>
-                </label>
-              </>
-            )}
-          </>
-        )}
-      </div>
+              <NumberField
+                label="Rebound pause"
+                hint="Seconds after a wrong answer, before the clue resumes"
+                value={state.autoplay.reboundSec}
+                min={0}
+                max={60}
+                step={0.5}
+                onChange={(reboundSec) => autoplay({ reboundSec })}
+              />
+              <NumberField
+                label="Introductions last"
+                hint="Seconds between blocks, then the next block begins"
+                value={state.autoplay.introSec}
+                min={0}
+                max={60}
+                step={0.5}
+                onChange={(introSec) => autoplay({ introSec })}
+              />
+            </>
+          )}
+        </>
+      )}
     </section>
   )
 }

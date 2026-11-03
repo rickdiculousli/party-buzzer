@@ -1,6 +1,130 @@
+import { useId } from 'preact/hooks'
+import type { ComponentChildren } from 'preact'
 import type { GameInfo, HostAction, OptionSpec, State } from '../shared/protocol.ts'
 import { REFUSAL_TEXT } from './ui.ts'
 import { refuses } from '../shared/legality.ts'
+
+/**
+ * The desk grammar: one row per control. The label is a sentence, the control
+ * sits in the same column on every fold, and the reason (or the unit) is the
+ * dim line beneath. A `<div>` rather than a `<label>` around the whole row,
+ * because a label's click lands on its first button — the stepper's minus.
+ */
+function Field({ id, label, hint, children }: { id: string; label: string; hint?: string; children: ComponentChildren }) {
+  return (
+    <div class="field">
+      <label class="field__label" for={id}>{label}</label>
+      {children}
+      {hint && <span class="field__hint">{hint}</span>}
+    </div>
+  )
+}
+
+export function NumberField({
+  label,
+  hint,
+  value,
+  min,
+  max,
+  step = 1,
+  disabled = false,
+  onChange,
+}: {
+  label: string
+  hint?: string
+  value: number
+  min: number
+  max: number
+  step?: number
+  disabled?: boolean
+  onChange: (v: number) => void
+}) {
+  const id = useId()
+  return (
+    <Field id={id} label={label} hint={hint}>
+      <span class="stepper">
+        <button class="btn btn--ghost" disabled={disabled || value - step < min} onClick={() => onChange(value - step)}>
+          −
+        </button>
+        <input
+          id={id}
+          class="input input--num"
+          type="number"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          disabled={disabled}
+          onInput={(e) => onChange(Number((e.target as HTMLInputElement).value))}
+        />
+        <button class="btn btn--ghost" disabled={disabled || value + step > max} onClick={() => onChange(value + step)}>
+          +
+        </button>
+      </span>
+    </Field>
+  )
+}
+
+export function ToggleField({
+  label,
+  hint,
+  checked,
+  disabled = false,
+  onChange,
+}: {
+  label: string
+  hint?: string
+  checked: boolean
+  disabled?: boolean
+  onChange: (on: boolean) => void
+}) {
+  const id = useId()
+  return (
+    <Field id={id} label={label} hint={hint}>
+      <input
+        id={id}
+        class="toggle"
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange((e.target as HTMLInputElement).checked)}
+      />
+    </Field>
+  )
+}
+
+export function ChoiceField({
+  label,
+  hint,
+  value,
+  choices,
+  disabled = false,
+  onChange,
+}: {
+  label: string
+  hint?: string
+  value: string
+  choices: { value: string; label: string }[]
+  disabled?: boolean
+  onChange: (v: string) => void
+}) {
+  const id = useId()
+  return (
+    <Field id={id} label={label} hint={hint}>
+      <select
+        id={id}
+        class="input"
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange((e.target as HTMLSelectElement).value)}
+      >
+        {choices.map((c) => (
+          <option key={c.value} value={c.value}>{c.label}</option>
+        ))}
+      </select>
+    </Field>
+  )
+}
 
 export function OptionField({
   spec,
@@ -15,47 +139,37 @@ export function OptionField({
 }) {
   if (spec.kind === 'int') {
     return (
-      <label class="field">
-        {spec.label}
-        <input
-          class="input input--num"
-          type="number"
-          min={spec.min}
-          max={spec.max}
-          value={Number(value ?? spec.default)}
-          disabled={disabled}
-          onInput={(e) => onChange(Number((e.target as HTMLInputElement).value))}
-        />
-      </label>
+      <NumberField
+        label={spec.label}
+        hint={spec.hint}
+        value={Number(value ?? spec.default)}
+        min={spec.min}
+        max={spec.max}
+        disabled={disabled}
+        onChange={onChange}
+      />
     )
   }
   if (spec.kind === 'bool') {
     return (
-      <label class="field">
-        {spec.label}
-        <input
-          type="checkbox"
-          checked={Boolean(value ?? spec.default)}
-          disabled={disabled}
-          onChange={(e) => onChange((e.target as HTMLInputElement).checked)}
-        />
-      </label>
+      <ToggleField
+        label={spec.label}
+        hint={spec.hint}
+        checked={Boolean(value ?? spec.default)}
+        disabled={disabled}
+        onChange={onChange}
+      />
     )
   }
   return (
-    <label class="field">
-      {spec.label}
-      <select
-        class="input"
-        value={String(value ?? spec.default)}
-        disabled={disabled}
-        onChange={(e) => onChange((e.target as HTMLSelectElement).value)}
-      >
-        {spec.choices.map((c) => (
-          <option key={c} value={c}>{c}</option>
-        ))}
-      </select>
-    </label>
+    <ChoiceField
+      label={spec.label}
+      hint={spec.hint}
+      value={String(value ?? spec.default)}
+      choices={spec.choices.map((c) => ({ value: c, label: c }))}
+      disabled={disabled}
+      onChange={onChange}
+    />
   )
 }
 
@@ -96,19 +210,13 @@ export function GameSettings({
   return (
     <section>
       <p class="eyebrow">Mode</p>
-      <label class="field">
-        Mode
-        <select
-          class="input"
-          value={state.game.id}
-          disabled={!!refusal}
-          onChange={(e) => pick((e.target as HTMLSelectElement).value)}
-        >
-          {state.games.map((g) => (
-            <option key={g.id} value={g.id}>{g.name}</option>
-          ))}
-        </select>
-      </label>
+      <ChoiceField
+        label="Mode"
+        value={state.game.id}
+        choices={state.games.map((g) => ({ value: g.id, label: g.name }))}
+        disabled={!!refusal}
+        onChange={pick}
+      />
       {current.options.map((spec) => (
         <OptionField
           key={spec.key}
