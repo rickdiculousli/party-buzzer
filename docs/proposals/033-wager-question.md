@@ -4,10 +4,11 @@ title: The wager: a last question everyone bets on
 kind: feature
 size: L
 judge: fable
-status: proposed
+status: rejected
 lens: ux
 proposed_by: f3e13ca3-5996-4d39-839c-6ee6289499ff
 proposed_on: 2026-10-14
+reason: Operator dropped the wager entirely
 ---
 
 ## Opportunity
