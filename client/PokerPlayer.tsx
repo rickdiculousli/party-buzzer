@@ -6,7 +6,7 @@ import type { MinigamePlayerProps } from './minigames.tsx'
 import { matchFrame } from './minigame-info.ts'
 import { nextBowSequence } from './bow-control.ts'
 import { FeltArc, FeltMark, PlayingCard, ShotRing, cardName, fitFlight, reducedMotion, usePokerCues } from './PokerParts.tsx'
-import { classifyGesture, dealTimes, peekTip, raiseStops, showsRight, GESTURE, PEEK, type Point, type TracePoint } from './poker.ts'
+import { classifyGesture, dealTimes, lie, peekTip, raiseStops, showsRight, GESTURE, PEEK, type Point, type TracePoint } from './poker.ts'
 import { contacts, pitch, simplifyFrames } from './toss.ts'
 import { play } from './sound.ts'
 import { PokerPeekRenderer } from './poker-peek-renderer.ts'
@@ -49,6 +49,24 @@ function Meters({ ofPot, cost, stack }: { ofPot: number | null; cost: number; st
       <span class="poker-meter__bar"><i />{print('Stack', `${share}%`)}</span>
     </div>
   </>
+}
+/**
+ * When a street card new to this phone turns face up: the board pitches it face down and turns it
+ * about 1.0-1.2 s in, so a folded phone never shows it before the room sees it.
+ * shortcut: a fixed lag, not the board's seeded flight; read `flop`/`street` if the board's pace changes.
+ */
+const STREET_TURN_MS = 1_100
+/** One of the street's cards on a phone out of the hand, resting off square the way the board lays it. */
+function StreetCard({ card, hand, index, fresh, mark }: { card: string; hand: number; index: number; fresh: boolean; mark: string }) {
+  const [up, setUp] = useState(!fresh)
+  useEffect(() => {
+    if (up) return
+    const timer = setTimeout(() => setUp(true), reducedMotion() ? 0 : STREET_TURN_MS)
+    return () => clearTimeout(timer)
+  }, [])
+  return <span class={`poker-phone__slot ${fresh ? 'fx-fade' : ''}`} style={{ gridColumn: index + 1, rotate: `${lie(2, hand, 'b', index)}deg` }}>
+    <PlayingCard card={card} up={up} class={mark} />
+  </span>
 }
 /** The slowest a flicked pair may take to leave the screen. */
 const FLY_MAX_MS = 600
@@ -187,6 +205,10 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
   const [sheet, setSheet] = useState(false)
   const [raiseTo, setRaiseTo] = useState(0)
   const [note, setNote] = useState<string | null>(null)
+  // Why this phone's last fold happened, latched when it arrives: the feed it comes in is trimmed mid-hand.
+  const [lastFold, setLastFold] = useState<{ hand: number; auto: boolean } | null>(null)
+  // How many street cards this phone has already seen this hand: only later ones wait for the board to turn them.
+  const streetSeen = useRef<{ hand: number; count: number } | null>(null)
   const noteTimer = useRef<ReturnType<typeof setTimeout>>()
 
   // When this hand's cards were dealt to this phone. A reload mid-hand deals nothing.
@@ -273,6 +295,9 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
     if (!poker) return
     const fresh = poker.feed.filter((entry) => entry.id > seenFeed.current)
     seenFeed.current = Math.max(seenFeed.current, ...poker.feed.map((entry) => entry.id))
+    // My newest fold is this hand's when I am folded: older ones come before it.
+    const fold = poker.feed.findLast((entry) => entry.player === me && entry.kind === 'fold')
+    if (fold && fresh.includes(fold)) setLastFold({ hand: poker.handNo, auto: !!fold.auto })
     // An auto-fold is said by the folded sub-line, which stays; only an auto-check needs the note.
     if (!fresh.some((entry) => entry.player === me && entry.auto && entry.kind === 'check')) return
     setNote('Auto-checked')
@@ -324,10 +349,15 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
 
   const inHand = !!poker.hole && !!mine && !mine.folded
   // Out of this hand (folded) or of the game (busted): the phone follows the hand and says why it can't act.
-  // My last fold in the feed is this hand's, or trimmed away with every older one.
-  const clocked = !!poker.feed.findLast((entry) => entry.player === me && entry.kind === 'fold')?.auto
+  // Folded, the reason and the until-when take a line each.
+  const clocked = lastFold?.hand === poker.handNo && lastFold.auto
   const outLine = poker.place !== null ? `Out · you finished ${ordinal(poker.place)}`
-    : !inHand && mine?.folded ? `${clocked ? 'Folded by the clock' : 'Folded'} · next hand after this one` : null
+    : !inHand && mine?.folded ? `${clocked ? 'Folded by the clock' : 'Folded'}\nnext hand after this one` : null
+  if (streetSeen.current?.hand !== poker.handNo) streetSeen.current = { hand: poker.handNo, count: poker.board.length }
+  const seenStreet = streetSeen.current.count
+  const swept = poker.pots.reduce((a, b) => a + b, 0)
+  const five = new Set(poker.showdown?.[0]?.five ?? [])
+  streetSeen.current.count = poker.board.length
   const point = (e: PointerEvent): TracePoint => ({ x: e.clientX, y: e.clientY, t: e.timeStamp })
   const down = (e: PointerEvent) => {
     // Capture keeps a flick's trace when the finger leaves the felt; a browser may refuse it.
@@ -559,13 +589,15 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
           <line class="felt-line__shade" x1="0" y1="3.5" x2="100" y2="3.5" />
           <line class="felt-line__sheen" x1="0" y1="3" x2="100" y2="3" />
         </svg>}
-        {outLine && !flying && <div class="poker-phone__street">
-          {poker.board.length > 0 && <div class="poker-phone__board">{poker.board.map((card) => <PlayingCard key={card} card={card} up />)}</div>}
-          <span key={pot} class="poker-bump"><FeltMark text={`Pot ${pot.toLocaleString()}`} class="poker-phone__small" /></span>
+        {outLine && !flying && <div class="poker-phone__street fx-fade">
+          <div class="poker-phone__board">{poker.board.map((card, i) => <StreetCard key={`${hand}-${i}`} card={card} hand={hand} index={i} fresh={i >= seenStreet}
+            mark={five.size ? (five.has(card) ? 'poker-card--win' : 'poker-card--dim') : ''} />)}</div>
+          {/* The pot as the board prints it: what the streets have swept in, not the bets still out. */}
+          {swept > 0 && <span key={swept} class="poker-bump"><FeltMark text={`Pot ${swept.toLocaleString()}`} class="poker-phone__small" /></span>}
         </div>}
         {note && <p class="poker-phone__note fx-shake">{note}</p>}
       </div>
-      {outLine ? <div class="poker-phone__foot"><FeltMark text={outLine} class={`poker-phone__out ${poker.place !== null ? 'fx-rubber-stamp' : ''}`} /></div> : <div class="poker-phone__foot">
+      {outLine ? <div class="poker-phone__foot"><FeltMark text={outLine} class={`poker-phone__out ${poker.place !== null ? 'fx-rubber-stamp' : 'fx-fade'}`} /></div> : <div class="poker-phone__foot">
         {/* Always laid out, shown only facing a bet: the cards sit clear of it either way and never move. */}
         <div class={`poker-call ${facing > 0 ? '' : 'is-off'}`} aria-hidden={facing > 0 ? undefined : true}>
           {/* Painted on a shallower curve of the tap line's own smile, so the two read as one set of table words. */}
