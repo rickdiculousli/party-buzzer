@@ -4,7 +4,7 @@ title: Type the question and the wall shows it
 kind: feature
 size: S
 judge: opus
-status: proposed
+status: done
 lens: ux
 proposed_by: f3e13ca3-5996-4d39-839c-6ee6289499ff
 proposed_on: 2026-10-14
@@ -48,6 +48,18 @@ shows it in the reader's type; Arm, buzz, score; Next clears it.
 `npm test` (the act is refused during an introduction and a minigame like
 Read is; a cleared clue leaves no trace in `viewFor` for phones unless mirror
 is on), `npm run build`. Walk it on a disposable room.
+
+## Shown
+- Enter puts it on the wall in the reader's type: `node cache/walk/walk.ts` (a disposable room, Playwright on /host and /board) -> `board after Enter: "Which Beatle was the youngest?"`
+- Arming keeps it: same walk -> `after arm: TRIVIA · ARMED | board: "Which Beatle was the youngest?"`
+- Buzz and score under it: same walk, a fake phone buzzing -> `after buzz and Correct: TRIVIA · IDLE | standings: "1st\nAda\n100" | field: "Which Beatle was the youngest?"`
+- Next clears it and empties the input: same walk -> `after Next: TRIVIA · IDLE | board question count: 0 | field: ""`
+- Refused during an introduction and a minigame, like Read: `server/hub.test.ts` "typing a question is refused during an introduction, a minigame and a read, like Read"
+- A cleared clue leaves no trace for phones; mirror governs a shown one: `server/hub.test.ts` "a typed question is the wall clue, survives arm and undo, mirrors to phones, and Next clears it"
+- Runtime, not in the snapshot; undo leaves it: `server/lifetimes.test.ts` row `typed: { undo: 'live', disk: 'no', … }`, and the hub test's undo step
+- Build: `npm run build` -> `✓ built in 820ms`
+- Host desk still fits every review scenario: `npm run test:review` -> `294 passed (1.2m)`
+- Easy to miss: host shortcuts stay dead while typing: same walk, Space pressed in the field -> `phase after Space in field: TRIVIA · IDLE | field: "Which Beatle was the youngest? "`
 
 ## Risks and the alternative considered
 The host keyboard shortcuts must stay dead while focus is in the input; the
