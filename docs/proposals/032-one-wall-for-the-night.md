@@ -4,7 +4,7 @@ title: The join code stays on the board through long matches
 kind: ux
 size: M
 judge: opus
-status: proposed
+status: done
 lens: ux
 proposed_by: f3e13ca3-5996-4d39-839c-6ee6289499ff
 proposed_on: 2026-10-14
@@ -70,6 +70,14 @@ disposable room with ten seats and look at both sizes for the seats, the log
 and the banners.
 
 ## Shown
+- Mid-Poker the code sits top-right, clear of the seats, the log and the banners: `npm run sim-poker -- 300 http://127.0.0.1:8391` on a disposable room (six bots plus four idle players, ten seats), then a browser on `/board` at both sizes -> `1024 {"text":"Blinds 20 / 40","banner":[85,25,816,239],"bannerText":[96,63,805,201],"qr":[896,16,1000,142]}`; the mid-hand frames show every seat and the log clear of it at 1280×720 and 1024×600.
+- It stays up through Sketch's drawing and Ink's team picking: review scenarios `sketch-drawing-crowd` and `ink-lobby` in `tools/review/fixtures.ts`, which `npm run test:review` fits -> `342 passed (1.4m)`.
+- Bow shows it at ready, hides it for the shot clock and brings it back at results: test `the join code hides only while a timed match counts down and plays` in `client/minigames.test.ts`, and scenarios `bow-ready`, `bow-results`.
+- `npm test` -> `ℹ fail 0`; `npm run build` -> `✓ built in 905ms`.
+- `npm run test:review` in full at 1280×720 and 1024×600, no `data-overlap` on the code: `grep -c data-overlap client/JoinCode.tsx` -> `0`; `npm run test:review` -> `342 passed (1.4m)`.
+- New board scenarios: `bow-ready`, `bow-results`, `tank-ready`, `tank-results`, `tug-ready`, `tug-results`, `poker-ready`, `poker-results` (eight players), `ink-discard-full`, `sketch-drawing-crowd` (twelve players), listed in `tools/review.test.ts`.
+- Tug results with eight players fit beside the code: winners and the rest now stand side by side under a centred verdict, the code in the right margin at its full size even under a long side name: `node cache/tugcheck.mjs` -> `1280 Night Owls wins {"qr":[1160,1264,574,678],"verdict":[48,1128,81,465],"lists":[441,736,489,700],"scroll":0}`.
+- Easy to miss: the registry's `timed` flag is the one test, passed to each board, not a branch per game: `joinShown` in `client/minigame-info.ts`, passed as `join` from `client/Board.tsx`.
 
 ## Risks and the alternative considered
 A guest arriving mid-play of a timed match waits at most three minutes for
@@ -81,3 +89,4 @@ would still need a CSS rule keyed on its own class to clear the corner; a
 sidebar during play, rejected because it shrinks the fields.
 
 ## Needs from the operator
+- None.

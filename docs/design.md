@@ -971,6 +971,9 @@ block's introduction), with the join address printed under it for a phone that
 will not scan; then it shrinks to a corner. The standings win the sidebar: a
 long lobby roster shrinks the code, never the list.
 Between questions it is still there for latecomers, just not eating the wall.
+A minigame board places the same small code (`JoinCode`) inside its own layout,
+clear of its field: shown throughout an untimed match, and at ready and results
+of a timed one.
 Connection state sits at the bottom of the sidebar as a `.lamp` — the room
 never needs it, but the host glancing at the wall does. The standings mark
 the podium with `.rank` medals (1st/2nd/3rd in brass, silver, bronze); below
