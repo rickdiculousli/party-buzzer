@@ -887,7 +887,8 @@ or delta: the board measures the band under the lowest readout. Where it is too
 short for a pill above the foot row (a two-row timeline on a 720p board) and no
 lockout chip is up, the pills rest in the foot row, shrinking toward the
 deltas' 1.2× type and leaving the count chip's lane free; shorter still, every
-reaction counts in the chip instead. They are never stage content: the hero,
+reaction counts in the chip instead. A pill keeps the lane it was born in, and
+one whose band shrinks below that lane fades early where it is. They are never stage content: the hero,
 the stamp and the timeline sit where they always do.
 
 A **choice question** keeps the three bands, but lifts the middle one

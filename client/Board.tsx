@@ -314,7 +314,14 @@ function roomUnder(wall: HTMLElement): number | null {
  * delta at any board size. A band too short for a pill above the foot row
  * (`--pill-high`) puts smaller pills in the foot row while no lockout chip is
  * there (`--pill-low`, `is-low`); shorter still, every receipt counts.
+ * A pill keeps the lane it was born in: a high one follows the band as the
+ * rows change, a low one stays put, and one whose band has since shrunk below
+ * its lane fades early where it is rather than land on a readout.
  */
+/** Where a pill was born: its band's mode and the band's height, which a high pill keeps following. */
+type Placed = { mode: 'high' | 'low'; under: number | null; cleared?: true }
+const RANK = { none: 0, low: 1, high: 2 }
+
 function Reactions({ state, reacted, rows, lockouts, now, frozen }: {
   state: State
   reacted: { pills: Pill[]; more: number }
@@ -340,7 +347,7 @@ function Reactions({ state, reacted, rows, lockouts, now, frozen }: {
     watch.observe(wall)
     return () => watch.disconnect()
   }, [rows, lockouts])
-  const fate = useRef(new Map<number, 'pill' | 'count'>())
+  const fate = useRef(new Map<number, Placed | 'count'>())
   const chipAt = useRef<number | undefined>(undefined)
   const empty = <div ref={layer} class="board__pills" />
   if (reacted.pills.length === 0 && reacted.more === 0) {
@@ -350,8 +357,17 @@ function Reactions({ state, reacted, rows, lockouts, now, frozen }: {
   }
   // Unmeasured, the band is unknown: nothing is decided until the layout effect has read it.
   if (!room) return empty
-  for (const p of reacted.pills) if (!fate.current.has(p.seq)) fate.current.set(p.seq, room.mode === 'none' ? 'count' : 'pill')
-  const pills = reacted.pills.filter((p) => fate.current.get(p.seq) === 'pill')
+  for (const p of reacted.pills) {
+    if (!fate.current.has(p.seq)) fate.current.set(p.seq, room.mode === 'none' ? 'count' : { mode: room.mode, under: room.under })
+    const f = fate.current.get(p.seq)!
+    if (f === 'count' || f.cleared) continue
+    if (RANK[room.mode] < RANK[f.mode]) f.cleared = true
+    else if (f.mode === 'high') f.under = room.under
+  }
+  const pills = reacted.pills.flatMap((p) => {
+    const f = fate.current.get(p.seq)!
+    return f === 'count' ? [] : [{ ...p, f }]
+  })
   const more = reacted.more + reacted.pills.length - pills.length
   if (more > 0 && chipAt.current === undefined) chipAt.current = now
   if (more === 0) chipAt.current = undefined
@@ -362,13 +378,17 @@ function Reactions({ state, reacted, rows, lockouts, now, frozen }: {
   return (
     <div
       ref={layer}
-      class={`board__pills${room.mode === 'low' ? ' is-low' : ''}${frozen ? ' is-frozen' : ''}`}
+      class={frozen ? 'board__pills is-frozen' : 'board__pills'}
       data-review-id="board:reactions"
-      style={{ '--cols': PILL_CAP, '--under': room.under === null ? undefined : `${room.under}px` }}
+      style={{ '--cols': PILL_CAP }}
     >
       {pills.map((p) => (
         // Under a deeper timeline the band is too shallow for a scatter: one clean row.
-        <span key={p.seq} class="board__pill-slot fx-fade fx-fade--out" style={{ '--col': p.col, '--lift': rows > 1 ? 1 : LIFTS[p.col] }}>
+        <span
+          key={p.seq}
+          class={`board__pill-slot fx-fade fx-fade--out${p.f.mode === 'low' ? ' is-low' : ''}${p.f.cleared ? ' is-cleared' : ''}`}
+          style={{ '--col': p.col, '--lift': rows > 1 ? 1 : LIFTS[p.col], '--under': p.f.under === null ? undefined : `${p.f.under}px` }}
+        >
           <span class="board__pill fx-rise" style={{ '--id': colorForPlayer(state, p.playerId) }}>{QUIZ_REACT_LABEL[p.kind]}</span>
         </span>
       ))}

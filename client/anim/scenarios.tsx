@@ -866,7 +866,7 @@ export const SCENARIOS: Scenario[] = [
         mid={<p class="board__hero">Ada</p>}
         below={<Timeline />}
         over={!lead && (
-          <div class="board__pills" style={{ '--cols': PILL_CAP, '--rows': 1 }}>
+          <div class="board__pills" style={{ '--cols': PILL_CAP }}>
             {REACTIONS.map((r, i) => (
               <span key={i} class="board__pill-slot fx-fade fx-fade--out" style={{ '--col': i, '--lift': LIFTS[i] }}>
                 <span class="board__pill fx-rise" style={{ '--id': r.id }}>{r.word}</span>

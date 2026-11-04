@@ -783,12 +783,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   /* The band a pill at the timeline deltas' type needs in the foot row. */
   --pill-low: calc(var(--s3) + var(--t-chip-board) * 1.2 * 1.6 + var(--s2));
 }
-/* A short band: the pills rest in the foot row, as large as the band allows,
-   and leave the count chip's lane at the right free. */
-.board__pills.is-low {
-  font-size: clamp(var(--t-chip-board) * 1.2, (var(--under) - var(--s2) - var(--s3)) / 1.6, var(--pill-type));
-  --pill-span: calc(100% - var(--t-chip-board) * 4);
-}
 .board__pill-slot {
   position: absolute;
   /* `--lift` scales the rest per column, so a batch sent in one instant does not
@@ -803,7 +797,22 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   /* Symmetric, so the reversed fade reads as a fade and not an ease-in cut. */
   --fx-ease: var(--rate-even);
 }
-.board__pills.is-low .board__pill-slot { --rest: 0px; bottom: var(--s3); }
+/* Born in a short band: the pill rests in the foot row, as large as the band
+   allows, a short rise up from the edge, and leaves the count chip's lane at
+   the right free. */
+.board__pill-slot.is-low {
+  font-size: clamp(var(--t-chip-board) * 1.2, (var(--under) - var(--s2) - var(--s3)) / 1.6, var(--pill-type));
+  --pill-span: calc(100% - var(--t-chip-board) * 4);
+  --rest: 0px;
+  bottom: var(--s3);
+}
+.board__pill-slot.is-low .board__pill { --fx-amp: 3vh; }
+/* The band shrank under a live pill: it fades early where it is. A filter, so
+   it never fights the slot's own fade for opacity. */
+.board__pill-slot.is-cleared {
+  filter: opacity(0);
+  transition: filter var(--pill-fade-dur) var(--rate-even);
+}
 .board__pill {
   display: inline-block;
   --fx-dur: var(--pill-rise-dur);
