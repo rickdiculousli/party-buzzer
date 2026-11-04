@@ -271,7 +271,8 @@ while (host.state()?.minigame?.phase === 'playing') {
     else if (s.at === 'peekPick' && ours && !writer) {
       castVote(s.targets, s.targets[0], (choice) => [`row:${choice}`], PEEK_LOOK_TICKS)
     } else if (s.at === 'peekWrite' && frame.roster[s.team].writer === id) {
-      await writeNext(`${s.team}:${s.row}`)
+      // A peek needs one more stroke; a word already written out gets a tick mark instead.
+      if (!await writeNext(`${s.team}:${s.row}`)) send({ kind: 'stroke', points: [[0.92, 0.3], [0.92, 0.7]] })
       await sleep(200)
       send({ kind: 'done' })
     } else if (s.at === 'choose' && ours && !writer) {

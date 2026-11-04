@@ -4,7 +4,7 @@ title: The Ink sim runs on a checked-in sample deck
 kind: time-cost
 size: S
 judge: sonnet
-status: proposed
+status: done
 lens: eng
 proposed_by: party-buzzer-build-1 operator session
 proposed_on: 2026-11-03
@@ -40,6 +40,11 @@ sample loads; with the real deck, it wins; without the env var, no sample). `npm
 worktree reaches a win.
 
 ## Shown
+- Sim plays a game on a fresh checkout: `INK_SAMPLE=1 PORT=18081 node server/index.ts` then `npm run sim-ink -- 100 <url>` -> `Game over: [{"playerId":"sim-ink-Ivy","points":1,...` and the server log said `Phantom Ink: packs/phantom-ink.txt is absent; using packs/ink-sample.txt (INK_SAMPLE=1, simulations only)` once
+- Without the env var the minigame still refuses with `ink-cards`: `server/minigames/ink/cards.test.ts` "the sample deck loads only with INK_SAMPLE=1 and no real deck" asserts `loadInkDeck` returns `packs/phantom-ink.txt is missing` for no env and `INK_SAMPLE=0` (which `definition.ts` turns into `ink-cards`); not run live against a server
+- Real deck wins, broken real deck is not papered over: same test
+- Easy to miss: the sample must not be a silent fallback: `loadInkDeck` returns the real-deck result unless `INK_SAMPLE === '1'` and the real file does not exist
+- Scope grew by one line: the sim stalled when a peek row's clue word was already fully written (no stroke, so `done` refused); `tools/sim-ink.ts` now sends a tick-mark stroke then; the first sample run stalled there for 13 minutes before the win run
 
 ## Risks and the alternative considered
 The gate keeps the sample off real nights. Alternative: fall back always;
