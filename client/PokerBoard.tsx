@@ -4,6 +4,7 @@ import type { PlayerId, PokerFeedEntry } from '../shared/protocol.ts'
 import { REACT_LABEL } from '../shared/protocol.ts'
 import { mulberry32 } from '../shared/random.ts'
 import type { MinigameBoardProps } from './minigames.tsx'
+import { JoinCode } from './JoinCode.tsx'
 import { matchFrame } from './minigame-info.ts'
 import { Burst, Letters } from './fx.tsx'
 import { ChipStack, Corral, DealerPuck, LevelClock, FeltMark, PaintPile, Piece, PlayingCard, ShotRing, reducedMotion, usePokerCues, useSize, type PieceSound } from './PokerParts.tsx'
@@ -61,7 +62,7 @@ type Ghost = { key: string; pose: Pose; frames: Frame[]; sound?: PieceSound; kin
  * The board is the table under one lamp: felt to every edge, seats printed
  * around it, and a dealer just off the top edge who pitches every card.
  */
-export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
+export function PokerBoard({ state, frame, now, join }: MinigameBoardProps) {
   const session = state.minigame!
   const poker = matchFrame(frame, 'poker', 'board', session.matchId)
   usePokerCues(poker, 'board')
@@ -302,7 +303,7 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
     const rows = [...session.results ?? []].sort((a, b) => (a.place ?? 0) - (b.place ?? 0))
     const winner = rows[0]
     return <main class="board poker-room">
-      <div class="felt felt--board"><div class="felt__lamp felt__lamp--centre" />
+      <div class="felt felt--board"><div class="felt__lamp felt__lamp--centre" aria-hidden="true" />
         <section class="poker-final">
           {winner && <p class="poker-final__name fx-hero-slam-glow" style={{ '--id': colorForPlayer(state, winner.playerId) }}>
             {nameOf(winner.playerId)}<Burst kind="confetti" />
@@ -313,18 +314,20 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
             <span style={{ color: colorForPlayer(state, row.playerId) }}>{nameOf(row.playerId)}</span>
           </li>)}</ol>
         </section>
+        {join && <JoinCode small />}
       </div>
     </main>
   }
 
   if (!poker) return <main class="board poker-room">
-    <div class="felt felt--board"><div class="felt__lamp felt__lamp--centre" />
+    <div class="felt felt--board"><div class="felt__lamp felt__lamp--centre" aria-hidden="true" />
       <section class="poker-final">
         <FeltMark text="Party Buzzer" class="poker-logo__name" />
         <FeltMark text="No-limit Hold'em" class="poker-logo__game" />
         <p class="poker-waiting">{session.phase === 'ready' ? (session.checkpoint ? `Resumes from ${session.checkpoint.label}` : 'Next up') : 'Shuffling up'}</p>
         <p class="poker-rules">{POKER_RULES}</p>
       </section>
+      {join && <JoinCode small />}
     </div>
   </main>
 
@@ -380,8 +383,8 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
 
   return <main class="board poker-room">
     <div class="felt felt--board" ref={tableRef}>
-      <div class="felt__lamp felt__lamp--centre" />
-      {actor >= 0 && <div class="felt__lamp felt__lamp--seat" style={{ transform: `translate(${spots[actor].x}px, ${spots[actor].y}px) translate(-50%, -50%)` }} />}
+      <div class="felt__lamp felt__lamp--centre" aria-hidden="true" />
+      {actor >= 0 && <div class="felt__lamp felt__lamp--seat" aria-hidden="true" style={{ transform: `translate(${spots[actor].x}px, ${spots[actor].y}px) translate(-50%, -50%)` }} />}
       <svg class="felt-line" viewBox={`0 0 ${w || 1} ${h || 1}`} aria-hidden="true">
         {/* The betting line is sheared into the pile: a shadowed upper edge over a lighter, shorter-napped band. */}
         <ellipse class="felt-line__shade" cx={centre.x} cy={centre.y - 1} rx={lineRx} ry={lineRy} />
@@ -504,6 +507,7 @@ export function PokerBoard({ state, frame, now }: MinigameBoardProps) {
         return <p key={f.key} class="poker-float fx-rise" style={{ left: `${spots[i].x}px`, top: `${spots[i].y - cardW}px`, '--id': colorForPlayer(state, f.player) }}>{f.text}</p>
       })}
       {banners.map((b) => <div key={b.key} class="poker-banner"><p class="poker-banner__text fx-zoom">{b.text}</p></div>)}
+      {join && <JoinCode small />}
     </div>
 
     <header class="poker-hud">

@@ -1,5 +1,6 @@
 import type { MinigameFrame } from '../shared/protocol.ts'
 import type { MinigameBoardProps } from './minigames.tsx'
+import { JoinCode } from './JoinCode.tsx'
 import { matchFrame } from './minigame-info.ts'
 import { colorForPlayer, playerName } from './ui.ts'
 import { aimDegrees } from './bow-control.ts'
@@ -18,7 +19,7 @@ function Arrow({ arrow, color }: { arrow: BoardFrame['arrows'][number]; color: s
   )
 }
 
-export function BowBoard({ state, frame, now }: MinigameBoardProps) {
+export function BowBoard({ state, frame, now, join }: MinigameBoardProps) {
   const session = state.minigame!
   const board = matchFrame(frame, 'bow', 'board', session.matchId)
   const remaining = session.endsAt ? Math.max(0, Math.ceil((session.endsAt - now()) / 1000)) : session.options.durationSec
@@ -35,6 +36,7 @@ export function BowBoard({ state, frame, now }: MinigameBoardProps) {
           </li>
         ))}
       </ol>
+      {join && <JoinCode small />}
     </main>
   )
 
@@ -70,6 +72,7 @@ export function BowBoard({ state, frame, now }: MinigameBoardProps) {
         })}
         {board?.arrows.map((arrow) => <Arrow key={arrow.id} arrow={arrow} color={colorForPlayer(state, arrow.playerId)} />)}
       </svg>
+      {join && <JoinCode small />}
     </main>
   )
 }

@@ -12,6 +12,8 @@ import { isPenalty } from '../shared/protocol.ts'
 import { useReveal } from './useReveal.ts'
 import { COLLECT_MS, QUIZ_REACT_LABEL, type BuzzEntry, type State } from '../shared/protocol.ts'
 import { MINIGAMES } from './minigames.tsx'
+import { joinShown } from './minigame-info.ts'
+import { JoinCode } from './JoinCode.tsx'
 import { ArrivalBoard } from './ArrivalBoard.tsx'
 import { practiceLobbyId } from './arrival-feedback.ts'
 import { useLitTime, usePracticeTime } from './usePractice.ts'
@@ -715,7 +717,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
   if (!state) return <main class="board"><p class="board__idle">Connecting</p></main>
   if (state.minigame) {
     const Surface = MINIGAMES[state.minigame.id].board
-    return <Surface key={state.minigame.matchId} state={state} frame={minigameFrame} now={now} touches={minigameTouches} />
+    return <Surface key={state.minigame.matchId} state={state} frame={minigameFrame} now={now} touches={minigameTouches} join={joinShown(state.minigame.id, state.minigame.phase)} />
   }
 
   const { round } = state
@@ -739,8 +741,6 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
   const seating = willSeat(state)
   const setlistLabel = setlistPosition(state)
   const qrBig = state.players.length === 0 || state.arrival?.kind === 'lobby' || state.arrival?.kind === 'introduction'
-  const loopback = ['localhost', '127.0.0.1', '::1', '[::1]'].includes(location.hostname)
-  const showAddress = qrBig && !loopback
 
   return (
     <main class="board" data-review-id="board:root">
@@ -981,24 +981,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
 
         {/* Full size while the room is arriving (no players yet, the lobby, a
             first-block introduction), then out of the way once play starts. */}
-        <div data-review-id="board:join" class={qrBig ? 'board__qr fx-glow-pulse' : 'board__qr is-small'}>
-          {/* At the finale the code carries the keepsake instead of the room. */}
-          <img src={w.finale ? '/recap.svg' : '/qr.svg'} alt={w.finale ? 'Scan to keep the night' : 'Scan to join'} />
-          <p>{w.finale ? 'Scan to keep the night' : 'Scan to join'}</p>
-          {/* With its scheme: the server is https-only, and a bare host typed
-              into a phone goes to http first and gets nothing. Three spans so a
-              long certificate name wraps between tokens, never inside one. */}
-          {showAddress && !w.finale && (
-            <>
-              <p class="board__addr">
-                <span class="board__addr-dim">{location.protocol}//</span>
-                <span>{location.hostname}</span>
-                {location.port && <span class="board__addr-dim">:{location.port}</span>}
-              </p>
-              <p class="board__addr-hint">or type the address</p>
-            </>
-          )}
-        </div>
+        <JoinCode small={!qrBig} finale={!!w.finale} />
 
         {/* The room never needs this, but the host glancing at the wall does. */}
         <span class="lamp">

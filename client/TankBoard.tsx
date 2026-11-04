@@ -1,6 +1,7 @@
 import { useRef } from 'preact/hooks'
 import type { MinigameFrame } from '../shared/protocol.ts'
 import type { MinigameBoardProps } from './minigames.tsx'
+import { JoinCode } from './JoinCode.tsx'
 import { matchFrame } from './minigame-info.ts'
 import { coverPath, nearestAngleDegrees } from './tank-control.ts'
 import { colorForPlayer, playerName } from './ui.ts'
@@ -10,7 +11,7 @@ type TankBoardFrame = Extract<MinigameFrame, { role: 'board'; id: 'tank' }>
 const BLAST_MS = 250
 const AIM_DASHES = [0, 1, 2, 3, 4, 5, 6, 7]
 
-export function TankBoard({ state, frame, now }: MinigameBoardProps) {
+export function TankBoard({ state, frame, now, join }: MinigameBoardProps) {
   const session = state.minigame!
   const board = matchFrame(frame, 'tank', 'board', session.matchId)
   const cells = useRef<Uint8Array | null>(null)
@@ -52,6 +53,7 @@ export function TankBoard({ state, frame, now }: MinigameBoardProps) {
           </li>
         ))}
       </ol>
+      {join && <JoinCode small />}
     </main>
   )
 
@@ -105,6 +107,7 @@ export function TankBoard({ state, frame, now }: MinigameBoardProps) {
           <circle key={index} cx={blast.x} cy={blast.y} r={blast.radius} class="tank-field__blast" opacity={1 - (now() - blast.at) / BLAST_MS} />
         ))}
       </svg>
+      {join && <JoinCode small />}
     </main>
   )
 }

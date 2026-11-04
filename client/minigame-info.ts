@@ -1,4 +1,4 @@
-import { MINIGAME_OPTIONS, type GameInfo, type MinigameFrame, type MinigameId } from '../shared/protocol.ts'
+import { MINIGAME_OPTIONS, type GameInfo, type MinigameFrame, type MinigameId, type MinigamePhase } from '../shared/protocol.ts'
 
 /**
  * The JSX-free half of the minigame client, so plain tests can read it.
@@ -13,6 +13,14 @@ export const MINIGAME_INFO: Record<MinigameId, { name: string; timed: boolean; p
   poker: { name: 'Poker', timed: false, picksTeams: false },
   tug: { name: 'Tug of war', timed: true, picksTeams: false },
 }
+
+/**
+ * Whether a minigame board shows the room's join code: always in an untimed
+ * match, and at ready and results of a timed one. A guest who scans at ready
+ * plays that match; a timed match's countdown and play last minutes at most.
+ */
+export const joinShown = (id: MinigameId, phase: MinigamePhase): boolean =>
+  !MINIGAME_INFO[id].timed || phase === 'ready' || phase === 'results'
 
 /** The minigames in the shape the modes ship, so one picker and one options form serve both. */
 export const MINIGAME_CATALOG: GameInfo[] = (Object.keys(MINIGAME_INFO) as MinigameId[])

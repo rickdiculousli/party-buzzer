@@ -66,7 +66,7 @@ export function PokerStress({ lead, surface }: { lead: boolean; surface: 'board'
       <option value={0}>On table changes</option><option value={16}>Every 16ms</option><option value={50}>Every 50ms</option><option value={250}>Every 250ms</option>
     </select></label>
     <div class="poker-stress__surface">
-      {surface === 'board' ? <PokerBoard state={state} frame={frame} now={Date.now} touches={[]} /> : <PokerPlayer state={state} frame={frame} now={Date.now}
+      {surface === 'board' ? <PokerBoard state={state} frame={frame} now={Date.now} touches={[]} join /> : <PokerPlayer state={state} frame={frame} now={Date.now}
         playerId="p0" connected send={(msg) => {
           if (msg.t === 'minigameInput' && msg.input.kind === 'fold') setSource((s) => ({ ...s, seats: s.seats.map((seat, i) => i === 0 ? { ...seat, folded: true } : seat) }))
         }} ack={null} touches={[]} />}

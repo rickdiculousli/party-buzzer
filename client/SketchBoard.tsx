@@ -11,7 +11,7 @@ import { colorForPlayer, playerName, setlistPosition, standings } from './ui.ts'
  * guesses beside it and the seconds left loom through it, and the reveal
  * stamps the result the way a scored question does.
  */
-export function SketchBoard({ state, frame, now }: MinigameBoardProps) {
+export function SketchBoard({ state, frame, now, join }: MinigameBoardProps) {
   const session = state.minigame!
   const sketch = matchFrame(frame, 'sketch', 'board', session.matchId)
   const strokes = useSketchStrokes(sketch)
@@ -38,7 +38,7 @@ export function SketchBoard({ state, frame, now }: MinigameBoardProps) {
           {!!top.length && <p class="board__answer">{top.length > 1 ? 'Share the win' : 'Wins Sketch'}</p>}
         </div>
       </section>
-      <SketchStandings title="Sketch points" rows={results.map((r) => rowOf(r.playerId, r.points))} />
+      <SketchStandings title="Sketch points" rows={results.map((r) => rowOf(r.playerId, r.points))} join={join} />
     </main>
   }
 
@@ -54,7 +54,7 @@ export function SketchBoard({ state, frame, now }: MinigameBoardProps) {
       </div>
       <div class="board__below"><p class="sketch-rules">{SKETCH_RULES}</p></div>
     </section>
-    <SketchStandings title="Standings" rows={standings(state)} />
+    <SketchStandings title="Standings" rows={standings(state)} join={join} />
   </main>
 
   const rows = Object.entries(sketch.scores)
@@ -110,6 +110,6 @@ export function SketchBoard({ state, frame, now }: MinigameBoardProps) {
         </>
       )}
     </section>
-    <SketchStandings title="Sketch points" rows={rows} />
+    <SketchStandings title="Sketch points" rows={rows} join={join} />
   </main>
 }
