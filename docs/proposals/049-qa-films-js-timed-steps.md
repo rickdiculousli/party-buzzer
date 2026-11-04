@@ -4,7 +4,7 @@ title: adversarial-qa says how to film a ceremony whose steps JavaScript times
 kind: token-cost
 size: XS
 judge: sonnet
-status: proposed
+status: done
 lens: eng
 proposed_by: party-buzzer-build-1 operator session
 proposed_on: 2026-11-03
@@ -35,6 +35,8 @@ The skill names the per-step scenario path where a critic gathers evidence.
 `npm test` unaffected; the skill reads the line in its evidence section.
 
 ## Shown
+- The skill names the per-step scenario path where a critic gathers evidence: `.agents/skills/adversarial-qa/SKILL.md` section 2 bullet "The filmstrip seeks CSS animations only..."; `finale-third` and `finale-second` exist in `client/anim/scenarios.tsx`.
+- Easy to miss: the sequence is checked in a walk on a disposable room, not the filmstrip: the same bullet says "check the sequence in a `walk-*` run on a disposable room, not in the filmstrip".
 
 ## Risks and the alternative considered
 Alternative: teach the filmstrip to walk a scenario in real time; rejected

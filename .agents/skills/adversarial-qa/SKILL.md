@@ -64,6 +64,10 @@ npm run loudness                        # every cue against the loudness standar
 - If a changed moment has no harness scenario or kinematics preset, add one
   (a scenario in `client/anim/scenarios.tsx`, a preset in
   `tools/qa/kinematics.ts`) rather than reviewing it blind. Say that you did.
+- The filmstrip seeks CSS animations only, so it cannot film steps a JavaScript
+  clock advances (a podium revealing 3rd, 2nd, 1st). Give each such step its own
+  scenario (`finale-third`, `finale-second`), and check the sequence in a `walk-*`
+  run on a disposable room, not in the filmstrip.
 - Rebuild `dist/` after changes (`npm run build`). Rick has been served a stale
   build before.
 
