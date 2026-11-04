@@ -1,9 +1,9 @@
 ---
 id: 032
-title: The room's sidebar stays up between plays of a match
+title: The join code stays on the board through long matches
 kind: ux
 size: M
-judge: fable
+judge: opus
 status: proposed
 lens: ux
 proposed_by: f3e13ca3-5996-4d39-839c-6ee6289499ff
@@ -11,68 +11,73 @@ proposed_on: 2026-10-14
 ---
 
 ## Opportunity
-As soon as a match opens, `Board.tsx` hands the whole screen to that
-minigame's board (`client/Board.tsx:574-577`), and the quiz sidebar goes with
-it: the standings, the join QR and the lamp (`Board.tsx:814`). Each of the six
-minigames then draws its own frame. Ink, Sketch and Poker show the block chip
-(`setlistPosition`, `InkBoard.tsx:18`, `SketchBoard.tsx:20`,
-`PokerBoard.tsx:75`). Bow, Tank and Tug of war show only their name
-(`BowBoard.tsx:44`, `TankBoard.tsx:61`, `TugBoard.tsx:141`). Sketch alone
-brings back night standings, at ready (`SketchBoard.tsx:56`). A guest who
-arrives during a match has no code to scan, and at the results nobody sees
-how the match moved the night's standings. Those standings are already in `state.scores` by
-then (`hub.ts:764`).
+As soon as a match opens, `Board.tsx` returns the minigame's board alone
+(`client/Board.tsx:716-719`), and the join code goes with the quiz sidebar
+(`Board.tsx:984-1001`). Sketch gives every player an 80 s turn by default and
+Poker doubles its blinds every 10 minutes (`shared/protocol.ts:320-321,326`).
+A guest who arrives during either has nothing to scan until it ends. Ready is
+where the code pays most: participants are fixed at `startMinigame`
+(`server/minigames/runtime.ts:82,90`), so a guest who joins during ready plays
+that match. At ready there is no world yet (`runtime.ts:69,215`), so Bow and
+Tank show an empty field.
 
-![quiz board on a setlist](assets/032-board-quiz.png)
-![Bow at 1920×1080](assets/032-board-bow.png)
-![Sketch at 1920×1080](assets/032-board-sketch.png)
+![Poker at 1280×720: log bottom-right, top-right empty](assets/032-board-poker.png)
+![Ink lobby at 1024×600, stand-in bottom-right](assets/032-board-ink-lobby.png)
 
 ## Proposal
-`Board.tsx` owns it, by phase. While a match is in `ready` or `results`, so
-no field is being played, `Board.tsx` renders the minigame's board in the
-wall column and the quiz's own sidebar beside it. That sidebar is the standings,
-the small QR and the lamp, pulled out of the quiz render as one `RoomSide`
-component rather than copied. At results the standings show the night with the
-match folded in, and `ScoreChange` animates the jump. Through `countdown` and
-`playing`, the minigame's board keeps the whole screen as it does today.
-Sketch's own sidebar at ready and results (`SketchBoard.tsx:40,56`) goes,
-since `RoomSide` replaces it. Bow, Tank and Tug of war change their title to
-`setlistPosition(state) ?? name`, the line Ink, Sketch and Poker already use.
-In: `RoomSide`, the phase switch in `Board.tsx`, CSS so the six ready and results
-screens fit the wall column, Sketch's two sidebars, three title lines, the
-missing review scenarios. Out:
-any field's size or drawing during play, clocks, phones, Poker's table, a
-QR during play.
+The quiz sidebar's join block becomes one `JoinCode` component with a `small`
+form (`.board__qr.is-small`: the QR and "Scan to join", `client/style.css:1293-1295`).
+The quiz keeps using it as now: big in the lobby (spec 007), the recap code at
+the finale (spec 031). Each minigame board places `<JoinCode small />` inside
+its own layout, so the board that owns a corner decides what goes there, and
+no rule outside it names a game:
+- Sketch: one line in `SketchStandings` (`client/SketchParts.tsx:59-72`), whose
+  flex column clips the standings above it as the quiz sidebar does.
+- Poker: inside `.felt--board`, top-right; the seats ride an oval centred at
+  0.44 of the width (`client/poker.ts:128`) and the log sits bottom-right
+  (`style.css:3795`).
+- Ink: in its own grid, clear of the lobby panels and the Moon discard column.
+- Bow, Tank, Tug of war: in their ready screen and their results `<main>`.
 
-How it fits with 041 (Sketch keeps its feed off the canvas, being built): 041
-changes Sketch's drawing phase (its feed column and its clock). This spec
-touches only Sketch's ready and results branches, so the two don't overlap.
-How it fits with 040 (who is in the room): `RoomSide` is the quiz's sidebar,
-so 040's dimmed away rows show here too.
+It shows in every phase of an untimed match and at ready and results of a
+timed one, hidden only during a timed match's countdown and play (at most
+180 s, `protocol.ts:314,317,330`). The registry's `timed` flag
+(`client/minigames.tsx:31-48`) is that test, passed to each board, not a
+branch per game. A new minigame board has to place it too; the fit-check
+scenarios below make a missing one visible.
+In: `JoinCode`, its six placements, the review scenarios. Out: any field's
+size, the fit checker, phones, the address line (the small form hides it).
 
-Judge: fable, because how the six ready and results screens sit in a narrower
-wall needs an eye.
+Fits with 041 (Sketch's feed column is beside the canvas, the code is in the
+standings column) and 036/046 (pills render only on the quiz board).
+
+Judge: opus, because each placement is pinned and the fit check measures it.
 
 ## What you'll see
-Bow opens and the standings and QR are still there while phones tap Ready.
-The arrows fly full-screen. At the buzzer, the results sit beside the night's
-standings as Nia jumps from 4th to 2nd.
+Mid-Poker a "Scan to join" code sits top-right on the felt, clear of the seats
+and the log; it stays up through Sketch's drawing and Ink's team picking. Bow
+shows it beside the empty field while the room gathers, hides it for the shot
+clock, and brings it back at results.
 
 ## Verification
-`npm run build`, `npm test`, then `npm run test:review` in full. Only Ink
-and Sketch have review scenarios today (`tools/review/fixtures.ts`), so the
-build adds a ready and a results scenario for Bow, Tank, Poker and Tug of
-war. All twelve must fit at 1920×1080 and 1280×720. Run `sim-bow`, `sim-tank`, `sim-ink`, `sim-sketch`, `sim-poker` and
-`sim-tug` on a disposable room: the sidebar is up at ready and results and
-gone during play.
+`npm test`, `npm run build`, then `npm run test:review` in full at the board
+sizes 1280×720 and 1024×600 (`tools/review/fits.spec.ts:23-27`), with no
+`data-overlap` on the code. New board scenarios in `tools/review/fixtures.ts`:
+Bow, Tank and Tug ready, and their results with eight players; Poker ready
+and results; Ink with a full discard column; Sketch drawing with twelve
+players. Poker mid-hand has no fixture: run `npm run sim-poker -- 300` on a
+disposable room with ten seats and look at both sizes for the seats, the log
+and the banners.
+
+## Shown
 
 ## Risks and the alternative considered
-The fields are SVG viewBoxes in world units (`BOW_FIELD`, 1600×900), and aim
-comes from the phone, so the board's size never changes gameplay. A sidebar
-during play would still cost a quarter of the field's width at 3 m, which is
-why it stays out. A long untimed match (Poker, Sketch, Ink) still shows no QR
-mid-play. A later upgrade is a corner tag, once review scenarios show a corner that is free in all six.
-Alternative considered: a frame around every phase (the first draft). Rejected because it
-shrinks the fields while they are being played.
+A guest arriving mid-play of a timed match waits at most three minutes for
+its results. Placing the code per board is six small insertions a future
+minigame must repeat. Alternatives considered: a fixed tag rendered by
+`Board.tsx` over every board, rejected because the fit check flags it against
+each board's full-screen background unless it is exempted, and each board
+would still need a CSS rule keyed on its own class to clear the corner; a
+sidebar during play, rejected because it shrinks the fields.
 
-## Needs from Rick
+## Needs from the operator
