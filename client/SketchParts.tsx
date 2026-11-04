@@ -6,6 +6,7 @@ import { CHAT_SLIDE_MS, MISS_GAP_MS, chatSlideMs, chatStarts, fmtSeconds, pushCh
 import { play } from './sound.ts'
 import { ScoreChange, reduced, useFlip } from './fx.tsx'
 import type { SketchCorrect, SketchMiss } from '../shared/protocol.ts'
+import { JoinCode } from './JoinCode.tsx'
 
 /** The drawing's shape everywhere it appears. */
 const W = 400
@@ -53,7 +54,7 @@ export function Blanks({ text, class: cls = '' }: { text: string; class?: string
 export type SketchRow = { key: string; label: string; color: string; score: number }
 
 /** The board's sidebar, built from the same rows as the quiz standings. */
-export function SketchStandings({ title, rows }: { title: string; rows: SketchRow[] }) {
+export function SketchStandings({ title, rows, join }: { title: string; rows: SketchRow[]; join: boolean }) {
   const list = useRef<HTMLOListElement>(null)
   useFlip(list)
   return <aside class="board__side">
@@ -69,6 +70,7 @@ export function SketchStandings({ title, rows }: { title: string; rows: SketchRo
         ))}
       </ol>
     </div>
+    {join && <JoinCode small />}
   </aside>
 }
 

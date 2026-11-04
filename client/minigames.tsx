@@ -26,7 +26,14 @@ export type MinigamePlayerProps = {
   touches: TimedTouch[]
 }
 
-export type MinigameBoardProps = { state: State; frame: MinigameFrame | null; now: () => number; touches: TimedTouch[] }
+export type MinigameBoardProps = {
+  state: State
+  frame: MinigameFrame | null
+  now: () => number
+  touches: TimedTouch[]
+  /** Place `<JoinCode small />` in the board's own layout (`joinShown`). */
+  join: boolean
+}
 
 export type MinigameEntry = {
   name: string

@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { MinigameFrame } from '../shared/protocol.ts'
-import { MINIGAME_INFO, matchFrame } from './minigame-info.ts'
+import { MINIGAME_INFO, joinShown, matchFrame } from './minigame-info.ts'
 import { MINIGAMES } from '../server/minigames/registry.ts'
 
 test('the host clock wording follows the server definition', () => {
@@ -17,4 +17,11 @@ test('a frame from another match, game, or role is not drawn', () => {
   assert.equal(matchFrame(frame, 'bow', 'board', 'm1'), null)
   assert.equal(matchFrame(frame, 'ink', 'player', 'm1'), null)
   assert.equal(matchFrame(null, 'ink', 'board', 'm1'), null)
+})
+
+test('the join code hides only while a timed match counts down and plays', () => {
+  for (const phase of ['ready', 'countdown', 'playing', 'results'] as const) {
+    assert.equal(joinShown('poker', phase), true, `poker ${phase}`)
+    assert.equal(joinShown('bow', phase), phase === 'ready' || phase === 'results', `bow ${phase}`)
+  }
 })

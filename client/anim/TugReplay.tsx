@@ -9,6 +9,7 @@ import type { MinigameFrame, State } from '../../shared/protocol.ts'
 import { mulberry32 } from '../../shared/random.ts'
 import { createTugWorld, pull, stepTug, tugFinished, tugResults, TUG_STEP_MS } from '../../server/minigames/tug/world.ts'
 import { TugBoard } from '../TugBoard.tsx'
+import { joinShown } from '../minigame-info.ts'
 import { tugRate } from './tug-script.ts'
 
 const NAMES = ['Ada', 'Bo', 'Cy', 'Dee', 'Eli', 'Fay']
@@ -66,7 +67,7 @@ export function TugReplay({ lead }: { lead: boolean }) {
   }, [lead])
   return (
     <div class="harness-tug">
-      <TugBoard state={view.state} frame={view.frame} now={() => performance.now()} touches={[]} />
+      <TugBoard state={view.state} frame={view.frame} now={() => performance.now()} touches={[]} join={joinShown('tug', view.state.minigame!.phase)} />
     </div>
   )
 }

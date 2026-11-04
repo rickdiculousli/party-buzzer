@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import type { MinigameFrame, TugSide } from '../shared/protocol.ts'
 import type { MinigameBoardProps } from './minigames.tsx'
+import { JoinCode } from './JoinCode.tsx'
 import { matchFrame } from './minigame-info.ts'
 import { play } from './sound.ts'
 import { NO_CROSSING, easeToward, follow, lean, tense as strained, watchCrossing, type Crossing, type Rope } from './tug.ts'
@@ -81,7 +82,7 @@ function SideCard({ side, effort, state }: { side?: TugSide; effort: number; sta
   )
 }
 
-export function TugBoard({ state, frame, now }: MinigameBoardProps) {
+export function TugBoard({ state, frame, now, join }: MinigameBoardProps) {
   const session = state.minigame!
   const board = matchFrame(frame, 'tug', 'board', session.matchId)
   // The sides outlive the last frame, so the results can name the winners' side.
@@ -123,8 +124,12 @@ export function TugBoard({ state, frame, now }: MinigameBoardProps) {
         <h2 class="tug-results__verdict" style={{ color: winSide?.color }}>
           {winSide ? `${winSide.name} wins` : won.length === 0 ? 'Draw' : 'Winners'}
         </h2>
-        {won.length > 0 && <ol class="tug-results__list fx-rise">{won.map(row)}</ol>}
-        {rest.length > 0 && <ol class="tug-results__list tug-results__rest">{rest.map(row)}</ol>}
+        {/* Side by side, so a full room's two halves fit under the verdict. */}
+        <div class="tug-results__lists">
+          {won.length > 0 && <ol class="tug-results__list fx-rise">{won.map(row)}</ol>}
+          {rest.length > 0 && <ol class="tug-results__list tug-results__rest">{rest.map(row)}</ol>}
+        </div>
+        {join && <JoinCode small />}
       </main>
     )
   }
@@ -177,6 +182,7 @@ export function TugBoard({ state, frame, now }: MinigameBoardProps) {
       )}
       <footer class="tug-board__sides">
         <SideCard side={sides?.[0]} effort={effort[0]} state={state} />
+        {join && <JoinCode small />}
         <SideCard side={sides?.[1]} effort={effort[1]} state={state} />
       </footer>
     </main>

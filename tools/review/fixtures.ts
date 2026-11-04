@@ -6,10 +6,12 @@ import { closestAwards } from '../../shared/scoring.ts'
 import { FINALE_SCHEDULE } from '../../shared/wall.ts'
 import type { PracticeFeedback } from '../../client/arrival-feedback.ts'
 import { recordReaction, type TimedReaction } from '../../client/reactions.ts'
-import type { QuizReactKind } from '../../shared/protocol.ts'
+import type { MinigameFrame, QuizReactKind } from '../../shared/protocol.ts'
+import { MINIGAME_OPTIONS } from '../../shared/protocol.ts'
+import { MINIGAME_INFO } from '../../client/minigame-info.ts'
 import type { ReviewScenario } from '../../client/review/model.ts'
 import { INK_LONG_NAMES, INK_PLAYERS, InkGame, inkSession } from './ink.ts'
-import { SKETCH_PLAYERS, SketchGame, sketchSession } from './sketch.ts'
+import { SKETCH_CROWD, SKETCH_PLAYERS, SketchGame, sketchSession } from './sketch.ts'
 
 const NOW = 1_800_000_000_000
 
@@ -268,20 +270,34 @@ export function makeReviewScenarios(): ReviewScenario[] {
     }
   }
 
-  const sketchState = (session: ReturnType<typeof sketchSession>) => {
+  // Each column holds more slips than it can show. The fixture pack has twenty
+  // prompts and reshuffles its discards long before that, so the slips are laid
+  // on the frame of a real mid-turn state; a full pack gets there in play.
+  const inkDiscardFull = ink('ink-discard-full', 'Ink with a full discard column', (game) => {
+    game.chooseWord().ask()
+    game.stroke(game.writer())
+  })
+  const SLIPS = [
+    'What does it smell like?', 'Where would you find one?', 'What colour is it, mostly?',
+    'Would it fit in a shoebox?', 'Who uses it every day?', 'What sound does it make when you drop it?',
+    'Is it older than your grandparents?', 'What is it made of?', 'How much would one cost?',
+  ]
+  ;(inkDiscardFull.boardFrame as Extract<MinigameFrame, { id: 'ink'; role: 'board' }>).discard = { sun: SLIPS.slice(0, 8), moon: SLIPS }
+
+  const sketchState = (session: ReturnType<typeof sketchSession>, players = SKETCH_PLAYERS) => {
     const state = base()
-    state.players = structuredClone(SKETCH_PLAYERS)
+    state.players = structuredClone(players)
     // A finished match has already been added to the night, as the hub does.
-    state.scores = Object.fromEntries(SKETCH_PLAYERS.map((player) => [
+    state.scores = Object.fromEntries(players.map((player) => [
       player.id, session.results?.find((result) => result.playerId === player.id)?.points ?? 0,
     ]))
     state.minigame = session
     return state
   }
-  const sketch = (id: string, label: string, reach: (game: SketchGame) => void): ReviewScenario => {
-    const game = new SketchGame(NOW)
+  const sketch = (id: string, label: string, reach: (game: SketchGame) => void, players = SKETCH_PLAYERS): ReviewScenario => {
+    const game = new SketchGame(NOW, players)
     reach(game)
-    const state = sketchState(sketchSession('playing'))
+    const state = sketchState(sketchSession('playing', undefined, players), players)
     return {
       id, label,
       board: project(state, 'board'),
@@ -304,6 +320,33 @@ export function makeReviewScenarios(): ReviewScenario[] {
     { playerId: 'di', points: 220, shots: 0 },
     { playerId: 'eve', points: 95, shots: 0 },
   ]))
+
+  // A timed match waiting at ready (no world yet, so an empty field) or at its
+  // results, with eight players: the screens that carry the join code.
+  const EIGHT = ['Ada', 'Bo', 'Cy', 'Di', 'Eve', 'Fay', 'Gus', 'Hana'].map((name) => ({ id: name.toLowerCase(), name, connected: true }))
+  const matchState = (id: 'bow' | 'tank' | 'tug' | 'poker', phase: 'ready' | 'results') => {
+    const state = base()
+    state.players = structuredClone(EIGHT)
+    const results = EIGHT.map((p, i) => ({
+      playerId: p.id, shots: 0,
+      ...(id === 'poker' ? { points: 0, place: i + 1 } : { points: id === 'tug' ? (i % 2 ? 0 : 100) : 900 - i * 110 }),
+    }))
+    state.scores = Object.fromEntries(EIGHT.map((p) => [p.id, phase === 'results' ? results.find((r) => r.playerId === p.id)!.points : 0]))
+    state.minigame = {
+      id, matchId: `review-${id}`, phase,
+      options: { durationSec: id === 'poker' ? 0 : 40, seed: 7, ...Object.fromEntries(MINIGAME_OPTIONS[id].map((o) => [o.key, o.default])) },
+      participants: EIGHT.map((p) => p.id),
+      lobby: { teams: {}, volunteers: [], ready: [] },
+      ...(phase === 'results' ? { results } : {}),
+    }
+    return state
+  }
+  // Board only, for the board's join code: the phones at these moments do not
+  // fit yet (Bow's overflows a small phone, Poker's lamp lies over its text).
+  const matchScenarios = (['bow', 'tank', 'tug', 'poker'] as const).flatMap((id) => [
+    { ...build(`${id}-ready`, `${MINIGAME_INFO[id].name} ready`, matchState(id, 'ready'), at()), phones: [] },
+    { ...build(`${id}-results`, `${MINIGAME_INFO[id].name} results, eight players`, matchState(id, 'results'), at()), phones: [] },
+  ])
 
   // Arrival. Pulses are frozen against a fixed local clock, so the screen shows a
   // lit moment without any time passing.
@@ -449,6 +492,7 @@ export function makeReviewScenarios(): ReviewScenario[] {
       game.vote('guess')
       game.spell(Infinity)
     }),
+    inkDiscardFull,
     build('sketch-lobby', 'Sketch lobby', sketchState(sketchSession('ready')), at()),
     sketch('sketch-choosing', 'Sketch word choice', () => {}),
     sketch('sketch-drawing', 'Sketch drawing, guesses flying', (game) => {
@@ -463,7 +507,12 @@ export function makeReviewScenarios(): ReviewScenario[] {
       game.pick().draw().misses(3)
       for (const [i, id] of game.guessers.entries()) game.wait(2 + i).guess(id, game.word)
     }),
+    sketch('sketch-drawing-crowd', 'Sketch drawing, twelve players', (game) => {
+      game.pick().wait(3).draw()
+      game.misses(6).guess(game.guessers[2], game.word).wait(20)
+    }, SKETCH_CROWD),
     build('sketch-results', 'Sketch results', sketchResults, at()),
+    ...matchScenarios,
     emptyLobbyScenario,
     arrivalScenario('lobby-crowd', 'Arrival lobby, twelve players, long names', lobby(crowd, ['p0', 'p2', 'p3', 'p10', 'p11'])),
     arrivalScenario('lobby-own-pulse', 'Arrival lobby, own accepted pulse', lobby(base().players, ['ada']), {

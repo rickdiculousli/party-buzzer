@@ -202,6 +202,11 @@ timed flag, lobby side-picking, player surface, board surface — and
 `client/minigame-info.ts` holds the JSX-free half of it, including
 `MINIGAME_CATALOG` for the host's pickers and `matchFrame`, which every surface
 uses to reject a frame from another game, role, or match.
+The board passes every minigame board a `join` flag (`joinShown`: always in an
+untimed match, at ready and results of a timed one), and each board places
+`<JoinCode small />` (`client/JoinCode.tsx`) inside its own layout, so a guest
+can scan in mid-match. A new board places it too and adds ready and results
+review scenarios, so the fit check sees where it went.
 
 `Hub.fragmentEnded(questionId, completed)` is a dedicated playback-to-mode
 boundary. It rejects stale questions and non-armed phases, calls the current

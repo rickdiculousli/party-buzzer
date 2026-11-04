@@ -28,12 +28,18 @@ export const SKETCH_PLAYERS: Player[] = [
   { id: 'fay', name: 'Fay', connected: true },
 ]
 
-export const sketchSession = (phase: MinigameState['phase'], results?: MinigameResult[]): MinigameState => ({
+/** Twelve at the table, for the standings column at its longest. */
+export const SKETCH_CROWD: Player[] = [
+  ...SKETCH_PLAYERS,
+  ...['Gus', 'Hana', 'Ivo', 'Jun', 'Kit', 'Lu'].map((name) => ({ id: name.toLowerCase(), name, connected: true })),
+]
+
+export const sketchSession = (phase: MinigameState['phase'], results?: MinigameResult[], players = SKETCH_PLAYERS): MinigameState => ({
   id: 'sketch',
   matchId: MATCH,
   phase,
   options: { durationSec: 0, seed: 7, drawSec: 80, drawers: 0 },
-  participants: SKETCH_PLAYERS.map((player) => player.id),
+  participants: players.map((player) => player.id),
   lobby: { teams: {}, volunteers: [], ready: [] },
   ...(results ? { results } : {}),
 })
@@ -54,11 +60,11 @@ export class SketchGame {
   private readonly now: number
   private at = 0
 
-  constructor(now: number) {
+  constructor(now: number, players = SKETCH_PLAYERS) {
     this.now = now
     this.def = makeSketch(() => loadSketchWords(SKETCH_WORDS_PATH) ?? FALLBACK_WORDS, mulberry32(7))
     if (this.def.prepare?.()) throw new Error('Sketch review fixtures could not load the word list')
-    const ids = SKETCH_PLAYERS.map((player) => player.id)
+    const ids = players.map((player) => player.id)
     this.world = this.def.create(7, ids, sketchSession('playing').options, sketchSession('playing').lobby!).world
   }
 
