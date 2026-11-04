@@ -459,6 +459,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   display: grid;
   --side-w: clamp(17rem, 23vw, 26rem);
   grid-template-columns: 1fr var(--side-w);
+  /* The screen's height, never its content's: a taller wall would carry its foot, and the pills on it, off the screen. */
+  grid-template-rows: 100%;
   height: 100dvh;
   overflow: hidden;
 }
@@ -756,12 +758,16 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   justify-content: center;
 }
 /* The room's reactions: a layer over the lower band, never taking taps. The
-   board sets `--cols` (one column per pill up at once) and `--rows` (the
-   timeline's rows). Each slot is one column across the foot of the wall,
-   above the lockout chips; the pill inside rises into place (fx-rise) and the
-   slot fades it out (fx-fade--out, delayed), two effects on two elements as
-   the interest kit asks. A second timeline row lowers the band's rest, never
-   below the foot, and the rest glides when the rows change under it. */
+   board sets `--cols` (one column per pill up at once) and `--under` (how far
+   the lowest timeline readout sits above the wall's foot, measured). Each slot
+   is one column across the foot of the wall, above the lockout chips; the pill
+   inside rises into place (fx-rise) and the slot fades it out (fx-fade--out,
+   delayed), two effects on two elements as the interest kit asks. A pill rests
+   at most a gap under the readouts, and the rest glides when the rows change
+   under it. A pill is 1.6 of its type tall (line-height 1.2, 0.2em padding);
+   the board reads `--pill-high` and `--pill-low` to know which band it has. */
+@property --pill-high { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --pill-low { syntax: '<length>'; inherits: false; initial-value: 0px; }
 .board__pills {
   position: absolute;
   inset: 0 var(--s6);
@@ -769,15 +775,27 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   z-index: 2;
   /* One chip row (as the milestone counts it) and a gap above the lockout chips. */
   --pill-foot: calc(var(--s5) + var(--t-chip-board) * 2.4 + var(--s2));
+  /* Chip type and a half: six "Too slow" across the wall with room between them. */
+  --pill-type: calc(var(--t-chip-board) * 1.5);
+  font-size: var(--pill-type);
+  /* The band a full pill needs above the foot row, and a gap under the readouts. */
+  --pill-high: calc(var(--pill-foot) + var(--pill-type) * 1.6 + var(--s2));
+  /* The band a pill at the timeline deltas' type needs in the foot row. */
+  --pill-low: calc(var(--s3) + var(--t-chip-board) * 1.2 * 1.6 + var(--s2));
+}
+/* A short band: the pills rest in the foot row, as large as the band allows,
+   and leave the count chip's lane at the right free. */
+.board__pills.is-low {
+  font-size: clamp(var(--t-chip-board) * 1.2, (var(--under) - var(--s2) - var(--s3)) / 1.6, var(--pill-type));
+  --pill-span: calc(100% - var(--t-chip-board) * 4);
 }
 .board__pill-slot {
   position: absolute;
   /* `--lift` scales the rest per column, so a batch sent in one instant does not
-     settle into one straight row. */
-  /* Each extra row costs its pitch and a gap, so a pill never touches the readout above it. */
-  --rest: calc((var(--pill-rise-amp) - (var(--rows, 1) - 1) * (var(--board-lane-h) + var(--s5))) * var(--lift, 1));
-  bottom: max(var(--pill-foot), calc(var(--pill-foot) + var(--rest)));
-  left: calc((var(--col) + 0.5) * 100% / var(--cols, 6));
+     settle into one straight row; the readouts above cap it. */
+  --rest: max(0px, min(var(--pill-rise-amp) * var(--lift, 1), var(--under, 100vh) - var(--s2) - 1.6em - var(--pill-foot)));
+  bottom: calc(var(--pill-foot) + var(--rest));
+  left: calc((var(--col) + 0.5) * var(--pill-span, 100%) / var(--cols, 6));
   translate: -50%;
   transition: bottom var(--base) var(--ease);
   --fx-dur: var(--pill-fade-dur);
@@ -785,6 +803,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   /* Symmetric, so the reversed fade reads as a fade and not an ease-in cut. */
   --fx-ease: var(--rate-even);
 }
+.board__pills.is-low .board__pill-slot { --rest: 0px; bottom: var(--s3); }
 .board__pill {
   display: inline-block;
   --fx-dur: var(--pill-rise-dur);
@@ -794,12 +813,11 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   /* An arrival: in fast, settling over the rest of the rise. */
   --fx-ease: var(--rate-glide);
   padding: 0.2em 0.8em;
+  line-height: 1.2;
   border-radius: 999px;
   background: var(--id);
   color: var(--stage);
   font-family: var(--display);
-  /* Chip type and a half: six "Too slow" across the wall with room between them. */
-  font-size: calc(var(--t-chip-board) * 1.5);
   font-weight: 800;
   text-transform: uppercase;
   white-space: nowrap;

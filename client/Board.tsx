@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'preact/hooks'
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { createPortal } from 'preact/compat'
 import { useFinale, useOpen, useSocket, type SocketFixture } from './useSocket.ts'
 import { colorForPlayer, lockedNames, ordinal, setlistPosition, standings, willSeat } from './ui.ts'
@@ -282,33 +282,75 @@ function lay(entries: BuzzEntry[], width: number): Mark[] {
  * once when the mark is first seen and never recomputed, so a re-render cannot
  * move a landing that has already been scheduled.
  */
-/** How many rows the marks need; the pill band drops by the extra ones. */
+/** How many rows the marks need. */
 const rowsOf = (order: BuzzEntry[]) => Math.max(0, ...lay(order, COLLECT_MS).map((m) => m.lane)) + 1
+
+/**
+ * How far the lowest timeline readout sits above the wall's foot, in layout
+ * pixels (a landing mark's transform does not count), or null with no
+ * timeline up.
+ */
+function roomUnder(wall: HTMLElement): number | null {
+  let low: number | null = null
+  for (const m of wall.querySelectorAll<HTMLElement>('.timeline__mark')) {
+    let y = m.offsetTop + m.offsetHeight
+    for (let e = m.offsetParent as HTMLElement | null; e && e !== wall; e = e.offsetParent as HTMLElement | null) y += e.offsetTop
+    low = Math.max(low ?? y, y)
+  }
+  return low === null ? null : wall.clientHeight - low
+}
 
 /**
  * The room's voice over the lower band: each reaction rises from above the
  * lockout chips in its sender's colour, holds under the timeline and fades.
  * Never stage content and never a layout. A receipt's fate, a pill or a
- * count, is decided the first time it is seen: a timeline three rows deep
- * leaves the band no room, and a change in the rows must never birth or cut
- * a pill mid-life. The count chip mounts once per wave and fades with the
- * newest pill, so it never stands alone over an empty band.
+ * count, is decided the first time it is seen: where the band under the
+ * timeline cannot hold a pill it counts, and a change in the rows must never
+ * birth or cut a pill mid-life. The count chip mounts once per wave and fades
+ * with the newest pill, so it never stands alone over an empty band.
+ *
+ * The band is measured, not modelled: the layer stays mounted and reads the
+ * lowest readout after each layout, so a pill never rests over a name or a
+ * delta at any board size. A band too short for a pill above the foot row
+ * (`--pill-high`) puts smaller pills in the foot row while no lockout chip is
+ * there (`--pill-low`, `is-low`); shorter still, every receipt counts.
  */
-function Reactions({ state, reacted, rows, now, frozen }: {
+function Reactions({ state, reacted, rows, lockouts, now, frozen }: {
   state: State
   reacted: { pills: Pill[]; more: number }
   rows: number
+  lockouts: boolean
   now: number
   frozen: boolean
 }) {
+  const layer = useRef<HTMLDivElement>(null)
+  const [room, setRoom] = useState<{ under: number | null; mode: 'high' | 'low' | 'none' }>()
+  useLayoutEffect(() => {
+    const el = layer.current
+    const wall = el?.parentElement
+    if (!el || !wall) return
+    const measure = () => {
+      const under = roomUnder(wall)
+      const need = (name: string) => parseFloat(getComputedStyle(el).getPropertyValue(name))
+      const mode = under === null || under >= need('--pill-high') ? 'high' : !lockouts && under >= need('--pill-low') ? 'low' : 'none'
+      setRoom((r) => (r?.under === under && r.mode === mode ? r : { under, mode }))
+    }
+    measure()
+    const watch = new ResizeObserver(measure)
+    watch.observe(wall)
+    return () => watch.disconnect()
+  }, [rows, lockouts])
   const fate = useRef(new Map<number, 'pill' | 'count'>())
   const chipAt = useRef<number | undefined>(undefined)
+  const empty = <div ref={layer} class="board__pills" />
   if (reacted.pills.length === 0 && reacted.more === 0) {
     fate.current.clear()
     chipAt.current = undefined
-    return null
+    return empty
   }
-  for (const p of reacted.pills) if (!fate.current.has(p.seq)) fate.current.set(p.seq, rows > 2 ? 'count' : 'pill')
+  // Unmeasured, the band is unknown: nothing is decided until the layout effect has read it.
+  if (!room) return empty
+  for (const p of reacted.pills) if (!fate.current.has(p.seq)) fate.current.set(p.seq, room.mode === 'none' ? 'count' : 'pill')
   const pills = reacted.pills.filter((p) => fate.current.get(p.seq) === 'pill')
   const more = reacted.more + reacted.pills.length - pills.length
   if (more > 0 && chipAt.current === undefined) chipAt.current = now
@@ -319,9 +361,10 @@ function Reactions({ state, reacted, rows, now, frozen }: {
   const latest = reacted.pills[reacted.pills.length - 1]
   return (
     <div
-      class={frozen ? 'board__pills is-frozen' : 'board__pills'}
+      ref={layer}
+      class={`board__pills${room.mode === 'low' ? ' is-low' : ''}${frozen ? ' is-frozen' : ''}`}
       data-review-id="board:reactions"
-      style={{ '--cols': PILL_CAP, '--rows': rows }}
+      style={{ '--cols': PILL_CAP, '--under': room.under === null ? undefined : `${room.under}px` }}
     >
       {pills.map((p) => (
         // Under a deeper timeline the band is too shallow for a scatter: one clean row.
@@ -893,7 +936,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
         )}
 
         {!w.arrival && (
-          <Reactions state={state} reacted={reacted} rows={w.timeline ? rowsOf(round.order) : 1} now={pillNow} frozen={!!preview} />
+          <Reactions state={state} reacted={reacted} rows={w.timeline ? rowsOf(round.order) : 0} lockouts={barred.length > 0} now={pillNow} frozen={!!preview} />
         )}
       </section>
 

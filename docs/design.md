@@ -124,7 +124,7 @@ it probably doesn't have one.
 | `--t-md` | `1rem` | Body. |
 | `--t-sm` | `0.8125rem` | Controls, inputs, secondary text. |
 | `--t-xs` | `0.6875rem` | Eyebrows, chips, key hints. Always uppercase and tracked. |
-| `--t-chip-board` | `clamp(0.95rem, 1.25vw, 1.6rem)` | Board only. Every chip on the board, the QR captions and the join address; the setlist chip and the reaction count at 1.2×, a reaction pill at 1.5×. |
+| `--t-chip-board` | `clamp(0.95rem, 1.25vw, 1.6rem)` | Board only. Every chip on the board, the QR captions and the join address; the setlist chip and the reaction count at 1.2×, a reaction pill at 1.5× (down to 1.2× in a short band). |
 
 Board type is viewport-relative because it is read across a room. Host and phone
 type is fixed because it is read at arm's length. Don't mix the two.
@@ -882,10 +882,13 @@ its sender's identity colour that rises from above the lockout chips
 (`fx-rise`), holds, and fades (`fx-fade--out` on its slot) under the timeline,
 at most six up, one column each, with a `+N` chip at the band's foot for the
 rest, which never take a column. The type is chip type and a half because six
-"Too slow" must fit across the wall. A second timeline row lowers the band; a
-third leaves it no room, and every reaction counts in the chip instead. They
-are never stage content: the hero, the stamp and the timeline sit where they
-always do.
+"Too slow" must fit across the wall. A pill never rests over a timeline name
+or delta: the board measures the band under the lowest readout. Where it is too
+short for a pill above the foot row (a two-row timeline on a 720p board) and no
+lockout chip is up, the pills rest in the foot row, shrinking toward the
+deltas' 1.2× type and leaving the count chip's lane free; shorter still, every
+reaction counts in the chip instead. They are never stage content: the hero,
+the stamp and the timeline sit where they always do.
 
 A **choice question** keeps the three bands, but lifts the middle one
 (`.board__wall.is-choice`, a 0.55 : 1.45 split, the lane sized to the question)
