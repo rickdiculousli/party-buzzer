@@ -4,7 +4,7 @@ title: Integration tests wait for events, not for fixed sleeps
 kind: test-speed
 size: S
 judge: opus
-status: proposed
+status: done
 lens: eng
 proposed_by: party-buzzer-build-1 operator session
 proposed_on: 2026-11-03
@@ -44,6 +44,12 @@ no slower.
 today it fails at least once (record the before run in Shown).
 
 ## Shown
+Load is the Verification loop with 16 `node -e 'for(;;){}'` CPU burners alongside it (load average 13.5 at its end).
+- Before, the loop fails at least once: the loaded loop on `main`'s tests -> `run 3 exit 1`, `run 5 exit 1` (both `✖ host, player, and board share a live bow match`, `+ 'countdown' - 'playing'` at `minigame.integration.test.ts:20`)
+- Green with the box loaded: the loaded loop, four rounds of five after the change -> `run 1 exit 0` through `run 5 exit 0` every round (20 of 20)
+- No slower: the loop's `ℹ duration_ms` per run -> before `6254.8` to `7386.7`, after `4178.2` to `5166.5`; `npm test` -> `ℹ fail 0`
+- Easy to miss: the arm delay waits on what the arm broadcast, not the delay plus a margin: `FakeClient.untilOpen` in `server/e2e.ts` sleeps until the state's `round.armedAt`; and every wait names what it waited for: a wrong predicate while building -> `Error: timed out after 5000ms waiting for: both inputs acknowledged`
+- Not shown: a state-file wait for the persistence step: none was needed. The `ENOENT ... state.json` in the report is a debounced snapshot firing after `withServer` removed its temp dir, caught and logged by `server/state.ts`; it prints on green runs too (`node --test server/setlist.integration.test.ts` -> `[state] snapshot failed: Error: ENOENT` between `✔` lines), and the failures were the assertions after the sleeps.
 
 ## Risks and the alternative considered
 A predicate that never matches hangs until its timeout; every wait carries
