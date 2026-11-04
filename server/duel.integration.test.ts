@@ -1,8 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { setTimeout as sleep } from 'node:timers/promises'
-import { ARM_DELAY_MS } from './state.ts'
-import { FakeClient, SETTLE, withServer } from './e2e.ts'
+import { FakeClient, withServer } from './e2e.ts'
 
 test('a duel: vote, seat, the seated only, exclusive rebound', async () => {
   await withServer(async (url) => {
@@ -16,52 +14,46 @@ test('a duel: vote, seat, the seated only, exclusive rebound', async () => {
     await cy.open('Cy')
     await bo.sync()
 
-    host.send({ t: 'host', action: { a: 'openDuel', rule: 'vote' } })
-    await sleep(60)
+    await host.request({ t: 'host', action: { a: 'openDuel', rule: 'vote' } })
     ada.send({ t: 'act', act: 'duelVote', data: bo.playerId })
     cy.send({ t: 'act', act: 'duelVote', data: bo.playerId })
     bo.send({ t: 'act', act: 'duelVote', data: ada.playerId })
-    await sleep(60)
     // The pool is room theater: phones see it too.
+    await ada.until(
+      (s) => (s.duel?.pool ?? []).reduce((n, e) => n + e.votes.length, 0) === 3,
+      'all three votes on Ada’s phone',
+    )
     const poolOnPhone = ada.last.duel?.pool ?? []
     assert.equal(poolOnPhone.find((e) => e.playerId === bo.playerId)?.votes.length, 2)
 
-    host.send({ t: 'host', action: { a: 'closeDuel' } })
-    await sleep(60)
+    await host.request({ t: 'host', action: { a: 'closeDuel' } })
     assert.deepEqual(host.last.duel?.seated, [bo.playerId, ada.playerId])
 
-    host.send({ t: 'host', action: { a: 'arm' } })
-    await sleep(ARM_DELAY_MS + 30)
+    await host.request({ t: 'host', action: { a: 'arm' } })
     assert.deepEqual(host.last.round.buzzable, [bo.playerId, ada.playerId])
+    await host.untilOpen()
 
     // Cy is not in this round: the buzz is dropped, the window never opens.
+    // Had it opened one, Bo's buzz would share it and Cy would lead the order.
     cy.send({ t: 'buzz', at: performance.now() })
-    await sleep(SETTLE)
-    assert.equal(host.last.round.phase, 'ARMED')
-
     bo.send({ t: 'buzz', at: performance.now() + bo.offset })
-    await sleep(SETTLE)
-    assert.equal(host.last.round.phase, 'LOCKED')
-    host.send({ t: 'host', action: { a: 'wrong', neg: 0 } })
-    await sleep(60)
+    await host.until((s) => s.round.phase === 'LOCKED', 'Bo’s buzz to lock the round')
+    assert.deepEqual(host.last.round.order.map((b) => b.playerId), [bo.playerId], 'Cy never joined')
+    await host.request({ t: 'host', action: { a: 'wrong', neg: 0 } })
     assert.deepEqual(host.last.round.buzzable, [ada.playerId], 'the rebound is Ada’s alone')
 
     // Bo’s thumb is dead now; Ada’s is not.
-    await sleep(ARM_DELAY_MS)
+    await host.untilOpen()
     bo.send({ t: 'buzz', at: performance.now() + bo.offset })
-    await sleep(30)
     await ada.sync()
     ada.send({ t: 'buzz', at: performance.now() + ada.offset })
-    await sleep(SETTLE)
-    assert.equal(host.last.round.phase, 'LOCKED')
+    await host.until((s) => s.round.phase === 'LOCKED', 'Ada’s buzz to lock the rebound')
     assert.equal(host.last.round.order[0]?.playerId, ada.playerId)
 
-    host.send({ t: 'host', action: { a: 'correct' } })
-    await sleep(60)
+    await host.request({ t: 'host', action: { a: 'correct' } })
     assert.equal(host.last.scores[ada.playerId], host.last.round.value)
 
-    host.send({ t: 'host', action: { a: 'next' } })
-    await sleep(60)
+    await host.request({ t: 'host', action: { a: 'next' } })
     assert.equal(host.last.duel, undefined, 'the duel was one question')
 
     for (const c of [host, ada, bo, cy]) c.close()
