@@ -20,28 +20,29 @@ from what the repo ships.
 
 ## Proposal
 Ship a small original deck, `packs/ink-sample.txt` (enough cards for one
-full game, in the shape `server/minigames/ink/cards.ts` parses), and make the
-card loader fall back to it when `packs/phantom-ink.txt` is absent, saying
-so once in the server log. The real deck still wins when present.
-In: the sample deck, the fallback, the line in `tools/sim-ink.ts`'s header.
-Out: the card format, the real deck.
+full game, in the shape `server/minigames/ink/cards.ts` parses). The card
+loader uses it only when the server runs with `INK_SAMPLE=1` and
+`packs/phantom-ink.txt` is absent, and says so once in the server log; a real
+game night never falls back to it. `tools/sim-ink.ts`'s header says to start
+the server with `INK_SAMPLE=1` on a checkout without the real deck.
+In: the sample deck, the env-gated fallback, the sim's header line. Out: the
+card format, the real deck, any fallback without the env var.
 
-Judge: sonnet, because the format and the fallback are given.
+Judge: sonnet, because the format and the gate are given.
 
 ## What you'll see
-On a fresh checkout, `npm run sim-ink` plays a game.
+On a fresh checkout, a server started with `INK_SAMPLE=1` lets `npm run sim-ink`
+play a game; without it, the minigame still refuses with `ink-cards`.
 
 ## Verification
-`npm test` (a `cards.test.ts` case: absent real deck loads the sample,
-present real deck wins). `npm run sim-ink` on a disposable room in a fresh
+`npm test` (`cards.test.ts` cases: with the env var and no real deck, the
+sample loads; with the real deck, it wins; without the env var, no sample). `npm run sim-ink` against a disposable `INK_SAMPLE=1` server in a fresh
 worktree reaches a win.
 
 ## Shown
 
 ## Risks and the alternative considered
-A sample deck could reach a real game night unnoticed; the log line and the
-host's deck name say which deck is in play. Alternative: a test-only flag
-for sims; rejected because the host benefits from a playable default too.
+The gate keeps the sample off real nights. Alternative: fall back always;
+rejected by the operator, who wants the sample for simulations only.
 
 ## Needs from the operator
-- Confirm the fallback may reach real game nights (else the sample is sims-only behind an env var).
