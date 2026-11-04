@@ -403,6 +403,10 @@ own. The result (`truth`, `paid`, `nearest`, `guessed`) is public once settled.
 The board plays the reveal on the `closestTimes` schedule, and phones and the
 board's standings hold the pre-settle picture until it is done
 (`useClosestHold`); under autoplay the reader adds that time to the dwell.
+A match pays the night while the board shows only its minigame, so the
+board's standings come back holding what they last showed for a beat
+(`useMatchHold` in `client/Board.tsx`) and then count and slide to the paid
+scores; a board loaded mid-match holds nothing.
 The finale follows the same pattern: `enterBlock` stamps `setlist.spentAt`
 when the setlist is spent (re-stamped by a jump to its end, which is Replay),
 and `finaleStep` in `shared/wall.ts` turns the elapsed time into the

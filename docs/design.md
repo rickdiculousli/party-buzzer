@@ -200,7 +200,9 @@ a scenario in the motion harness (`npm run motion`) to preview and tune it.
   rises and fades) `--fx-ease`, and (fades) `--fx-delay`. Defaults live in
   `anim:tunables`. An override also reaches effects nested inside it.
 - A one-shot replays when its class is removed and re-added, or when the element
-  remounts with a new `key`. An exit leaves the element invisible but in place;
+  remounts with a new `key`. A keyed re-sort that moves the element in the DOM
+  replays it too, so a re-sorting list (the board's standings) drops its
+  entrance class once it has played. An exit leaves the element invisible but in place;
   unmount it on `animationend`.
 - Reduced motion is handled globally in `tokens.css`; `<Burst>` renders nothing
   and `<CountUp>` shows its value at once.
