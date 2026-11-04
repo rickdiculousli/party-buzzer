@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { createPortal } from 'preact/compat'
+import type { RefObject } from 'preact'
 import { useFinale, useOpen, useSocket, type SocketFixture } from './useSocket.ts'
-import { colorForPlayer, lockedNames, ordinal, setlistPosition, standings, willSeat } from './ui.ts'
+import { colorForPlayer, lockedNames, ordinal, setlistPosition, standings, willSeat, type Standing } from './ui.ts'
 import { markGap, play, playSpaced, prime, startBed, stopBed, unlock } from './sound.ts'
 import { Votes } from './Votes.tsx'
 import { Spoken } from './Spoken.tsx'
@@ -593,6 +594,64 @@ export type BoardPreview = {
   retired: boolean
 }
 
+/** How long the board shows the night as it stood before a match, once the match hands the board back. */
+const MATCH_HOLD_MS = 1000
+
+/**
+ * The scores the standings show: `shown`, except for a beat after a match
+ * closes, when they show what they last showed before it. A match pays the
+ * night while the board shows only the minigame, so the standings would come
+ * back already holding the change; held for a beat, it counts up and slides
+ * in front of the room. Several matches ("Play again") count from before the
+ * first. A board that never saw the standings before the match holds nothing.
+ * A browser clock, like `useClosestHold`.
+ */
+function useMatchHold(state: State | null, shown: State['scores'], active: boolean): State['scores'] {
+  const seen = useRef<State['scores']>()
+  const held = useRef<{ match: string; scores: State['scores'] }>()
+  const [doneFor, setDoneFor] = useState('')
+  if (state?.minigame && seen.current) held.current = { match: state.minigame.matchId, scores: seen.current }
+  const key = active && state && !state.minigame ? held.current?.match ?? '' : ''
+  useEffect(() => {
+    if (!key) return
+    const t = setTimeout(() => setDoneFor(key), MATCH_HOLD_MS)
+    return () => clearTimeout(t)
+  }, [key])
+  const scores = key && doneFor !== key ? held.current!.scores : shown
+  if (state && !state.minigame) seen.current = scores
+  return scores
+}
+
+/** The board's standings rows. `list` carries `useFlip`, which outlives the list while a match has the board. */
+export function Standings({ rows, list }: { rows: Standing[]; list: RefObject<HTMLOListElement> }) {
+  // A re-sort moves rows in the DOM, which restarts their animation: a row that
+  // has popped in once loses `fx-pop`, so an overtaken row does not blink.
+  const popped = useRef(new Set<string>())
+  return (
+    <ol class="stack" ref={list}>
+      {rows.map((r, i) => (
+        <li
+          key={r.key}
+          data-key={r.key}
+          data-review-id={`board:standing:${r.key}`}
+          class={`row${popped.current.has(r.key) ? '' : ' fx-pop'}${r.away ? ' is-away' : ''}`}
+          style={{ '--id': r.color }}
+          onAnimationEnd={(e) => { if (e.target === e.currentTarget && e.animationName === 'fx-pop') popped.current.add(r.key) }}
+        >
+          {/* Medals for the podium only, but the space is kept either
+              way so every name lines up. */}
+          <span class={i < 3 ? `rank rank--${i + 1}` : 'rank'}>
+            {i < 3 ? ['1st', '2nd', '3rd'][i] : ''}
+          </span>
+          <span class="row__label">{r.label}</span>
+          {r.away && <span class="chip chip--away">away</span>}
+          <ScoreChange class="row__score readout" score={r.score} />
+        </li>
+      ))}
+    </ol>
+  )
+}
+
 export function Board({ preview }: { preview?: BoardPreview } = {}) {
   const { state, now, connected, minigameFrame, minigameTouches, practice, reactions } = useSocket('board', preview?.socket)
   const pulseNow = usePracticeTime(practice, practiceLobbyId(state), preview?.practiceNow)
@@ -712,6 +771,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
   const onSettled = preview ? undefined : reveal.onSettled
   // The standings wait out a closest reveal, so they do not call the winner before the line does.
   const holding = useClosestHold(state?.round, !preview)
+  const scoresShown = useMatchHold(state, state ? (holding ? scoresBeforeClosest(state) : state.scores) : {}, !preview)
   const finale = useFinale(state, now, !preview)
 
   if (!state) return <main class="board"><p class="board__idle">Connecting</p></main>
@@ -963,20 +1023,7 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
       <aside class="board__side">
         <div class="board__standings" data-review-id="board:standings">
           <p class="eyebrow">Standings</p>
-          <ol class="stack" ref={standingsList}>
-            {standings(holding ? { ...state, scores: scoresBeforeClosest(state) } : state).map((r, i) => (
-              <li key={r.key} data-key={r.key} data-review-id={`board:standing:${r.key}`} class={r.away ? 'row fx-pop is-away' : 'row fx-pop'} style={{ '--id': r.color }}>
-                {/* Medals for the podium only, but the space is kept either
-                    way so every name lines up. */}
-                <span class={i < 3 ? `rank rank--${i + 1}` : 'rank'}>
-                  {i < 3 ? ['1st', '2nd', '3rd'][i] : ''}
-                </span>
-                <span class="row__label">{r.label}</span>
-                {r.away && <span class="chip chip--away">away</span>}
-                <ScoreChange class="row__score readout" score={r.score} />
-              </li>
-            ))}
-          </ol>
+          <Standings list={standingsList} rows={standings({ ...state, scores: scoresShown })} />
         </div>
 
         {/* Full size while the room is arriving (no players yet, the lobby, a

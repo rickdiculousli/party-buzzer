@@ -29,8 +29,8 @@ import type { Cue } from '../sound.ts'
 import { NUMERIC, type NumericField } from '../cues.ts'
 import { Votes } from '../Votes.tsx'
 import { Spoken } from '../Spoken.tsx'
-import { Burst, CountUp, Glitch, Letters } from '../fx.tsx'
-import { FaceOff, Finale } from '../Board.tsx'
+import { Burst, CountUp, Glitch, Letters, useFlip } from '../fx.tsx'
+import { FaceOff, Finale, Standings } from '../Board.tsx'
 import { ClosestLine, closestStamp, closestStampDelay } from '../ClosestLine.tsx'
 import { formatNumber, lineScale, placeOn } from '../../shared/closest.ts'
 import { closestAwards } from '../../shared/scoring.ts'
@@ -326,6 +326,30 @@ function RevealScene({ lead }: { lead: boolean }) {
       <div class="board__below" />
       {!lead && <RevealStakes value={200} reveal={wall} now={now} />}
     </section>
+  )
+}
+
+/** The night before a tug of war, then after it paid Bo and Nia's side: Nia climbs from 4th to 2nd, Bo from 5th to 4th. */
+const NIGHT = [
+  { key: 'ada', label: 'Ada', color: 'var(--id-1)', before: 300, after: 300 },
+  { key: 'cy', label: 'Cy', color: 'var(--id-6)', before: 200, after: 200 },
+  { key: 'dee', label: 'Dee', color: 'var(--id-2)', before: 180, after: 180 },
+  { key: 'nia', label: 'Nia', color: 'var(--id-4)', before: 140, after: 240 },
+  { key: 'bo', label: 'Bo', color: 'var(--id-3)', before: 90, after: 190 },
+]
+
+/** The board's sidebar as a match hands it back: held at the night before the match, then the paid scores. */
+function MatchCloseScene({ paid }: { paid: boolean }) {
+  const list = useRef<HTMLOListElement>(null)
+  useFlip(list)
+  const rows = NIGHT.map((r) => ({ key: r.key, label: r.label, color: r.color, score: paid ? r.after : r.before })).sort((a, b) => b.score - a.score)
+  return (
+    <aside class="board__side" style={{ width: '22rem' }}>
+      <div class="board__standings">
+        <p class="eyebrow">Standings</p>
+        <Standings rows={rows} list={list} />
+      </div>
+    </aside>
   )
 }
 
@@ -1034,6 +1058,16 @@ export const SCENARIOS: Scenario[] = [
     render: (lead) => (
       <Stage mid={lead ? <Finale tiers={PODIUM} step={3} elapsedMs={4000} /> : <Finale tiers={PODIUM} step={2} elapsedMs={5500} />} />
     ),
+  },
+  {
+    id: 'match-close',
+    label: 'The night after a match',
+    family: 'Quiz',
+    note: 'A tug of war closed and gave the board back. The standings held the night as it stood before the match; now its points land on the winning side: Nia and Bo count up in brass; Nia slides from 4th to 2nd and Bo from 5th to 4th, and the rows they pass give way without popping.',
+    subject: '.row',
+    // The hold before this is `MATCH_HOLD_MS` in Board.tsx, a JS clock; the slide is `--rank-slide-dur`.
+    dials: [ms('--rank-slide-dur', 1500, 'Slide'), ms('--fx-flash-dur', 1200, 'Flash')],
+    render: (lead) => <MatchCloseScene paid={!lead} />,
   },
   {
     id: 'faceoff',
