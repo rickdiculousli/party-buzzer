@@ -6,7 +6,8 @@
  * per clue in hand-drawn capitals, one letter to a slot, and a peek adds that row's next letter;
  * and a guessing bot spells half the word, misses its team's first guess and wins on the
  * second. A team with a borrowed phone types its own guesses; bots on it leave the keyboard alone.
- * Needs packs/phantom-ink.txt on the server.
+ * Needs packs/phantom-ink.txt on the server; on a checkout without it, start the server
+ * with INK_SAMPLE=1 to use the packs/ink-sample.txt deck.
  *
  *   npm run sim-ink
  *   npm run sim-ink -- 2500                  one bot action every 2.5 s

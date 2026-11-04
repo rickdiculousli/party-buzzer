@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 export type InkCards = { prompts: string[]; words: string[][] }
@@ -21,6 +21,22 @@ export function parseInkCards(text: string): InkCards | string {
   }
   if (cards.prompts.length < 16) return 'At least 16 prompts are needed'
   if (cards.words.length === 0) return 'At least one word card is needed'
+  return cards
+}
+
+/** Original deck for simulations; read only behind INK_SAMPLE=1 (see loadInkDeck). */
+export const INK_SAMPLE_PATH = fileURLToPath(new URL('../../../packs/ink-sample.txt', import.meta.url))
+
+let announced = false
+
+/** The real deck wins; the sample stands in only when INK_SAMPLE=1 and the real deck is absent. */
+export function loadInkDeck(real: string, sample: string, env: { INK_SAMPLE?: string } = process.env): InkCards | string {
+  if (env.INK_SAMPLE !== '1' || existsSync(real)) return loadInkCards(real)
+  const cards = loadInkCards(sample)
+  if (typeof cards !== 'string' && !announced) {
+    announced = true
+    console.log('Phantom Ink: packs/phantom-ink.txt is absent; using packs/ink-sample.txt (INK_SAMPLE=1, simulations only)')
+  }
   return cards
 }
 

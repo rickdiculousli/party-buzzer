@@ -1,0 +1,29 @@
+# Original sample deck for simulations only (INK_SAMPLE=1). The real deck is packs/phantom-ink.txt.
+# P: a prompt a Writer answers with a clue; W: six candidate words, one per row.
+P: Something you would pack for a picnic
+P: A reason to be late
+P: Something found in a garage
+P: A sound that wakes you up
+P: Something you hide from a guest
+P: A place you whisper
+P: Something that is better warm
+P: A thing you lose every week
+P: Something sticky
+P: A job that needs a ladder
+P: Something you carry in the rain
+P: A word you say when you stub a toe
+P: Something people queue for
+P: A gift nobody wants twice
+P: Something that gets louder at night
+P: A thing you borrow and never return
+P: Something that smells like childhood
+P: A sport you could play indoors
+P: Something found at the bottom of a bag
+P: A reason to call a friend
+P: Something you only use once a year
+P: A thing that fits in a pocket
+W: Apple | Lantern | Thimble | Compass | Walrus | Kettle
+W: Marble | Pillow | Trumpet | Orchard | Ladder | Biscuit
+W: Anchor | Pepper | Mitten | Cactus | Tunnel | Violin
+W: Pickle | Rocket | Blanket | Saddle | Button | Canyon
+W: Teapot | Feather | Dragon | Garden | Pencil | Window

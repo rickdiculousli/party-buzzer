@@ -2,7 +2,7 @@ import type { InkPrivate, InkShared, InkStepView, InkTeamName, PlayerId } from '
 import type { MinigameDefinition } from '../definition.ts'
 import { validPoints } from '../../../shared/protocol.ts'
 import { lobbyStartable } from '../lobby.ts'
-import { INK_CARDS_PATH, loadInkCards, type InkCards } from './cards.ts'
+import { INK_CARDS_PATH, INK_SAMPLE_PATH, loadInkDeck, type InkCards } from './cards.ts'
 import { TEAMS, type InkStep, type InkWorld } from './types.ts'
 import {
   applyInk, createInkWorld, inkFinished, inkResults, inkTarget, peekTargets, roleOf,
@@ -160,4 +160,4 @@ export function makeInk(load: () => InkCards | string, rand: () => number = Math
   }
 }
 
-export const ink = makeInk(() => loadInkCards(INK_CARDS_PATH))
+export const ink = makeInk(() => loadInkDeck(INK_CARDS_PATH, INK_SAMPLE_PATH))

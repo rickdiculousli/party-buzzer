@@ -1,6 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { loadInkCards, parseInkCards } from './cards.ts'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { INK_SAMPLE_PATH, loadInkCards, loadInkDeck, parseInkCards } from './cards.ts'
 
 const prompts = (n: number) => Array.from({ length: n }, (_, i) => `P: Prompt ${i}?`).join('\n')
 
@@ -25,4 +28,26 @@ test('needs 16 prompts and a word card', () => {
 
 test('a missing file is an error message', () => {
   assert.equal(loadInkCards('/nonexistent/phantom-ink.txt'), 'packs/phantom-ink.txt is missing')
+})
+
+test('the shipped sample deck parses', () => {
+  assert.equal(typeof loadInkCards(INK_SAMPLE_PATH), 'object')
+})
+
+test('the sample deck loads only with INK_SAMPLE=1 and no real deck; the real deck wins', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ink-'))
+  try {
+    const real = join(dir, 'real.txt')
+    const sample = INK_SAMPLE_PATH
+    const on = { INK_SAMPLE: '1' }
+    assert.equal(loadInkDeck(real, sample, {}), 'packs/phantom-ink.txt is missing')
+    assert.equal(loadInkDeck(real, sample, { INK_SAMPLE: '0' }), 'packs/phantom-ink.txt is missing')
+    assert.deepEqual(loadInkDeck(real, sample, on), loadInkCards(sample))
+    writeFileSync(real, `${prompts(16)}\nW: a|b|c|d|e|f`)
+    assert.deepEqual((loadInkDeck(real, sample, on) as { words: string[][] }).words, [['a', 'b', 'c', 'd', 'e', 'f']])
+    writeFileSync(real, 'P: broken')
+    assert.equal(loadInkDeck(real, sample, on), 'At least 16 prompts are needed') // a broken real deck is not papered over
+  } finally {
+    rmSync(dir, { recursive: true })
+  }
 })
