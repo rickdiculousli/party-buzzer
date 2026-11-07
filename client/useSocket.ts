@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
-import { ARM_DELAY_MS } from '../shared/protocol.ts'
+import { ARM_DELAY_MS, BEAT_MISSES, BEAT_MS } from '../shared/protocol.ts'
 import { finaleStep, finaleTiers, type FinaleStep } from '../shared/wall.ts'
 import { setlistSpent } from '../shared/recap.ts'
 import type { MinigameInputAck, ClientMsg, MinigameFrame, Role, ServerMsg, State } from '../shared/protocol.ts'
@@ -157,6 +157,7 @@ export function useSocket(role: Role, fixture?: SocketFixture) {
     let closed = false
     let retry = 500
     let resync: ReturnType<typeof setInterval> | undefined
+    let watchdog: ReturnType<typeof setInterval> | undefined
 
     const ping = () => {
       samples.current = []
@@ -170,8 +171,10 @@ export function useSocket(role: Role, fixture?: SocketFixture) {
       const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
       const ws = new WebSocket(`${proto}//${location.host}/ws`)
       socket.current = ws
+      let heard = performance.now()
 
       ws.onopen = () => {
+        heard = performance.now()
         retry = 500
         setConnected(true)
         const stored = localStorage.getItem('playerId')
@@ -190,6 +193,7 @@ export function useSocket(role: Role, fixture?: SocketFixture) {
       }
 
       ws.onmessage = (ev) => {
+        heard = performance.now()
         const msg = JSON.parse(ev.data as string) as ServerMsg
         if (msg.t === 'state') {
           setState(msg.state)
@@ -238,6 +242,7 @@ export function useSocket(role: Role, fixture?: SocketFixture) {
         questionId.current = undefined
         setReactions([])
         clearInterval(resync)
+        clearInterval(watchdog)
         if (closed) return
         setTimeout(connect, retry)
         retry = Math.min(retry * 2, 5000)
@@ -245,12 +250,21 @@ export function useSocket(role: Role, fixture?: SocketFixture) {
 
       ws.onclose = reconnect
       ws.onerror = () => ws.close()
+      // The server beats, so silence means a dead link. Closing one can wait a long
+      // time on a handshake nobody will answer, so this reconnects without it.
+      watchdog = setInterval(() => {
+        if (performance.now() - heard < BEAT_MS * BEAT_MISSES) return
+        ws.onclose = ws.onerror = ws.onmessage = ws.onopen = null
+        ws.close()
+        reconnect()
+      }, 1000)
     }
 
     connect()
     return () => {
       closed = true
       clearInterval(resync)
+      clearInterval(watchdog)
       socket.current?.close()
     }
   }, [role, fixture])

@@ -26,6 +26,8 @@ These need real hardware — run them once before a real game night.
 - [ ] The screen does not dim or sleep while the buzzer page is open
 - [ ] Locking and unlocking the phone returns to a working buzzer within a
       second or two
+- [ ] A phone switched to airplane mode shows away on the board, and Disconnected
+      on the phone, within about six seconds; a buzz meanwhile stays on BUZZ
 - [ ] Walking out of WiFi range and back reconnects automatically, keeping the
       same name and score
 - [ ] Reloading the page keeps the same identity

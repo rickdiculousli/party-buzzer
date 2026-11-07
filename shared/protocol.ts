@@ -51,6 +51,11 @@ export type BuzzEntry = {
  */
 export const COLLECT_MS = 1000
 
+/** How often the server checks each socket and tells it the link is alive. */
+export const BEAT_MS = 2000
+/** Beats either end misses before it calls the socket dead: long enough to ride out a phone's WiFi stall. */
+export const BEAT_MISSES = 3
+
 export type Award = { name: string; points: number; penalty?: true }
 
 /**
@@ -926,6 +931,7 @@ export type ClientMsg =
 export type ServerMsg =
   | { t: 'welcome'; playerId: PlayerId; serverTime: number }
   | { t: 'pong'; t0: number; serverTime: number }
+  | { t: 'beat' }
   | { t: 'state'; state: State }
   | { t: 'actionResult'; action: HostAction['a'] | 'loadSetlist'; result: ActionResult }
   | { t: 'minigameFrame'; frame: MinigameFrame }

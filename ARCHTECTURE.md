@@ -87,6 +87,12 @@ joining devices. A raw HTTPS IP address does not match the wildcard certificate.
 Closing the server disconnects sockets, closes HTTP connections, and flushes
 pending saves.
 
+Every `BEAT_MS` the server pings each socket and sends it a `beat` message.
+A socket that misses `BEAT_MISSES` pings is terminated, which marks its player
+away, and a browser that hears nothing for the same span reconnects. So a
+phone that vanished shows as away, and so gets Poker's short away shot clock,
+within about six seconds.
+
 ## Commands, commits, and runtime publications
 
 ```mermaid

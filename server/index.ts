@@ -20,10 +20,11 @@ import { synthesize, timedFor, folds, takePath, HOUSE_VOICE } from './eleven.ts'
 import { parsePools } from './quips.ts'
 import { lanAddresses, pickAddress, banner, link, qrFor, qrSvg } from './net.ts'
 import { PROVIDERS, certHost, ensureCert, type Tls } from './cert.ts'
-import type { ClientMsg } from '../shared/protocol.ts'
+import { BEAT_MISSES, BEAT_MS, type ClientMsg } from '../shared/protocol.ts'
 import { MinigameRuntime } from './minigames/runtime.ts'
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
+const BEAT = JSON.stringify({ t: 'beat' })
 const DIST = join(ROOT, 'dist')
 
 const TYPES: Record<string, string> = {
@@ -95,6 +96,8 @@ export async function startServer(opts: {
   statePath?: string
   revealMs?: number
   collectMs?: number
+  /** How often sockets are checked; tests shorten it. */
+  beatMs?: number
   packDir?: string
   /** Speech-to-text for the judge. Undefined builds the helper; null disables it. */
   transcribe?: Transcribe | null
@@ -327,7 +330,26 @@ export async function startServer(opts: {
 
   const wss = new WebSocketServer({ server: http, path: '/ws' })
 
+  // A socket that vanished without closing looks open forever, so its player stays
+  // connected. Browsers answer a ping by themselves; page code cannot see one, so
+  // each beat also carries a message that tells the phone the link is alive.
+  const missed = new WeakMap<object, number>()
+  const heartbeat = setInterval(() => {
+    for (const socket of wss.clients) {
+      const count = missed.get(socket) ?? 0
+      if (count >= BEAT_MISSES) {
+        socket.terminate()
+        continue
+      }
+      missed.set(socket, count + 1)
+      if (socket.readyState !== socket.OPEN) continue
+      socket.ping()
+      socket.send(BEAT)
+    }
+  }, opts.beatMs ?? BEAT_MS)
+
   wss.on('connection', (socket) => {
+    socket.on('pong', () => missed.set(socket, 0))
     const conn: Conn = {
       id: crypto.randomUUID(),
       role: 'board',
@@ -368,6 +390,7 @@ export async function startServer(opts: {
     hub,
     close: async () => {
       clearInterval(minigameTimer)
+      clearInterval(heartbeat)
       minigame.stop()
       for (const client of wss.clients) client.terminate()
       wss.close()
