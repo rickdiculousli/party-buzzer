@@ -138,7 +138,8 @@ export class Hub {
   remove(conn: Conn): void {
     this.conns.delete(conn)
     const player = this.state.players.find((p) => p.id === conn.playerId)
-    if (player) player.connected = false
+    // A reconnect can land before the old socket's close: only the last socket leaving means away.
+    if (player && ![...this.conns].some((c) => c.playerId === player.id)) player.connected = false
     this.changed('leave')
   }
 
@@ -575,6 +576,9 @@ export class Hub {
 
     // A duel narrows the field to the seated pair for this arm.
     if (round.buzzable && !round.buzzable.includes(conn.playerId)) return
+
+    // A locked-out press must not close the window on a round it can never lead.
+    if (lockedPlayerIds(this.state).includes(conn.playerId)) return
 
     // Framework effects (freeze) and the module's own rules both live behind
     // this one question.

@@ -142,11 +142,14 @@ export function useSocket(role: Role, fixture?: SocketFixture) {
   const offset = useRef(Date.now() - performance.now())
   const samples = useRef<{ rtt: number; offset: number }[]>([])
 
-  const send = (msg: ClientMsg) => {
-    if (fixture) return
+  /** Whether the message left: one sent with the socket down is gone, not queued. */
+  const send = (msg: ClientMsg): boolean => {
+    if (fixture) return false
     if (msg.t === 'host' || msg.t === 'act') setActionMessage(null)
     const s = socket.current
-    if (s && s.readyState === WebSocket.OPEN) s.send(JSON.stringify(msg))
+    if (!s || s.readyState !== WebSocket.OPEN) return false
+    s.send(JSON.stringify(msg))
+    return true
   }
 
   useEffect(() => {

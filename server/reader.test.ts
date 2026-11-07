@@ -645,6 +645,113 @@ test('the host closes picking early', async () => {
   await settled(reader)
 })
 
+test('the host closing picking refuses a pick in the beat before the answer', async () => {
+  const { hub, state, reader } = rig(CHOICE)
+  const [ada] = withPhones(hub, ['ada'])
+  await reader.select('one.txt')
+  reader.start()
+  while (!state.round.choices) await tick()
+  hub.handle({ id: 'h', role: 'host', send: () => {} }, { t: 'act', act: 'closeChoice' })
+  await wait(20)
+  assert.equal(state.round.correct, undefined, 'still in the beat')
+  hub.handle(ada, { t: 'act', act: 'pick', data: 0 })
+  assert.equal(state.round.picks, undefined)
+  reader.stop()
+  await settled(reader)
+})
+
+test('Stop then Read while the old loop waits out its quip leaves one loop', async () => {
+  const packDir = mkdtempSync(join(tmpdir(), 'pb-reader-loops-'))
+  writeFileSync(join(packDir, 'one.txt'), 'One.\nA: gold\nR: Nice.\n\nTwo.\nA: silver\n')
+  const state = newState()
+  const hub = new Hub(state)
+  let endQuip = () => {}
+  const speech: Speech = {
+    render: async (_dir, text) => ({ path: `/fake/${text}`, durationMs: 10 }),
+    // Like a killed player process, the quip's end lands after stop() returns.
+    play: (path) => ({
+      done: path.endsWith('Nice.') ? new Promise<void>((r) => { endQuip = r }) : Promise.resolve(),
+      started: Promise.resolve(),
+      stop: () => {},
+    }),
+  }
+  const reader = new Reader(hub, {
+    packDir, cacheDir: join(packDir, '.cache'), speech, perform: true, quips: { pools: { correct: [], wrong: [], nobody: [] } },
+  })
+  hub.setOnChange((s) => reader.onStateChange(s))
+  hub.setReader(reader)
+  hub.dispatch({ a: 'setAutoplay', on: true, nextSec: 0.01, buzzSec: 60, reboundSec: 0, introSec: 12 })
+  await reader.select('one.txt')
+  reader.start()
+  const [ada] = withPhones(hub, ['ada'])
+  await wait(ARM_DELAY_MS + 30)
+  hub.handle(ada, { t: 'buzz', at: Date.now() })
+  await wait(COLLECT_MS + 30)
+  hub.dispatch({ a: 'correct' })
+  await wait(50) // The dwell is up; the old loop now waits on the quip.
+
+  const dispatch = hub.dispatch.bind(hub)
+  let arms = 0
+  hub.dispatch = (action) => {
+    if (action.a === 'arm') arms++
+    return dispatch(action)
+  }
+  reader.stop()
+  reader.start()
+  endQuip()
+  await wait(ARM_DELAY_MS + 30)
+  assert.equal(arms, 1, 'only the new loop arms')
+  assert.equal(state.readingActive, true)
+  reader.stop()
+  await settled(reader)
+})
+
+test('Next during a held miss\'s quip moves on to the next question', { timeout: 5000 }, async (t) => {
+  t.mock.method(Math, 'random', () => 0)
+  const packDir = mkdtempSync(join(tmpdir(), 'pb-reader-next-'))
+  writeFileSync(join(packDir, 'one.txt'), 'One.\nA: gold\n\nTwo.\nA: silver\n')
+  const state = newState()
+  const hub = new Hub(state)
+  let endQuip = () => {}
+  const spoken: string[] = []
+  const speech: Speech = {
+    render: async (_dir, text) => ({ path: `/fake/${text}`, durationMs: 10 }),
+    play: (path) => {
+      spoken.push(path.replace('/fake/', ''))
+      let stop = () => {}
+      const done = new Promise<void>((r) => {
+        stop = r
+        if (path.endsWith('Ouch.')) endQuip = r
+      })
+      return { done, started: Promise.resolve(), stop }
+    },
+  }
+  const reader = new Reader(hub, {
+    packDir, cacheDir: join(packDir, '.cache'), speech, perform: true,
+    quips: { pools: { correct: [], wrong: [{ text: 'Ouch.', sincere: false }], nobody: [] } },
+  })
+  hub.setOnChange((s) => reader.onStateChange(s))
+  hub.setReader(reader)
+  hub.dispatch({ a: 'setAutoplay', on: true, nextSec: 0.01, buzzSec: 60, reboundSec: 0, introSec: 12 })
+  await reader.select('one.txt')
+  reader.start()
+  const [ada] = withPhones(hub, ['ada'])
+  await wait(ARM_DELAY_MS + 30)
+  hub.handle(ada, { t: 'buzz', at: Date.now() })
+  await wait(COLLECT_MS + 30)
+  hub.dispatch({ a: 'wrong', neg: 0 })
+  await wait(50) // The rebound beat is up; the loop now waits out the quip.
+  assert.ok(spoken.includes('Ouch.'))
+
+  hub.dispatch({ a: 'next' })
+  endQuip()
+  await wait(ARM_DELAY_MS + 50)
+  assert.equal(state.readingActive, true, 'the reader carries on')
+  assert.ok(spoken.includes('Two.'))
+  reader.stop()
+  await settled(reader)
+})
+
 test('autoplay moves on from a settled choice question', async () => {
   const { hub, state, reader, speech } = rig(CHOICE + '\nV: 100\nNext.\nA: x\n')
   const [ada] = withPhones(hub, ['ada'])

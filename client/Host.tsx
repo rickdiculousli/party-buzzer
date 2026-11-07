@@ -627,47 +627,47 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
             a question is play, pause and where we are. */}
         {state.packs.length > 0 && !scoreless && (
           <div class="host__reader">
-            {state.reading?.rendering ? (
+            {state.reading?.rendering && (
               <span class="chip chip--data">
                 Rendering {state.reading.rendering.done}/{state.reading.rendering.total}
               </span>
-            ) : (
+            )}
+            {/* A pack picked by hand is not offered mid-render: its switch is still landing. A setlist's reader waits for each question's audio. */}
+            {state.readingActive ? (
+              <button class="btn" onClick={() => fire(state.reading?.paused ? 'resumeRead' : 'pauseRead')}>
+                {state.reading?.paused ? 'Resume' : 'Pause'}
+              </button>
+            ) : !(state.reading?.rendering && !setlist) && (
               <>
-                {state.readingActive ? (
-                  <button class="btn" onClick={() => fire(state.reading?.paused ? 'resumeRead' : 'pauseRead')}>
-                    {state.reading?.paused ? 'Resume' : 'Pause'}
-                  </button>
-                ) : (
-                  <button class="btn btn--primary" disabled={!readable || !!readNote} onClick={() => fire('read')}>
-                    Read
-                  </button>
-                )}
-                {!state.readingActive && readNote && <span class="muted">{readNote}</span>}
-                {!state.readingActive && unpaid > 0 && (
+                <button class="btn btn--primary" disabled={!readable || !!readNote} onClick={() => fire('read')}>
+                  Read
+                </button>
+                {readNote && <span class="muted">{readNote}</span>}
+                {unpaid > 0 && (
                   <span class="chip chip--data">~{credits(unpaid)} credits to read</span>
                 )}
-                <button class="btn btn--ghost" onClick={() => fire('stopRead')} disabled={!state.reading}>
-                  Stop
-                </button>
-                {state.reading ? (
-                  <span class="chip">
-                    {state.reading.pack} · Q{state.reading.qIndex + 1}/{state.reading.qTotal}
-                    {state.reading.fragTotal > 0 &&
-                      ` · fragment ${state.reading.fragIndex}/${state.reading.fragTotal}`}
-                  </span>
-                ) : (
-                  !readable && (
-                    <span class="muted">
-                      {setlist ? 'This block names no pack — read it yourself' : 'No pack chosen'}
-                    </span>
-                  )
-                )}
-                {/* Autoplay changes what the room does without anyone touching
-                    it, so it is visible from the play surface, not only where
-                    it was switched on. */}
-                {state.autoplay.on && <span class="chip chip--armed">Autoplay</span>}
               </>
             )}
+            <button class="btn btn--ghost" onClick={() => fire('stopRead')} disabled={!state.reading || (!!state.reading.rendering && !state.readingActive)}>
+              Stop
+            </button>
+            {state.reading ? (
+              <span class="chip">
+                {state.reading.pack} · Q{state.reading.qIndex + 1}/{state.reading.qTotal}
+                {state.reading.fragTotal > 0 &&
+                  ` · fragment ${state.reading.fragIndex}/${state.reading.fragTotal}`}
+              </span>
+            ) : (
+              !readable && (
+                <span class="muted">
+                  {setlist ? 'This block names no pack — read it yourself' : 'No pack chosen'}
+                </span>
+              )
+            )}
+            {/* Autoplay changes what the room does without anyone touching
+                it, so it is visible from the play surface, not only where
+                it was switched on. */}
+            {state.autoplay.on && <span class="chip chip--armed">Autoplay</span>}
           </div>
         )}
         {!scoreless && <TypedClue state={state} fire={fire} />}

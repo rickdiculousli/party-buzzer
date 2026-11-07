@@ -222,6 +222,13 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     blip(audio.current, 180, 260)
   }, [barred, ready, preview])
 
+  // A new phone's first hello waits for a socket: the tap may land while it is down,
+  // and on reopening the socket only says hello for a phone with a stored id.
+  useEffect(() => {
+    if (preview || !ready || !connected || playerId) return
+    send({ t: 'hello', role: 'player', name: name.trim() })
+  }, [ready, connected, playerId, preview])
+
   // The join tap doubles as the gesture that unlocks audio on iOS.
   const join = () => {
     const trimmed = name.trim()
@@ -239,7 +246,8 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
         for (const t of s.getTracks()) t.stop()
       })
       .catch(() => {})
-    send({ t: 'hello', role: 'player', name: trimmed })
+    // A returning phone's tap can rename it; a socket that is down says this name on reopening.
+    if (returning) send({ t: 'hello', role: 'player', name: trimmed })
     setReady(true)
   }
 
@@ -325,7 +333,7 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     if (preview) return
     if (!open || barred || pressed || frozen || spectator || choice) return
     // Stamp before anything else so render work never inflates the time.
-    send({ t: 'buzz', at: now() })
+    if (!send({ t: 'buzz', at: now() })) return
     setPressedFor(round?.attemptId ?? '')
     navigator.vibrate?.(60)
     blip(audio.current)

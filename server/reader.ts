@@ -186,10 +186,11 @@ export class Reader {
   }
 
   /**
-   * Forget where every pack got to. Read normally resumes — stopping for the
-   * night and coming back should not lose your place — so this exists for the
-   * one caller that needs the opposite: a scripted walkthrough has to start
-   * from the same frame however the last run ended.
+   * Forget where every pack got to. A setlist's Read picks up where its packs
+   * left off (mid-question, resuming is Pause's job, and Stop forgets a pack
+   * chosen by hand), so this exists for the one caller that needs the opposite:
+   * a scripted walkthrough has to start from the same frame however the last
+   * run ended.
    */
   rewind(): void {
     this.pos.clear()
@@ -563,6 +564,8 @@ export class Reader {
   }
 
   private async run(): Promise<void> {
+    // This loop's own session: a Stop then Read replaces `this.session` while it unwinds.
+    const session = this.session
     // Every pack the setlist names, queued before the first question rather
     // than at the block boundary where it would be thirty seconds of silence.
     // Queued, not awaited: rendering runs behind the game now, in the order the
@@ -595,7 +598,7 @@ export class Reader {
           break
         }
         if (want !== this.pack) {
-          await this.ensure(want, this.session.signal)
+          await this.ensure(want, session.signal)
           this.pack = want
         }
         const q = this.questions[this.qIndex]
@@ -606,15 +609,15 @@ export class Reader {
         // The one place the warm start can bite: a room that outran the renderer.
         // Wait here rather than arming onto a clip that does not exist yet, which
         // would open the buzzers on silence.
-        await this.waitFor(q, this.session.signal)
+        await this.waitFor(q, session.signal)
         this.fragIndex = 0
         if (q.value !== undefined) {
           this.hub.dispatch({ a: 'setValue', value: q.value })
         }
         // The room reads what the next one is worth before it starts, and hears
         // it coming over the same beat.
-        await Promise.all([this.cue(this.opts.nextCue), this.opts.nextCardMs && sleep(this.opts.nextCardMs, this.session.signal)])
-        this.session.signal.throwIfAborted()
+        await Promise.all([this.cue(this.opts.nextCue), this.opts.nextCardMs && sleep(this.opts.nextCardMs, session.signal)])
+        session.signal.throwIfAborted()
         // A refused arm (an introduction arrived during the dwell) will never
         // reach ARMED, so the session ends here instead of waiting on it, the
         // way an abort does: autoplay and the position stay as they are.
@@ -622,7 +625,7 @@ export class Reader {
         // Answer variants, memory only — this is the one path by which the judge
         // ever learns what the room is about to be asked.
         if (q.kind !== 'choice' && q.kind !== 'closest') this.opts.judge?.prime(q.answers)
-        await this.until((s) => s.round.phase === 'ARMED', undefined, this.session.signal)
+        await this.until((s) => s.round.phase === 'ARMED', undefined, session.signal)
 
         const stamp = this.hub.state.round.armedAt
 
@@ -632,7 +635,7 @@ export class Reader {
         // The question's scope: the session's lifetime and this round's, as one
         // signal. Declared here because `stillMine` is only answerable once the
         // arm it belongs to has a stamp.
-        const sig = AbortSignal.any([this.session.signal, this.watch(() => mine && stillMine())])
+        const sig = AbortSignal.any([session.signal, this.watch(() => mine && stillMine())])
 
         await sleep(Math.max(0, stamp - Date.now()), sig)
 
@@ -646,7 +649,7 @@ export class Reader {
           // board's reveal has played, so the room gets the whole payoff.
           const dwell = this.dwellMs()
           const reveal = q.kind === 'closest' ? closestTimes(this.hub.state.round.guessed ?? 0).doneAt : 0
-          await this.until(() => !stillMine(), dwell === undefined ? undefined : dwell + reveal, this.session.signal)
+          await this.until(() => !stillMine(), dwell === undefined ? undefined : dwell + reveal, session.signal)
           if (!stillMine() && this.hub.state.round.questionId) {
             throw new DOMException('Question replaced', 'AbortError')
           }
@@ -676,7 +679,7 @@ export class Reader {
           // A miss after the voice has finished is held all the same, and
           // opening its rebound is still the reader's beat.
           if (this.hub.state.round.held) {
-            await this.waitOutBuzz(this.session.signal)
+            await this.waitOutBuzz(session.signal)
             continue
           }
           // The wall counts the room down to the moment this wait gives up. A
@@ -690,7 +693,7 @@ export class Reader {
           await this.until(
             (s) => resolved(s) || !stillMine() || !!s.round.held || s.round.reveal?.until !== sharpAt,
             dwell,
-            this.session.signal,
+            session.signal,
           )
           if (!stillMine()) {
             if (this.hub.state.round.questionId) throw new DOMException('Question replaced', 'AbortError')
@@ -721,7 +724,7 @@ export class Reader {
         await this.until(
           (s) => !stillMine() || (!deadAir && s.round.phase === 'IDLE' && !s.round.award),
           this.dwellMs(),
-          this.session.signal,
+          session.signal,
         )
         if (!stillMine() && this.hub.state.round.questionId) {
           throw new DOMException('Question replaced', 'AbortError')
@@ -729,6 +732,7 @@ export class Reader {
         // The quip runs over the dwell, not after it — but the next question
         // never starts on top of its tail.
         await said
+        session.signal.throwIfAborted()
         if (stillMine() && (this.hub.state.round.award || deadAir)) {
           this.hub.dispatch({ a: 'next' })
         }
@@ -879,6 +883,8 @@ export class Reader {
       done = true
       clearTimeout(timer)
     }
+    // The host's Close shuts the window now, not at the settle, as on a closest question.
+    if (this.closeNow && stillMine()) this.hub.send(this.conn, { t: 'act', act: 'closesAt', data: Date.now() })
     // Everyone is in; the rest of the options would be read to nobody.
     this.playback?.stop()
     await options
@@ -1055,6 +1061,8 @@ export class Reader {
    * without a beat, because they opened it themselves when they pressed W.
    */
   private async waitOutBuzz(sig: AbortSignal): Promise<boolean> {
+    // The session, not `sig`: a host's Next during the quip below ends the question, and the loop moves on from that.
+    const session = this.session
     await this.until(
       (s) => s.round.phase === 'ARMED' || s.round.phase === 'IDLE' || !!s.round.held,
       undefined,
@@ -1068,6 +1076,7 @@ export class Reader {
       // Ends early if anything else takes the round — a host arming, an undo.
       await this.until((s) => !s.round.held, auto.reboundSec * 1000, sig)
       await said
+      session.signal.throwIfAborted()
       if (this.hub.state.round.held) {
         this.hub.dispatch({ a: 'rebound' })
       }

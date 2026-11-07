@@ -508,7 +508,8 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
     const end = trace.current[trace.current.length - 1].t
     trace.current = []
     if (gesture.kind === 'flick' && onCards.current && !onCorners.current && inHand) {
-      if (!legal) {
+      // Disconnected, a fold would be lost and only a refusal rolls the throw back.
+      if (!legal || !connected) {
         // Restart the shake in place; re-mounting the pair would replay its deal.
         const node = hole.current
         play('poker-nope')

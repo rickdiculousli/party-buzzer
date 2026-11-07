@@ -85,6 +85,29 @@ test('a frozen player\'s buzz never enters the window', () => {
   assert.equal(state.round.total, 0)
 })
 
+test('a locked-out buzz never opens the window', () => {
+  const { state, hub, conn } = rig()
+  const phone = conn('player')
+  joinAs(hub, phone, 'Ada')
+  state.round.phase = 'ARMED'
+  state.round.armedAt = Date.now() - 10
+  state.round.lockedOut = [phone.playerId!]
+  hub.handle(phone, { t: 'buzz', at: Date.now() })
+  assert.equal(state.round.phase, 'ARMED')
+})
+
+test('a stale socket closing leaves a reconnected player connected; the last one closing does not', () => {
+  const { state, hub, conn } = rig()
+  const stale = conn('player')
+  joinAs(hub, stale, 'Ada')
+  const fresh = conn('player')
+  hub.handle(fresh, { t: 'hello', role: 'player', playerId: stale.playerId, name: 'Ada' })
+  hub.remove(stale)
+  assert.equal(state.players[0].connected, true)
+  hub.remove(fresh)
+  assert.equal(state.players[0].connected, false)
+})
+
 test('useItem rides the act channel and broadcast follows', () => {
   const { state, hub, conn } = rig()
   const ada = conn('player')

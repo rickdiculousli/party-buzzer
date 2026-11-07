@@ -293,7 +293,10 @@ question text only when **Mirror question text to phones** is enabled.
 
 A buzz interrupts playback. A rebound resumes at the interrupted clause when
 alignment and seeking are available, or uses the available playback fallback.
-**Pause** stops speech while leaving buzzers available. **Autoplay** handles
+**Pause** stops speech while leaving buzzers available, and **Resume** re-reads
+the clause it stopped in. **Stop** ends the read: under a setlist **Read** picks
+up where it left off, and without one the pack is chosen again and starts from
+its first question. **Autoplay** handles
 verdict dwell, rebound pauses, and advancing through questions. With spoken
 answer recognition available, the judge can also apply verdicts automatically.
 The host can still judge manually.
