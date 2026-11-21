@@ -1,0 +1,5 @@
+# Every surface's audio starts inside a user gesture
+
+Browsers start an `AudioContext` made outside a user gesture `suspended`, where it plays nothing and runs no worklet, and iOS suspends it again when the phone locks. So every phone, even one the room already knows, starts behind the join tap, which creates and resumes the context and asks for the microphone (then stops the stream, so the first answer is not spent on the permission dialog); skipping it would mean a silent phone all night. The board unlocks on its first `pointerdown` and says "Click for sound" until then, and the host unlocks in `Spoken`'s first-pointerdown listener. A context suspended by a locked screen or a background tab is resumed, never replaced, and `Recorder` borrows the page's context and join-time stream instead of building its own in an effect, where no gesture could unlock it.
+
+Where: `client/Player.tsx` (`join`, `blip`), `client/sound.ts` (`unlock`, `prime`), `client/Board.tsx` (`audible`), `client/Spoken.tsx` (`Spoken`), `client/recorder.ts` (`Recorder`)

@@ -121,7 +121,7 @@ room for them. Validate microphone, playback, and multi-device behavior with
 - `AGENTS.md`: common working instructions for every agent, Claude Code included.
   Keep it the only one: Claude Code reads it only while no `CLAUDE.md` exists.
 - `docs/design.md`: visual language and terminology.
-- `docs/adr/`: the decisions a code comment would otherwise carry, one per file, indexed in its README. `/delete-comment` audits the comments the baseline still allows.
+- `docs/adr/`: decisions that are hard to reverse, surprising, and the result of a trade-off, one per file, indexed in its README. `/delete-comment` audits the comments the baseline still allows.
 - `tools/README.md`: each tool's usage.
 - `docs/question-styles/`: writing rules per question style, plus shared accepted-answer rules.
 
@@ -179,7 +179,7 @@ Take the first option that fully works:
 - Be lazy about the solution, never about the change itself: finish every part the task needs, including the callers, tests and fixtures your change breaks.
 - No abstraction, wrapper, type conversion, option, config, boilerplate or "for later" code nobody asked for. Keep values in the form the platform already gives you. Deletion beats addition. Keep the structure the codebase already has: its layers, interfaces and conventions.
 - The shortest working diff wins, once you know everything it must touch. A one-liner that needs decoding is not short.
-- No comments in TypeScript, CSS, HTML or Swift; `npm test` fails on one. A non-obvious why goes in `docs/adr/`, a known hack in an issue.
+- No comments in TypeScript, CSS, HTML or Swift; `npm test` fails on one. A why goes in the guide that owns its area (`docs/design.md`, `ARCHTECTURE.md`), or `docs/adr/` when it meets that bar. A rule a test can hold goes in a test, and a known hack goes in an issue.
 - Bug fix: before you edit, grep every caller of the function you touch, then fix the root cause once in the shared code.
 - Code you move or merge keeps its error handling and validation.
 - Between options of equal size, take the one that is correct on edge cases.

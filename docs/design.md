@@ -100,7 +100,8 @@ on `--panel`.
 
 Two faces, both self-hosted in `client/public/fonts` as latin-only `.woff2`
 (~56 kB total). **Nothing may reference a CDN — the party WiFi has no route to
-the internet.**
+the internet.** Each face loads with `font-display: block`: the files are local
+and arrive at once, and a flash of fallback type on the board reads as a glitch.
 
 **Big Shoulders** (`--display`), variable 400–900. A condensed American signage
 face. Every name, every call, every number the room reads from ten feet. It is
@@ -171,6 +172,11 @@ Their tunables are hand-tuned; change a tunable, not a curve.
 `fx-hero-slam-glow` and `fx-vote-drop-glow` run two animations on one element;
 like `fx-ripple`, they are exceptions to "one effect per element".
 
+A glow is at full power on its first frame and only cools, and a mark's bloom is
+one gesture with its stamp: a glow that ramps up, or switches on after, reads as
+a second event however tight the timing. The vote glow is a `drop-shadow`,
+because `text-shadow` cannot outline an emoji.
+
 ### Interest kit
 
 Reusable effects for adding interest anywhere: entrances, exits, idle loops,
@@ -207,7 +213,8 @@ a scenario in the motion harness (`npm run motion`) to preview and tune it.
 - Reduced motion is handled globally in `tokens.css`; `<Burst>` renders nothing
   and `<CountUp>` shows its value at once.
 - Adding an effect: its rule under `FX`, its defaults in `anim:tunables`, its
-  scenario in `client/anim/scenarios.tsx`, and its row below.
+  scenario in `client/anim/scenarios.tsx` (dial names written out in full,
+  since `client/tunables.test.ts` scans that file for them), and its row below.
 
 **Effect palette** — `--fx-1` … `--fx-8` in `tokens.css`: coral, orange,
 amber, olive, sage, periwinkle, lavender, rose. One shared lightness and a low
@@ -552,9 +559,12 @@ the flick.
 ### Spoken line — `.board__spoken`
 
 What the judge heard, quoted on the board: the transcript of the leader's
-spoken answer, in curly quotes — the judge's verdict lands with the line, so
-it is brass (`is-hit`) when it earned the points and tally (`is-miss`) when
-it did not, from its first frame. An
+spoken answer, in curly quotes, in the display face at `--t-xl` like the rest
+of the stage (a body-face size reads across a room as a footnote). It types
+out a chunk at a time in `--dim`, holds `--verdict-hold`, and only then eases
+to brass (`is-hit`) when it earned the points or tally (`is-miss`) when it did
+not; the award stamp lands on that same instant (`settleMs`). A colour on the
+first chunk would give the verdict away before the room has read the line. An
 empty transcript reads as "no answer", which is itself a verdict.
 
 ```html
@@ -568,7 +578,9 @@ glance. The three-band layout keeps the hero name pinned at centre, so the
 line arriving or leaving never moves it. And it outlives a rebound the way
 the award does — a wrong answer hands the question to the next in the order, the
 collection window is gone, but what the first player said is still the story
-the room is reacting to, so it stays up until the next question arms.
+the room is reacting to. It stays up until the rebound's first press, when it
+would sit above the new answerer's name, or until a held rebound opens, when
+the clue resumes under it; the next arm clears it in any case.
 
 ### Chat — `.sketch-chat`
 
@@ -719,7 +731,11 @@ Each team's page is a CRT set; each team's discarded prompts stack as paper
 slips on its set's outer side. Sun and Moon are `--team-sun` (`--id-1`) and
 `--team-moon` (`--id-3`): identity hues, never signal ones. Set `--team` from
 the `--sun`/`--moon` modifiers. A peek letter is written in the page's team
-colour, and a peek row carries an eye.
+colour, and a peek row carries an eye. Typed guess letters are Plex Mono through
+the `#ink-px` grid, so every letter takes one width (the condensed display face
+leaves a hole beside an I). Nothing moves under a writing finger: lobby columns
+pad with empty seats, the lobby button says one word, and the writer's Stop
+alert is always laid out and only hidden.
 
 #### Poker — the late room (`.felt`, `.poker-card`, `.poker-rail`)
 
@@ -780,6 +796,8 @@ actions sit on a stitched leather rail (`--leather`) as plaques; reactions
 are printed tokens on the cloth. Win % and the shot clock stay cyan readouts
 without effects.
 
+The motion dials in `client/toss.ts` don't carry their units in their names: times (`*Ms`, `skidTau`, `tapGap`, `spreadLag`) are ms; angles (`*Rot`, `stackTwist`, `heading`, `bend`) are degrees, `bend` at a full sideways flick; spins (`spin`, `spinQuiet`, `spinWild`) are deg/ms, signed, `spinFriction` deg/ms²; `skidFriction` is px/ms²; `tapDepth` is a share of the card's size.
+
 Motion follows hands and cloth, not keyframes: `client/toss.ts` moves a card
 in two phases. In the air it is fast and loses little speed, spinning freely;
 at touchdown the cloth takes over, drag slows it exponentially and a little
@@ -810,6 +828,22 @@ faded `--stamp-ink`, masked by `--stamp-wear` so the rubber takes unevenly,
 across the lower edge of their dimmed name. It never floats on a plate or a
 shadow, because by then it is the least important thing on the table. Tunables live in `TOSS`; the harness's Poker
 scenarios preview the deal and the three kinds of fold.
+
+Every Poker surface takes the first frame it sees as its baseline: nothing older
+is animated or cued, a dealt hand is not dealt again, and board cards already
+out lie face up and still, so a reload replays nothing. A phone reads the
+board's deal times (`dealTimes`) and turnover direction, and a street card waits
+for the board to turn it, so no phone shows a card before the room sees it. In
+a runout the river gets its own beat and the odds stay as the turn left them,
+since a full board's odds would name the winner while the river lands.
+
+Nothing on the phone's table moves under a thumb: five board-card slots are
+always laid out, the raise sheet rises over the rail rather than replacing it,
+the painted call keeps its room, and the slider is inset from the screen's
+sides, where an edge swipe changes apps. A raise is sized in big blinds while
+preflop is unopened, otherwise against the pot. `GESTURE` and `PEEK` in
+`client/poker.ts` are calibration set on real phones, not derived values;
+retune them on one.
 
 ---
 
@@ -849,7 +883,15 @@ would collide with what is already beside it, so a cluster becomes a staircase
 rather than a pile. Its connector then runs the whole way from the rail to its
 own name — and the names carry an opaque background so a connector passing
 behind one breaks around it instead of striking through. That background is the
-entire reason the labels have one.
+entire reason the labels have one. The scale sits above the rail, because the
+last mark can land at full scale and would collide with it underneath, and
+first place's delta is blank: it is the datum the rest are measured from.
+
+**Marks land as a run.** The Hub publishes the first 150 ms of buzzes in one
+packet and later ones a packet each, so the board gives each new mark the next
+free slot, `--mark-stagger` apart, and spaces their stamp sounds by the same gap
+on the audio clock. The rail still plots every mark at its true millisecond;
+only the telling waits.
 
 **One window, ordered by press time.** Collection runs for a full second after
 the first buzz, and every buzz inside it is a contender: the clamped press stamp
@@ -869,6 +911,14 @@ sidebar on the right. Everything on the wall is `--t-mega` or larger, except
 the status chips, which sit top-left at `--t-chip-board` so the centre stays
 clear for the moment that matters.
 
+The wall is three bands (`minmax(0, 1fr) auto minmax(0, 1fr)`) at the
+screen's full height: the equal outer bands pin a middle lane one hero line
+tall at the exact centre whatever mounts above or below, and each outer band
+grows away from it. The band above holds three lanes (what was said, the
+stamp, the answer), each held open while another is up, so one arriving never
+pushes another along. Lockout chips are status and sit at the stage's foot, so
+a rebound's chips never move the timeline.
+
 States, in priority order:
 
 1. **Result** — hero name in tungsten while they answer, timeline beneath;
@@ -878,6 +928,17 @@ States, in priority order:
 3. **Arming** — whatever was up holds until the buzzers open: the next-question
    card, or the miss on a rebound.
 4. **Idle** — "Ready", dim.
+
+The hero is keyed on the name: a new name slams in (a rebound taking the stage
+from the miss is an arrival), while the same name being judged only recolours.
+Its glow rides an inner element keyed on the tone, so a verdict arrives already
+lit in brass or tally instead of the old glow cooling in the wrong colour.
+
+**Nominations** for a duel are a ranked list at room scale in the standings'
+row vocabulary. The names lit as leading come from `willSeat`, the host desk's
+prediction of what the close will seat, never simply the top two; in teams each
+side nominates in its own equal column, empty or not, because the seat takes
+the top of each.
 
 **Reactions** (`.board__pills`) float over the lower band: each is a pill in
 its sender's identity colour that rises from above the lockout chips
@@ -914,7 +975,9 @@ dot lands on the top edge of the answer it chose, three quarters showing
 or "Nobody". Its moments are `choice:listening`, `choice:picking` and
 `choice:reveal`; there is no hero. The option box (`.choice__cell`,
 `.choice__letter`) is shared with the phone, which shows the same panels as its
-pick buttons and the seconds left above them (`.player__countdown`).
+pick buttons and the seconds left above them (`.player__countdown`). Option
+text clamps to two lines and cell type is bounded by viewport height as well
+as width, so a short board shrinks the grid rather than cropping it.
 
 A **closest question** uses the same lifted split and the same slot bar, over
 an empty cyan line (`.closest__line`: a scale, so it is cold) that says "Guess
@@ -934,7 +997,9 @@ the winner: "Ed +200 · 15 off" ("spot on" for an exact hit, "each" for a tie,
 `CLOSEST_REVEAL` in `shared/closest.ts`, applied as inline delays; phones and
 the standings keep the old picture until it has played, so nobody's hand tells
 the room first. Its moments are `closest:listening`, `closest:guessing` and
-`closest:reveal`. The phone shows an in-app number pad (`.pad`): the typed
+`closest:reveal`. The phone shows an in-app number pad (`.pad`), because a
+numeric keyboard is missing on some phones and covers half the screen on the
+rest: the typed
 value large with its unit and **Lock in** beside it, then four columns of keys
 in three rows. Its verdict is **Nearest** (brass), **Exact**, **Second**
 (placed), or how far off it was.
@@ -953,7 +1018,10 @@ for, and drops back to the dim chip. A buzz holds the picture on the step it
 landed in; the hero
 takes the middle while they answer, and a rebound brings the picture back
 where it stopped and sharpens on from there. Once the question is over it is
-drawn sharp.
+drawn sharp. A live picture goes whole only a grace after its window
+(`REVEAL_WHOLE_GRACE_MS`), because the board learns of a press a network trip
+late and would otherwise show the whole picture and pull it back. The stakes
+chip flashes only on a fall; a rise is a late press correcting the price.
 
 **The leader shows early, the field fills in.** A beat after the first buzz
 (150 ms — long enough for the true photo finish to land) the board lights up
@@ -968,14 +1036,28 @@ has to still be there. That is also why the host's Correct and Wrong go dead
 once a question is scored — the order is still up, so the buttons have to be
 the thing that stops.
 
+**The verdict waits for the sentence.** While the transcript types out, the
+stamp, the name's tone and the thud hold until the line lands. A penalty
+retires after `--penalty-dwell`, because a rebound is the same question still
+being read and the stamp must not sit over it; a payoff never retires. The
+rebound dwell under autoplay (`autoplay.reboundSec`, 4 s) is sized to that
+whole beat: at 2 s the voice comes back while the penalty is still landing.
+
 The QR is full size while the room is arriving (nobody yet, the lobby, a first
 block's introduction), with the join address printed under it for a phone that
-will not scan; then it shrinks to a corner. The standings win the sidebar: a
+will not scan, scheme included, since a bare host typed into a phone tries http
+first and the server is https; then it shrinks to a corner. The standings win the sidebar: a
 long lobby roster shrinks the code, never the list.
 Between questions it is still there for latecomers, just not eating the wall.
 A minigame board places the same small code (`JoinCode`) inside its own layout,
 clear of its field: shown throughout an untimed match, and at ready and results
-of a timed one.
+of a timed one. Tug of war draws its rope as a damped spring chasing the
+server's flag, and the verdict, the swing cues and a win at the mark follow the
+drawn flag, never the frame, so sound and crossing are one event.
+
+The welcome bed plays from the board until the night's first arm or minigame,
+and then never again: keyed on an idle round it would swell back between every
+pair of questions.
 Connection state sits at the bottom of the sidebar as a `.lamp` — the room
 never needs it, but the host glancing at the wall does. The standings mark
 the podium with `.rank` medals (1st/2nd/3rd in brass, silver, bronze); below
@@ -992,7 +1074,8 @@ and 2nd in silver each take the middle lane (`.board__finale-step`: the place
 over the name, the score under it, the hero's slam and glow), then the winner
 and confetti play as before; about 2.5 s after the name appears, a recap band
 (`.board__recap`) hangs under it and cycles the night's recap cards, one every
-4 s, each rising in. The sidebar stays off-screen until the winner is up, and
+4 s, each rising in. Cards are only positive or neutral facts (no slowest, no
+most wrong): a recap that embarrasses a guest is not a keepsake. The sidebar stays off-screen until the winner is up, and
 the phone's dial is blank until then, so the standings never call a place first. A tie shares a step, and a step with
 nobody on it (a tie for 2nd leaves no 3rd) is skipped. A phone says "Final"
 with no place until the wall calls its tier; 4th and below are called with the
@@ -1011,6 +1094,9 @@ name for a moment with the existing `fx-flash`. The **introduction** names the
 first block and its goal; the phone shows a "Waiting for the host" chip and no
 control. Neither is a round: no points, no readiness gate, no new keyframes.
 The board covers its old content while one is up; the QR and identity bars stay.
+Each surface claims only what the server saw: the board takes names and colours
+from the roster, never from practice receipts, and a phone says "Buzzer tested"
+only from its own receipt. The host's arrival block gates nothing on readiness.
 
 ### Host — a control desk driven by the keyboard
 
@@ -1019,14 +1105,24 @@ one has a key and shows it:
 
 | Key | Action |
 |---|---|
-| `Space` | Arm |
+| `Space` | The next thing to do: Correct when someone is judgeable, Arm when idle |
 | `C` | Correct |
-| `W` | Wrong (with penalty) |
+| `W`, `Shift` | Wrong (with penalty); `Shift` on an untaken rebound arms the next question |
 | `N` | Next question |
 | `Z` | Undo |
 
 Shortcuts never fire while focus is in an input, a select, or a
-`contenteditable`, and never with a modifier held.
+`contenteditable`, and never with a modifier held. `Space` does nothing while
+the buzzers are up, because re-arming there throws the question away. During a
+held rebound Reopen takes Correct's slot and `C` and `R` fire it, which is safe
+because the server's `rebound` changes nothing when no miss is held.
+
+The "up" strip naming who Correct and Wrong land on stays dim until judging
+opens, so a lit name means the keys are live, and the judging notes always
+reserve two lines so the keys never move. An Autoplay chip sits on the play
+strip whenever autoplay is on, since it moves the room without anyone touching
+it. A setlist asking for more questions than its pack holds shows tungsten, not
+tally: something to notice before the night, not a fault in the room.
 
 **Undo is server-side** and goes back 20 host actions. Awarding points to the
 wrong player is the mistake a host actually makes, and it was previously
@@ -1043,6 +1139,8 @@ that always says what is running and holds Undo:
 - **Games** — how the night runs (direct play or setlist), the setlist builder,
   then one fold per game (`.host__game`, a `<details name="game">` accordion):
   the quiz (mode, pack, reading) and each minigame (its options and Open).
+  Under a setlist the minigame launchers hide, since the blocks name the
+  minigames and a launch by hand would step outside the plan.
   Inside a fold every control is a desk-grammar field, so the controls of
   every game sit in one column and each label's reason sits under it.
 - **Players** — roster, the minigame lobby's sides, teams, scores. Reachable
@@ -1057,7 +1155,14 @@ control separated from the switch that enables it reads as belonging to neither.
 The buzzer fills everything below a single status bar. The player's name is
 rendered in their identity colour, so you can tell whose phone you picked up.
 Minigame phones keep the bar: name, connection lamp and, where the game scores,
-the score (Poker carries name and lamp in its felt header).
+the score (Poker carries name and lamp in its felt header). While the Ready bar
+is up the game surface is the screen minus the bar (one 3.5rem button plus its
+padding and safe-area inset; change them together), so no control sits under
+it. Sideways controls (the Tank controller, the Ink writer, the Sketch drawer)
+hold the phone with its left edge down whatever autorotate does, so the field
+gets the long side. Sketch's guess field sits just under the drawing near the
+phone's middle, so the keyboard opens below it; a phone that shrinks for its
+keyboard shrinks the drawing, never the field.
 Below the buzzer, the standings sit behind glass as a dial (see `.dial`):
 five rows through a clear window, the rest of the field a scroll away under
 frosted edges.
@@ -1091,7 +1196,22 @@ it at once, and a phone face-down learns nothing from the dial. The name takes
 the tone the board's hero takes. The name waits for the board to finish typing
 the transcript, so it never names the result ahead of the line; a payoff stays
 until the next arm, a miss only while a held rebound waits. The player who
-answered keeps Right or Out.
+answered keeps Right or Out. Only the name takes the tone; identity colour
+stays off its letters and the edge, which carry state here (an identity red
+would read as a miss).
+
+The locked-in leader answers by holding the talk slab. A hold under a quarter
+second is refused as too short and leaves the window open, one past six seconds
+sends what it has so a stuck finger cannot hold the round hostage, and dragging
+down cancels. The slab sets `touch-action: none`, because a scroll that claims
+the gesture fires `pointercancel`, which must never read as release. With no mic
+(denied, or plain http, which is no secure context) the phone shows "Say it out
+loud" with a dashed border, since a solid border on an inert surface reads as a
+button that stopped working.
+
+A seated duel player gets a "Heads-up" panel before the arm, because "Wait"
+means two things then. The nomination card prints that tapping your pick again
+takes the vote back: a gesture that is its own undo is one nobody guesses.
 
 "In" is the phone knowing something the room does not. It is purely local — the
 room sees nothing for the first 150 ms, and a buzzer that looks unchanged after
@@ -1127,7 +1247,9 @@ board is uppercased in CSS, not in the string, so the data stays readable.
 
 **Explain the dead end.** Never show a disabled control with no reason. "Out" is
 useless; "Out — wrong answer, you sit out the rest of this question" tells the
-player exactly what happened and when it ends.
+player exactly what happened and when it ends. The reason is a printed line
+beside the control, never a `title`: a disabled button fires none of the
+pointer events a tooltip needs.
 
 **No apologies and no exclamation marks.** The tally light is doing the shouting.
 
@@ -1237,6 +1359,12 @@ rebounds and lockouts. Ctrl-C removes the bots.
 
 You can join from a phone mid-run and play against them.
 
+The motion harness (`npm run motion`) loads `client/style.css` unmodified, and
+its own chrome never styles the preview, so a dial drives the rule the board
+runs. An entrance is judged against the frame it interrupts: each scenario
+renders a lead frame with everything but the new subject sitting still, then
+the moment, and only the subject animates.
+
 **What it revealed:** with collection ending at 150 ms, the board almost always
 showed a single mark — everyone slower than the winner's first 150 ms was
 dropped before the room ever saw them. Collection now runs a full second so the
@@ -1260,5 +1388,7 @@ fills.
    board and three phone sizes (`tools/review/fits.spec.ts`). An overlap that
    is the point, like the faded countdown behind the wall, carries
    `data-overlap` in the markup; decoration that is `aria-hidden` is exempt.
+   Player names have no length limit, so every place a name shows lays out one
+   of any length; the review deck keeps long-name scenarios for it.
 
 Before shipping, remove one thing.

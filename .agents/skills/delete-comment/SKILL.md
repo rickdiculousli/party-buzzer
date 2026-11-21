@@ -21,7 +21,7 @@ Read the code around each comment, then give it exactly one category:
 - **tautology**: repeats what the code, names or types already say, including banners and labels.
 - **stale**: describes code, behaviour or history that no longer holds (check with grep).
 - **excuse**: justifies a hack or known limit: a workaround, TODO, `ponytail:`/`shortcut:` note, a guard for a state that should be impossible, a value kept in sync by hand.
-- **decision**: a non-obvious why that a competent editor would otherwise "fix" wrongly: an invariant, an external constraint, a rejected alternative.
+- **decision**: a why that a competent editor would otherwise "fix" wrongly: an invariant, an external constraint, a rejected alternative.
 
 Torn between decision and tautology? If the comment vanished, would a competent editor plausibly make a wrong change? A long doc comment that paraphrases a signature is still a tautology.
 
@@ -29,12 +29,16 @@ For more than a few hundred comments, split the list into batches and give each 
 
 ## Where each one goes
 
-- **decision**: if `ARCHTECTURE.md`, `docs/design.md`, `README.md` or an existing `docs/adr/` file already says it, nothing new. Otherwise extend the ADR that covers it, or add `docs/adr/NNNN-slug.md` with the next free number in the format `docs/adr/README.md` gives, and list it there under its area. Present tense, files and symbols named, no line numbers.
+- **decision**, the first of these that fits:
+  1. Already said by `ARCHTECTURE.md`, `docs/design.md`, `README.md`, an ADR, or asserted by a test: nothing new.
+  2. A rule a small test can hold: write the test instead of prose.
+  3. Hard to reverse, surprising without context, and the result of a real trade-off (or an external constraint the code can't show): an ADR in the format and bar `docs/adr/README.md` gives, one decision per file, next free number, listed in the index. Most decisions fail this bar.
+  4. Otherwise a sentence in the guide that owns the area: board, host, phone, motion and sound go in `docs/design.md`, server and runtime invariants in `ARCHTECTURE.md`. Use the guide's voice and add no new top-level section when one fits.
 - **excuse**: an issue. Check `gh issue list --label comment-audit --state all` first and add to a matching one instead of duplicating it. The body says what the hack is, where (file and symbol), why it is a hack and what the fix looks like. Merge excuses with one root cause into one issue.
 - **tool usage** in a header comment under `tools/`: into `tools/README.md`.
 - **tautology, stale**: nothing to keep. Note a stale comment's mismatch only if it points at a real bug.
 
-Append one row per comment to `docs/audits/comments/ledger.tsv`: `file:line`, category, a reason of at most 15 words, and where it went (ADR path, doc section or issue number).
+Append one row per comment to `docs/audits/comments/ledger.tsv`: `file:line`, category, a reason of at most 15 words, and where it went (ADR path, guide section, test, or issue number).
 
 ## Strip and ratchet
 

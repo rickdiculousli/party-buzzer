@@ -77,12 +77,16 @@ separate frames.
 The HTTP server serves the built SPA at `/`, `/host`, `/board`, and `/recap`,
 assets from `dist/`, the join QR at `/qr.svg`, the night's recap as
 `/recap.json` (the keepsake) and `/recap.svg` (a QR to `/recap`), and WebSocket
-upgrades at `/ws`.
+upgrades at `/ws`. Only hashed bundles under `dist/assets/` are cached; fonts,
+the QR and sounds keep stable names and are served `no-cache`, so an open board
+never plays a replaced sound.
 `POST /spoken?player=<id>` accepts an answer recording, or text for test tools.
 The Judge decides whether the player currently has a valid answer window.
 
 `server/cert.ts` handles cached local-ip.sh certificates; `server/net.ts`
-selects a LAN address and builds join information. The domain requires DNS on
+selects a LAN address and builds join information: it skips virtual interfaces
+(Docker, VPN tunnels, Apple peer-to-peer), which are never the party WiFi, and
+prefers `192.168.`, what home routers hand out. The domain requires DNS on
 joining devices. A raw HTTPS IP address does not match the wildcard certificate.
 Closing the server disconnects sockets, closes HTTP connections, and flushes
 pending saves.
@@ -123,6 +127,11 @@ Not every message is a host action. The `act` route also handles player items,
 duel participation, reader controls, file operations, module operations, and
 runtime publications such as fragments, revealed answers, and judge windows.
 Those paths do not automatically inherit dispatch acknowledgments or undo.
+Items, duel entry, picks and guesses are the only acts a player may send; every
+other act is host-scoped (the Reader and Judge connect as host), so a phone can
+never reveal a fragment or close a window for itself. A compound setting
+(`setSetlist`, `setAutoplay`) is always sent whole, so one edit is one undo
+step and the server merges nothing.
 Reader/Judge runtime publications use in-process connection objects, not an
 extra network socket.
 
@@ -143,7 +152,11 @@ semantic `frameKey`; unchanged keys suppress broadcasts while fixed steps and
 input acknowledgements continue. Poker uses this for actions, streets, presence,
 reactions and level/turn deadlines. Dropped catch-up time also forces a frame to
 rebase browser deadlines. Every hello receives its current role frame, including
-private phone data only for that player. Poker's browser shot ring, level clock
+private phone data only for that player. A secret rides only the frames of a
+role that may know it (Poker cards once face up, Sketch's word at the reveal,
+Ink's secret to its writers). Heavy fields (Sketch strokes, the Ink pad, Tank
+cover) ride a frame when they change and once a second, so a surface that
+missed one recovers within a second. Poker's browser shot ring, level clock
 and final-second tick cues run locally between pushes; they never rerender the
 table to advance time. Moving cards and chips sound from their own frames: `Piece`
 takes a cue per contact (`soundPlan` over `contacts` in `toss.ts`: start, air, tap, flip,
@@ -167,7 +180,9 @@ has `hostRows`, the live match for the desk: a row per player, crew or team,
 with an optional score and word. Rows are never state; they ride the host's own
 frame at the board's cadence, and the desk adds each player's colour and lamp. Poker checkpoints at the start of
 each hand, because its deck follows from the seed and the hand number; a resume
-deals that hand again. Minigame results may carry a finishing `place` in place
+deals that hand again. That deck seed is drawn apart from the match seed clients
+see, and a checkpoint's `data` never leaves the server: every view gets only its
+`version` and `label`. Minigame results may carry a finishing `place` in place
 of points.
 
 Each minigame's host-settable options are `MINIGAME_OPTIONS` in
@@ -193,7 +208,9 @@ still open. `carryOn` is `start()` without the spent-pack rewind, and both cut a
 still-playing announcement. The phone Ready bar renders only under autoplay and
 the surface above it gives up the bar's height. The match it opened is remembered by `matchId`; while it waits in `ready`,
 every connected player tapping Ready (`MinigameLobby.ready`) or a 60 s fallback
-dispatches `startMinigame`, and `nextSec` after results the Hub dispatches
+dispatches `startMinigame` (a fallback refused when it fires stays fired, so
+the first change that makes the start legal starts the match), and `nextSec`
+after results the Hub dispatches
 `closeMinigame`, which advances the setlist and raises the next introduction.
 Every step goes through `Hub.dispatch`, is re-derived from state after each
 `changed()` and undo, and accepts a refusal silently. A host cancel mints a new
@@ -248,12 +265,28 @@ hold a wrong verdict in `LOCKED` before a delayed rebound.
 | Reader session/cancellation | Controls pending preparation, playback and dwell work |
 | Judge attempt/leader key | Rejects answers or transcription results belonging to an old opportunity |
 
+Every timestamp and deadline in `State` and in minigame frames is server
+`Date.now()` milliseconds. Browsers convert through the `useSocket` clock
+offset; comparing one with a browser's own `Date.now()` is a bug on any device
+whose clock drifts.
+
+Several `Round` fields mean something by their presence. `judge` is
+push-to-talk live for the locked leader (no `until`: the host ends a stall by
+hand). `held` is a miss on the wall whose rebound waits for the Reader: the
+phase stays `LOCKED` and `order` is emptied, so nobody may buzz and the Judge
+has no leader to offer a window to. `correct` (choice) and `truth` (closest)
+are what "revealed" means.
+
 Press resolution clamps client time to `[armedAt, arrivedAt]`, takes the
 earliest press per player, and sorts with deterministic tie-breaking. This is
 jitter accommodation for trusted clients. Lockouts use shared player/team
 score keys; effects and mode eligibility are checked through `eligibility.ts`.
 
-Effects assigned to an attempt follow its identity. Do not use equal timestamps,
+Effects assigned to an attempt follow its identity: an arm drops effects
+stamped with the previous attempt and stamps unstamped ones with its own, so a
+freeze fired between questions lands on the next, and `openRebound` restamps
+live ones. A steal is such an effect rather than an edit to `round.order`,
+which the Hub rebuilds from raw buzzes on every packet. Do not use equal timestamps,
 a repeated player, or the number of displayed fragments to infer that async
 work still belongs to the current question. Reader callbacks check question
 identity and cancellation; Judge work checks attempt, leader, and primed answers.
@@ -270,7 +303,9 @@ catalogs. It is not sent unchanged to every role and is not saved wholesale.
 - Phones receive only their own order entries, plus the total buzz count.
   Their own entry marks whether it leads; a rounded `0 ms` margin can also
   belong to a later buzz.
-  Reader progress and `round.whole` are always omitted.
+  Reader progress and `round.whole` are always omitted, mirror or not:
+  `fragIndex`/`fragTotal` would tell a player the question is about to end
+  before the room has heard it.
 - Phones receive revealed fragments and the revealed answer only when text
   mirroring is enabled. Mode memory is hidden by default; `viewModuleState`
   can explicitly project it.
@@ -290,7 +325,13 @@ A choice question keeps the clue in the middle band and puts `Wall.choices`, a
 grid, in the band below, so no hero appears. Wall and phone projections use this shared decision; the wall selects
 one middle occupant, such as a clue or hero. Browser effects supply clock and
 animation progress. Equal inputs yield equal moments, but individual browsers
-can be at different local animation stages.
+can be at different local animation stages. `momentOf` returns the first moment
+that matches, so its order is the behaviour; `shared/wall.test.ts` pins the
+placements. `phoneOf` keeps its own priorities rather than the wall's, because
+it answers "may I press": a dead duel outranks a miss still being read, and it
+shows no other name than the award's, which the wall shows too. The host desk's
+notes (`notesFor`) are a lookup on the moment, not on `refuses`, because the
+table cannot read the board's `settled` and `retired`.
 
 Arrival state (`State.arrival`: an open lobby or a block introduction) is public
 to every role, so `arrivalPresentation` in `shared/arrival.ts` serves the board and
@@ -302,6 +343,10 @@ player with local receipt time (`client/arrival-feedback.ts`, `usePracticeTime`)
 pulse lasts `PRACTICE_PULSE_MS` and is lobby-scoped, so a stale lobby's receipt is ignored.
 `ArrivalBoard`, `ArrivalPhone`, and `ArrivalHost` are mounted by their surfaces; the
 host's disabled controls follow `refuses` and `arrivalBlocksPlay` rather than a second ladder.
+The two kinds behave oppositely: an introduction holds play until the host
+continues (`refuses` answers `introduction-active`), while a lobby never
+refuses it and real play ends the lobby (`endLobby`). Any action that raises an
+introduction stops the Reader quietly, so a reader mid-dwell cannot arm over it.
 
 Quiz reactions take the same path. A phone that cannot buzz (`phoneOf`'s `react`
 flag: locked out behind the leader, or a verdict up) sends `react` with one of
@@ -316,7 +361,12 @@ is dropped. Poker's reactions are a world input and stay as they are.
 
 `client/main.tsx` chooses a surface by pathname. Each surface uses `useSocket`
 for its own connection. That hook handles reconnection, stored player identity,
-clock-offset sampling, and scheduled opening. Host controls use shared legality;
+clock-offset sampling, and scheduled opening. Its clock is `performance.now()`
+plus an offset, so a wall-clock jump cannot corrupt it; the offset is the median
+of the fastest half of ping samples, because slow round trips are the ones WiFi
+jitter distorts. A message sent while the socket is down is dropped, never
+queued, and local receipts (practice pulses, reactions) are not replayed after
+a reconnect. Host controls use shared legality;
 phone behavior uses the redacted view and phone projection rather than applying
 full-state host rules.
 
@@ -336,6 +386,12 @@ zero-point awards and never locks anyone out; its `scoreless` flag rides the
 catalog so the host desk can hide value, standings, reader and duels without
 naming the mode.
 
+Hook contracts a mode can rely on: `onArm` is the fresh-question reset and runs
+only on `arm`, never on a rebound; `onWrong` receives the `neg` the host sent,
+where 0 always means no penalty; `onFragmentEnd` gets the cumulative completed
+count from either playback path; and without `viewModuleState` players see none
+of the mode's memory.
+
 The Reader reports completed fragments for both joined and fragment playback.
 Quizbowl interprets that event to end power; it returns semantic status such as
 “Power open” for the host to render. The Reader and host UI do not interpret
@@ -351,6 +407,18 @@ configuration and progression, delegating settings changes through state
 transitions. Saved pack/setlist catalogs are handled by `packs.ts` and
 `setlists.ts`. These are framework capabilities shared across modes.
 
+In a teams grouping the two duel seats come from different teams (a duel inside
+one team scores for both sides), and a player votes only for someone on their
+own team. `duelOnArm` runs only on `arm`, so a rebound keeps `missed` and goes to
+the other seat alone. An unseated pool dies with a mode or grouping change,
+since it was gathered under the old one; a seated pair survives both.
+
+A block's setup re-applies only when the block is fresh, so the host's
+mid-block tweak and a pack's per-question `V:` stand. `setSetlist` keeps the
+current block when the new list still reaches it, re-applying setup but never
+reopening its duel, which would wipe a vote pool. `next` advances the setlist
+only past a played question (`armedAt > 0`), and `resetRound` never spends one.
+
 A mode switch is allowed while idle; choosing a different mode normally resets
 scores unless the transition requests preservation. Updating options on the
 same mode keeps scores and existing memory until its lifecycle hook resets it.
@@ -362,7 +430,18 @@ The Reader owns question packs and in-memory per-pack positions. Selecting a
 pack starts queued speech preparation, with cached clips and bounded rendering
 concurrency. Preparation can continue in the background, but each question waits
 for its required audio before the Reader arms it. Setlist packs can be queued
-ahead of their blocks.
+ahead of their blocks. Texts are deduplicated across packs, because clips are
+keyed by spoken text and two renders on one cache path would race; `textsOf`
+is the one list a read speaks, shared by `packCost` and `npm run voice`, so the
+price shown is what gets sent. A spent pack keeps its position past the end,
+so a setlist stops there rather than wrapping.
+
+The Reader treats a question as over only when the round is `IDLE`: a penalty
+stamps an award while the rebound reopens, and an unjudged question stays
+`ARMED` after the reading so a late buzz still lands. Question audio and asides
+play in separate slots. The question stops whenever the round leaves `ARMED`,
+since a voice talking over a buzz gives the clue away; quips, cues and
+introductions play over the payoff and stop only on stop or pause.
 
 With alignment available, the Reader plays a joined question and uses located
 fragment/clause boundaries for progressive reveal and resume. Without alignment
@@ -447,10 +526,14 @@ rebound, undo, or another question are discarded.
 
 Question voice comes from the server machine. Browser cue audio is a separate
 system: `cues.ts` defines recipes, `sound.ts` schedules them and reads scoped
-tunables, and `synth.ts` supplies synthesis primitives. Cue levels follow one
+tunables, and `synth.ts` supplies synthesis primitives, split into a pure
+`schedule` tested in Node and a `render` that only walks its steps on WebAudio.
+A missing sound is silence, never an exception, and sample files load on first
+use, so a phone never downloads the welcome bed. Cue levels follow one
 standard: `tools/loudness.ts` renders each recipe offline, measures its loudest
 100ms (K-weighted LUFS) and holds it to a tier (hero, event, signal, foley,
-air); `npm run loudness -- --apply` rescales a cue onto its tier. Levels are set
+air), with the hand-tuned anchors as fixed points that are never rescaled;
+`npm run loudness -- --apply` rescales a cue onto its tier. Levels are set
 for the board; the phone surface plays everything 6dB down. Browser microphone
 recording is handled by `Talk.tsx`, `recorder.ts`, and `wav.ts`.
 
@@ -477,22 +560,33 @@ recording is handled by `Talk.tsx`, `recorder.ts`, and `wav.ts`.
 `gameSnapshot` and `restoreGame` define undo. Hub retains at most 20 snapshots
 for applied actions. Restore preserves new arrivals and their scores, removes
 fields absent from the snapshot, and leaves current catalogs/connections intact.
+Undo restores into the same `State` object, so subscribers keep their
+reference, and suppresses the runtime frames that stopping the Reader and a
+minigame would publish, so the room sees one restored frame.
 Undo stops reading and unprimes judging. A restored collection or held verdict
 reopens; a settled leader can remain locked for manual judging. A fresh attempt
 identity invalidates old work. Audio and pack position are not rewound.
 
 `persistedSnapshot` defines version 2 disk data (version 2 added `night`; a
-version 1 file loads with an empty ledger). `state.ts` queues writes per
-path with a short debounce and flushes them on close. This is a whole-file
+version 1 file loads with an empty ledger). `state.ts` coalesces writes per
+path: the first change schedules one write and later ones only replace the
+queued snapshot (a throttle, not a debounce, so a game that keeps changing
+still saves), and close flushes synchronously. This is a whole-file
 snapshot, not a journal or database. Loading supports the prior unversioned
-shape, initializes mode memory, and resets the round. Unknown versions or
-unreadable data fall back to a new state with diagnostics. Snapshot support is
+shape, initializes mode memory, and resets the round. It defaults rather than
+rejects: missing fields are filled and re-clamped, an unregistered game falls
+back to trivia, setlist blocks naming unknown games or duel rules are dropped,
+and a duel, `round.buzzable` and the Reader's running flag never survive a
+restart. Unknown versions or unreadable data fall back to a new state with
+diagnostics. Snapshot support is
 not a universal migration for all historical field or directory renames.
 
 The night's ledger is recorded by `server/ledger.ts` (pure) from `Hub.dispatch`,
 `completeMinigame` and item use, and derived into milestones and recap cards by
 `shared/recap.ts`. Once the setlist is spent, `server/nights.ts` writes the
-keepsake to `nights/<date>.json`; the host's `clearNight` forgets the ledger.
+keepsake to `nights/<date>.json`, named for the local date of the night's first
+fact so a party past midnight keeps one file; the host's `clearNight` forgets
+the ledger, and a cleared night writes nothing, so it cannot blank the file.
 
 ## Development and validation
 
@@ -518,7 +612,9 @@ you supply another `statePath`. Vite proxies `/ws` and `/qr.svg`, but not
 `/spoken`; use the built HTTPS app for microphone flows.
 
 `npm run motion` opens the standalone workbench. Its scenarios mount real
-components, and its save endpoint edits marked CSS tunables and cue recipes.
+components, and its save endpoint edits marked CSS tunables and cue recipes,
+checking every part of a save before writing any file, because half a save is
+worse than none.
 The sound-library endpoints inspect local raw audio and adopt processed clips
 using a locally installed `ffmpeg`, writing assets and credits. Those development
 endpoints and `anim.html` do not ship in the production build.
@@ -536,7 +632,11 @@ captures selected frames with Chromium, atomically writes ignored bundles under
 exact supplied terminal conversation. `tools/review/report.ts` is the narrow
 status path back from that agent. None of these pages, routes, or tools are part
 of `npm run build`. Static review fixtures do not validate real timing, speech,
-microphone, network, or multi-device behavior.
+microphone, network, or multi-device behavior. The Ink and Sketch fixtures
+reach their states by playing inputs through the real definitions and throw on
+any refusal, so a preview never shows a state the game cannot reach. The fit
+check opens a fresh page per scenario and surface: one page reused for the
+whole sweep crashes Chromium after about five hundred loads.
 
 | Validation area | Where to look |
 | --- | --- |
@@ -551,13 +651,19 @@ microphone, network, or multi-device behavior.
 | Physical phones, microphones and room audio | `docs/manual-checklist.md` |
 
 `server/e2e.ts` provides real WebSocket clients and isolated server fixtures.
+Its `FakeClient` waits on the Hub's message order rather than on timers: a
+`welcome` before the join broadcast, state before `actionResult`, and a `pong`
+after every earlier frame, so reordering those in the Hub breaks the
+integration tests.
 Logic tests inject speech/transcription/alignment capabilities. `npm test`
 collects all five test locations; `npm run typecheck` and `npm run build` cover
 compilation and bundling. Native speech capability and real devices still need
 appropriate platform validation.
 
 `TRACE=1` records Hub changes to `trace.jsonl`; `tools/trace.ts` inspects them and
-`tools/rules.ts` checks trace invariants. Simulation, probes, fakes, and walkthroughs
+`tools/rules.ts` checks trace invariants. The trace sees Hub facts only, not the
+board's `settled` and `retired` dwells, so dwell-timing bugs belong to the
+motion harness. Simulation, probes, fakes, and walkthroughs
 are active clients: they change whichever room they connect to.
 
 ## Where a feature change belongs
