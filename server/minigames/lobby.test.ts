@@ -55,7 +55,6 @@ test('ready is a per-player flag that toggles and reports only real changes', ()
   assert.deepEqual(lobby.ready, ['ada', 'bo'])
   assert.equal(applyLobby(lobby, 'ada', { do: 'ready', on: false }), true)
   assert.deepEqual(lobby.ready, ['bo'])
-  // Teams are untouched by it, and an old lobby without the list still works.
   const old = { teams: {}, volunteers: [] } as unknown as MinigameLobby
   assert.equal(applyLobby(old, 'cy', { do: 'ready', on: true }), true)
   assert.deepEqual(old.ready, ['cy'])

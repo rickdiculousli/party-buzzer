@@ -1,10 +1,3 @@
-/**
- * Rewrites one number in a source file's `export const NAME = { ... }` block,
- * for the motion harness's Save. `key` is `NAME.field` for a number or
- * `NAME.field.i` for one end of a `[a, b] as const` range. Only a field on its
- * own line, directly inside that block, is touched, and only with a plain
- * number: anything else returns null, so a stale or hostile dial writes nothing.
- */
 export function setConstant(src: string, key: string, value: string): string | null {
   if (!/^-?\d+(\.\d+)?$/.test(value)) return null
   const [name, field, index, ...rest] = key.split('.')

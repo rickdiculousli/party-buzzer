@@ -1,18 +1,12 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { RecapCard } from '../shared/recap.ts'
 
-/** The slice of `/recap.json` this page reads. */
 type Keepsake = {
   date: string
   standings: { key: string; label: string; score: number }[]
   cards: RecapCard[]
 }
 
-/**
- * The night's keepsake on a phone, opened from the finale's code. One fetch
- * and no socket: the page is the record of a night that has already happened,
- * so it neither joins the room nor changes with it.
- */
 export function Recap() {
   const [night, setNight] = useState<Keepsake | null>(null)
   const [failed, setFailed] = useState(false)

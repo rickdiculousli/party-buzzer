@@ -6,7 +6,6 @@ export const TANK_FIELD = { width: 1600, height: 900 } as const
 export const CELL = 10
 export const COLS = 160
 export const ROWS = 90
-// ponytail: tanks collide and take hits as circles; use oriented boxes if glancing hits feel wrong.
 export const TANK_RADIUS = 22
 
 export type Weapon = 'gun' | 'cannon'
@@ -14,7 +13,6 @@ export type Weapon = 'gun' | 'cannon'
 export type WeaponConfig = {
   damage: number
   clip: number
-  /** Minimum time between shots while loaded. */
   intervalMs: number
   reloadMs: number
   blastRadius: number
@@ -27,33 +25,24 @@ export type TankConfig = {
   forwardSpeed: number
   backwardSpeed: number
   radiansPerTurn: number
-  /** Projectiles spawn this far along the gun from the tank center. */
   muzzle: number
   gun: WeaponConfig
   cannon: WeaponConfig
-  /** Cannon splash damage at the blast center, falling to zero at its radius. */
   splash: number
   respawnMs: number
   invulnerableMs: number
   killPoints: number
-  /** World time after which no weapon fires; the landing grace still runs. */
   ceaseFireMs: number
 }
 
 export type Tank = {
-  /** The crew id. */
   id: string
   crew: TankCrew
   position: Vec2
-  /** Radians, 0 = +x, clockwise on screen. */
   hull: number
-  /** Radians relative to the hull. */
   turret: number
-  /** Absolute world heading selected by the driver. */
   hullTarget: number | null
-  /** Absolute world heading selected by the gunner. */
   turretTarget: number | null
-  /** Wheel turns per second, refreshed by the controlling phone. */
   hullTurnRate: number
   turretTurnRate: number
   hullTurnUntilMs: number
@@ -66,7 +55,6 @@ export type Tank = {
   gunReloadUntilMs: number
   cannonClip: number
   cannonReloadUntilMs: number
-  /** Set while destroyed. */
   deadUntilMs: number | null
   invulnerableUntilMs: number
   score: number
@@ -90,15 +78,11 @@ export type TankWorld = {
   nowMs: number
   nextProjectile: number
   config: TankConfig
-  /** Row-major, 1 = solid cover. */
   cover: Uint8Array
-  /** Cells cleared since the last broadcast. */
   coverChanged: number[]
-  /** The first tick whose board frame carries the whole grid again. */
   nextFullCoverTick: number
   spawns: Vec2[]
   tanks: Tank[]
   projectiles: Projectile[]
-  /** Explosions since the last broadcast. */
   blasts: Blast[]
 }

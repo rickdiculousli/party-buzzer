@@ -36,11 +36,9 @@ test('a quizbowl round: power bonus, fragments on the board but never on phones'
     host.send({ t: 'act', act: 'fragment', data: 'First fragment.' })
     await board.until((s) => !!s.round.fragments?.length, 'the fragment on the board')
     assert.deepEqual(board.last.round.fragments, ['First fragment.'])
-    // The board has it, so the same broadcast went to Amy before her next pong.
     await amy.flush()
     assert.equal(amy.last.round.fragments, undefined, 'phones never see the text early')
 
-    // Amy presses during the power window; a manual power signal lands after.
     amy.send({ t: 'buzz', at: performance.now() + amy.offset })
     await host.until((s) => s.round.phase === 'COLLECTING', 'Amy’s buzz')
     host.send({ t: 'act', act: 'powerEnds' })
@@ -96,19 +94,14 @@ test('quizbowl wrong: configured neg, lockout, and an unpowered rebound', async 
     assert.equal(host.last.scores[amy.playerId], -50, 'the module neg wins over the button')
     assert.deepEqual(host.last.round.lockedOut, [amy.playerId])
     assert.equal(host.last.round.phase, 'ARMED', 'rebound')
-    // The module stamps its own penalty, the way it stamps its own payoff, and
-    // it rides the rebound so the room sees what the neg cost.
     assert.deepEqual(host.last.round.award, { name: 'Amy', points: -50, penalty: true })
 
-    // The rebound is the same question: power has ended, so Bo's buzz is not
-    // powered even though it is first.
     await host.untilOpen()
     bo.send({ t: 'buzz', at: performance.now() + bo.offset })
     await host.until((s) => s.round.phase === 'LOCKED', 'Bo’s buzz to lock the rebound')
     await host.request({ t: 'host', action: { a: 'correct' } })
     assert.equal(host.last.scores[bo.playerId], 200, 'no power on a rebound')
     assert.deepEqual(host.last.round.award, { name: 'Bo', points: 200 }, 'the payoff replaces it')
-    // The grant machinery ran: someone holds an item now.
     assert.equal(Object.keys(host.last.items).length, 1)
 
     for (const c of [host, amy, bo]) c.close()

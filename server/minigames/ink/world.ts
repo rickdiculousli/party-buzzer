@@ -133,7 +133,6 @@ function validChoice(w: InkWorld, choice: string): boolean {
   return false
 }
 
-/** Prompt pairs compare as sets. */
 const normalize = (w: InkWorld, choice: string) =>
   w.step.at === 'offer' ? promptPair(w, choice)?.join(',') ?? choice : choice
 
@@ -285,7 +284,6 @@ export function applyInk(w: InkWorld, playerId: PlayerId, input: InkInput): Outc
       s.holder = playerId
       row.letters.push(value)
       bump(w)
-      // The server judges each letter as it lands; the writer never sees it first.
       if (value !== secret[row.letters.length - 1]) {
         row.wrong = true
         row.ended = true

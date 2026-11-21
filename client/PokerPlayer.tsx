@@ -16,22 +16,10 @@ import { colorForPlayer, ordinal, playerName } from './ui.ts'
 
 const AUTO_NOTE_MS = 2_000
 const REACTS = Object.keys(REACT_LABEL) as ReactKind[]
-/**
- * How the two hole cards lie once collected: the first square, the second turned across it and set
- * down and to the right, so every corner but one of the first and all four of the second show.
- */
 const REST = [0, -24]
-/** At showdown the pair squares up first, side by side in a slight fan like the board's, then turns over. */
 const SQUARE = [-3, 3]
 const SQUARE_MS = 280
-/** How high a finger picks the pair up off the cloth, as a `Piece` lift: it sets the shadow. */
 const PICKUP_LIFT = 0.035
-/**
- * What a bet means, as two thick bars with their name and number printed inside: against the pot,
- * running to one pot and past it rescaled so the overbet glows (greyed when `ofPot` is null); and
- * against the stack. The print is laid twice, the second in the inverse colour and clipped to what
- * the fill covers, so it reads on either side of the fill's edge. Numbers bump as they change.
- */
 function Meters({ ofPot, cost, stack }: { ofPot: number | null; cost: number; stack: number }) {
   const scale = Math.max(1, ofPot ?? 0)
   const share = stack ? Math.min(100, Math.round((cost / stack) * 100)) : 0
@@ -50,13 +38,7 @@ function Meters({ ofPot, cost, stack }: { ofPot: number | null; cost: number; st
     </div>
   </>
 }
-/**
- * When a street card new to this phone turns face up: the board pitches it face down and turns it
- * about 1.0-1.2 s in, so a folded phone never shows it before the room sees it.
- * shortcut: a fixed lag, not the board's seeded flight; read `flop`/`street` if the board's pace changes.
- */
 const STREET_TURN_MS = 1_100
-/** One of the street's cards on a phone out of the hand, resting off square the way the board lays it. */
 function StreetCard({ card, hand, index, fresh, mark }: { card: string; hand: number; index: number; fresh: boolean; mark: string }) {
   const [up, setUp] = useState(!fresh)
   useEffect(() => {
@@ -68,22 +50,13 @@ function StreetCard({ card, hand, index, fresh, mark }: { card: string; hand: nu
     <PlayingCard card={card} up={up} class={mark} />
   </span>
 }
-/** The slowest a flicked pair may take to leave the screen. */
 const FLY_MAX_MS = 600
-/** The pair turning over at showdown, both halves. */
 const FLIP_MS = 420
 
 type Move = { kind: PokerInput['kind'] } & Record<string, unknown>
 
-/** Where the held pair sits under a finger that has moved `x`, `y` from where it pressed. */
 const held = (x: number, y: number) => `translate(${x}px, ${Math.min(y, 40)}px) rotate(${x / 30}deg)`
 
-/**
- * Throws the pair from where the finger let go: it leaves at the flick's speed along its line
- * and keeps going until it is past the screen edge, spinning the way it was thrown. Two
- * keyframes the browser interpolates off the main thread, held at the end, so no re-render can
- * pull the cards back. `speed` is the flick's 0..1 against `GESTURE.flickMaxSpeed`.
- */
 function throwPair(node: HTMLElement, x: number, y: number, flick: PokerFlick) {
   const distance = Math.hypot(innerWidth, innerHeight) * 1.2
   const pxPerMs = Math.max(GESTURE.flickSpeed, flick.speed * GESTURE.flickMaxSpeed)
@@ -93,7 +66,6 @@ function throwPair(node: HTMLElement, x: number, y: number, flick: PokerFlick) {
   return node.animate([{ transform: held(x, y) }, { transform: to }], { duration: ms, easing: 'cubic-bezier(0.3, 0.6, 0.6, 1)', fill: 'forwards' })
 }
 
-/** Measured once per gesture; the pair stays at its resting tilt during a peek. */
 type CardGeometry = { w: number; h: number; left: number; top: number; cx: number; cy: number; cos: number; sin: number }
 function geometryOf(card: HTMLElement, index: number): CardGeometry {
   const box = card.getBoundingClientRect()
@@ -102,7 +74,6 @@ function geometryOf(card: HTMLElement, index: number): CardGeometry {
   const w = parseFloat(style.width), h = parseFloat(style.height)
   const cx = box.left + box.width / 2, cy = box.top + box.height / 2
   const a = REST[index] * Math.PI / 180
-  // offset* rounds to integers: the printed card and its bend must share fractional geometry.
   return { w, h, left: cx - parent.left - w / 2, top: cy - parent.top - h / 2,
     cx, cy, cos: Math.cos(a), sin: Math.sin(a) }
 }
@@ -115,12 +86,6 @@ const screenPoint = (g: CardGeometry, p: Point): Point => {
   return { x: dx * g.cos - dy * g.sin + g.cx, y: dx * g.sin + dy * g.cos + g.cy }
 }
 
-/**
- * One hole card. On a fresh deal it is pitched in from above the top edge of the phone after
- * `delay`, straight into its place in the pair: no landing loose and gathering, so the pair can
- * be peeked the moment the second card is down. Each pitch leaves from a different spot along
- * the top and spins its own way.
- */
 function DealtCard({ card, up, turned, squared, index, delay, seed }: {
   card: string; up: boolean; turned: boolean; squared: boolean; index: 0 | 1; delay: number | null; seed: number
 }) {
@@ -141,18 +106,11 @@ function DealtCard({ card, up, turned, squared, index, delay, seed }: {
     )
     return () => run.cancel()
   }, [])
-  // Native print owns deal, rest, throw and showdown; the canvas owns the whole pair during peek.
-  // Turned over, the pair lies mirrored, so each card leans the other way.
   return <span ref={el} class="poker-hole__card" style={{ transform: `rotate(${(turned ? -1 : 1) * (squared ? SQUARE : REST)[index]}deg)` }}>
     <PlayingCard card={card} up={up} />
   </span>
 }
 
-/**
- * The phone is a small felt table under its own lamp: flick the cards up to
- * fold, double tap the felt to check or call, hold low on the cards to bend up their bottom edge and peek. Raise
- * and all in sit on the rail, because an amount wants a slider.
- */
 export function PokerPlayer({ state, playerId, connected, frame, now, send, ack }: MinigamePlayerProps) {
   const session = state.minigame!
   const poker = matchFrame(frame, 'poker', 'player', session.matchId)
@@ -161,16 +119,12 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
 
   const trace = useRef<TracePoint[]>([])
   const onCards = useRef(false)
-  // The touch began low on the cards, where corners are peeked: it peeks and never folds.
   const onCorners = useRef(false)
   const lastTap = useRef<number | null>(null)
   const peekTimer = useRef<ReturnType<typeof setTimeout>>()
   const reactSeq = useRef(-1)
   const seenFeed = useRef(0)
-  // A peek in progress: the finger leads, the pair follows it one frame at a time. `pull` is how far the
-  // leading edge is drawn (as it was let go, while dropping), in screen px.
   const peel = useRef<{ finger: Point; pull: Point; at: number; dropping: boolean; raf: number; wake: () => void } | null>(null)
-  // The hand whose pair was flicked away: it stays mounted to finish flying once the fold lands.
   const [thrown, setThrown] = useState<number | null>(null)
   const [retired, setRetired] = useState<number | null>(null)
   const flight = useRef<Animation | null>(null)
@@ -178,9 +132,6 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
   const hole = useRef<HTMLDivElement>(null)
   const [peekCanvas, setPeekCanvas] = useState<HTMLCanvasElement | null>(null)
   const peekRenderer = useRef<PokerPeekRenderer | null>(null)
-  // The dashed line on the felt where peeking begins: one rank above the pair's lowest point. It is
-  // placed from the pair's layout, which only changes with the screen, so it is measured when it
-  // appears and on resize, never per frame.
   const peekLine = useRef<SVGSVGElement | null>(null)
   const placeLine = useCallback(() => {
     const node = hole.current
@@ -205,13 +156,10 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
   const [sheet, setSheet] = useState(false)
   const [raiseTo, setRaiseTo] = useState(0)
   const [note, setNote] = useState<string | null>(null)
-  // Why this phone's last fold happened, latched when it arrives: the feed it comes in is trimmed mid-hand.
   const [lastFold, setLastFold] = useState<{ hand: number; auto: boolean } | null>(null)
-  // How many street cards this phone has already seen this hand: only later ones wait for the board to turn them.
   const streetSeen = useRef<{ hand: number; count: number } | null>(null)
   const noteTimer = useRef<ReturnType<typeof setTimeout>>()
 
-  // When this hand's cards were dealt to this phone. A reload mid-hand deals nothing.
   const deal = useRef<{ hand: number; dealing: boolean } | null>(null)
   if (poker && deal.current?.hand !== poker.handNo) deal.current = { hand: poker.handNo, dealing: !!deal.current || poker.phase === 'deal' }
 
@@ -219,7 +167,6 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
   const hand = poker?.handNo ?? 0
   const flying = thrown === hand && retired !== hand
   useEffect(() => { setSheet(false); setNote(null) }, [hand])
-  // A new hand's pair is new elements; a peel of the old one just stops.
   const stopPeel = useCallback(() => {
     clearTimeout(peekTimer.current)
     cancelAnimationFrame(peel.current?.raf ?? 0)
@@ -237,9 +184,6 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
       flight.current?.cancel(); flight.current = null; setThrown(null); setRetired(null)
     }
   }, [ack])
-  // At showdown the pair turns over as one, the way the board turns this seat's pair: edge-on, then
-  // down mirrored, the card that was underneath on top. A phone that arrives with the cards already
-  // shown just shows them.
   const shown = !!poker?.seats.find((seat) => seat.player === me)?.cards
   const privatePair = poker?.hole?.join(',') ?? ''
   useEffect(() => {
@@ -263,7 +207,6 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
     const node = hole.current
     if (!turning || !node || reducedMotion()) return setFaceUp(shown)
     const seat = poker!.seats.findIndex((s) => s.player === me)
-    // Turning toward the right lifts the left edge toward you and over, which is rotateY going negative.
     const way = showsRight(poker!.seats.length, seat, hand) ? -1 : 1
     const half = { duration: FLIP_MS / 2, fill: 'forwards' as const }
     const out = node.animate([{ transform: 'perspective(900px) rotateY(0deg)' }, { transform: `perspective(900px) rotateY(${90 * way}deg) scale(1.04)` }], { ...half, delay: SQUARE_MS, easing: 'ease-in' })
@@ -275,7 +218,6 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
     }
     return () => { out.cancel(); back?.cancel() }
   }, [shown, hand])
-  // Once both cards of a fresh deal are down, one ripple of light round each says they can be peeked.
   useEffect(() => {
     const cards = [...hole.current?.querySelectorAll<HTMLElement>(':scope > .poker-hole__card') ?? []]
     const flights = cards.flatMap((card) => card.getAnimations())
@@ -295,13 +237,10 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
     if (!poker) return
     const fresh = poker.feed.filter((entry) => entry.id > seenFeed.current)
     seenFeed.current = Math.max(seenFeed.current, ...poker.feed.map((entry) => entry.id))
-    // My newest fold is this hand's when I am folded: older ones come before it.
     const fold = poker.feed.findLast((entry) => entry.player === me && entry.kind === 'fold')
     if (fold && fresh.includes(fold)) setLastFold({ hand: poker.handNo, auto: !!fold.auto })
-    // An auto-fold is said by the folded sub-line, which stays; only an auto-check needs the note.
     if (!fresh.some((entry) => entry.player === me && entry.auto && entry.kind === 'check')) return
     setNote('Auto-checked')
-    // Its own clock: the next feed entry, usually only a moment later, must not cancel the clearing.
     clearTimeout(noteTimer.current)
     noteTimer.current = setTimeout(() => setNote(null), AUTO_NOTE_MS)
   }, [poker?.feed])
@@ -348,8 +287,6 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
   </header>
 
   const inHand = !!poker.hole && !!mine && !mine.folded
-  // Out of this hand (folded) or of the game (busted): the phone follows the hand and says why it can't act.
-  // Folded, the reason and the until-when take a line each.
   const clocked = lastFold?.hand === poker.handNo && lastFold.auto
   const outLine = poker.place !== null ? `Out · you finished ${ordinal(poker.place)}`
     : !inHand && mine?.folded ? `${clocked ? 'Folded by the clock' : 'Folded'}\nnext hand after this one` : null
@@ -360,18 +297,13 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
   streetSeen.current.count = poker.board.length
   const point = (e: PointerEvent): TracePoint => ({ x: e.clientX, y: e.clientY, t: e.timeStamp })
   const down = (e: PointerEvent) => {
-    // Capture keeps a flick's trace when the finger leaves the felt; a browser may refuse it.
-    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) } catch { /* the trace still works inside the felt */ }
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) } catch {}
     trace.current = [point(e)]
-    // Cards still being dealt or gathered are not in your hand yet: no peek, drag or flick.
     const dealt = !holeCards().some((card) => card.getAnimations().length)
     onCards.current = dealt && !!(e.target as HTMLElement).closest('.poker-hole')
     clearTimeout(peekTimer.current)
-    // Below the peek line, on the cards or the felt, is where the pair is lifted: a steady hold there
-    // peeks, and so does a drag (going back for another look starts moving at once). Flicks fold from above.
     const line = peekLine.current?.getBoundingClientRect()
     onCorners.current = !shown && dealt && inHand && !!line && e.clientY >= line.top + line.height / 2
-    // Held above the line on your turn, the pair is picked up: its shadow grows while you mull a flick.
     if (onCards.current && !onCorners.current && legal && inHand) hole.current?.style.setProperty('--piece-lift', String(PICKUP_LIFT))
     if (onCorners.current) {
       peekTimer.current = setTimeout(() => {
@@ -380,20 +312,13 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
       }, GESTURE.pressMs)
     }
   }
-  /**
-   * Bends up the pair's bottom edge where the finger holds it, both cards together by one pull:
-   * it rises toward a point just below the finger, near upright, then follows the finger.
-   */
   const holeCards = () => [...hole.current?.querySelectorAll<HTMLElement>(':scope > .poker-hole__card') ?? []]
   const startPeel = (x: number, y: number) => {
     const cards = holeCards()
     if (cards.length !== 2) return
-    // Settle the pair where it lies, so each card is where its tilt says it is.
     hole.current!.style.removeProperty('transition')
     hole.current!.style.removeProperty('transform')
     cancelAnimationFrame(peel.current?.raf ?? 0)
-    // The pair is held at its bottom edge, right under the finger: the same spot on both cards,
-    // even past a card's own side, so the two bend up as one stack.
     const geometry = cards.map(geometryOf)
     const node = hole.current!
     const origin = node.getBoundingClientRect()
@@ -418,12 +343,8 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
       mode = next
     }
     const anchors = geometry.map((g) => ({ x: cardPoint(g, x, y).x, y: g.h }))
-    // The lower card's edge leads, levered up by the finger's rise, bending it over a crease. Bent
-    // together the pair shares that crease: the other card is picked up when the crease reaches its edge
-    // and folds over the same line, so its higher edge comes down that much short of the leading one.
     const at = geometry.map((g, k) => screenPoint(g, anchors[k]))
     const lead = at[1].y >= at[0].y ? 1 : 0
-    // The lever measures the finger's rise from where it touched.
     const from = trace.current[0] ?? { x, y }
     peel.current = { finger: { x, y }, pull: { x: 0, y: 0 }, at: performance.now(), dropping: false, raf: 0, wake: () => {} }
     const frame = (now: number) => {
@@ -431,10 +352,7 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
       if (!p) return
       p.raf = 0
       if (!cards[1].isConnected) { peel.current = null; return }
-      // A frame's timestamp is when the frame began, which can be just before the peek did: below 0 the
-      // ease turns negative and folds the pair downward, flashing its faces up from below for a frame.
       const t = reducedMotion() ? 1 : Math.max(0, Math.min(1, (now - p.at) / (p.dropping ? PEEK.dropMs : PEEK.liftMs)))
-      // Released stock springs back immediately, then softens its landing on the cloth.
       const e = p.dropping ? (1 - t) ** 2 : 1 - (1 - t) ** 3
       if (!p.dropping) {
         const tip = peekTip(at[lead], from, p.finger, geometry[lead].w)
@@ -450,7 +368,6 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
       } else if (gpu && renderer?.draw({ x: crease.x - origin.left, y: crease.y - origin.top }, n, profile)) {
         display('poker-hole--gpu-peek')
       } else {
-        // A deliberate simple fallback while textures load or GPU rendering is unavailable.
         display('poker-hole--peek-fallback')
       }
       if (p.dropping && t >= 1) { peel.current = null; return }
@@ -464,23 +381,17 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
     if (!trace.current.length) return
     trace.current.push(point(e))
     const start = trace.current[0]
-    // While peeking, the finger only carries the corner; the next frame draws it there.
     if (peel.current && !peel.current.dropping) {
       peel.current.finger = { x: e.clientX, y: e.clientY }; peel.current.wake(); return
     }
     const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y) > GESTURE.tapSlopPx
     if (onCorners.current) {
-      // A peek still laying itself down is caught again where it is going.
       if (moved && (!peel.current || peel.current.dropping)) { clearTimeout(peekTimer.current); startPeel(e.clientX, e.clientY) }
       return
     }
-    // A finger that moves is dragging, not pressing to peek.
     if (moved) clearTimeout(peekTimer.current)
-    // Out of turn the cards stay put under the finger: nothing to throw yet. Written straight to
-    // the element, so a drag costs no render.
     const node = hole.current
     if (onCards.current && legal && node) {
-      // The pair follows the finger exactly; only the pick-up eases.
       node.style.transition = '--piece-lift 140ms ease'
       node.style.transform = held(e.clientX - start.x, e.clientY - start.y)
     }
@@ -490,16 +401,13 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
     trace.current.push(point(e))
     const start = trace.current[0]
     clearTimeout(peekTimer.current)
-    // Letting go of a peel only lays the corner back down: it is never a fold or a tap.
     if (peel.current && !peel.current.dropping) {
       Object.assign(peel.current, { dropping: true, at: performance.now() })
-      // The bent edge lands back on the cloth as the drop ends.
       play('poker-puft', { offsetMs: reducedMotion() ? 0 : PEEK.dropMs })
       peel.current.wake()
       trace.current = []
       return
     }
-    // Let go of the pair: without a throw it eases back home on the stylesheet's transition.
     const node = hole.current
     node?.style.removeProperty('transition')
     node?.style.removeProperty('transform')
@@ -508,9 +416,7 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
     const end = trace.current[trace.current.length - 1].t
     trace.current = []
     if (gesture.kind === 'flick' && onCards.current && !onCorners.current && inHand) {
-      // Disconnected, a fold would be lost and only a refusal rolls the throw back.
       if (!legal || !connected) {
-        // Restart the shake in place; re-mounting the pair would replay its deal.
         const node = hole.current
         play('poker-nope')
         node?.classList.remove('fx-shake')
@@ -518,7 +424,6 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
         node?.classList.add('fx-shake')
         return
       }
-      // A harder flick is a faster pair: a shorter, higher whoosh.
       play('poker-fold', { rateScale: 0.9 + 0.2 * gesture.flick!.speed })
       setThrown(hand)
       foldSeq.current = input({ kind: 'fold', flick: gesture.flick })
@@ -542,21 +447,12 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
   const topLine = inHand ? 'Flick here to fold' : ''
   const tapLine = !inHand ? waiting : !legal ? waiting : legal.canCheck ? 'Double tap to check' : `Double tap to call ${legal.call.toLocaleString()}`
   const highBet = Math.max(0, ...poker.seats.map((seat) => seat.bet))
-  // Preflop with only the blinds in, raises are sized in big blinds and the pot means little.
   const unopened = poker.street === 'preflop' && highBet <= poker.bb
   const stops = legal ? raiseStops({ ...legal, highBet, pot, sb: poker.sb, bb: poker.bb, unopened }) : []
-  // What a stop costs out of what you have behind: all in is all of it.
-  // The raise over the bet to match, against the pot once the call is in.
   const ofPot = legal ? (raiseTo - highBet) / Math.max(1, pot + legal.call) : 0
-  // Facing a bet, the felt spells the call out: what it costs, what it wins. Its pot bar sizes the bet
-  // the way the raise sheet does, against the pot before it: the call over the pot without it, since
-  // what's left to call is exactly the bet's raise over what was matched.
-  // ponytail: one opponent's sizing; several callers in between make it read a little small.
   const facing = legal && !legal.canCheck && legal.call > 0 ? legal.call : 0
   const stop = Math.max(0, stops.findIndex((s) => s.to === raiseTo))
-  // A landmark's stop number, or far off the rail when this street has no such stop.
   const landmark = (label: string) => { const i = stops.findIndex((s) => s.label === label); return i < 0 ? -99 : i }
-  // Each stop clicks under the thumb like a detent.
   const toStop = (i: number) => { if (stops[i] && stops[i].to !== raiseTo) { navigator.vibrate?.(8); play('poker-detent'); setRaiseTo(stops[i].to) } }
   const openSheet = () => { if (legal) { setRaiseTo(legal.minTo); setSheet(true) } }
   const confirmRaise = () => {
@@ -566,7 +462,6 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
     setSheet(false)
   }
   const dealing = deal.current?.dealing ?? false
-  // Each card comes when the board's dealer reaches this seat, once per round of the deal.
   const [first, second] = dealTimes(poker.seats, hand).get(poker.seats.indexOf(mine!)) ?? [0, 0]
 
   return <main class={`player poker-phone felt felt--phone ${legal ? 'poker-phone--turn' : ''}`}>
@@ -593,15 +488,12 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
         {outLine && !flying && <div class="poker-phone__street fx-fade">
           <div class="poker-phone__board">{poker.board.map((card, i) => <StreetCard key={`${hand}-${i}`} card={card} hand={hand} index={i} fresh={i >= seenStreet}
             mark={five.size ? (five.has(card) ? 'poker-card--win' : 'poker-card--dim') : ''} />)}</div>
-          {/* The pot as the board prints it: what the streets have swept in, not the bets still out. */}
           {swept > 0 && <span key={swept} class="poker-bump"><FeltMark text={`Pot ${swept.toLocaleString()}`} class="poker-phone__small" /></span>}
         </div>}
         {note && <p class="poker-phone__note fx-shake">{note}</p>}
       </div>
       {outLine ? <div class="poker-phone__foot"><FeltMark text={outLine} class={`poker-phone__out ${poker.place !== null ? 'fx-rubber-stamp' : 'fx-fade'}`} /></div> : <div class="poker-phone__foot">
-        {/* Always laid out, shown only facing a bet: the cards sit clear of it either way and never move. */}
         <div class={`poker-call ${facing > 0 ? '' : 'is-off'}`} aria-hidden={facing > 0 ? undefined : true}>
-          {/* Painted on a shallower curve of the tap line's own smile, so the two read as one set of table words. */}
           <FeltArc class="poker-call__arc" text={`Call ${facing.toLocaleString()} · win ${(pot + facing).toLocaleString()}`} bow="down" bend={36} />
           <div class="poker-call__meters"><Meters ofPot={facing / Math.max(1, pot - facing)} cost={facing} stack={mine?.stack ?? 0} /></div>
         </div>
@@ -609,15 +501,11 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
       </div>}
     </section>
     {reactions}
-    {/* The raise sheet rises over the rail, so the table above never moves. */}
     {sheet && legal && <div class="poker-rail poker-rail--sheet">
-          {/* One number to read, the amount; what it means shows as two bars. Whatever changes with a step
-              bumps as it changes (keyed, so it replays), so the eye goes to it. */}
           <p class="poker-sheet__amount">
             <span key={stops[stop]?.label} class="poker-bump">{stops[stop]?.label}</span>
             <b key={raiseTo} class="poker-bump">{raiseTo.toLocaleString()}</b>
           </p>
-          {/* With only the blinds in the pot bar stays, greyed: an open is sized in big blinds. */}
           <Meters ofPot={unopened ? null : ofPot} cost={raiseTo - (mine?.bet ?? 0)} stack={mine?.stack ?? 0} />
           <ol class="poker-sheet__stops" style={{ '--stops': Math.max(1, stops.length - 1) }}>
             {stops.map((s, i) => <li key={s.label} class={i === stop ? 'is-on' : ''} style={{ '--i': i }} onClick={() => toStop(i)}>
@@ -633,7 +521,6 @@ export function PokerPlayer({ state, playerId, connected, frame, now, send, ack 
           </div>
         </div>}
     <div class="poker-rail">
-      {/* Out of the hand the buttons fade but keep their place, so a thumb already on its way lands on nothing. */}
       <div class={`poker-rail__row ${outLine ? 'is-off' : ''}`} aria-hidden={outLine ? true : undefined}>
         <button class="poker-plaque" disabled={!legal?.canRaise} onClick={openSheet}>{highBet > 0 ? 'Raise' : 'Bet'}</button>
         <button class="poker-plaque" disabled={!legal?.canAllIn} onClick={() => { play('poker-chips'); input({ kind: 'allIn' }) }}>All in</button>

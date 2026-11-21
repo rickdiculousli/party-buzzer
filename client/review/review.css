@@ -6,7 +6,6 @@
   color: var(--ink);
 }
 
-/* The board is the whole window, so it renders exactly as /board would here. */
 .review__board {
   position: absolute;
   inset: 0;
@@ -16,7 +15,6 @@
   background: #0b0a08;
 }
 
-/* Drawers slide over the board and never resize it. */
 .review__drawer {
   position: absolute;
   top: 0;
@@ -102,7 +100,6 @@
   flex-wrap: wrap;
   margin-bottom: var(--s3);
   padding-right: var(--s4);
-  /* A long agent summary scrolls here rather than pushing the notes off screen. */
   max-height: 12rem;
   overflow: auto;
 }

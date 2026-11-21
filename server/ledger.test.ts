@@ -108,7 +108,6 @@ test('standings are recorded when the key order changes or first place stops bei
   const was = before(state)
   was.night = { facts: first }
   assert.deepEqual(nightFacts(was, state, { action: { a: 'setValue', value: 400 } }, 2), [], 'same order, same shared top: nothing')
-  // Ada was already first by roster order; taking the top outright is still a change.
   state.scores.a = 50
   const outright = nightFacts(was, state, { action: { a: 'setScore', key: 'a', score: 50 } }, 3)
   assert.deepEqual(kinds(outright), ['standings'])

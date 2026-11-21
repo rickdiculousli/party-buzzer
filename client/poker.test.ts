@@ -3,7 +3,6 @@ import assert from 'node:assert/strict'
 import type { PokerFeedEntry, PokerSeatView } from '../shared/protocol.ts'
 import { classifyGesture, dealTimes, peekTip, pokerClockCue, pokerCues, raiseStops, seatPositions, ELLIPSE, type PokerView, type TracePoint } from './poker.ts'
 
-/** A straight trace from (0,0) to (dx,dy) over ms, one point every 10 ms. */
 function line(dx: number, dy: number, ms: number, t0 = 0): TracePoint[] {
   const steps = Math.max(1, Math.round(ms / 10))
   return Array.from({ length: steps + 1 }, (_, i) => ({ x: (dx * i) / steps, y: (dy * i) / steps, t: t0 + (ms * i) / steps }))
@@ -40,7 +39,6 @@ test('seats sit on the ellipse, the first at bottom centre', () => {
     const r = ((x - ELLIPSE.cx) / ELLIPSE.rx) ** 2 + ((y - ELLIPSE.cy) / ELLIPSE.ry) ** 2
     assert.ok(Math.abs(r - 1) < 1e-9)
   }
-  // Clockwise on screen: the second seat is left of the first.
   assert.ok(seatPositions(4)[1].x < seatPositions(4)[0].x)
 })
 
@@ -119,23 +117,18 @@ test('peekTip levers the finger rise and locks the lean up and to the left', () 
   const corner = { x: 0, y: 300 }
   const from = { x: 50, y: 350 }
   const lean = (tip: { x: number; y: number }) => Math.atan2(tip.x - corner.x, corner.y - tip.y) * 180 / Math.PI
-  // Straight up 20 px lifts the edge 60, leaning as near upright as the lock allows.
   const up = peekTip(corner, from, { x: 50, y: 330 }, 100, p)!
   assert.ok(Math.abs(up.y - 240) < 1e-9 && Math.abs(lean(up) + 8) < 1e-9)
-  // Right or far left, the lean stays inside its two degrees.
   assert.ok(Math.abs(lean(peekTip(corner, from, { x: 150, y: 330 }, 100, p)!) + 8) < 1e-9)
   assert.ok(Math.abs(lean(peekTip(corner, from, { x: -150, y: 330 }, 100, p)!) + 10) < 1e-9)
-  // No rise bends nothing; a long pull stops at reach.
   assert.equal(peekTip(corner, from, { x: 80, y: 352 }, 100, p), null)
   assert.ok(Math.abs(peekTip(corner, from, { x: 50, y: 0 }, 100, p)!.y - 200) < 1e-9)
 })
 
 test('raise stops run min and the standard sizes short of all in', () => {
-  // Pot 300 after the 100 call, facing a bet of 100: 1/2 pot is 100 + 150. 1/3 pot is the minimum itself.
   const stops = raiseStops({ minTo: 200, maxTo: 1000, highBet: 100, pot: 200, call: 100, sb: 10, bb: 20, unopened: false })
   assert.deepEqual(stops.map((s) => s.label), ['Min', '1/2 pot', '2/3 pot', '3/4 pot', 'Pot', '1.5× pot', '2× pot'])
   assert.deepEqual(stops.map((s) => s.to), [200, 250, 300, 330, 400, 550, 700])
-  // An unopened pot preflop opens in big blinds.
   const open = raiseStops({ minTo: 40, maxTo: 1500, highBet: 20, pot: 30, call: 20, sb: 10, bb: 20, unopened: true })
   assert.deepEqual(open.map((s) => s.to), [40, 50, 60, 80, 100])
 })

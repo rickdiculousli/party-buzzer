@@ -4,12 +4,9 @@ import { trivia } from './trivia.ts'
 import { quizbowl } from './quizbowl.ts'
 import { buzzer } from './buzzer.ts'
 
-// The registry erases each module's option type to the common wire schema.
-// Implementations retain their own typed options, memory and field kinds.
 type RegisteredMode = Omit<GameModule, 'options'> & { options: OptionSpec[] }
 const MODULES: RegisteredMode[] = [trivia, quizbowl, buzzer]
 
-/** The module behind a game id. Unknown ids fall back to trivia, so a snapshot written by another build still boots. */
 export function moduleFor(id: string): RegisteredMode {
   return MODULES.find((m) => m.id === id) ?? trivia
 }
@@ -18,12 +15,10 @@ export function knownModule(id: string): boolean {
   return MODULES.some((m) => m.id === id)
 }
 
-/** The static catalog the host's settings form is rendered from. */
 export function catalog(): GameInfo[] {
   return MODULES.map((m) => ({ id: m.id, name: m.name, options: m.options, ...(m.scoreless && { scoreless: true }) }))
 }
 
-/** Fill defaults and coerce junk into range, so modules can trust their options. */
 export function sanitizeOptions(
   specs: OptionSpec[],
   raw: Record<string, unknown>,

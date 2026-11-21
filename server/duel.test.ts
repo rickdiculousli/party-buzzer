@@ -4,7 +4,6 @@ import { applyHostAction, newState } from './state.ts'
 import { resolveDuel, duelAct, seatDuel } from './duel.ts'
 import type { Grouping, PlayerId, State } from '../shared/protocol.ts'
 
-/** A state with named players; the optional second tuple element is a team id. */
 function stateWith(players: [PlayerId, string?][], grouping: Grouping = 'solo'): State {
   const state = newState()
   state.grouping = grouping
@@ -14,7 +13,6 @@ function stateWith(players: [PlayerId, string?][], grouping: Grouping = 'solo'):
   return state
 }
 
-/** A duel in mid-setup, without going through the host action (Task 4's subject). */
 function openDuel(state: State, rule: string): void {
   state.duel = { rule, pool: [], missed: [] }
 }
@@ -28,7 +26,6 @@ test('vote resolution seats the top two, pool order breaking ties', () => {
     { playerId: 'b', votes: ['a'], in: false },
     { playerId: 'c', votes: ['b'], in: false },
   )
-  // a leads on 2; b and c tie on 1 and b entered the pool first.
   assert.deepEqual(resolveDuel(state, duel), ['a', 'b'])
 })
 
@@ -37,7 +34,7 @@ test('vote resolution skips the unteamed in a teams grouping', () => {
   openDuel(state, 'vote')
   const duel = state.duel!
   duel.pool.push(
-    { playerId: 'c', votes: ['a', 'b'], in: false }, // most votes, but no team
+    { playerId: 'c', votes: ['a', 'b'], in: false },
     { playerId: 'a', votes: ['c'], in: false },
     { playerId: 'b', votes: ['d'], in: false },
   )
@@ -50,7 +47,7 @@ test('a teams grouping never seats two from one team', () => {
   const duel = state.duel!
   duel.pool.push(
     { playerId: 'a', votes: ['c'], in: false },
-    { playerId: 'b', votes: ['a'], in: false }, // same team as a — skipped
+    { playerId: 'b', votes: ['a'], in: false },
     { playerId: 'c', votes: ['b'], in: false },
   )
   assert.deepEqual(resolveDuel(state, duel), ['a', 'c'])
@@ -75,7 +72,7 @@ test('volunteer-random draws only from the in pool', () => {
   state.duel!.pool.push(
     { playerId: 'a', votes: [], in: true },
     { playerId: 'b', votes: [], in: true },
-    { playerId: 'c', votes: [], in: false }, // backed off
+    { playerId: 'c', votes: [], in: false },
   )
   const pair = resolveDuel(state, state.duel!)
   assert.deepEqual(pair?.slice().sort(), ['a', 'b'])
@@ -128,12 +125,9 @@ test('voting again for the same name takes the vote back', () => {
   duelAct(state, 'b', 'duelVote', 'c')
   assert.equal(duelAct(state, 'a', 'duelVote', 'c'), true)
   const entry = state.duel!.pool.find((e) => e.playerId === 'c')!
-  // The tally drops by one and the name stays put — the count going down in
-  // place is the whole point, on the board as much as in the data.
   assert.deepEqual(entry.votes, ['b'])
   assert.equal(duelAct(state, 'b', 'duelVote', 'c'), true)
   assert.deepEqual(entry.votes, [])
-  // Withdrawn, not spent: the same player can vote again afterwards.
   assert.equal(duelAct(state, 'a', 'duelVote', 'b'), true)
   assert.deepEqual(state.duel!.pool.find((e) => e.playerId === 'b')!.votes, ['a'])
 })
@@ -260,9 +254,6 @@ test('setMode cancels an unseated duel; a seated one survives', () => {
   const state = stateWith([['a'], ['b']])
   applyHostAction(state, { a: 'openDuel', rule: 'vote' })
   applyHostAction(state, { a: 'setMode', id: 'trivia', options: {} })
-  // assert.equal narrows state.duel to undefined via strictEqual's assertion
-  // signature, and TS never invalidates that across the mutations below —
-  // Boolean() keeps the check but breaks the false narrowing.
   assert.equal(Boolean(state.duel), false)
 
   applyHostAction(state, { a: 'openDuel', rule: 'host-pick' })
@@ -284,14 +275,10 @@ test('cancelDuel lifts the candidacy mid-round', () => {
 test('a vote crosses neither the team line nor the eligibility line', () => {
   const state = stateWith([['a', 'ta'], ['b', 'ta'], ['c', 'tb'], ['d']], 'teams')
   openDuel(state, 'vote')
-  // Your own side: the nomination the seat is actually asking for.
   assert.equal(duelAct(state, 'a', 'duelVote', 'b'), true)
-  // Across the line: picking your opponent's champion is not a nomination.
   assert.equal(duelAct(state, 'a', 'duelVote', 'c'), false)
-  // Nobody the seat could take anyway — d is on no team.
   assert.equal(duelAct(state, 'd', 'duelVote', 'a'), false)
   assert.equal(duelAct(state, 'a', 'duelVote', 'd'), false)
-  // The refusals left the one good vote alone.
   assert.deepEqual(state.duel!.pool.map((e) => [e.playerId, e.votes]), [['b', ['a']]])
 })
 

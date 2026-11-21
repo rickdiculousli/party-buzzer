@@ -4,12 +4,6 @@ import type { GameInfo, HostAction, OptionSpec, State } from '../shared/protocol
 import { REFUSAL_TEXT } from './ui.ts'
 import { refuses } from '../shared/legality.ts'
 
-/**
- * The desk grammar: one row per control. The label is a sentence, the control
- * sits in the same column on every fold, and the reason (or the unit) is the
- * dim line beneath. A `<div>` rather than a `<label>` around the whole row,
- * because a label's click lands on its first button — the stepper's minus.
- */
 function Field({ id, label, hint, children }: { id: string; label: string; hint?: string; children: ComponentChildren }) {
   return (
     <div class="field">
@@ -177,11 +171,6 @@ export function defaultsOf(info: Pick<GameInfo, 'options'>): Record<string, unkn
   return Object.fromEntries(info.options.map((o) => [o.key, o.default]))
 }
 
-/**
- * The one settings form every mode gets for free: it renders itself from the
- * option schema in the state payload. Modes are fixed per session, so the
- * server refuses changes mid-question — the form disables itself to match.
- */
 export function GameSettings({
   state,
   act,
@@ -189,11 +178,6 @@ export function GameSettings({
   state: State
   act: (action: HostAction) => void
 }) {
-  // Every control here sends a `setMode`, and its legality reads the id only to
-  // check the catalog knows it — which a `<select>` built from that same catalog
-  // cannot get wrong. So the current mode stands in, one call answers for the
-  // picker and every option under it, and this form stops holding an opinion
-  // about the round that the server also holds.
   const refusal = refuses(state, { a: 'setMode', id: state.game.id, options: state.game.options })
   const current = state.games.find((g) => g.id === state.game.id)
   if (!current) return null

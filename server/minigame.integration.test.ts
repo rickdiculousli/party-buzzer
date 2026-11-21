@@ -14,7 +14,6 @@ test('host, player, and board share a live bow match over the existing socket', 
     await host.request({ t: 'host', action: { a: 'prepareMinigame', id: 'bow', options: { durationSec: 5, seed: 7 } } })
     assert.equal(host.last.minigame?.phase, 'ready')
     await host.request({ t: 'host', action: { a: 'startMinigame' } })
-    // The countdown is three seconds of the server's own clock.
     await host.until((s) => s.minigame?.phase === 'playing', 'the countdown to end', 10_000)
 
     const matchId = host.last.minigame!.matchId

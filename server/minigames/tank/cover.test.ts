@@ -13,7 +13,7 @@ test('cover is seeded, point-symmetric, and leaves spawns clear', () => {
 
 test('a circle hits a solid cell only when its edge reaches the cell', () => {
   const cover = new Uint8Array(COLS * ROWS)
-  cover[10 * COLS + 10] = 1 // x 100..110, y 100..110
+  cover[10 * COLS + 10] = 1
   assert.equal(circleHitsCover(cover, { x: 95, y: 105 }, 6), true)
   assert.equal(circleHitsCover(cover, { x: 95, y: 105 }, 4), false)
 })

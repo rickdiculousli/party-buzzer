@@ -46,7 +46,7 @@ test('the sample deck loads only with INK_SAMPLE=1 and no real deck; the real de
     writeFileSync(real, `${prompts(16)}\nW: a|b|c|d|e|f`)
     assert.deepEqual((loadInkDeck(real, sample, on) as { words: string[][] }).words, [['a', 'b', 'c', 'd', 'e', 'f']])
     writeFileSync(real, 'P: broken')
-    assert.equal(loadInkDeck(real, sample, on), 'At least 16 prompts are needed') // a broken real deck is not papered over
+    assert.equal(loadInkDeck(real, sample, on), 'At least 16 prompts are needed')
   } finally {
     rmSync(dir, { recursive: true })
   }

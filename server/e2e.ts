@@ -6,15 +6,11 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { startServer } from './index.ts'
 import type { ActionResult, ClientMsg, Role, ServerMsg, State } from '../shared/protocol.ts'
 
-/** Short timers so the suite runs fast; production uses 150ms / 1s. */
 export const REVEAL = 120
 export const COLLECT = 400
-/** Long enough for collection to close and the round to publish. */
 export const SETTLE = COLLECT + 150
-/** How long a wait gives up after: far past any timer here, so only a broken step reaches it. */
 const WAIT_MS = 5_000
 
-/** A fake participant: real socket, real JSON frames, optional injected lag. */
 export class FakeClient {
   ws!: WebSocket
   playerId = ''
@@ -35,7 +31,6 @@ export class FakeClient {
     this.lagMs = lagMs
   }
 
-  /** Pass `playerId` to rejoin as an existing player, the way a reloaded phone does. */
   async open(name?: string, playerId?: string): Promise<void> {
     this.ws = new WebSocket(`${this.url.replace('http', 'ws')}/ws`)
     await new Promise<void>((resolve, reject) => {
@@ -57,15 +52,9 @@ export class FakeClient {
     }
     const seen = this.states.length
     this.send({ t: 'hello', role: this.role, name, playerId })
-    // A player's welcome precedes the join broadcast, so its state means both landed.
     await this.until(() => this.states.length > seen, `${this.role} ${name ?? ''} joined`)
   }
 
-  /**
-   * Resolves with the latest state once `ready` holds, checked now and after
-   * every frame this socket receives. `ready` sees the latest state, and may
-   * read anything else the client has collected. Rejects naming `what`.
-   */
   until(ready: (last: State) => boolean, what: string, timeoutMs = WAIT_MS): Promise<State> {
     return new Promise((resolve, reject) => {
       const check = () => {
@@ -86,11 +75,6 @@ export class FakeClient {
     })
   }
 
-  /**
-   * Sends a message that earns an actionResult (a host action, or the
-   * `loadSetlist` act) and resolves with that result. The server broadcasts
-   * before it replies, so `last` already shows the outcome.
-   */
   async request(msg: ClientMsg): Promise<ActionResult> {
     const seen = this.results.length
     this.send(msg)
@@ -98,19 +82,12 @@ export class FakeClient {
     return this.results[seen].result
   }
 
-  /** One ping round trip: every frame the server sent this socket before the pong has arrived. */
   async flush(): Promise<void> {
     const seen = this.pongs
     this.ws.send(JSON.stringify({ t: 'ping', t0: performance.now() }))
     await this.until(() => this.pongs > seen, 'a pong')
   }
 
-  /**
-   * Waits out the arm delay of the round in the latest state. Nothing is
-   * broadcast when it ends, so this waits for the `armedAt` that the arm did
-   * broadcast; the server shares this process's clock, so a buzz sent after
-   * it is never dropped as early.
-   */
   async untilOpen(): Promise<void> {
     const { armedAt } = this.last.round
     assert.ok(armedAt > 0, 'the round is armed')
@@ -123,7 +100,6 @@ export class FakeClient {
     else fire()
   }
 
-  /** Sync the clock the same way the browser hook does. */
   async sync(): Promise<void> {
     for (let i = 0; i < 5; i++) await this.flush()
   }
@@ -144,9 +120,7 @@ export async function withServer(fn: (url: string) => Promise<void>): Promise<vo
     statePath: join(dir, 'state.json'),
     revealMs: REVEAL,
     collectMs: COLLECT,
-    // No speech-to-text in tests: boot must never invoke swiftc.
     transcribe: null,
-    // Nor fetch a certificate: boot must never touch the network either.
     tls: false,
     setlistDir: join(dir, 'setlists'),
   })

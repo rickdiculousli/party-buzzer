@@ -33,10 +33,6 @@ function room(): State {
   }
 }
 
-/**
- * The invariant, mechanically. Those five are the middle band's occupants, and
- * "the clue came back under the transcript" is precisely two of them at once.
- */
 function oneOf(w: Wall, why: string) {
   const up = [w.hero, w.clue, w.nominations, w.faceoff, w.call, w.finale, w.next].filter((x) => x !== null)
   assert.equal(up.length, 1, `${why}: expected one middle-band occupant, got ${up.length} (${w.moment})`)
@@ -53,7 +49,6 @@ test('a question end to end, one occupant the whole way', () => {
   assert.equal(at().moment, 'idle:welcome')
   assert.ok(at().call === 'ready')
 
-  // Armed, then open. The lead is a real state: live, but nobody may press.
   s.round.phase = 'ARMED'
   s.round.armedAt = 1000
   assert.equal(at().moment, 'buzz:arming')
@@ -62,8 +57,6 @@ test('a question end to end, one occupant the whole way', () => {
   assert.equal(at({ open: true }).moment, 'buzz:open')
   assert.equal(at({ open: true }).call, 'buzz')
 
-  // First press. Before the hub's 150ms reveal the order is empty and the wall
-  // is unchanged — the room learns nothing the hub has not published.
   s.round.phase = 'COLLECTING'
   assert.equal(at({ open: true }).moment, 'buzz:collecting')
   assert.equal(at({ open: true }).hero, null, 'no leader before the reveal')
@@ -74,7 +67,6 @@ test('a question end to end, one occupant the whole way', () => {
   s.round.phase = 'LOCKED'
   assert.equal(at().moment, 'answer:locked')
 
-  // The judge publishes the transcript, the award and `held` in one broadcast.
   s.round.spoken = { name: 'Bo', transcript: 'rosalind franklin', hit: false }
   s.round.award = { name: 'Bo', points: -300 }
   s.round.held = true
@@ -89,13 +81,10 @@ test('a question end to end, one occupant the whole way', () => {
   assert.equal(held.award?.points, -300)
   assert.equal(held.value, 200, 'the stakes stay in the corner through the miss')
 
-  // The rebound opens. The clue resumes on a clean wall: the server drops the
-  // transcript with the hold, which is what `rebound` in state.ts does.
   delete s.round.held
   delete s.round.spoken
   s.round.phase = 'ARMED'
   s.round.armedAt = 5000
-  // With no box, the miss holds through the lead.
   assert.deepEqual(at({ retired: true }).hero, { name: 'Bo', tone: 'penalised' })
   s.readingActive = true
   s.reading = {
@@ -104,17 +93,12 @@ test('a question end to end, one occupant the whole way', () => {
   }
   s.round.whole = 'One. Two. Three.'
   s.round.fragments = ['One.']
-  // The hold was the room's look at the miss, and the box opening the rebound
-  // is the beat ending: the voice picks the question back up in that instant,
-  // so the stage goes with it. The board's own dwell has no say while the box
-  // is driving — it is measured from a different moment and cannot agree.
   const on = at({ open: true, retired: false })
   assert.equal(on.moment, 'buzz:open')
   assert.equal(on.award, null, 'the stamp does not outlive the voice')
   assert.deepEqual(on.clue, { whole: 'One. Two. Three.', shown: 'One.' })
   assert.equal(on.value, 200, 'what is at stake comes back with it')
 
-  // Someone else takes it.
   s.round.phase = 'LOCKED'
   s.round.order = [{ playerId: 'a', name: 'Ada', at: 5200, deltaMs: 0 }]
   s.round.spoken = { name: 'Ada', transcript: 'marie curie', hit: true }
@@ -143,8 +127,6 @@ test('a duel: nominations, the seat, and both missing', () => {
   assert.equal(momentOf(s, LOCAL), 'duel:faceoff')
   assert.deepEqual(wallOf(s, LOCAL).faceoff, ['Ada', 'Bo'])
 
-  // `[]`, not absent. The fall-through would otherwise invite the whole room to
-  // buzz on a question nobody may answer.
   s.round.buzzable = []
   assert.equal(momentOf(s, LOCAL), 'duel:dead')
   assert.equal(wallOf(s, LOCAL).call, 'dead')
@@ -155,7 +137,6 @@ test('a duel rebound keeps the miss up until the other one buzzes', () => {
   s.duel = { rule: 'vote', pool: [], seated: ['a', 'b'], missed: [] }
   s.round.buzzable = ['a', 'b']
 
-  // Ada misses. The rebound is open, to Bo alone.
   s.round.phase = 'ARMED'
   s.round.armedAt = 1000
   s.round.buzzable = ['b']
@@ -163,15 +144,12 @@ test('a duel rebound keeps the miss up until the other one buzzes', () => {
   s.round.award = { name: 'Ada', points: -100 }
 
   const dwelt: Local = { ...LOCAL, open: true, retired: true }
-  // The dwell has elapsed and outside a duel that would retire the stamp. Here
-  // it must not: the question is still live and nobody has answered it yet.
   assert.equal(momentOf(s, dwelt), 'verdict:penalty')
   const w = wallOf(s, dwelt)
   oneOf(w, 'a held rebound')
   assert.equal(w.hero?.tone, 'penalised')
   assert.equal(w.award?.points, -100)
 
-  // Bo buzzes. That, not a timer, is what takes it down.
   s.round.phase = 'COLLECTING'
   assert.notEqual(momentOf(s, dwelt), 'verdict:penalty')
   oneOf(wallOf(s, dwelt), 'the rebound answered')
@@ -180,8 +158,6 @@ test('a duel rebound keeps the miss up until the other one buzzes', () => {
 test('a face-off survives its own rebound narrowing buzzable to one', () => {
   const s = room()
   s.duel = { rule: 'vote', pool: [], seated: ['a', 'b'], missed: [] }
-  // No award at all — an undo, or a module that stamps none. The wall has only
-  // the duel to go on, and it must still be the duel, not a bare "Ready".
   s.round.phase = 'ARMED'
   s.round.buzzable = ['b']
   s.round.lockedOut = ['a']
@@ -195,25 +171,18 @@ test('a face-off survives its own rebound narrowing buzzable to one', () => {
 test('a wrong that cost nothing is still a miss, not a payoff of zero', () => {
   const s = room()
   s.round.phase = 'ARMED'
-  // `points` is what a surface actually receives: the server writes `-0` and
-  // JSON flattens it to `0` on the way out, which is exactly why the sign
-  // cannot carry this and the flag has to. Without it the room is shown a
-  // reward for missing.
   s.round.award = { name: 'Ada', points: 0, penalty: true }
   assert.equal(momentOf(s, LOCAL), 'verdict:penalty')
   const w = wallOf(s, LOCAL)
   assert.equal(w.hero?.tone, 'penalised')
   assert.equal(w.award?.points, 0)
 
-  // And a real payoff of zero — a question worth nothing — still reads as one.
   s.round.award = { name: 'Ada', points: 0 }
   assert.equal(momentOf(s, LOCAL), 'verdict:award')
   assert.deepEqual(wallOf(s, LOCAL).hero, { name: 'Ada', tone: 'awarded' })
 })
 
 test('idle:welcome ends at the first arm, not at the first buzz', () => {
-  // Keyed on armedAt because the buzz count is redacted — a non-buzzing phone
-  // would otherwise still be at welcome while the wall had moved on.
   const s = room()
   assert.equal(momentOf(s, LOCAL), 'idle:welcome')
   s.round.armedAt = 1000
@@ -236,12 +205,7 @@ test('the phone: a question from second place, and the rebound', () => {
   assert.equal(phoneOf('buzz:collecting', { ...mine, armed: true, pressed: true }).label, 'In')
 
   assert.equal(phoneOf('answer:locked', { ...mine, won: true }).label, 'You’re up')
-  // The mic mounts off this same ladder rather than a second expression on
-  // the phone: locked in as leader, with the judge's window open, is `talk`.
   assert.equal(phoneOf('answer:locked', { ...mine, won: true, judging: true }).talk, true)
-  // Frozen outranks it: a frozen leader with the judge's window open gets no
-  // mic, which only holds while `talk` rides the ladder rather than its own
-  // predicate.
   {
     const barredPhone = phoneOf('answer:locked', {
       ...mine,
@@ -254,18 +218,12 @@ test('the phone: a question from second place, and the rebound', () => {
   }
   assert.equal(phoneOf('answer:locked', { ...mine, deltaMs: 140 }).sub, '+140 ms')
   assert.equal(phoneOf('verdict:hold', mine).sub, 'Reopening in a moment')
-  // Locked with no margin says why: a leader holds the question. A dead heat
-  // is still a placing, not an absence.
   assert.equal(phoneOf('answer:locked', mine).sub, 'Someone else is answering')
   assert.equal(phoneOf('answer:judging', mine).sub, 'Someone else is answering')
   assert.equal(phoneOf('answer:locked', { ...mine, deltaMs: 0 }).sub, '+0 ms')
 
-  // A transcript typing over an *open* rebound is not "somebody is answering":
-  // the question is live again and this phone may press.
   assert.equal(phoneOf('answer:judging', { ...mine, armed: true, open: true }).label, 'Buzz')
 
-  // `dead` is the phone's own, not the moment: a dead duel outranks the answer
-  // states here, where on the wall a miss still being read outranks it.
   assert.equal(phoneOf('duel:dead', { ...mine, dead: true }).label, 'Duel')
   assert.equal(
     phoneOf('verdict:hold', { ...mine, dead: true }).sub,
@@ -276,7 +234,6 @@ test('the phone: a question from second place, and the rebound', () => {
     phoneOf('buzz:open', { ...mine, spectator: true, buzzableNames: ['Ada', 'Bo'] }).sub,
     'Ada vs Bo — you sit this one out',
   )
-  // Frozen and barred outrank everything, including being the one answering.
   assert.equal(phoneOf('answer:locked', { ...mine, won: true, frozen: true }).label, 'Frozen')
   assert.equal(phoneOf('answer:locked', { ...mine, won: true, barred: true }).label, 'Out')
 })
@@ -291,7 +248,6 @@ test('a correct answerer sees the actual award before the next question', () => 
   assert.deepEqual([right.label, right.sub, right.mood], ['Right', '+450', 'first'])
   assert.equal(phoneOf('idle:ready', mine).label, 'Right')
   assert.equal(phoneOf('verdict:award', { ...mine, won: false }).label, 'Wait')
-  // Told the award, the leader still reads their own result, not their name.
   assert.equal(phoneOf('idle:ready', { ...mine, told: { name: 'Ada', points: 450 } }).label, 'Right')
 })
 
@@ -303,43 +259,29 @@ test('every other phone feels the verdict, and only while it stands', () => {
   const paid = { name: 'Ada', points: 400 }
   const right = phoneOf('idle:ready', { ...mine, told: paid })
   assert.deepEqual(right, { label: 'Ada', sub: '+400 · right', mood: 'verdict', talk: false, tone: 'awarded', react: false })
-  // Not told yet (the board is still typing the transcript): the card it had.
   assert.equal(phoneOf('idle:ready', mine).sub, 'Next question · 400 points')
-  // The question is over, so its stale "not you" states give way to it.
   assert.equal(phoneOf('idle:ready', { ...mine, spectator: true, buzzableNames: ['Ada', 'Bo'], told: paid }).label, 'Ada')
   assert.equal(phoneOf('idle:ready', { ...mine, frozen: true, told: paid }).label, 'Ada')
-  // But not the end of the setlist, nor the next arm, which clears the award.
   assert.equal(phoneOf('idle:finale', { ...mine, place: 2, told: paid }).label, 'Final')
   assert.equal(phoneOf('buzz:arming', { ...mine, armed: true, told: paid }).sub, 'Any moment')
 
   const miss = { name: 'Ada', points: -200, penalty: true as const }
   const wrong = phoneOf('verdict:hold', { ...mine, told: miss })
   assert.deepEqual(wrong, { label: 'Ada', sub: '−200 · wrong, rebound opening', mood: 'verdict', talk: false, tone: 'penalised', react: false })
-  // Only a held rebound shows it: one that opens at once has a 300ms delay,
-  // and the rebound opening ends it: this phone may press.
   assert.equal(phoneOf('buzz:arming', { ...mine, armed: true, told: miss }).sub, 'Any moment')
   assert.equal(phoneOf('verdict:penalty', { ...mine, armed: true, told: miss }).sub, 'Any moment')
   assert.equal(phoneOf('verdict:penalty', { ...mine, armed: true, open: true, told: miss }).label, 'Buzz')
-  // Someone took the rebound, or time ran out on it: the miss is history.
   assert.equal(phoneOf('answer:locked', { ...mine, told: miss }).label, 'Locked')
   assert.equal(phoneOf('idle:ready', { ...mine, told: miss }).label, 'Wait')
-  // The player who missed keeps "Out"; a phone that cannot take the rebound keeps its why.
   assert.equal(phoneOf('verdict:hold', { ...mine, barred: true, told: miss }).label, 'Out')
   assert.equal(phoneOf('verdict:hold', { ...mine, spectator: true, buzzableNames: ['Bo'], told: miss }).label, 'Duel')
   assert.equal(phoneOf('verdict:hold', { ...mine, frozen: true, told: miss }).label, 'Frozen')
 
-  // No number where nothing moved: a free miss, a scoreless mode.
   assert.equal(phoneOf('verdict:hold', { ...mine, told: { name: 'Ada', points: 0, penalty: true } }).sub, 'wrong, rebound opening')
   assert.equal(phoneOf('idle:ready', { ...mine, told: { name: 'Ada', points: 0 } }).sub, 'right')
 })
 
 test('a penalty comes down when someone takes the question over', () => {
-  // `wrong` re-stamps the award negative and leaves it standing through the
-  // rebound (server/state.ts), so an award can genuinely be up at LOCKED.
-  // Keeping the stamp there for the rest of its dwell would put the last
-  // player's −300 above the new answerer's name — the same shape `Hub.buzz`
-  // avoids with the transcript, and avoided there for the same reason. The
-  // handover takes the stamp with it rather than waiting out a dwell.
   const s = room()
   s.round.phase = 'ARMED'
   s.round.armedAt = 5000
@@ -359,8 +301,6 @@ test('a penalty comes down when someone takes the question over', () => {
 
 test('a rebound taken inside the penalty dwell shows the new leader, not the miss', () => {
   const s = room()
-  // Ada missed a moment ago; the buzzers are open again and the stamp is still
-  // within its dwell.
   s.round.phase = 'ARMED'
   s.round.armedAt = 1000
   s.round.lockedOut = ['a']
@@ -368,9 +308,6 @@ test('a rebound taken inside the penalty dwell shows the new leader, not the mis
   const dwelling: Local = { ...LOCAL, open: true, retired: false }
   assert.equal(momentOf(s, dwelling), 'verdict:penalty')
 
-  // Bo buzzes. The board sounds the buzz-in on this broadcast, so this is the
-  // frame the new name has to be on the wall by — waiting out the rest of the
-  // dwell put the sound a second ahead of the picture.
   s.round.phase = 'COLLECTING'
   s.round.order = [{ playerId: 'b', name: 'Bo', at: 1400, deltaMs: 400 }]
   assert.equal(momentOf(s, dwelling), 'buzz:collecting')
@@ -389,14 +326,10 @@ test('a duel buzz takes the stage from the pair on the same frame as the cue', (
   const live: Local = { ...LOCAL, open: true }
   assert.deepEqual(wallOf(s, live).faceoff, ['Ada', 'Bo'])
 
-  // Ada presses. The order is held back 150ms, and the pair holds the stage
-  // for exactly that long rather than flicking to a bare "Ready".
   s.round.phase = 'COLLECTING'
   assert.equal(momentOf(s, live), 'buzz:collecting')
   assert.deepEqual(wallOf(s, live).faceoff, ['Ada', 'Bo'], 'still the pair, briefly')
 
-  // The order lands — the same broadcast the board sounds the buzz-in on, so
-  // the name has to be up on this frame and not a locked round later.
   s.round.order = [{ playerId: 'a', name: 'Ada', at: 1200, deltaMs: 0 }]
   const w = wallOf(s, live)
   oneOf(w, 'a duel buzz')
@@ -408,7 +341,6 @@ test('a payoff keeps the winner on the stage, in a duel and out of one', () => {
   const s = room()
   s.duel = { rule: 'vote', pool: [], seated: ['a', 'b'], missed: [] }
   s.round.buzzable = ['a', 'b']
-  // Scored: the phase drops to IDLE, so there is no leader to hold the stage.
   s.round.phase = 'IDLE'
   s.round.armedAt = 1000
   s.round.order = [{ playerId: 'a', name: 'Ada', at: 1200, deltaMs: 0 }]
@@ -421,16 +353,12 @@ test('a payoff keeps the winner on the stage, in a duel and out of one', () => {
   assert.equal(w.faceoff, null)
   assert.equal(w.award?.points, 200)
 
-  // Solo with nothing else on the stage: the name, rather than a bare "Ready"
-  // under a +200 belonging to nobody.
   delete s.duel
   delete s.round.buzzable
   const solo = wallOf(s, LOCAL)
   oneOf(solo, 'a solo payoff')
   assert.deepEqual(solo.hero, { name: 'Ada', tone: 'awarded' })
 
-  // And a clue still up does not take it back: a correct answer ends the
-  // question, so what is left of it on the stage is spent.
   s.round.fragments = ['A clue.']
   assert.equal(wallOf(s, LOCAL).clue, null)
   assert.deepEqual(wallOf(s, LOCAL).hero, { name: 'Ada', tone: 'awarded' })
@@ -438,21 +366,6 @@ test('a payoff keeps the winner on the stage, in a duel and out of one', () => {
   assert.equal(wallOf(s, LOCAL).hero?.tone, 'penalised', 'a miss keeps it too, and says why')
 })
 
-/**
- * Two clocks, one beat.
- *
- * The board retires a penalty on `--penalty-dwell`, counted from the transcript
- * finishing — `useReveal` will not start it until `settled`. The reader opens
- * the rebound on `autoplay.reboundSec`, counted from the verdict, and resumes
- * speaking in the same instant. Different lengths from different starting
- * instants, related by nothing, so the voice picked the question back up under
- * a stamp still on the wall and a stage with no clue on it.
- *
- * The rule that replaces the arithmetic: while the box is driving, the question
- * resuming is what ends the beat. `state.ts`'s `rebound` already says so —
- * "opening it hands the wall back to the clue, and the clue resumes in the same
- * instant" — and this is the wall keeping that promise.
- */
 test('the box picking the question back up ends the penalty, dwell or no dwell', () => {
   const s = room()
   s.autoplay = { on: true, nextSec: 4, buzzSec: 4, reboundSec: 3, introSec: 12 }
@@ -471,14 +384,11 @@ test('the box picking the question back up ends the penalty, dwell or no dwell',
     fragments: ['One.'],
   }
 
-  // The hold is the room's look at the miss, and it is the reader's own clock.
   const held = wallOf(s, LOCAL)
   oneOf(held, 'held')
   assert.equal(held.moment, 'verdict:hold')
   assert.deepEqual(held.hero, { name: 'Bo', tone: 'penalised' })
 
-  // The reader opens it and starts talking. The board's dwell has not elapsed —
-  // it had a transcript to type first — and that must not matter.
   delete s.round.held
   s.round.phase = 'ARMED'
   s.round.armedAt = 7000
@@ -489,15 +399,6 @@ test('the box picking the question back up ends the penalty, dwell or no dwell',
   assert.deepEqual(back.clue, { whole: 'One. Two. Three.', shown: 'One.' })
 })
 
-/**
- * A payoff ends the question; a penalty does not. The clue behind a correct
- * answer is spent — nothing more will be read from it — so the name that won is
- * the story, and the room spends `nextSec` looking at it rather than at the
- * question it just answered.
- *
- * Invisible without the box: a host reading aloud pushes no fragments, so there
- * was never a clue to lose the stage to.
- */
 test('a payoff keeps the stage while the box has a clue up', () => {
   const s = room()
   s.readingActive = true
@@ -572,13 +473,10 @@ test('finaleStep walks build, 3rd, 2nd, 1st at the schedule, skipping places the
   assert.deepEqual(finaleStep(three, build + third - 1).step, 3)
   assert.deepEqual(finaleStep(three, build + third), { step: 2, until: build + third + second })
   assert.deepEqual(finaleStep(three, build + third + second), { step: 1, until: Infinity })
-  // A tie for 2nd: no 3rd, so 2nd follows the build.
   const tied = [{ place: 1 }, { place: 2 }]
   assert.deepEqual(finaleStep(tied, build), { step: 2, until: build + second })
   assert.equal(finaleStep(tied, build + second).step, 1)
-  // Everyone tied for first: the winner follows the build.
   assert.deepEqual(finaleStep([{ place: 1 }], build), { step: 1, until: Infinity })
-  // A surface that mounts after the ceremony, or a disk file with no stamp.
   assert.equal(finaleStep(three, Infinity).step, 1)
 })
 
@@ -635,7 +533,6 @@ test('finaleCalled: each podium place at its own step, everyone else with the wi
   assert.deepEqual([3, 2, 1].map((s) => finaleCalled(s as 3 | 2 | 1, 2)), [false, true, true])
   assert.deepEqual([3, 2, 1].map((s) => finaleCalled(s as 3 | 2 | 1, 1)), [false, false, true])
   assert.deepEqual([3, 2, 1].map((s) => finaleCalled(s as 3 | 2 | 1, 4)), [false, false, true])
-  // A tie for 2nd skips the 3rd step: 2nd is called at the first step after the build.
   assert.equal(finaleCalled(finaleStep([{ place: 1 }, { place: 2 }], FINALE_SCHEDULE.build).step, 2), true)
 })
 
@@ -792,7 +689,6 @@ test('a closest question: listening, guessing with no numbers up, then the line 
 test('a closest reveal ranks by distance, not by points', () => {
   const s = room()
   s.round = { ...s.round, questionId: 'q', attemptId: 'a1', phase: 'IDLE', kind: 'closest', guessing: { closesAt: 1 }, truth: 10 }
-  // Three tied at the value split 200 into 67s; second place's half is 100.
   s.round.guesses = { a: 11, b: 9, c: 11, d: 13 }
   s.round.paid = { a: 67, b: 67, c: 67, d: 100 }
   const marks = wallOf(s, LOCAL).closest!.marks!
@@ -827,13 +723,11 @@ test('a scoreless mode starts blank, never calls Buzz, and holds a miss until th
   assert.ok(blank(wallOf(s, open)), 'idle')
   s.round = { ...s.round, questionId: 'q', attemptId: 'x', phase: 'ARMED', armedAt: 1 }
   assert.ok(blank(wallOf(s, open)), 'armed')
-  // Ada missed; the rebound is open to everyone and the dwell has long passed.
   s.round.award = { name: 'Ada', points: 0, penalty: true }
   const w = wallOf(s, open)
   assert.equal(w.moment, 'verdict:penalty')
   assert.deepEqual(w.hero, { name: 'Ada', tone: 'penalised' })
   assert.equal(w.award?.scoreless, true, 'stamped as a verdict, not a 0')
-  // Bo buzzes: his name replaces hers.
   s.round.phase = 'COLLECTING'
   s.round.order = [{ playerId: 'b', name: 'Bo', at: 2, deltaMs: 0 }]
   assert.deepEqual(wallOf(s, open).hero, { name: 'Bo', tone: 'answering' })
@@ -863,7 +757,6 @@ test('the reaction row shows while locked out behind the leader or with a verdic
   assert.equal(phoneOf('answer:locked', { ...mine, locked: true }).react, true)
   assert.equal(phoneOf('answer:locked', { ...mine, locked: true, won: true }).react, false, 'the answerer has no row')
   assert.equal(phoneOf('verdict:hold', { ...mine, locked: true, scored: true }).react, true)
-  // The award outlives the lock; the answerer may react to their own verdict, as the server allows.
   assert.equal(phoneOf('idle:ready', { ...mine, won: true, scored: true, awardPoints: 400 }).react, true)
   assert.equal(phoneOf('verdict:award', { ...mine, scored: true, told: { name: 'Ada', points: 400 } }).mood, 'verdict', 'the flag composes with the verdict mood')
   assert.equal(phoneOf('verdict:award', { ...mine, scored: true, told: { name: 'Ada', points: 400 } }).react, true)

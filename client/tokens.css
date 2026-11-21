@@ -1,18 +1,8 @@
-/*
- * Party Buzzer design tokens. Every value in the UI comes from here, so
- * docs/design.md and the stylesheet cannot drift apart.
- *
- * The world is a television studio floor: tungsten lamps, a tally light, brass
- * fittings, black staging. Warm colours carry drama (armed, live, won). One
- * cold colour carries measurement (milliseconds, ticks, scales). Nothing is
- * both.
- */
-
 @font-face {
   font-family: 'Big Shoulders';
   src: url('/fonts/big-shoulders-display.woff2') format('woff2');
   font-weight: 400 900;
-  font-display: block; /* No FOUT on the big screen; the file is local and instant. */
+  font-display: block;
 }
 @font-face {
   font-family: 'Plex Mono';
@@ -30,40 +20,33 @@
 :root {
   color-scheme: dark;
 
-  /* --- Surface: the unlit studio ------------------------------------- */
-  --stage: #0b0a08;   /* the room itself; board and phone backgrounds */
-  --panel: #16130f;   /* a lit surface sitting on the stage */
-  --raise: #211c16;   /* a row or input on that surface */
-  --rule: #2c2620;    /* hairlines and borders */
-  --stone: #2e2d2b;   /* a true grey, for what floats over the set; used translucent */
-  --paper: #bdb3a0;   /* a paper prop on the set, kept dim so it never outshines a screen */
-  --typed: #231e17;   /* typewriter ink on paper */
-  --graphite: #3b3833; /* pencil on paper */
-  /* Poker's card room: baize under one lamp, card stock, casino chips, a leather rail. Props, not signals. */
-  --felt: #1f4d35;      /* baize under the lamp */
-  --felt-deep: #133121; /* baize past the lamp's pool */
-  --felt-rim: #050a07;  /* where the cloth falls into the dark */
-  --felt-ink: #d6b65a;                  /* table paint: casino gold, soaked into the pile */
-  --felt-press: rgb(0 0 0 / 0.3);      /* the pile standing up around a painted mark */
-  /* Where paint took on the fibres: a fine, upright-streaked mask with about a quarter of the pile left bare. */
+  --stage: #0b0a08;
+  --panel: #16130f;
+  --raise: #211c16;
+  --rule: #2c2620;
+  --stone: #2e2d2b;
+  --paper: #bdb3a0;
+  --typed: #231e17;
+  --graphite: #3b3833;
+  --felt: #1f4d35;
+  --felt-deep: #133121;
+  --felt-rim: #050a07;
+  --felt-ink: #d6b65a;
+  --felt-press: rgb(0 0 0 / 0.3);
   --paint-fibre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.5 1.5' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -3 2.1'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='0 .55 1 1 1 1 1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
   --felt-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .6 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
   --felt-nap: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='420'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.05 .3' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  /* Short upright tufts of pile standing proud: rare light tips and dark roots. The -2.66/-2.52 offsets set how many. */
   --felt-streaks: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='l'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.4 .9' numOctaves='2' seed='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .85 0 0 0 0 1 0 0 0 0 .9 4 0 0 0 -2.66'/%3E%3C/filter%3E%3Cfilter id='d'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.4 .9' numOctaves='2' seed='9' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0 0 0 -2.52'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23d)' opacity='.5'/%3E%3Crect width='100%25' height='100%25' filter='url(%23l)' opacity='.35'/%3E%3C/svg%3E");
-  /* The pile as faint relief, lit from the lamp's side. Soft-light blended over the felt. */
   --felt-lit: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='h' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1 .3' numOctaves='3' stitchTiles='stitch'/%3E%3CfeDiffuseLighting surfaceScale='1' lighting-color='%23fff'%3E%3CfeDistantLight azimuth='235' elevation='60'/%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23h)'/%3E%3C/svg%3E");
   --felt-mottle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='800'%3E%3Cfilter id='m'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.005' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .5 -.08'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23m)'/%3E%3C/svg%3E");
-  /* A worn rubber stamp: blotchy dropouts where the ink did not take. Used as a mask. */
   --stamp-wear: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='w'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.15' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -2.2 1.7'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='0 .35 1 1 1 1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23w)'/%3E%3C/svg%3E");
   --stamp-ink: rgb(190 58 48 / 0.58);
-  /* The pile inside painted marks: grey fibre noise, overlaid on the paint so each fibre catches light its own way. */
   --paint-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9 1.6' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='.95 .95 .95 0 -.9 .95 .95 .95 0 -.9 .95 .95 .95 0 -.9 0 0 0 0 1'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)'/%3E%3C/svg%3E");
-  --card-face: #f4efe3; /* card stock, ivory under a warm lamp */
-  --card-edge: #cbbfa6; /* the stock's cut edge */
+  --card-face: #f4efe3;
+  --card-edge: #cbbfa6;
   --card-ink: #151210;
   --suit-red: #a3262a;
-  --card-back: #5b1b20; /* oxblood back, the classic answer to green cloth */
+  --card-back: #5b1b20;
   --chip-1: #ece5d6;
   --chip-5: #a3262a;
   --chip-25: #2c6b48;
@@ -74,29 +57,18 @@
   --leather-hi: #45301f;
   --stitch: rgb(214 176 126 / 0.4);
 
-  /* --- Ink ------------------------------------------------------------ */
-  --chalk: #f5f0e6;   /* primary text, warm white so it sits in the set */
-  --dim: #8a8073;     /* labels, secondary text, anything not being read now */
+  --chalk: #f5f0e6;
+  --dim: #8a8073;
 
-  /* --- Signal: warm is drama ------------------------------------------ */
-  --tungsten: #ffb454; /* armed, charging, the primary action */
-  --tally: #ff3b2f;    /* live, buzz, wrong, destructive */
-  --brass: #c9a227;    /* first place, correct, awarded */
-  --silver: #b8bcc4;   /* second place, in the standings dial */
-  --bronze: #b0793f;   /* third place, in the standings dial */
-  --hot: #fff6e8;      /* white-hot at full power */
+  --tungsten: #ffb454;
+  --tally: #ff3b2f;
+  --brass: #c9a227;
+  --silver: #b8bcc4;
+  --bronze: #b0793f;
+  --hot: #fff6e8;
 
-  /* --- Signal: cold is measurement ------------------------------------ */
-  --cyan: #4dd8e6;     /* milliseconds, ticks, scales. Never used for state. */
+  --cyan: #4dd8e6;
 
-  /*
-   * Identity ramp. The one place outside the core palette: players and teams
-   * need hues that stay apart from ten feet away, which a warm-only set cannot
-   * give. Assigned by index, never by meaning.
-   *
-   * None of these may equal a signal colour. A player rendered in --cyan would
-   * read as a measurement, and one in --tungsten would read as armed.
-   */
   --id-1: #ff8a3d;
   --id-2: #e5484d;
   --id-3: #8ea6ff;
@@ -104,15 +76,9 @@
   --id-5: #e86a92;
   --id-6: #8ed081;
 
-  /* Phantom Ink's two teams take identity hues, never signal ones: Sun is not
-     armed and Moon is not a measurement. */
   --team-sun: var(--id-1);
   --team-moon: var(--id-3);
 
-  /* Effect palette — for multicolour effects (rainbow, confetti, glitch), so
-     they never read as belonging to a player. Eight hues around the wheel,
-     skipping 180–230 so cyan stays the measurement colour. Lightness, chroma
-     and the warm tint are shared knobs in anim:tunables (style.css). */
   --fx-1: color-mix(in oklab, oklch(var(--fx-light) var(--fx-chroma) 25), var(--tungsten) var(--fx-tint));
   --fx-2: color-mix(in oklab, oklch(var(--fx-light) var(--fx-chroma) 55), var(--tungsten) var(--fx-tint));
   --fx-3: color-mix(in oklab, oklch(var(--fx-light) var(--fx-chroma) 85), var(--tungsten) var(--fx-tint));
@@ -122,14 +88,9 @@
   --fx-7: color-mix(in oklab, oklch(var(--fx-light) var(--fx-chroma) 305), var(--tungsten) var(--fx-tint));
   --fx-8: color-mix(in oklab, oklch(var(--fx-light) var(--fx-chroma) 345), var(--tungsten) var(--fx-tint));
 
-  /* --- Type ------------------------------------------------------------ */
   --display: 'Big Shoulders', 'Haettenschweiler', 'Arial Narrow', sans-serif;
   --mono: 'Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
-  /*
-   * Two scales. Board type is viewport-relative because it is read across a
-   * room; host and phone type is fixed because it is read at arm's length.
-   */
   --t-hero: clamp(4rem, 15vw, 14rem);
   --t-mega: clamp(2.5rem, 7vw, 6rem);
   --t-xl: clamp(1.75rem, 3.4vw, 3rem);
@@ -137,12 +98,11 @@
   --t-md: 1rem;
   --t-sm: 0.8125rem;
   --t-xs: 0.6875rem;
-  --t-chip-board: clamp(0.95rem, 1.25vw, 1.6rem); /* status chips on the board, read across a room */
+  --t-chip-board: clamp(0.95rem, 1.25vw, 1.6rem);
 
-  --track-label: 0.14em; /* eyebrows and chips only */
+  --track-label: 0.14em;
   --track-hero: -0.01em;
 
-  /* --- Space: 4px base -------------------------------------------------- */
   --s1: 0.25rem;
   --s2: 0.5rem;
   --s3: 0.75rem;
@@ -152,24 +112,15 @@
   --s7: 3rem;
   --s8: 4rem;
 
-  /* --- Form ------------------------------------------------------------- */
-  /* Tight radii read as equipment. Only the buzzer, which is a physical
-   * object in the hand, gets a generous one. */
   --r-sm: 2px;
   --r-md: 4px;
   --r-lg: 10px;
   --r-buzzer: 1.75rem;
 
-  /* --- Motion ----------------------------------------------------------- */
   --fast: 80ms;
   --base: 160ms;
   --ease: cubic-bezier(0.2, 0.8, 0.3, 1);
-  /* For things that land rather than move: almost all the distance is covered
-     in the first few frames, so the eye reads an impact, not a slide. */
   --slam: cubic-bezier(0.1, 0.9, 0.2, 1);
-  /* Slide rates. Glide arrives and settles; charge builds and hits, for
-     things that collide at the end; even eases both ends, for moving
-     between two places. `fx-slide` takes one through `--fx-ease`. */
   --rate-glide: cubic-bezier(0.16, 1, 0.3, 1);
   --rate-charge: cubic-bezier(0.7, 0, 0.84, 0);
   --rate-even: cubic-bezier(0.65, 0, 0.35, 1);

@@ -52,7 +52,6 @@ test('correct guesses are ordered by their own clamped timestamps', () => {
   const [g1, g2] = w.participants.filter((id) => id !== drawer)
   def.apply(w, drawer, { kind: 'pickWord', index: 0, at: 1 })
   for (let i = 0; i < 100; i++) def.step(w)
-  // Both land in the same step; g2's press was earlier.
   const start = clock(w.drawStart * STEP_MS)
   def.apply(w, g1, { kind: 'guess', text: w.word, at: start + 5_000 })
   def.apply(w, g2, { kind: 'guess', text: w.word, at: start + 4_900 })

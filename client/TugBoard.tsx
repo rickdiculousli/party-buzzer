@@ -10,17 +10,13 @@ import { playerName } from './ui.ts'
 type BoardFrame = Extract<MinigameFrame, { role: 'board'; id: 'tug' }>
 
 const CENTRE = 800
-/** Distance the flag travels from the centre to a mark, in field units. */
 const MARK_DISTANCE = 560
 const ROPE_Y = 250
-/** At the win the rope is carried this far past the mark before it settles. */
 const CARRY = 0.05
-/** Effort meters ease over this long, so they read as strain rather than strobe. */
 const METER_MS = 120
 
 type Drawn = { rope: Rope; lean: Rope; effort: [number, number]; tense: boolean; arrived: boolean }
 
-/** The drawn rope and meters, eased every animation frame toward the latest server frame. */
 function useDrawn(board: BoardFrame | null, onSwing: () => void): Drawn {
   const [drawn, setDrawn] = useState<Drawn>({ rope: { x: 0, v: 0 }, lean: { x: 0, v: 0 }, effort: [0, 0], tense: false, arrived: false })
   const live = useRef(drawn)
@@ -36,7 +32,6 @@ function useDrawn(board: BoardFrame | null, onSwing: () => void): Drawn {
       const dt = t - last
       last = t
       const frame = target.current
-      // Carried past the mark only by a win at the mark; a win on time stays where the rope stopped.
       const atMark = (frame?.winner === 0 || frame?.winner === 1) && Math.abs(frame.flag) >= 1
       const aim = atMark ? Math.sign(frame!.flag) * (1 + CARRY) : frame?.flag ?? 0
       const rope = follow(live.current.rope, aim, dt)
@@ -47,7 +42,6 @@ function useDrawn(board: BoardFrame | null, onSwing: () => void): Drawn {
         if (seen.crossed) swung.current()
       }
       const decided = frame?.winner !== undefined
-      // A win at the mark is called when the drawn flag gets there, not a frame ahead of it.
       const arrived = decided && (!atMark || Math.abs(rope.x) >= 1)
       live.current = { rope, lean: lean(live.current.lean, rope.v, dt), effort, tense: !decided && strained(live.current.tense, effort, rope.v), arrived }
       setDrawn(live.current)
@@ -59,7 +53,6 @@ function useDrawn(board: BoardFrame | null, onSwing: () => void): Drawn {
   return drawn
 }
 
-/** Fires on a change of `value` after mount, never for the value (or `mounted`) the board mounted on. */
 function useOnChange<T>(value: T, fire: (value: T) => void, mounted: T = value) {
   const seen = useRef(mounted)
   useEffect(() => {
@@ -85,7 +78,6 @@ function SideCard({ side, effort, state }: { side?: TugSide; effort: number; sta
 export function TugBoard({ state, frame, now, join }: MinigameBoardProps) {
   const session = state.minigame!
   const board = matchFrame(frame, 'tug', 'board', session.matchId)
-  // The sides outlive the last frame, so the results can name the winners' side.
   const sidesSeen = useRef<BoardFrame['sides'] | null>(null)
   const winnerSeen = useRef<0 | 1 | null | undefined>(undefined)
   if (board) {
@@ -94,22 +86,18 @@ export function TugBoard({ state, frame, now, join }: MinigameBoardProps) {
   }
   const sides = board?.sides ?? sidesSeen.current
   const { rope, lean: hang, effort, tense, arrived } = useDrawn(board, () => play('stamp', { rateScale: 1.3 }))
-  // The verdict, as the room sees it: only once the drawn flag has arrived.
   const winner = arrived ? board?.winner : undefined
 
-  // Three cues, on transitions only, so a board reloaded mid-match stays quiet.
   useOnChange(session.phase, (phase) => {
     if (phase === 'playing') play('stamp')
     if (phase === 'results' && session.results?.some((r) => r.points > 0)) play('award')
   })
-  // A board that mounts on a decided match has missed the win, so it stays quiet.
   useOnChange(winner, (w) => { if (w === 0 || w === 1) play('leader') }, board?.winner)
 
   if (session.phase === 'results') {
     const results = session.results ?? []
     const won = results.filter((r) => r.points > 0)
     const rest = results.filter((r) => r.points <= 0)
-    // The last frame names the winner even when `value` is 0 and nobody gained points.
     const w = winnerSeen.current
     const winSide = w === 0 || w === 1 ? sides?.[w] : won.length ? sides?.find((s) => s.members.includes(won[0].playerId)) : undefined
     const row = (r: (typeof results)[number]) => (
@@ -124,7 +112,6 @@ export function TugBoard({ state, frame, now, join }: MinigameBoardProps) {
         <h2 class="tug-results__verdict" style={{ color: winSide?.color }}>
           {winSide ? `${winSide.name} wins` : won.length === 0 ? 'Draw' : 'Winners'}
         </h2>
-        {/* Side by side, so a full room's two halves fit under the verdict. */}
         <div class="tug-results__lists">
           {won.length > 0 && <ol class="tug-results__list fx-rise">{won.map(row)}</ol>}
           {rest.length > 0 && <ol class="tug-results__list tug-results__rest">{rest.map(row)}</ol>}

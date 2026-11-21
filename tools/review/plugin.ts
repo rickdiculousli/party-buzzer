@@ -124,8 +124,6 @@ export function reviewPlugin(): Plugin {
     name: 'review-workbench',
     apply: 'serve',
     configureServer(server) {
-      // The frozen board still needs the production QR's shape. This address
-      // cannot join a room; the review workbench has no game server.
       server.middlewares.use('/qr.svg', (req, res) => {
         if (req.method !== 'GET') return reply(res, 405, { error: 'GET only' })
         qrSvg('https://review.invalid/join').then(

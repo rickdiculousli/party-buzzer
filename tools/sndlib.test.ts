@@ -8,8 +8,6 @@ test('a plain name resolves inside the holding ground', () => {
   assert.equal(safeRaw(ROOT, 'buzzer.wav'), '/repo/sounds/raw/buzzer.wav')
 })
 
-// Dev-only is not a reason to skip this. The moment a name crosses an HTTP
-// boundary it is untrusted, and a traversal here reads any file on the machine.
 test('a name escaping the holding ground is refused', () => {
   assert.equal(safeRaw(ROOT, '../../etc/passwd'), null)
   assert.equal(safeRaw(ROOT, '/etc/passwd'), null)
@@ -32,10 +30,6 @@ test('an output name must be lowercase, hyphenated, and audio', () => {
   assert.equal(safeOut('stamp'), null)
 })
 
-// The one-shot preset is the pass CREDITS.md has been describing by hand: trim,
-// then the same 40ms release play() would have applied, mono, 44.1k, PCM.
-// `cut` is output length from `head`, the same meaning play() and the audition
-// give it — so a clip dialled to 3.14s is 3.14s of sound wherever it starts.
 test('the one-shot preset trims, fades, and stays uncompressed', () => {
   const args = ffmpegArgs({
     preset: 'one-shot',
@@ -71,13 +65,10 @@ test('a rate other than 1 moves speed and pitch together, and the fade with them
   const af = args[args.indexOf('-af') + 1]
   assert.ok(af.includes('asetrate=88200'), af)
   assert.ok(af.includes('aresample=44100'), af)
-  // 4s of output at 2x eats 8s of input, and the fade sits against the output.
   assert.ok(af.startsWith('atrim=0:8,'), af)
   assert.ok(af.includes('afade=t=out:st=3.96:d=0.04'), af)
 })
 
-// The case that was wrong: a head *and* a rate, where the input span consumed
-// is neither the cut nor the cut plus the head.
 test('cut is output length however the head and rate move the input span', () => {
   const af = ffmpegArgs({
     preset: 'one-shot',
@@ -87,7 +78,6 @@ test('cut is output length however the head and rate move the input span', () =>
     cutMs: 500,
     rate: 2,
   })[4]
-  // 0.5s out at 2x is 1s of input, starting 0.2s in.
   assert.ok(af.startsWith('atrim=0.2:1.2,'), af)
   assert.ok(af.includes('afade=t=out:st=0.46:d=0.04'), af)
 })

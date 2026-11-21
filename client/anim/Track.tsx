@@ -1,15 +1,3 @@
-/**
- * One layer of a cue: the audio behind, the envelope that gates it in front,
- * both on an axis the track does not own.
- *
- * Handles drag as a delta, never to an absolute position: a handle's absolute x
- * is the sum of every stage before it, and reading a position would make the
- * handle jump to the cursor on grab.
- *
- * ponytail: no zoom, no snapping, no curve shaping, mono only. The axis is the
- * cue's own length and the harness's speed slider is the release valve for a
- * 40ms click beside a 3s bed. Add zoom when a cue actually needs it.
- */
 import { useRef, useState } from 'preact/hooks'
 import { clampField } from '../cues.ts'
 import { peaks } from '../peaks.ts'
@@ -20,29 +8,11 @@ import type { NumericField } from '../cues.ts'
 const W = 520
 const H = 72
 const PAD = 8
-/** Columns of waveform drawn across the full width. Chrome, not a tunable. */
 const COLS = 260
-/**
- * How close to the clip's left edge a press means "slide the audio" rather than
- * "move the layer". Audacity's rule, and measured in pixels because it is a
- * pointing target rather than a duration.
- */
 const EDGE_PX = 6
 
 type Handle = { field: NumericField; x: number; y: number; level: boolean }
 
-/**
- * What each gesture does, in the words the panel says out loud.
- *
- * A waveform with four dots on it does not explain itself, and the two drags
- * that share the track body — move the layer, slide the audio inside it —
- * differ by six pixels of pointer position and nothing visible at all. So the
- * track says which one it is about to do, and the cursor agrees with the
- * sentence: `col-resize` where the clip edge is grabbable, `ew-resize` on a
- * handle that only travels sideways, `move` on the one corner that travels in
- * both. Naming the axis is the part that matters: every field here is a
- * horizontal drag except `level`, and nothing else on screen says so.
- */
 const GESTURE: Record<string, { hint: string; cursor: string }> = {
   delay: { hint: '← drag the body → move this layer in time', cursor: 'grab' },
   head: { hint: '← drag the edge → slide the audio inside the clip', cursor: 'col-resize' },
@@ -64,13 +34,6 @@ export function Track({
   onRemove: () => void
 }) {
   const box = useRef<SVGSVGElement>(null)
-  /**
-   * Which gesture the pointer is currently over, or in the middle of.
-   *
-   * Held as state rather than read at press time because it drives the cursor
-   * and the caption, both of which have to be right *before* you commit to the
-   * drag — an affordance you only discover by trying it is not an affordance.
-   */
   const [over, setOver] = useState('')
   const d0 = layer.delay ?? 0
   const a = layer.attack ?? 0
@@ -88,16 +51,6 @@ export function Track({
   const durMs = buf ? buf.duration * 1000 : 0
   const head = layer.head ?? 0
 
-  /**
-   * The audio, as two paths: the part the envelope lets through and the part it
-   * gates off. Drawing the tail dimmed rather than clipping it away is the
-   * reason to draw a waveform at all — you can see what you are cutting, and
-   * drag it back.
-   *
-   * One path per side rather than a rect per column: a few hundred SVG nodes
-   * that re-render on every pointermove is the difference between a smooth drag
-   * and a slideshow.
-   */
   let lit = ''
   let dim = ''
   if (buf) {
@@ -128,17 +81,11 @@ export function Track({
   ]
   const points = `${x(d0)},${y(0)} ${handles.map((p) => `${p.x},${p.y}`).join(' ')}`
 
-  /** ms per client pixel, accounting for however wide the SVG actually laid out. */
   const perPx = () => {
     const rect = box.current!.getBoundingClientRect()
     return spanMs / ((W - PAD * 2) * (rect.width / W))
   }
 
-  /**
-   * One drag, one field. Everything on this track is the same gesture with a
-   * different field under it, so there is one implementation: capture where the
-   * pointer and the value started, then move the value by the delta.
-   */
   const drag = (e: PointerEvent, field: NumericField, alsoLevel = false) => {
     e.preventDefault()
     ;(e.target as Element).setPointerCapture(e.pointerId)
@@ -161,14 +108,6 @@ export function Track({
     window.addEventListener('pointerup', up)
   }
 
-  /**
-   * The body drag and the clip's left edge share a boundary, so the edge wins
-   * inside its hit zone and the body takes everything else. Same rule Audacity
-   * uses: near the edge you are trimming, anywhere else you are moving.
-   *
-   * One function answers it for both the press and the hover, so the cursor
-   * cannot promise one gesture and the press deliver the other.
-   */
   const zoneAt = (clientX: number): 'head' | 'delay' => {
     if (!file || !box.current) return 'delay'
     const rect = box.current.getBoundingClientRect()
@@ -187,9 +126,6 @@ export function Track({
         role="img"
         aria-label={file ?? String(layer.source)}
         style={{ cursor: gesture?.cursor ?? 'grab' }}
-        // Preact bails out when the value is unchanged, so this re-renders on
-        // crossing the six-pixel boundary and not on every mouse move — which
-        // matters, because a render here rebuilds the whole waveform path.
         onPointerMove={(e) => setOver(zoneAt((e as unknown as PointerEvent).clientX))}
         onPointerLeave={() => setOver('')}
         onPointerDown={(e) => {
@@ -199,10 +135,6 @@ export function Track({
       >
         <path class="track__wave" d={lit} />
         <path class="track__wave track__wave--gated" d={dim} />
-        {/* The clip's left edge, drawn only when there is audio to slide. It is
-            a marker, not a hit target — `zoneAt` owns the hit test in client
-            pixels, because a rect in viewBox units would shrink with the panel
-            and stop being a six-pixel pointing target. */}
         {file && (
           <line
             class={over === 'head' ? 'track__grip is-live' : 'track__grip'}
@@ -222,12 +154,9 @@ export function Track({
             r={6}
             onPointerEnter={() => setOver(hnd.field)}
             onPointerMove={(e) => {
-              // The svg's own move handler would otherwise take the hint back
-              // the instant the pointer moved a pixel on top of the handle.
               e.stopPropagation()
             }}
             onPointerDown={(e) => {
-              // Stops the body from also starting a delay drag underneath.
               e.stopPropagation()
               drag(e as unknown as PointerEvent, hnd.field, hnd.level)
             }}
@@ -239,8 +168,6 @@ export function Track({
       <button class="track__remove" title="remove layer" onClick={onRemove}>
         ×
       </button>
-      {/* Reserved whether or not it is filled, so the tracks below do not jump
-          up and down as the pointer crosses the stack. */}
       <p class="track__hint">{gesture?.hint ?? ' '}</p>
     </div>
   )

@@ -1,8 +1,3 @@
-/**
- * The interest kit's components: the effects that need markup or a clock.
- * Everything else is a class in the FX section of style.css. Rules and the
- * full catalogue: docs/design.md §4 "Interest kit".
- */
 import { Fragment, type RefObject } from 'preact'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { BURST_COUNT, countAt, flashTimes, flipDeltas, glitchCut, particles, words, type Aim, type BurstKind, type Particle } from './fx.ts'
@@ -10,11 +5,6 @@ import { parseTune } from './sound.ts'
 
 export const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches
 
-/**
- * Text split into letters for the per-letter classes (`fx-wave`, `fx-rainbow`,
- * `fx-cascade`, `fx-jitter`, `fx-type`). Each word stays one unbreakable span;
- * a screen reader reads the hidden copy once instead of letter by letter.
- */
 export function Letters({ text, class: cls = '' }: { text: string; class?: string }) {
   let i = 0
   return (
@@ -36,7 +26,6 @@ export function Letters({ text, class: cls = '' }: { text: string; class?: strin
   )
 }
 
-/** A number rolling up to its value. Under reduced motion it shows `to` at once. */
 export function CountUp({ to, from = 0, ms = 600 }: { to: number; from?: number; ms?: number }) {
   const [n, setN] = useState(() => (reduced() ? to : from))
   useEffect(() => {
@@ -57,14 +46,6 @@ export function CountUp({ to, from = 0, ms = 600 }: { to: number; from?: number;
   return <span class="fx-count">{n}</span>
 }
 
-/**
- * A one-off spray of particles from the nearest positioned ancestor (give it
- * `fx-anchor`): from its centre, its whole outline (`from="edge"`), or one
- * side, aimed with `angle` and `spread` (see `Aim` in fx.ts). It measures the
- * box once on mount, so an outline spreads evenly along a long word. It
- * removes itself when the last particle lands; mount a new one (a new `key`)
- * to fire again. Renders nothing under reduced motion.
- */
 export function Burst({
   kind,
   glyph,
@@ -109,23 +90,11 @@ export function Burst({
   )
 }
 
-/**
- * Text that glitches in hits: a burst of cyan, magenta and yellow copies
- * flickering through quadrant windows while a band of the letters tears, then
- * a breather, then the next. Every pass of a burst gets a new cut and each
- * breather a length within ±20% of `--fx-glitch-rest`, so no two hits look or
- * land alike. Single flashes land in each breather, bunched toward its ends,
- * so the glitch wanes and waxes rather than switching off and on.
- * To stop it, render the plain text instead. Under reduced motion it stays
- * still.
- */
 export function Glitch({ text, class: cls = '' }: { text: string; class?: string }) {
   const root = useRef<HTMLSpanElement>(null)
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
   const later = (fn: () => void, ms: number) => void timers.current.push(setTimeout(fn, ms))
 
-  // A new cut: windows, shoves, band, and which repeats show. A new hit also
-  // draws its length; a new pass inside a hit keeps the one it has.
   const recut = (el: HTMLElement, pass: boolean) => {
     for (const [k, v] of Object.entries(glitchCut())) if (!(pass && k === '--g-reps')) el.style.setProperty(k, v)
   }
@@ -137,8 +106,6 @@ export function Glitch({ text, class: cls = '' }: { text: string; class?: string
     recut(el, false)
     el.classList.add('is-live')
   }
-  // One beat of glitch inside a breather. The class comes off and back on
-  // across a reflow so a flash restarts even straight after the last one.
   const flash = () => {
     const el = root.current
     if (!el) return
@@ -156,8 +123,6 @@ export function Glitch({ text, class: cls = '' }: { text: string; class?: string
     <span
       ref={root}
       class={`fx-glitch ${cls}`}
-      // Every layer reports its own passes and end; the base's are the hit's.
-      // Each pass inside a hit gets a fresh cut, so a long hit never repeats.
       onAnimationIteration={(e) => {
         const el = root.current
         if (el && (e.target as Element).classList.contains('fx-glitch__base')) recut(el, true)
@@ -180,12 +145,6 @@ export function Glitch({ text, class: cls = '' }: { text: string; class?: string
   )
 }
 
-/**
- * Slides a list's children from where they were to where a re-sort put them.
- * Children need `data-key`. It moves them with `translate`, not `transform`,
- * so a row can wear a transform effect (an entrance pop) at the same time.
- * Under reduced motion rows just move.
- */
 export function useFlip(list: RefObject<HTMLElement>) {
   const last = useRef(new Map<string, number>())
   useLayoutEffect(() => {
@@ -201,7 +160,6 @@ export function useFlip(list: RefObject<HTMLElement>) {
       if (!dy) continue
       r.style.transition = 'none'
       r.style.translate = `0 ${dy}px`
-      // A row climbing the table passes over the ones it overtakes, not under.
       r.style.zIndex = dy > 0 ? '1' : ''
       void r.offsetWidth
       r.style.transition = 'translate var(--rank-slide-dur) var(--rate-even)'
@@ -210,20 +168,12 @@ export function useFlip(list: RefObject<HTMLElement>) {
   })
 }
 
-/**
- * A number's last change: where it came from, which way it went, and a count
- * that goes up on every change (0 until the first), for keying a replay.
- */
 export function useDelta(value: number) {
   const r = useRef({ value, from: value, n: 0 })
   if (value !== r.current.value) r.current = { value, from: r.current.value, n: r.current.n + 1 }
   return { from: r.current.from, up: value >= r.current.from, n: r.current.n }
 }
 
-/**
- * A score that counts to its new value and flashes brass going up, tally red
- * going down. Still on first render, so a page load doesn't light every row.
- */
 export function ScoreChange({ score, class: cls = '' }: { score: number; class?: string }) {
   const d = useDelta(score)
   return (

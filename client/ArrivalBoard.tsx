@@ -4,12 +4,6 @@ import { colorForPlayer } from './ui.ts'
 import { NEXT_LABEL, type ArrivalPresentation } from '../shared/arrival.ts'
 import type { State } from '../shared/protocol.ts'
 
-/**
- * The wall while the room arrives: the roster with a tested mark per player, or
- * the first block's introduction. The parent owns the QR and picks the moment;
- * this renders the presentation it is handed. Names and colours come from the
- * current roster, never from receipts.
- */
 export function ArrivalBoard({ state, arrival, feedback, pulseNow }: {
   state: State
   arrival: ArrivalPresentation
@@ -35,7 +29,6 @@ export function ArrivalBoard({ state, arrival, feedback, pulseNow }: {
       <h2 class="arrival-board__title">Test buzzer</h2>
       <p class="arrival-board__goal">Practice only · no points</p>
       <ul class="arrival-board__roster" data-review-id="board:arrival-roster">
-        {/* Connected first; the sort is stable, so join order holds within each group. */}
         {[...state.players].sort((a, b) => Number(b.connected) - Number(a.connected)).map((p) => {
           const on = lit.includes(p.id)
           const seq = feedback.pulses[p.id]?.seq ?? 0
@@ -45,7 +38,6 @@ export function ArrivalBoard({ state, arrival, feedback, pulseNow }: {
               class={`arrival-board__player${on ? ' is-lit' : ''}${p.connected ? '' : ' is-away'}`}
               style={{ '--id': colorForPlayer(state, p.id), '--fx-color': colorForPlayer(state, p.id) }}
             >
-              {/* Keyed on the receipt so a repeat press replays the flash. */}
               <span key={on ? seq : 0} class={on ? 'arrival-board__name fx-flash fx-flash--tint' : 'arrival-board__name'}>
                 {p.name}
               </span>

@@ -6,18 +6,12 @@ import type { Annotation, ReviewScenario, ReviewSelection } from './model.ts'
 const WORKSPACE = 'party-buzzer'
 const THREAD_KEY = 'party-buzzer:review:codex-thread'
 const DRAWERS_KEY = 'party-buzzer:review:drawers'
-/**
- * Flagship screens in CSS pixels, portrait: the size each phone's browser lays
- * the page out at. The browser's own toolbars take some of the height on a real
- * phone. The preview scales as a whole to fit the window, never reflows.
- */
 const PHONES = {
   iphone: { label: 'iPhone Pro Max', short: 'iP', width: 440, height: 956 },
   galaxy: { label: 'Galaxy S Ultra', short: 'GS', width: 384, height: 832 },
   pixel: { label: 'Pixel Pro', short: 'Px', width: 410, height: 914 },
 }
 type PhoneModel = keyof typeof PHONES
-/** Room around the phone: the drawer's padding, and the picker column beside it. */
 const PHONE_MARGIN = { x: 88, y: 20 }
 
 type Drawers = { notes: boolean; phone: boolean; model: PhoneModel }
@@ -107,7 +101,6 @@ function Workbench() {
       void fetch(`/__review/batches/${delivery.batchId}`)
         .then((response) => response.json())
         .then((next: Delivery) => {
-          // The agent has the batch: the paste line is spent.
           if (next.status !== 'submitted') setHandoff('')
           if (next.status !== 'ready' && next.status !== 'blocked') {
             setDelivery(next)
@@ -125,12 +118,9 @@ function Workbench() {
     return () => clearInterval(timer)
   }, [delivery?.batchId, delivery?.status])
 
-  /** After the next render puts it on screen. */
   const focusNote = (id: string) => requestAnimationFrame(() => {
     const note = document.getElementById(`note-${id}`)
     const active = document.activeElement
-    // A delayed frame must not take focus back after someone starts typing in
-    // another field, such as the Codex conversation input.
     if (active !== note && active?.matches('input, textarea, [contenteditable="true"]')) return
     note?.focus()
   })
@@ -198,7 +188,6 @@ function Workbench() {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ batchId, threadId: threadId.trim(), annotations }),
-        // A dev-server restart during capture leaves the request hanging; fail instead of waiting forever.
         signal: AbortSignal.timeout(120_000),
       })
       const result = await response.json() as Delivery & { error?: string }

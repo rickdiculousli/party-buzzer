@@ -26,7 +26,6 @@ export function TankBoard({ state, frame, now, join }: MinigameBoardProps) {
     angles.current.clear()
   }
 
-  // ponytail: frames coalesced by a render lose their cleared cells until the next full grid (≤1 s); apply frames in the socket handler if walls visibly lag.
   if (board && seen.current !== board) {
     seen.current = board
     if (board.cover) cells.current = Uint8Array.from(board.cover, (digit) => digit === '1' ? 1 : 0)

@@ -10,22 +10,11 @@ import type { HostAction, MinigameId, ScoreKey, State } from '../shared/protocol
 type Act = (a: HostAction) => void
 type Fire = (a: string, data?: unknown) => void
 
-/**
- * The Games tab: every game the night can play, each folded to one line until
- * the host opens it. The quiz is one entry among the minigames, not the frame
- * around them. `name` makes the folds an accordion, so one game's settings are
- * on screen at a time.
- */
 export function HostGames({ state, act, fire, play }: { state: State; act: Act; fire: Fire; play: () => void }) {
   const setlist = !!state.setlist
 
-  // Both "how the night runs" buttons send `setSetlist`, and its legality does
-  // not read the blocks — so one call answers for the pair, and the empty array
-  // here is a placeholder rather than the payload either button will send.
   const howRefusal = refuses(state, { a: 'setSetlist', blocks: [] })
 
-  // The pack picker's own, because the table cannot hold it — see the comment on
-  // the control itself. The identity is restated here; the words are not.
   const packBlocked = state.round.phase !== 'IDLE'
   const mode = state.games.find((g) => g.id === state.game.id)?.name
 
@@ -80,15 +69,6 @@ export function HostGames({ state, act, fire, play }: { state: State; act: Act; 
         {!setlist && state.packs.length > 0 && (
           <section>
             <p class="eyebrow">Pack</p>
-            {/* The one control on this panel the table cannot speak for.
-                `selectPack` rides the `act` channel, not the host-action one,
-                so there is no `HostAction` to hand `refuses` — and borrowing a
-                neighbour's action to stand in for it would make the picker
-                follow a rule it does not have. The authority is the hub's own
-                guard (`server/hub.ts`, "refuse it the way setMode does"), and
-                this restates it because it must. What it does not restate is
-                the sentence: the reason is the same reason, so the line under
-                it comes from the same place as every other one on this desk. */}
             <ChoiceField
               label="Pack"
               value={state.reading?.pack ?? ''}
@@ -105,8 +85,6 @@ export function HostGames({ state, act, fire, play }: { state: State; act: Act; 
         <Reading state={state} act={act} />
       </details>
 
-      {/* Under a setlist the blocks name the minigames; launching one by hand
-          here would step outside the plan the play strip is walking. */}
       {!setlist && (Object.keys(MINIGAME_INFO) as MinigameId[]).map((id) => (
         <details key={id} name="game" class="host__manage host__game" open={state.minigame?.id === id}>
           <summary>{MINIGAME_INFO[id].name}{state.minigame?.id === id && ` · ${state.minigame.phase}`}</summary>
@@ -117,7 +95,6 @@ export function HostGames({ state, act, fire, play }: { state: State; act: Act; 
   )
 }
 
-/** A minigame's options and the button that opens its lobby on every screen. */
 function Launcher({ state, id, act, play }: { state: State; id: MinigameId; act: Act; play: () => void }) {
   const [options, setOptions] = useState<Record<string, unknown>>({})
   const refusal = refuses(state, { a: 'prepareMinigame', id, options })
@@ -148,7 +125,6 @@ function Launcher({ state, id, act, play }: { state: State; id: MinigameId; act:
   )
 }
 
-/** Reading behaviour, not the reading itself — true of whichever way the night runs. */
 function Reading({ state, act }: { state: State; act: Act }) {
   const autoplay = (patch: Partial<typeof state.autoplay>) => act({ ...state.autoplay, ...patch, a: 'setAutoplay' })
   return (
@@ -240,11 +216,6 @@ function Reading({ state, act }: { state: State; act: Act }) {
   )
 }
 
-/**
- * The Players tab: who is here, what they are called, which side they are on
- * and what they have. Reachable from every game, because a rename or a score
- * fix does not wait for the quiz to come back.
- */
 export function HostPlayers({ state, act }: { state: State; act: Act }) {
   const step = state.round.value
   return (
@@ -294,8 +265,6 @@ export function HostPlayers({ state, act }: { state: State; act: Act }) {
 
       <section>
         <p class="eyebrow">Teams</p>
-        {/* The teams grouping and its Add team belong to each other: nothing
-            goes between them. */}
         <div class="host__toggles">
           <label class="field">
             Play as teams
@@ -381,11 +350,6 @@ export function HostPlayers({ state, act }: { state: State; act: Act }) {
   )
 }
 
-/**
- * The sides a minigame's lobby has picked on the phones, and who has not
- * picked — the reason Start refuses with `unpicked`. Read-only: the phones own
- * the pick.
- */
 export function LobbyTeams({ state }: { state: State }) {
   const session = state.minigame
   if (!session?.lobby || session.phase !== 'ready' || !MINIGAME_INFO[session.id].picksTeams) return null

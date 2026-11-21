@@ -12,11 +12,6 @@ import type { HostAction, HostRow, MinigameFrame, MinigameId, State } from '../s
 import { MINIGAMES } from './minigames.tsx'
 import { MINIGAME_CATALOG } from './minigame-info.ts'
 
-/**
- * Three bounded pages rather than one long scroll. Play is the only one that
- * changes with what the room is doing; Games and Players are setup, and each
- * holds one kind of it. The tab lives in the hash so a reload keeps it.
- */
 const TABS = ['play', 'games', 'players'] as const
 type Tab = (typeof TABS)[number]
 const tabFromHash = (): Tab => {
@@ -24,17 +19,14 @@ const tabFromHash = (): Tab => {
   return (TABS as readonly string[]).includes(h) ? (h as Tab) : 'play'
 }
 
-/** Minutes and seconds left, never negative. */
 const clockLeft = (ms: number) => {
   const sec = Math.max(0, Math.ceil(ms / 1000))
   return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`
 }
 
-/** Connected players who have tapped Ready in the open lobby. */
 const readyCount = (state: State) =>
   state.players.filter((p) => p.connected && state.minigame?.lobby?.ready?.includes(p.id)).length
 
-/** The match as the minigame reports it: each row's players with their colour and lamp, then score and word. */
 function MatchRows({ state, rows }: { state: State; rows: HostRow[] }) {
   return <ol class="host__order host__match">
     {sortHostRows(rows).map((row) => <li key={row.players[0]} class="row">
@@ -50,7 +42,6 @@ function MatchRows({ state, rows }: { state: State; rows: HostRow[] }) {
   </ol>
 }
 
-/** The Play tab while a minigame is up: its clock, its lobby and its way out. */
 function MatchDesk({ state, act, now, frame }: {
   state: State
   act: (action: HostAction) => void
@@ -60,7 +51,6 @@ function MatchDesk({ state, act, now, frame }: {
   const session = state.minigame!
   const game = MINIGAMES[session.id]
   const remaining = session.endsAt ? Math.max(0, Math.ceil((session.endsAt - now()) / 1000)) : session.options.durationSec
-  // Closing is what finishes a setlist block that named this minigame.
   const close = <button class="btn" onClick={() => act({ a: 'closeMinigame' })}>Close {game.name}</button>
   return <>
     <section class="bow-host__panel">
@@ -100,43 +90,16 @@ function MatchDesk({ state, act, now, frame }: {
   </>
 }
 
-/**
- * The host runs the game from a laptop and presses the same five controls all
- * night. Reaching for the mouse between every question is the single biggest
- * drag on pace, so each control has a key and each key is shown on the control.
- */
 const KEYS: Record<string, HostAction> = {
   c: { a: 'correct' },
   n: { a: 'next' },
   z: { a: 'undo' },
 }
 
-/**
- * What the desk says, as a lookup against the moment.
- *
- * One row per `Moment`, no `default`, so a new moment does not compile
- * until it has said what the judging row and the arm row show while it is up.
- * Rows never rank each other — `momentOf` has already done that. A row reading
- * `f` is fetching its own data, not holding a second opinion about what is on
- * top.
- *
- * Most rows are silent on purpose. The desk shows the round, so a note that
- * names the state the host is looking at is noise; these say only what the
- * screen does not already show. `judge` is therefore null in states where the
- * judging buttons are dead, and that is deliberate.
- *
- * Arm stays pressable everywhere it appears here. Arming a round still on the
- * board is legal, and on a seated pair it is the rematch — `duelOnArm` clears
- * `missed` and hands the buzzers back to both. These notes say what it does,
- * they do not refuse it.
- */
 function notesFor(
   m: Moment,
   f: { leader: boolean; scored: boolean },
 ): { judge: string | null; arm: string | null } {
-  // The two ways out of a played round. Arm re-opens the same slot: `next` is
-  // what ends the question, advances a setlist block, and drops a duel. The
-  // score is already applied either way — Z reverts it, arming does not.
   const played = 'Press N for next round. Arm to redo (score not reverted)'
 
   switch (m) {
@@ -159,14 +122,11 @@ function notesFor(
     case 'closest:reveal':
       return { judge: null, arm: played }
 
-    // The desk passes `settled: true`, so this moment does not reach it.
     case 'answer:judging':
       return { judge: null, arm: played }
 
     case 'answer:locked':
       return {
-        // `judgeable`'s remaining two terms, and the only null judge that means
-        // "the buttons are live": everywhere else null means "nothing to add".
         judge: !f.leader ? 'The lock caught no buzz.' : f.scored ? REFUSAL_TEXT['already-scored'] : null,
         arm: played,
       }
@@ -182,8 +142,6 @@ function notesFor(
     case 'verdict:unanswered':
       return { judge: null, arm: played }
 
-    // A penalty survives into the rebound it caused: the question is still live
-    // and the retake is what the buttons are waiting for.
     case 'verdict:penalty':
       return { judge: null, arm: played }
 
@@ -194,7 +152,6 @@ function notesFor(
     case 'duel:nominating':
       return { judge: null, arm: null }
 
-    // Arm is disabled through all three, so the arm row has no reader.
     case 'buzz:collecting':
     case 'buzz:open':
     case 'buzz:arming':
@@ -213,54 +170,39 @@ export function Host() {
   const fire = (a: string, data?: unknown) => send({ t: 'act', act: a, data })
   const { open } = useOpen(state?.round, now)
   const [tab, setTab] = useState<Tab>(tabFromHash)
-  // replaceState, not a hash assignment: switching tabs is not a page the back
-  // button should walk through.
   const go = (t: Tab) => {
     setTab(t)
     history.replaceState(null, '', `#${t}`)
   }
 
-  // A setlist parked on a minigame block, before the host has opened it. The
-  // quiz desk is not what comes next, so its keys stay quiet too.
   const block = state?.setlist?.blocks[state.setlist.at]
   const upNext = !state?.minigame && block && isMinigameId(block.game) ? block.game : null
 
-  // The handler is bound once but needs the live round to judge against.
   const value = useRef(0)
   value.current = state?.round.value ?? 0
-  // Both arm keys ask the shared rules, so an introduction quiets them too.
   const armable = !!state && !refuses(state, { a: 'arm' })
   const idleRef = useRef(false)
   idleRef.current = armable && state.round.phase === 'IDLE'
-  // A miss is up and nobody has taken the rebound yet.
   const missedRef = useRef(false)
   missedRef.current = armable && isPenalty(state.round.award) && state.round.order.length === 0
   const judgeableRef = useRef(false)
   const reopenableRef = useRef(false)
   const keysOffRef = useRef(false)
-  // Keys drive the quiz desk, so they only fire while it is the page in front
-  // of the host: never behind the Games or Players tab, never under a minigame.
   keysOffRef.current = !!state?.minigame || !!upNext || tab !== 'play'
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (keysOffRef.current) return
       const el = e.target as HTMLElement | null
-      // Never steal a keystroke from something the host is typing into.
       if (el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.isContentEditable)) return
       if (e.metaKey || e.ctrlKey || e.altKey) return
 
-      // The two entry keys. Space is the next thing to do: correct when there
-      // is someone to judge, arm when nothing is armed, and nothing while the
-      // buzzers are up — re-arming there would throw the question away.
       if (e.key === ' ') {
         e.preventDefault()
         if (judgeableRef.current) act({ a: 'correct' })
         else if (idleRef.current) act({ a: 'arm' })
         return
       }
-      // Shift again on an untaken rebound moves on: the same key that called
-      // the miss is the one that gives up on the question.
       if (e.key === 'Shift') {
         if (judgeableRef.current) act({ a: 'wrong', neg: value.current })
         else if (missedRef.current) act({ a: 'arm' })
@@ -280,15 +222,10 @@ export function Host() {
       const hit = KEYS[key]
       if (!hit) return
       e.preventDefault()
-      // C follows whatever is in that slot. During a hold the button there says
-      // Reopen, and a host's hand goes to the key it has gone to all night; the
-      // action is a no-op unless a rebound is actually being held, so this
-      // cannot misfire into anything.
       if (hit.a === 'correct' && reopenableRef.current) {
         act({ a: 'rebound' })
         return
       }
-      // Same guard the buttons carry: a scored question cannot be scored again.
       if (hit.a === 'correct' && !judgeableRef.current) return
       act(hit)
     }
@@ -334,10 +271,6 @@ export function Host() {
   )
 }
 
-/**
- * A question read from paper, typed onto the wall. Enter shows it; Clear and
- * Next take it down, and the field empties with it.
- */
 function TypedClue({ state, fire }: { state: State; fire: (a: string, data?: unknown) => void }) {
   const [draft, setDraft] = useState(state.typed ?? '')
   useEffect(() => {
@@ -370,10 +303,6 @@ function TypedClue({ state, fire }: { state: State; fire: (a: string, data?: unk
   )
 }
 
-/**
- * The Play tab while the quiz is up: the value, where the setlist is, the
- * three keys, the reader's transport and the buzz order. Nothing that is setup.
- */
 function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef }: {
   state: State
   act: (action: HostAction) => void
@@ -383,78 +312,27 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
   judgeableRef: { current: boolean }
   reopenableRef: { current: boolean }
 }) {
-
   const { round } = state
   const leader = round.order[0]
-  // Judging waits for LOCKED even though the leader shows early: scoring
-  // mid-collection would strand buzzes still in the air, so the buttons stay
-  // dead until the window closes. The server enforces the same rule.
-  //
-  // The host is a desk, not a stage, so both `settled` and `retired` are
-  // already true. `<Spoken>` below does type its transcript out — it types on
-  // every surface — but the desk passes it no `onSettled` and gates nothing on
-  // the reveal, which is what those two flags actually mean: whether this
-  // surface is still waiting to act. Only the board waits. `settled: false`
-  // would put the desk in `answer:judging` and take the judging buttons away at
-  // the one moment they are wanted.
-  //
-  // The two extra terms are not `answer:locked` restated. A lock with nobody in
-  // the order is reachable if a freeze lands mid-window, and there is nothing to
-  // judge there.
-  //
-  // The award term asks "has this question already paid out", which is not
-  // `!round.award`: a penalty survives into the rebound it caused (`openRebound`
-  // leaves it up so the wall keeps saying why the question is still open), and
-  // the retake must stay judgeable with that penalty on State. `isPenalty`, not
-  // the sign — a no-penalty wrong stamps points of zero, and `>= 0` reads that
-  // as a payoff.
-  //
-  // Written once and read twice — `notesFor` needs the same fact.
-  // `refuses(state, { a: 'correct' }) === 'already-scored'` is exactly it,
-  // but only from LOCKED with a leader: the table answers `no-leader` first
-  // everywhere else, so asking it here would report the wrong reason.
   const scored = !!round.award && !isPenalty(round.award)
   const moment = momentOf(state, { open, settled: true, retired: true })
   const judgeable = moment === 'answer:locked' && !!leader && !scored
   judgeableRef.current = judgeable
 
-  // A miss is up and the box has not opened its rebound yet. Nobody is
-  // answering, so `Correct` has nothing to score — the slot is free, and the
-  // host gets the one control they otherwise lack: skipping the beat rather
-  // than waiting out `reboundSec`.
-  //
-  // Asked of the table rather than of `round.held` directly, even though the
-  // two are the same fact today. This one does not grey a button, it chooses
-  // which button is in the slot at all — so a `rebound` the server would refuse
-  // would put a live Reopen in front of the host, which is the same dead click
-  // wearing a different hat. It is also what the R key fires.
-  // Same fact as the Shift key's: a miss is up and nobody has buzzed on it.
   const missed = isPenalty(round.award) && round.order.length === 0
   const reopenable = !refuses(state, { a: 'rebound' })
   reopenableRef.current = reopenable
 
-  // Both notes come from the moment, and neither asks `refuses`: `judgeable` is
-  // strictly narrower than the table, which may not read `settled` or `retired`,
-  // so a sentence driven off the table would come back null inside the gap
-  // between them. Sentences that are `REFUSAL_TEXT`'s are the ones that really
-  // are those codes; the rest are facts about the moment, which the table cannot
-  // read and must not claim to.
   const notes = notesFor(moment, { leader: !!leader, scored })
   const judgeReason = judgeable ? null : notes.judge
   const armNote = notes.arm
 
-  // The night is run one of two ways, and the panel only ever offers one of
-  // them: freehand, where the host picks the game and the pack; or a setlist,
-  // where each block carries its own and the pickers would only fight it.
   const setlist = !!state.setlist
   const block = state.setlist?.blocks[state.setlist.at]
-  // Something to read: the block's pack under a setlist, the chosen one without.
   const readable = setlist ? !!block?.pack : !!state.reading?.pack
   const unpaid = state.packCost[(setlist ? block?.pack : state.reading?.pack) ?? ''] ?? 0
-  // A mode with no points keeps the three keys and the buzz order, nothing else.
   const scoreless = !!state.games.find((g) => g.id === state.game.id)?.scoreless
 
-  // An introduction refuses play until Continue; the same reason the server gives.
   const introBlocked = refuses(state, { a: 'arm' }) === 'introduction-active'
   const readNote = readBlockedReason(state)
 
@@ -501,12 +379,6 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
           const at = state.setlist.at
           const block = state.setlist.blocks[at]
           const name = [...state.games, ...MINIGAME_CATALOG].find((g) => g.id === block?.game)?.name
-          // The table answers "may the host jump at all" — mid-question, or with
-          // no setlist to jump within. It does not answer "is there a block
-          // after this one", because that is a fact about this particular `at`
-          // rather than about the room, and the table takes the whole action but
-          // rules only on the round. So the bound stays here, next to the `+ 1`
-          // that produced it.
           const jump = refuses(state, { a: 'setlistJump', at: at + 1 })
           return (
             <div class="host__setlist">
@@ -526,15 +398,10 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
                   Skip block
                 </button>
               ) : (
-                // A jump to the end re-stamps the finale's clock, and the ceremony plays again.
                 <button class="btn btn--ghost" disabled={!!jump} onClick={() => act({ a: 'setlistJump', at: state.setlist!.blocks.length })}>
                   Replay finale
                 </button>
               )}
-              {/* A `title` on a disabled button never fires — the control eats
-                  its own pointer events — so the reason is printed. This strip
-                  is one flex row of chips, so it is a `span` here rather than
-                  the `p.muted` the two stacked panels use. */}
               {jump && <span class="muted">{REFUSAL_TEXT[jump]}</span>}
             </div>
           )
@@ -551,8 +418,6 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
             {introBlocked && <span class="muted">{REFUSAL_TEXT['introduction-active']}</span>}
           </div>
         ) : <>
-        {/* Who the keys below act on, big enough to read from across the desk.
-            The leader shows as soon as they are in, dimmed until judging opens. */}
         <p
           class={judgeable ? 'host__up is-judging' : 'host__up'}
           style={leader ? { borderLeftColor: colorForPlayer(state, leader.playerId) } : undefined}
@@ -561,8 +426,6 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
           <span class="host__up-name">{leader?.name ?? '—'}</span>
         </p>
         <div class="host__controls">
-          {/* On an untaken rebound Arm is live again: it is how the host gives
-              up on the question, and Shift is its key there. */}
           <button class="btn btn--major btn--primary" onClick={() => act({ a: 'arm' })} disabled={(open && !missed) || introBlocked}>
             {open && !missed ? 'Buzzers open' : 'Arm'}<span class="key">{missed ? 'Shift' : 'Space'}</span>
           </button>
@@ -583,9 +446,6 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
             Wrong<span class="key">Shift</span>
           </button>
         </div>
-        {/* Notes sit right under the keys they explain: a `title` on a
-            disabled button is never shown — the control suppresses the
-            pointer events that would trigger it. */}
         <div class="host__notes">
           {judgeReason && <p class="muted host__note">{judgeReason}</p>}
           {armNote && !scoreless && <p class="muted host__note">{armNote}</p>}
@@ -594,8 +454,6 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
           {!scoreless && <button class="btn" onClick={() => act({ a: 'wrong', neg: 0 })} disabled={!judgeable}>
             Wrong, no penalty
           </button>}
-          {/* Arm already starts a fresh question; next only matters where it
-              advances something. */}
           {(!scoreless || setlist) && <button class="btn" onClick={() => act({ a: 'next' })}>
             Next question<span class="key">N</span>
           </button>}
@@ -611,8 +469,6 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
           )}
         </div>
 
-        {/* What the locked-in player said, as the judge heard it. The verdict
-            itself is the award above; this is the evidence for the undo. */}
         {round.spoken && (
           <Spoken
             prefix="host"
@@ -622,9 +478,6 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
           />
         )}
 
-        {/* The transport only. Which pack, and how the reading behaves, are
-            setup and live below with the rest of it — what a host needs during
-            a question is play, pause and where we are. */}
         {state.packs.length > 0 && !scoreless && (
           <div class="host__reader">
             {state.reading?.rendering && (
@@ -632,7 +485,6 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
                 Rendering {state.reading.rendering.done}/{state.reading.rendering.total}
               </span>
             )}
-            {/* A pack picked by hand is not offered mid-render: its switch is still landing. A setlist's reader waits for each question's audio. */}
             {state.readingActive ? (
               <button class="btn" onClick={() => fire(state.reading?.paused ? 'resumeRead' : 'pauseRead')}>
                 {state.reading?.paused ? 'Resume' : 'Pause'}
@@ -664,9 +516,6 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
                 </span>
               )
             )}
-            {/* Autoplay changes what the room does without anyone touching
-                it, so it is visible from the play surface, not only where
-                it was switched on. */}
             {state.autoplay.on && <span class="chip chip--armed">Autoplay</span>}
           </div>
         )}
@@ -688,7 +537,6 @@ function QuizDesk({ state, act, fire, open, upNext, judgeableRef, reopenableRef 
                 style={{ borderLeftColor: colorForPlayer(state, b.playerId) }}
               >
                 <span class="row__label">{b.name}</span>
-                {/* "first" is a placing, not a duration — warm, not cyan. */}
                 {i === 0 ? (
                   <span>first</span>
                 ) : (

@@ -1,19 +1,3 @@
-/**
- * What a cue sounds like, as numbers, for a critic who cannot hear it.
- *
- *   node tools/qa/sound.ts               # every cue
- *   node tools/qa/sound.ts poker-deal    # cues whose name contains a word
- *
- * Renders each recipe with `tools/loudness.ts` and reports:
- * - loudness against its tier in the standard;
- * - shape: onset, attack (to 90% of the envelope's peak), how long it lasts,
- *   and how much of that it spends within 10dB of its peak (`held`: a short
- *   hit is near 0; a held, steady noise is the TV-static shape);
- * - spectrum: energy share per band, centroid, and flatness (1 is white
- *   noise, near 0 a pure tone);
- * - `phone`: the share of energy above 400Hz, which is roughly what a phone
- *   speaker can play at all. Below about 30% a cue is mostly inaudible there.
- */
 import { RECIPES } from '../../client/cues.ts'
 import type { Recipe } from '../../client/synth.ts'
 import { STANDARD, TIERS, measure, render } from '../loudness.ts'
@@ -21,7 +5,6 @@ import { STANDARD, TIERS, measure, render } from '../loudness.ts'
 const RATE = 48_000
 const BANDS = [[0, 120, 'sub'], [120, 400, 'low'], [400, 2000, 'mid'], [2000, 5000, 'presence'], [5000, 24000, 'air']] as const
 
-/** Power spectrum of `x`, zero-padded to a power of two. */
 function power(x: Float32Array): Float64Array {
   let n = 1
   while (n < x.length) n <<= 1

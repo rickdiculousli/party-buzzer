@@ -1,4 +1,3 @@
-/** The shared material curve, independent of DOM or GPU representation. */
 export const BEND_ANGLE = 2.5
 export const BEND_ELEVATION = 0.55
 
@@ -7,7 +6,6 @@ export function bendAngle(distance: number, length: number) {
   return BEND_ANGLE * u ** 3 * (u * (6 * u - 15) + 10)
 }
 
-/** Integrated unit tangent: q follows the crease normal, z rises above the cloth. */
 export function bendArc(distance: number, length: number): { q: number; z: number } {
   if (distance <= 0 || length <= 0) return { q: -Math.max(0, distance), z: 0 }
   const s = Math.min(distance, length), step = s / 12
@@ -22,7 +20,6 @@ export function bendArc(distance: number, length: number): { q: number; z: numbe
   return { q: q * step / 3 - tail * Math.cos(BEND_ANGLE), z: z * step / 3 + tail * Math.sin(BEND_ANGLE) }
 }
 
-/** Uploaded once. The vertex shader interpolates normalized arc positions, then scales by length. */
 export const BEND_TABLE_SEGMENTS = 64
 export function bendTable() {
   const out = new Float32Array((BEND_TABLE_SEGMENTS + 1) * 2)
@@ -34,7 +31,6 @@ export function bendTable() {
 }
 
 export type BendProfile = { depth: number; length: number }
-/** One profile for both resting cards, measured in the same screen coordinates as the crease. */
 export function bendProfile(corners: readonly { x: number; y: number }[], crease: { x: number; y: number }, normal: { x: number; y: number }, width: number): BendProfile {
   let depth = 0
   for (const p of corners) depth = Math.max(depth, -((p.x - crease.x) * normal.x + (p.y - crease.y) * normal.y))

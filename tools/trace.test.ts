@@ -44,7 +44,6 @@ test('filterFrames applies since/until and watch', () => {
   ]
   assert.deepEqual(filterFrames(frames, { since: 1 }).map((f) => f.seq), [1, 2])
   assert.deepEqual(filterFrames(frames, { until: 1 }).map((f) => f.seq), [0, 1])
-  // watch keeps only frames where that leaf moved
   assert.deepEqual(filterFrames(frames, { watch: ['scores.ada'] }).map((f) => f.seq), [2])
   assert.deepEqual(filterFrames(frames, { watch: ['round.phase'] }).map((f) => f.seq), [1, 2])
 })

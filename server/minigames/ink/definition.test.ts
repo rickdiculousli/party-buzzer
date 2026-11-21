@@ -121,7 +121,6 @@ test('host rows: a team per row, unscored, each naming its part of the step', ()
   assert.deepEqual(ink.hostRows!(world, clock), [
     { players: ['sw', 's1'], word: 'choosing' }, { players: ['mw', 'm1'], word: 'choosing' },
   ])
-  // Sun's turn throughout; [sun's word, moon's word] for every step variant.
   const words: [InkStep, string, string][] = [
     [{ at: 'choosing' }, 'choosing', 'choosing'],
     [{ at: 'peekPick' }, 'picking a peek', 'waiting'],

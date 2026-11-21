@@ -1,44 +1,7 @@
-/**
- * The cues that are recipes rather than bare samples.
- *
- * A cue named here is rendered by `synth.ts`; a cue that is not falls through
- * to the sample path in `sound.ts`, unchanged. Both kinds coexist on purpose —
- * ninety-three seconds of marimba will never be a recipe.
- *
- * The anchor cues are the hand-tuned WAVs, each wrapped in a `{ file }` layer.
- * That buys the waveform editor without changing a sample of what plays today,
- * because the envelope is deliberately a no-op: no attack and no decay means `schedule`'s first two
- * steps land on the same instant, so gain is at full from the file's first
- * sample; `level: 1` keeps the level *at* full rather than at
- * `GAIN_FLOOR`, which is what an omitted level would mean and would be
- * silence; `sustain` is the file's own length in ms, so the gate never closes
- * early; and the 40ms release runs entirely past the end of the buffer, where
- * there is nothing left to fade. Change `sustain` if you re-cut a file — a layer
- * whose segments are shorter than its file is a truncated cue.
- *
- * `leader` is two layers because it is two sounds: a drop and a buzzer under
- * it, one moment. They were two separate cues fired together until the editor
- * could show them on one timeline — which is the only way to move one against
- * the other and see what you did. Nothing about the sound changed in the
- * merge: both carried the same gain, delay and rate.
- *
- * `gain` is on the layer because this table is the only place a cue's sound is
- * described. Reading it from a stylesheet property at play time would make a
- * cue's volume live somewhere other than the layers it belongs to, each of
- * which already has a `gain` field. A stylesheet is for what things look like.
- * Volume is not.
- *
- * The block between the markers is machine-written: the harness rewrites it
- * through `POST /__anim/save`, the same way it already rewrites the CSS
- * tunables. Prose lives outside the markers and survives; anything inside is
- * regenerated wholesale, so do not put a comment in there expecting to see it
- * again.
- */
 import type { Cue } from './sound.ts'
 import type { Layer, Recipe, Source } from './synth.ts'
 
-/* cue:recipes — rewritten in place by the harness. Prose lives outside the
-   markers; everything between them is machine-written. */
+/* cue:recipes */
 export const RECIPES = {
   "stamp": [
     {
@@ -267,7 +230,6 @@ export const RECIPES = {
 } satisfies Partial<Record<Cue, Recipe>>
 /* /cue:recipes */
 
-/** One numeric field, addressed the way a harness dial addresses it. */
 export function getPath(
   recipes: Record<string, Recipe>,
   path: string,
@@ -277,7 +239,6 @@ export function getPath(
   return typeof v === 'number' ? v : undefined
 }
 
-/** Every numeric field a dial may address. A path naming anything else is junk. */
 export const NUMERIC = [
   'freq', 'freqTo', 'attack', 'decay', 'level', 'sustain', 'release', 'gain', 'delay', 'head',
 ] as const satisfies readonly (keyof Layer)[]
@@ -286,21 +247,10 @@ export type NumericField = (typeof NUMERIC)[number]
 
 const FIELDS: ReadonlySet<string> = new Set(NUMERIC)
 
-/** The recipe for a cue, or nothing if that cue is still a sample. */
 export function recipeFor(cue: string): Recipe | undefined {
   return (RECIPES as Record<string, Recipe>)[cue]
 }
 
-/**
- * One field written into a copy of the tree.
- *
- * The harness holds the tree itself, so an edit is a write rather than an entry
- * in a side map. A path naming a layer that does not exist returns the table it
- * was given — a stale dial must
- * not be able to invent a layer, exactly as the CSS endpoint refuses an unknown
- * property instead of appending it. A *field* the layer omits is allowed
- * through: the canvas draws all four handles whatever the recipe declares.
- */
 export function setPath(
   recipes: Record<string, Recipe>,
   path: string,
@@ -313,14 +263,6 @@ export function setPath(
   return out
 }
 
-/**
- * How wide the shared axis has to be, in ms: the last instant any layer is
- * still sounding.
- *
- * One axis for the whole cue is the point of the view. Scaling each layer to
- * its own length makes two layers of different lengths incomparable, and
- * comparing them is the entire reason for combining two sounds.
- */
 export function span(recipe: Recipe): number {
   const ends = recipe.map(
     (l) => (l.delay ?? 0) + (l.attack ?? 0) + (l.decay ?? 0) + (l.sustain ?? 0) + (l.release ?? 0),
@@ -328,13 +270,6 @@ export function span(recipe: Recipe): number {
   return Math.max(1, ...ends)
 }
 
-/**
- * A dragged value, made legal.
- *
- * `head` is the one clamp that needs the outside world: it is an offset into a
- * file, so its ceiling is that file's duration, which only the caller holding
- * the buffer knows.
- */
 export function clampField(field: NumericField, value: number, maxHead = Infinity): number {
   if (field === 'level') return Math.min(1, Math.max(0, Number(value.toFixed(2))))
   if (field === 'gain') return Math.max(0, Number(value.toFixed(2)))
@@ -342,15 +277,6 @@ export function clampField(field: NumericField, value: number, maxHead = Infinit
   return Math.max(0, Math.round(value))
 }
 
-/**
- * A layer, with an envelope that makes it audible on arrival.
- *
- * A file layer is gated like any other, so one written with no segments is
- * silent (see the `ponytail:` note on `Source`) — the whole-duration `sustain` is
- * the default that stops the front door from handing you a silent layer.
- * `durationMs` is the decoded buffer's real length; zero when nothing is
- * decoded yet, which is a layer you can still see and drag.
- */
 export function addLayer(recipe: Recipe, source: Source, durationMs = 0): Recipe {
   const layer: Layer =
     typeof source === 'object'
@@ -359,7 +285,6 @@ export function addLayer(recipe: Recipe, source: Source, durationMs = 0): Recipe
   return [...recipe, layer]
 }
 
-/** Drop one layer. Order carries no meaning — layers mix simultaneously. */
 export function removeLayer(recipe: Recipe, i: number): Recipe {
   return recipe.filter((_, n) => n !== i)
 }

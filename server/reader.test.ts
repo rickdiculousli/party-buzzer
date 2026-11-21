@@ -10,10 +10,6 @@ import { Reader } from './reader.ts'
 import type { Speech } from './speech.ts'
 import { ARM_DELAY_MS, COLLECT_MS } from '../shared/protocol.ts'
 
-/**
- * Every test runs on a mock clock: `wait(ms)` advances timers and `Date.now()`
- * together, then yields to the event loop so promises and file reads settle.
- */
 const STEP_MS = 5
 
 function test(name: string, fn: () => Promise<void>): void
@@ -32,14 +28,12 @@ function test(name: string, a: TestOptions | (() => Promise<void>), b?: (t: impo
 }
 
 async function wait(ms: number) {
-  // Small steps, so work that waits on a timer and then on file I/O keeps pace.
   for (let left = ms; left > 0; left -= STEP_MS) {
     mock.timers.tick(Math.min(STEP_MS, left))
     await new Promise((r) => setImmediate(r))
   }
 }
 
-/** Drives the clock until the reader's loop has finished. */
 async function settled(reader: Reader) {
   let done = false
   const finished = reader.settled().then(() => { done = true })
@@ -47,7 +41,6 @@ async function settled(reader: Reader) {
   await finished
 }
 
-/** Speech that plays instantly and records what it was asked to say. */
 function fakeSpeech(): Speech & { spoken: string[] } {
   const spoken: string[] = []
   return {
@@ -93,7 +86,6 @@ test('the host waits for the first question, not the whole pack', async () => {
   const state = newState()
   const hub = new Hub(state)
   const speech: Speech = {
-    // Alpha comes back at once; Beta hangs until the test lets it go.
     render: async (_dir, text) => {
       if (text.startsWith('Beta')) await new Promise<void>((r) => held.push(r))
       return { path: `/fake/${text}`, durationMs: 10 }
@@ -104,7 +96,7 @@ test('the host waits for the first question, not the whole pack', async () => {
   hub.setOnChange((s) => reader.onStateChange(s))
   hub.setReader(reader)
 
-  await reader.select('one.txt') // returns on the first question, not the last
+  await reader.select('one.txt')
   assert.equal(state.reading?.qTotal, 2)
   assert.deepEqual(state.reading?.rendering, { done: 1, total: 2 }, 'the rest is still coming')
 
@@ -112,7 +104,6 @@ test('the host waits for the first question, not the whole pack', async () => {
   while (!state.round.fragments?.length) await wait(5)
   assert.deepEqual(state.round.fragments, ['Alpha.'], 'question one plays against a half-made pack')
 
-  // Question two must not arm onto a clip that does not exist yet.
   hub.handle({ id: 'h', role: 'host', send: () => {} }, { t: 'host', action: { a: 'next' } })
   await wait(ARM_DELAY_MS + 40)
   assert.equal(state.round.fragments?.length ?? 0, 0, 'nothing spoken while it is unrendered')
@@ -128,9 +119,6 @@ test('reading a question arms it, speaks each fragment, and pushes them in order
   const { state, reader, speech } = rig(PACK)
   await reader.select('one.txt')
   reader.start()
-  // Nothing judges this question — real quizbowl leaves it ARMED so a late
-  // buzz still lands. fakeSpeech is instant, but arming has a countdown, so
-  // poll for both fragments rather than guess a delay.
   while (speech.spoken.length < 2) await wait(5)
   reader.stop()
   await settled(reader)
@@ -191,7 +179,6 @@ test('an undo mid-question aborts the reader instead of pushing onto a dead roun
   )
   await reader.select('one.txt')
   reader.start()
-  // Re-arm under the reader's feet: a new arm stamp means a different round.
   await wait(5)
   hub.handle({ id: 'h', role: 'host', send: () => {} }, { t: 'host', action: { a: 'arm' } })
   await settled(reader)
@@ -218,7 +205,6 @@ test('replacing a question after its clue ends aborts the old answer wait', asyn
 
 test('pause kills the clip and resume replays that fragment, not the next one', async () => {
   const { reader, speech } = rig(PACK)
-  // Clips that run until something stops them, so pause lands mid-fragment.
   speech.play = (path) => {
     speech.spoken.push(path.replace('/fake/', ''))
     let end = () => {}
@@ -257,7 +243,6 @@ test('a buzz cuts the clip at once, and the rest of the clue is never read', asy
   hub.handle({ id: 'p', role: 'player', playerId: 'p1', send: () => {} }, { t: 'buzz', at: Date.now() })
   assert.equal(stopped, 1, 'the voice is killed on the buzz itself, not a tick later')
 
-  // Judged correct: the second fragment must never be spoken.
   await wait(40)
   hub.handle(host, { t: 'host', action: { a: 'correct' } })
   await wait(40)
@@ -292,7 +277,6 @@ test('a wrong answer rebounds and the interrupted fragment is re-read', async ()
   assert.equal(speech.spoken[1], 'First fragment.', 'the cut fragment, from its start')
 })
 
-/** Turn autoplay on with dwells short enough to test against. */
 function autoplay(hub: Hub, nextSec: number, reboundSec: number, introSec = 0.1): void {
   hub.handle({ id: 'h', role: 'host', send: () => {} }, {
     t: 'host',
@@ -304,7 +288,6 @@ test('autoplay presses N itself: the payoff sits, then the next question arms', 
   const { hub, state, reader, speech } = rig(
     'One.\nA: gold\n\nTwo.\nA: silver\n',
   )
-  // Long enough that the dead-air pass can't beat the buzz to it.
   autoplay(hub, 1.5, 0)
   await reader.select('one.txt')
   reader.start()
@@ -318,7 +301,6 @@ test('autoplay presses N itself: the payoff sits, then the next question arms', 
   hub.handle(host, { t: 'host', action: { a: 'correct' } })
   assert.ok(state.round.award, 'the payoff is on the wall')
 
-  // Nobody presses N. The reader does.
   while (speech.spoken.length < 2) await wait(5)
   reader.stop()
   await settled(reader)
@@ -379,9 +361,6 @@ test('autoplay pauses before the clue picks up on a rebound', async () => {
 })
 
 test('a penalty rides the rebound without the reader calling the question over', async () => {
-  // The penalty stamps `round.award`, which is also what tells the reader a
-  // question resolved. It must not: the buzzers are open again and the clue has
-  // more to say. `resolved` gates on the phase for exactly this reason.
   const { hub, state, reader, speech } = rig(PACK)
   speech.play = (path) => {
     speech.spoken.push(path.replace('/fake/', ''))
@@ -406,9 +385,6 @@ test('a penalty rides the rebound without the reader calling the question over',
     { name: 'Ada', points: -10, penalty: true },
     'the penalty is up',
   )
-  // Held, not open: with the box driving, the rebound waits out `reboundSec`
-  // behind shut buzzers so the room reads the miss before it is racing on it.
-  // This one is set to 0, so the reader opens it on its next turn.
   assert.equal(state.round.held, true, 'the rebound is the reader’s to open')
   assert.equal(state.round.phase, 'LOCKED', 'nobody may buzz on the verdict itself')
   assert.equal(state.round.answer, undefined, 'the answer is not revealed mid-rebound')
@@ -416,7 +392,6 @@ test('a penalty rides the rebound without the reader calling the question over',
   while (hub.state.round.phase !== 'ARMED') await wait(5)
   assert.equal(state.round.held, undefined, 'and then the buzzers are open again')
 
-  // The clue picks up where the buzz cut it rather than the reader moving on.
   while (speech.spoken.length < 2) await wait(5)
   assert.equal(speech.spoken[1], 'First fragment.', 'the cut fragment resumes')
   assert.deepEqual(state.round.award, { name: 'Ada', points: -10, penalty: true }, 'still up')
@@ -462,12 +437,9 @@ test('a setlist reads each block from its own pack, and keeps each pack its plac
   hub.dispatch({ a: 'closeArrival', arrivalId: state.arrival!.id })
   autoplay(hub, 0.1, 0)
   reader.start()
-  // Each seam raises an introduction that stops the reader and, once it
-  // dismisses itself, starts it again; the night ends when the autoplay does.
   while (state.autoplay.on) await wait(5)
   await settled(reader)
 
-  // Block 3 returns to pack A and gets its second question, not its first.
   assert.deepEqual(speech.spoken, ['A one.', 'B one.', 'A two.'])
 })
 
@@ -534,9 +506,6 @@ test('Read starts every spent pack over, not only the one it left off in', async
   await settled(reader)
   assert.deepEqual(speech.spoken, ['A one.', 'B one.'])
 
-  // The run ended on b; a is spent too, and the setlist starts on it. Autoplay
-  // switched itself off when the reading ran out, so a second night turns it
-  // back on the same way the host would.
   hub.handle({ id: 'h', role: 'host', send: () => {} }, { t: 'host', action: { a: 'setlistJump', at: 0 } })
   autoplay(hub, 0.1, 0)
   reader.start()
@@ -610,7 +579,6 @@ test('choices go up after the question, the options are read, and it settles whe
   const lastPick = Date.now()
   hub.handle(bo, { t: 'act', act: 'pick', data: 0 })
   while (state.round.correct === undefined) await tick()
-  // A beat with every slot filled before the answer, never a reveal on the tap.
   assert.ok(Date.now() - lastPick >= 900, 'the room sees the bar full first')
   assert.equal(state.round.correct, 2)
   assert.equal(state.scores.ada, 200)
@@ -668,7 +636,6 @@ test('Stop then Read while the old loop waits out its quip leaves one loop', asy
   let endQuip = () => {}
   const speech: Speech = {
     render: async (_dir, text) => ({ path: `/fake/${text}`, durationMs: 10 }),
-    // Like a killed player process, the quip's end lands after stop() returns.
     play: (path) => ({
       done: path.endsWith('Nice.') ? new Promise<void>((r) => { endQuip = r }) : Promise.resolve(),
       started: Promise.resolve(),
@@ -688,7 +655,7 @@ test('Stop then Read while the old loop waits out its quip leaves one loop', asy
   hub.handle(ada, { t: 'buzz', at: Date.now() })
   await wait(COLLECT_MS + 30)
   hub.dispatch({ a: 'correct' })
-  await wait(50) // The dwell is up; the old loop now waits on the quip.
+  await wait(50)
 
   const dispatch = hub.dispatch.bind(hub)
   let arms = 0
@@ -740,7 +707,7 @@ test('Next during a held miss\'s quip moves on to the next question', { timeout:
   hub.handle(ada, { t: 'buzz', at: Date.now() })
   await wait(COLLECT_MS + 30)
   hub.dispatch({ a: 'wrong', neg: 0 })
-  await wait(50) // The rebound beat is up; the loop now waits out the quip.
+  await wait(50)
   assert.ok(spoken.includes('Ouch.'))
 
   hub.dispatch({ a: 'next' })
@@ -760,8 +727,6 @@ test('autoplay moves on from a settled choice question', async () => {
   reader.start()
   while (!state.round.choices) await tick()
   hub.handle(ada, { t: 'act', act: 'pick', data: 2 })
-  // The next question is armed, read and passed within a tick at a zero
-  // dwell, so the voice is the evidence rather than the round.
   while (!speech.spoken.includes('Next.')) await tick()
   reader.stop()
   await settled(reader)
@@ -856,7 +821,6 @@ test('a quip on a right answer does not stall autoplay', { timeout: 5000 }, asyn
 })
 
 test('a pool quip plays its own whole take, not a cut of the pool', { timeout: 5000 }, async (t) => {
-  // The picker always quips and takes the first open line.
   t.mock.method(Math, 'random', () => 0)
   const packDir = mkdtempSync(join(tmpdir(), 'pb-reader-pool-'))
   writeFileSync(join(packDir, 'one.txt'), 'One.\nA: gold\n\nTwo.\nA: silver\n')
@@ -962,7 +926,6 @@ test('the night carries on without rewinding a pack it already read to the end',
   const block = (pack: string) => ({ game: 'trivia' as const, options: {}, count: 1, pack })
   hub.dispatch({ a: 'setSetlist', blocks: [block('a.txt'), block('b.txt'), block('a.txt')] })
   autoplay(hub, 0.1, 0, 0.1)
-  // Continue is the host's, and under autoplay it begins the night.
   hub.dispatch({ a: 'closeArrival', arrivalId: state.arrival!.id })
 
   const deadline = Date.now() + 5_000
@@ -1025,7 +988,6 @@ test('a picture reveal holds on a miss, resumes for the rebound, and pays by whe
   assert.equal(first.from, state.round.armedAt)
   assert.equal(first.until - first.from, 4000)
 
-  // Into the second quarter, after the voice has finished.
   await wait(first.from + 1500 - Date.now())
   assert.equal(state.round.image, '/pack-media/images/camel.svg')
   hub.handle(ada, { t: 'buzz', at: Date.now() })
@@ -1042,7 +1004,6 @@ test('a picture reveal holds on a miss, resumes for the rebound, and pays by whe
   assert.equal(resumed.until - resumed.from, 4000, 'the same length of reveal')
   assert.equal(state.round.armedAt - resumed.from, heldAt - first.from, 'carried on from where it stood, as the buzzers open')
 
-  // A second into the rebound: 2.5 s of 4 is the third quarter.
   await wait(state.round.armedAt + 1000 - Date.now())
   hub.handle(bo, { t: 'buzz', at: Date.now() })
   await wait(COLLECT_MS + 30)

@@ -13,11 +13,6 @@ import { ARM_DELAY_MS } from '../shared/protocol.ts'
 
 const STEP_MS = 5
 
-/**
- * Every test runs on a mock clock: `sleep(ms)` advances timers and `Date.now()`
- * together, in small steps, yielding to the event loop so promises and file
- * work settle between them.
- */
 function test(name: string, fn: () => Promise<void>): void {
   nodeTest(name, async () => {
     mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] })
@@ -40,7 +35,7 @@ const hostConn: Conn = { id: 'h', role: 'host', send: () => {} }
 
 function rig(transcribe: Transcribe = async () => 'unused') {
   const state = newState()
-  state.answerWindowSec = 0 // open-ended unless a test asks for a timeout
+  state.answerWindowSec = 0
   const hub = new Hub(state, { collectMs: 40, revealMs: 10 })
   const judge = new Judge(hub, { transcribe })
   hub.setOnChange(() => judge.onStateChange())
@@ -49,13 +44,12 @@ function rig(transcribe: Transcribe = async () => 'unused') {
   return { state, hub, judge, ada }
 }
 
-/** Arm, buzz Ada the instant the buzzers open, and wait out the lock. */
 async function lockIn(hub: Hub, ada: Conn): Promise<void> {
   hub.handle(hostConn, { t: 'host', action: { a: 'arm' } })
   const armedAt = hub.state.round.armedAt
   await sleep(armedAt - Date.now() + 5)
   hub.handle(ada, { t: 'buzz', at: armedAt })
-  await sleep(80) // collectMs 40 + slack
+  await sleep(80)
   assert.equal(hub.state.round.phase, 'LOCKED')
 }
 
@@ -103,7 +97,6 @@ test('a miss is a wrong at full value, and the rebound re-arms', async () => {
 
 test('with the box driving, a miss holds the rebound shut until it is opened', async () => {
   const { state, hub, judge, ada } = rig()
-  // The two halves of "the reader is in the loop and will open it".
   state.autoplay = { on: true, nextSec: 5, buzzSec: 5, reboundSec: 4, introSec: 12 }
   state.readingActive = true
   state.reading = {
@@ -118,21 +111,14 @@ test('with the box driving, a miss holds the rebound shut until it is opened', a
   assert.equal(state.round.phase, 'LOCKED')
   assert.equal(state.scores[ada.playerId!], -100, 'scored all the same')
 
-  // The caveat this exists for: the leader is gone, so the judge has nobody to
-  // re-offer the window to even though the phase is still LOCKED.
   await sleep(20)
   assert.equal(state.round.judge, undefined, 'no window reopens during the hold')
 
-  // And nobody may buzz into it: a rebound opening on the verdict itself opens
-  // seconds before the room can know.
   const bo: Conn = { id: 'b', role: 'player', send: () => {} }
   hub.handle(bo, { t: 'hello', role: 'player', name: 'Bo' })
   hub.handle(bo, { t: 'buzz', at: Date.now() })
   assert.equal(state.round.order.length, 0, 'the buzz is refused')
 
-  // The transcript is the hold: it is what the room is looking at while the
-  // buzzers are shut, and it comes down when they open, because the clue
-  // resumes in the same instant and would otherwise be read under it in red.
   assert.deepEqual(
     state.round.spoken,
     { name: 'Ada', transcript: 'new hampshire', hit: false },
@@ -146,9 +132,6 @@ test('with the box driving, a miss holds the rebound shut until it is opened', a
 })
 
 test('a rebound nobody held keeps the transcript until someone takes the question', async () => {
-  // Autoplay off, or a host judging by hand: `wrong` re-arms in the same tick
-  // the judge published the transcript, so clearing it on the arm would mean
-  // the room never read it. It stays until Bo presses.
   const { state, hub, judge, ada } = rig()
   judge.prime(['Vermont'])
   await lockIn(hub, ada)
@@ -166,8 +149,6 @@ test('a rebound nobody held keeps the transcript until someone takes the questio
 
 test('silence past the window lapses to the same wrong', async () => {
   const { state, hub, judge, ada } = rig()
-  // Sub-second, poked directly: the setAnswerWindow action is whole seconds,
-  // and no test should wait five of them.
   state.answerWindowSec = 0.05
   judge.prime(['Vermont'])
   await lockIn(hub, ada)
@@ -278,7 +259,6 @@ test('a transcription slower than the rebound does not score the new leader', as
   await lockIn(hub, ada)
   const pending = judge.submit(ada.playerId!, Buffer.from('RIFF….'), false)
   await sleep(10)
-  // The host wrongs Ada and the rebound locks Bo before the transcript returns.
   hub.handle(hostConn, { t: 'host', action: { a: 'wrong', neg: 100 } })
   assert.equal(state.round.phase, 'ARMED')
   const armedAt = state.round.armedAt
@@ -296,7 +276,6 @@ test('a transcription slower than the rebound does not score the new leader', as
   assert.equal(state.scores[ada.playerId!], -100, "Ada's dock stands, no double")
 })
 
-/** Speech that plays instantly. Same fake as reader.test.ts. */
 function fakeSpeech(): Speech {
   return {
     render: async (_dir, text) => ({ path: `/fake/${text}`, durationMs: 10 }),
@@ -322,8 +301,6 @@ test('the reader primes at arm and unprimes at stop — the full loop in-process
   await reader.select('one.txt')
   reader.start()
   await sleep(ARM_DELAY_MS + 30)
-  // Buzz the question the reader armed. Arming again replaces it and correctly
-  // cancels its answers, so the generic lockIn helper is inappropriate here.
   hub.handle(ada, { t: 'buzz', at: state.round.armedAt })
   await sleep(80)
   assert.ok(state.round.judge !== undefined, 'primed at arm, the window opened')

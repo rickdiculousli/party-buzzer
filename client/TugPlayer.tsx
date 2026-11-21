@@ -3,7 +3,6 @@ import type { MinigameResult } from '../shared/protocol.ts'
 import type { MinigamePlayerProps } from './minigames.tsx'
 import { matchFrame } from './minigame-info.ts'
 
-/** The outcome from the committed results, for a phone that rejoined after the last frame. */
 function resultTitle(results: MinigameResult[], playerId: string | null): string {
   const mine = results.find((r) => r.playerId === playerId)
   if (!results.some((r) => r.points > 0)) return 'Match complete'
@@ -27,7 +26,6 @@ export function TugPlayer({ state, playerId, frame, now, send }: MinigamePlayerP
     if (!pulling) return
     send({ t: 'minigameInput', matchId: session.matchId, seq: seq.current++, input: { kind: 'pull' } })
     navigator.vibrate?.(30)
-    // Restart the squash on the whole handle for every finger.
     const el = handle.current
     if (el) {
       el.classList.remove('fx-squash')

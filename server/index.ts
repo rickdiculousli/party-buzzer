@@ -43,10 +43,8 @@ const TYPES: Record<string, string> = {
   '.webmanifest': 'application/manifest+json',
 }
 
-/** Client routes are served the SPA shell; unknown files 404. */
 const ROUTES = new Set(['/', '/host', '/board', '/recap'])
 
-/** Question images are served from the pack directory under this prefix. */
 const PACK_MEDIA = '/pack-media/'
 
 async function serveStatic(req: IncomingMessage, res: ServerResponse, packDir: string): Promise<void> {
@@ -65,7 +63,6 @@ async function serveStatic(req: IncomingMessage, res: ServerResponse, packDir: s
   const file = ROUTES.has(path) && root === DIST ? 'index.html' : normalize(path).replace(/^(\.\.[/\\])+/, '')
   const full = join(root, file)
 
-  // Refuse anything that escaped its root directory.
   if (!full.startsWith(root)) {
     res.writeHead(403).end('forbidden')
     return
@@ -75,12 +72,6 @@ async function serveStatic(req: IncomingMessage, res: ServerResponse, packDir: s
     const body = await readFile(full)
     res.writeHead(200, {
       'content-type': TYPES[extname(full)] ?? 'application/octet-stream',
-      // Only the hashed bundles may be cached, because only they change name
-      // when they change content. Everything else in dist/ — fonts, the QR, the
-      // sounds — keeps a stable filename, so a cached copy is a copy that never
-      // updates: cache one and replacing a sound leaves every open board
-      // playing the previous one for an hour, which reads as a change that
-      // silently did nothing.
       'cache-control': full.includes('/assets/')
         ? 'max-age=31536000, immutable'
         : 'no-cache',
@@ -96,15 +87,11 @@ export async function startServer(opts: {
   statePath?: string
   revealMs?: number
   collectMs?: number
-  /** How often sockets are checked; tests shorten it. */
   beatMs?: number
   packDir?: string
-  /** Speech-to-text for the judge. Undefined builds the helper; null disables it. */
   transcribe?: Transcribe | null
   setlistDir?: string
-  /** Serve https so phones get a secure context. False keeps tests off the network. */
   tls?: boolean
-  /** Where the finale's `<date>.json` keepsake is written. */
   nightsDir?: string
 } = {}) {
   const port = opts.port ?? Number(process.env.PORT ?? 8080)
@@ -119,7 +106,6 @@ export async function startServer(opts: {
     collectMs: opts.collectMs,
     packDir,
     setlistDir,
-    // The tap is one investigation per boot; TRACE=1 turns it on.
     tracePath: process.env.TRACE ? 'trace.jsonl' : undefined,
     onChange: (s) => saveState(statePath, s),
   })
@@ -144,10 +130,6 @@ export async function startServer(opts: {
   }
   const judge = new Judge(hub, { transcribe })
 
-  // The same helper the judge uses, asked a different question: not what the
-  // room said, but where in a clip of the whole question each fragment and
-  // clause ends. Without it the reader falls back to a clip per fragment, which
-  // is how it always sounded.
   const sttDir = join(ROOT, 'server/stt')
   const alignBin = realStt ? await sttBinary(sttDir) : null
   const sttAlign: Aligner | undefined = alignBin
@@ -161,12 +143,6 @@ export async function startServer(opts: {
       }
     : undefined
 
-  // ElevenLabs reads the questions when there is a key and a voice. The voice
-  // is the opt-in, not the key: every new line is a paid take, so a key in the
-  // shell must not be enough to start spending. `--eleven` opts in with the
-  // house voice; ELEVENLABS_VOICE_ID picks another. A take that fails falls
-  // back to `say`, and its clip, having no character times, falls back to the
-  // speech-recognition fold.
   const elevenKey = process.env.ELEVENLABS_API_KEY
   const elevenVoice =
     process.env.ELEVENLABS_VOICE_ID ?? (process.argv.includes('--eleven') ? HOUSE_VOICE : undefined)
@@ -178,7 +154,6 @@ export async function startServer(opts: {
           render: (dir, text, voice) =>
             synthesize(dir, text, elevenVoice, elevenKey).catch((e) => {
               console.warn(`[speech] elevenlabs failed, falling back to say — ${e}`)
-              // A script's tags are directions, not words; `say` would read them.
               return renderClip(dir, text.replace(/\[[^\]]*\]\s*/g, ''), voice)
             }),
           play: playClip,
@@ -209,8 +184,6 @@ export async function startServer(opts: {
   })
   hub.setReader(reader)
   reader.priceUp()
-  // The three subscribers to a state change: the snapshot, the reader's waits,
-  // and the judge's window.
   hub.setOnChange((s) => {
     saveState(statePath, s)
     if (setlistSpent(s)) saveNight(nightsDir, s)
@@ -218,25 +191,18 @@ export async function startServer(opts: {
     judge.onStateChange()
   })
 
-  // The first transcription pays the model load (seconds cold, ~180ms warm),
-  // and game night is not when to discover that. One throwaway clip at boot
-  // warms speechd; the clip caches like any other, so this costs once ever.
   if (realStt && transcribe) {
     const hear = transcribe
     void renderClip(join(packDir, '.cache'), 'Warming up.').then((clip) => {
       if (clip.durationMs > 0) return hear(clip.path)
-      // No warm-up is no judge failure — the first real answer pays the load.
     }).catch(() => {})
   }
 
   let joinUrl = ''
 
-  // Null means http: the room still plays, without a mic.
   let tls: Tls | null = null
   let provider = PROVIDERS[0]
 
-  // Answered at /boot, so the https self-check below can tell this server from
-  // anything else holding the same published wildcard.
   const bootId = crypto.randomUUID()
 
   const onRequest = (req: IncomingMessage, res: ServerResponse) => {
@@ -249,7 +215,6 @@ export async function startServer(opts: {
       return
     }
     if ((req.url ?? '').startsWith('/recap.svg')) {
-      // The phone's own copy of the cards: the join address with the recap path.
       qrSvg(`${joinUrl}/recap`).then(
         (svg) => res.writeHead(200, { 'content-type': 'image/svg+xml' }).end(svg),
         () => res.writeHead(500).end('qr failed'),
@@ -265,8 +230,6 @@ export async function startServer(opts: {
     }
     if (req.method === 'POST' && (req.url ?? '').startsWith('/spoken')) {
       const player = new URL(req.url ?? '/', 'http://localhost').searchParams.get('player') ?? ''
-      // text/plain is the transcript itself — probe's speak: step and tests.
-      // Anything else is a recording to transcribe.
       const isText = (req.headers['content-type'] ?? '').startsWith('text/plain')
       const chunks: Buffer[] = []
       let size = 0
@@ -275,7 +238,6 @@ export async function startServer(opts: {
         if (size <= 2_000_000) chunks.push(c)
       })
       req.on('end', () => {
-        // Six seconds of mono 16-bit WAV at 48kHz is 576KB; 2MB is generous.
         if (size > 2_000_000) {
           res.writeHead(413).end('too large')
           return
@@ -300,9 +262,6 @@ export async function startServer(opts: {
   const host = pickAddress(lanAddresses(), process.env.HOST_IP)
   let http: Awaited<ReturnType<typeof listen>> | null = null
 
-  // A certificate on disk is no promise a phone can use it: the provider's DNS
-  // can fail to resolve, or its chain can stop verifying. Ask each provider's
-  // join url ourselves, the way a phone would, and take the first that answers.
   for (const p of (opts.tls ?? true) ? PROVIDERS : []) {
     tls = await ensureCert(join(ROOT, '.cert', p.domain), p)
     if (!tls) continue
@@ -330,9 +289,6 @@ export async function startServer(opts: {
 
   const wss = new WebSocketServer({ server: http, path: '/ws' })
 
-  // A socket that vanished without closing looks open forever, so its player stays
-  // connected. Browsers answer a ping by themselves; page code cannot see one, so
-  // each beat also carries a message that tells the phone the link is alive.
   const missed = new WeakMap<object, number>()
   const heartbeat = setInterval(() => {
     for (const socket of wss.clients) {
@@ -364,7 +320,7 @@ export async function startServer(opts: {
       try {
         msg = JSON.parse(String(raw)) as ClientMsg
       } catch {
-        return // A malformed frame must never take the process down.
+        return
       }
       hub.handle(conn, msg)
     })
@@ -374,16 +330,12 @@ export async function startServer(opts: {
   })
 
   const actualPort = (http.address() as { port: number }).port
-  // The certificate is a wildcard for the provider's domain, so the hostname
-  // has to be the one that resolves back to this address — the raw IP would
-  // not match it.
   joinUrl = tls
     ? `https://${certHost(host, provider)}:${actualPort}`
     : `http://${host}:${actualPort}`
 
   return {
     url: joinUrl,
-    /** The raw-IP url, which works whenever the provider's DNS does not. */
     fallbackUrl: `http${tls ? 's' : ''}://${host}:${actualPort}`,
     tls: !!tls,
     port: actualPort,
@@ -394,9 +346,6 @@ export async function startServer(opts: {
       minigame.stop()
       for (const client of wss.clients) client.terminate()
       wss.close()
-      // http.close() only stops new connections and waits for existing ones to
-      // go idle, which an upgraded socket mid-teardown never does — shutdown
-      // hangs instead of finishing. Drop them outright; the game is over.
       http.closeAllConnections()
       await new Promise<void>((resolve) => http.close(() => resolve()))
       await flushSave()
@@ -405,23 +354,8 @@ export async function startServer(opts: {
   }
 }
 
-/**
- * Ctrl-C takes the tabs with it — every Chrome tab pointing at this server,
- * which is the two `npm start` opened plus any the host duplicated.
- *
- * Matched by url rather than remembered from the spawn, because `open` hands
- * the url to the browser and never tells us which tab it became. That also
- * makes it right rather than merely convenient: a stale `/board` left over
- * from the last run is exactly as dead as the one we opened.
- *
- * macOS and Chrome only. Everywhere else this is a no-op and the tabs stay,
- * which is what happens today — nothing regresses by not knowing AppleScript.
- * The `pgrep` is load-bearing: `tell application` launches Chrome, so without
- * it quitting the server would *start* a browser to close nothing.
- */
 function closeTabs(url: string): Promise<void> {
   if (process.platform !== 'darwin') return Promise.resolve()
-  // Backwards: closing a tab renumbers the ones after it.
   const lines = [
     'tell application "Google Chrome"',
     'repeat with w in windows',
@@ -436,8 +370,6 @@ function closeTabs(url: string): Promise<void> {
   const step = (cmd: string, args: string[]) =>
     new Promise<boolean>((resolve) => {
       const p = spawn(cmd, args, { stdio: 'ignore' })
-      // Ctrl-C must exit. An unresponsive Chrome is worth a leftover tab, not
-      // a server that will not quit.
       const t = setTimeout(() => p.kill('SIGKILL'), 1500)
       p.on('close', (code) => (clearTimeout(t), resolve(code === 0)))
       p.on('error', () => (clearTimeout(t), resolve(false)))
@@ -447,7 +379,6 @@ function closeTabs(url: string): Promise<void> {
     .then(() => {})
 }
 
-// Only run the banner when launched directly, so tests can import cleanly.
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const server = await startServer()
   const candidates = lanAddresses()
@@ -457,8 +388,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
   console.log(banner(server.url, await qrFor(server.url)))
 
-  // What the hostname buys and what it costs, in two lines, because both matter
-  // at the moment a phone will not join.
   if (server.tls) {
     console.log(`  Phones need this name, not the IP — it is what the certificate covers.`)
     console.log(`  If it will not resolve, ${link(server.fallbackUrl)} still plays (no mic).\n`)
@@ -467,17 +396,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     console.log(`  Spoken answers need internet and local-ip.sh or local-ip.co at startup.\n`)
   }
 
-  // The two screens the host always ends up opening by hand. NO_OPEN=1 for a
-  // headless box, or when you are restarting the server every thirty seconds
-  // and do not want two more tabs each time.
   if (!process.env.NO_OPEN) {
     const opener =
       process.platform === 'darwin' ? 'open'
       : process.platform === 'win32' ? 'start'
       : 'xdg-open'
-    // The join url rather than localhost: over https, `localhost` is not a name
-    // the certificate covers, so the host's own two tabs would open onto a
-    // warning interstitial.
     for (const path of ['/board', '/host'])
       spawn(opener, [`${server.url}${path}`], {
         stdio: 'ignore',

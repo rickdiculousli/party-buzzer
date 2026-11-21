@@ -5,15 +5,6 @@ import { OptionField, defaultsOf } from './GameSettings.tsx'
 import { REFUSAL_TEXT, packLabel } from './ui.ts'
 import { refuses } from '../shared/legality.ts'
 
-/**
- * The setlist builder. Setup, so it lives folded away in the host's manage
- * details; the position the room is at lives unfolded, up beside the arm
- * controls, because a host who has to open a disclosure to learn what round it
- * is will not do it.
- *
- * Every edit sends the whole array. Add, move, remove and edit are all array
- * work the client can do, and one action means one undo step for one edit.
- */
 export function SetlistPanel({
   state,
   act,
@@ -25,23 +16,11 @@ export function SetlistPanel({
 }) {
   const [saveAs, setSaveAs] = useState('')
   const blocks = state.setlist?.blocks ?? []
-  // A block names a quiz mode or a minigame, from one picker.
   const catalog = [...state.games, ...MINIGAME_CATALOG]
 
-  // Every edit on this panel is one `setSetlist`, so one refusal answers for all
-  // of them; the legality of that action does not read the blocks, which is why
-  // an empty array can stand in for whatever the control being greyed would have
-  // sent. A local `!idle` check would only agree with the server by coincidence,
-  // and has nothing to say when it is right.
   const edits = refuses(state, { a: 'setSetlist', blocks: [] })
   const clear = refuses(state, { a: 'clearSetlist' })
 
-  /**
-   * What a block asks for against what its pack can supply. Blocks sharing a
-   * pack share its questions, so the demand is counted across all of them —
-   * two blocks of five off an eight-question pack is short even though neither
-   * is on its own.
-   */
   const demand = new Map<string, number>()
   for (const b of blocks) {
     if (b.pack) demand.set(b.pack, (demand.get(b.pack) ?? 0) + b.count)
@@ -79,14 +58,6 @@ export function SetlistPanel({
 
 
       <div class="setlist__io">
-        {/* Loading rides the `act` channel rather than the host-action one, so
-            there is no `HostAction` of its own to ask about — but what the hub
-            does with it *is* a `setSetlist`: it replaces `state.setlist` and
-            pushes the same undo snapshot the builder's edits do. Asking the
-            table about the mutation this performs is not borrowing a
-            neighbour's rule, and the pack picker in `HostSetup` is the case
-            where it would be: `selectPack` has no host action with its effect,
-            so that one stays local. */}
         <select
           class="input"
           value=""
@@ -139,7 +110,6 @@ export function SetlistPanel({
                     const id = (e.target as HTMLSelectElement).value
                     const next = catalog.find((g) => g.id === id)
                     if (!next) return
-                    // A minigame block is one visit; the server drops what it cannot use.
                     edit(i, isMinigameId(id)
                       ? { game: id, options: defaultsOf(next), count: 1, pack: undefined, value: undefined, duel: undefined }
                       : { game: id, options: defaultsOf(next) })
@@ -225,8 +195,6 @@ export function SetlistPanel({
 
               </>}
 
-              {/* The game's own options, rendered from its schema — the same
-                  property that lets GameSettings exist. */}
               {info?.options.map((spec) => (
                 <OptionField
                   key={spec.key}
@@ -287,12 +255,6 @@ export function SetlistPanel({
           </button>
         )}
       </div>
-      {/* The panel's own sentence, and the only place any of this is explained.
-          A `title` on a disabled control never fires — the control suppresses
-          the pointer events a tooltip needs — so hanging one on each of the
-          twelve would have computed the reason and thrown it away. Everything
-          above greys for one reason at a time, so one line under it says it
-          once, and is read without hovering anything. */}
       {edits && <p class="muted">{REFUSAL_TEXT[edits]}</p>}
     </section>
   )

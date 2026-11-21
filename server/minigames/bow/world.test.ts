@@ -153,7 +153,6 @@ test('capacity counts flying and lodged arrows and refusal does not consume a sh
 })
 
 test('fixed steps integrate gravity before position and preserve previous tip and lodged arrows', () => {
-  // Keep the flight inside the field and the lodged fixture clear of its path.
   const w = createBowWorld({ seed: 7, playerIds: ['ada'], targets: [], config: { maxSpeed: 1000 } })
   setBowAim(w, 'ada', { angle: 0.5, tension: 1 })
   releaseBow(w, 'ada')
@@ -203,7 +202,6 @@ test('same seed and ordered commands replay identically', () => {
   }
 })
 
-// Explicit tips and velocities isolate contacts from aim and layout generation.
 function arrow(id: string, x: number, y: number, vx: number, vy: number): BowArrow {
   return {
     id, playerId: 'ada', position: { x, y }, previous: { x, y },
@@ -480,7 +478,6 @@ for (const [name, x, radius, entryX] of [
         { id: 'earlier', center: { x, y: 500 }, radius },
         { id: 'later', center: { x: 720, y: 500 }, radius: 10 },
       ]
-      // Starting inside the shaft's radius forces a 3.5-unit separation push.
       const flying = arrow('flying', 799.5, 500, 1200, 0)
       w.arrows = [
         stuck('fixed', 800, 524, Math.PI / 2),

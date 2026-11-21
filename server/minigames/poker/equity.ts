@@ -2,10 +2,8 @@ import type { Card, PlayerId } from '../../../shared/protocol.ts'
 import { DECK } from './cards.ts'
 import { best, compare } from './evaluate.ts'
 
-/** Preflop has too many boards to count, so it samples about this many hand evaluations in all. */
 export const EVALUATIONS = 10_000
 
-/** Each hand's share of the pot over every way the board can finish; ties split. */
 export function equity(hands: Record<PlayerId, [Card, Card]>, board: Card[], rand: () => number, evaluations = EVALUATIONS): Record<PlayerId, number> {
   const ids = Object.keys(hands)
   const known = new Set([...board, ...ids.flatMap((id) => hands[id])])
@@ -33,10 +31,8 @@ export function equity(hands: Record<PlayerId, [Card, Card]>, board: Card[], ran
     pick(0, [])
   } else {
     const pool = [...left]
-    // ponytail: sampled preflop odds wobble about 1% at nine seats; raise EVALUATIONS if that shows.
     const samples = Math.round(evaluations / ids.length)
     for (let n = 0; n < samples; n++) {
-      // A partial Fisher-Yates draws `need` distinct cards.
       for (let i = 0; i < need; i++) {
         const j = i + Math.floor(rand() * (pool.length - i))
         ;[pool[i], pool[j]] = [pool[j], pool[i]]

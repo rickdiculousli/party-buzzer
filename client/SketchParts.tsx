@@ -8,11 +8,9 @@ import { ScoreChange, reduced, useFlip } from './fx.tsx'
 import type { SketchCorrect, SketchMiss } from '../shared/protocol.ts'
 import { JoinCode } from './JoinCode.tsx'
 
-/** The drawing's shape everywhere it appears. */
 const W = 400
 const H = 300
 
-/** Keeps the last strokes; frames carry them only when they changed and once a second. */
 export function useSketchStrokes(frame: { matchId: string; strokes?: InkStrokeView[] } | null) {
   const strokes = useRef<InkStrokeView[] | null>(null)
   const match = useRef('')
@@ -24,7 +22,6 @@ export function useSketchStrokes(frame: { matchId: string; strokes?: InkStrokeVi
   return strokes.current
 }
 
-/** Plays this surface's cues as frames arrive. `who` is 'board' or the phone's player id. */
 export function useSketchCues(frame: SketchView | null, who: string | null) {
   const prev = useRef<SketchView | null>(null)
   const lastMiss = useRef(0)
@@ -42,7 +39,6 @@ export function useSketchCues(frame: SketchView | null, who: string | null) {
   }, [frame, who])
 }
 
-/** The word as the room guesses it: one slot per letter, so its length reads at a glance. */
 export function Blanks({ text, class: cls = '' }: { text: string; class?: string }) {
   return <p class={`sketch-blanks ${cls}`} aria-label={`${text.split('_').length - 1} letters hidden`}>
     {[...text].map((ch, i) => ch === ' '
@@ -53,7 +49,6 @@ export function Blanks({ text, class: cls = '' }: { text: string; class?: string
 
 export type SketchRow = { key: string; label: string; color: string; score: number }
 
-/** The board's sidebar, built from the same rows as the quiz standings. */
 export function SketchStandings({ title, rows, join }: { title: string; rows: SketchRow[]; join: boolean }) {
   const list = useRef<HTMLOListElement>(null)
   useFlip(list)
@@ -74,23 +69,10 @@ export function SketchStandings({ title, rows, join }: { title: string; rows: Sk
   </aside>
 }
 
-/** Lines the board's chat shows at once. */
 const CHAT_MAX = 10
-/** Sketch's holds, a quarter of Ink's Force: long enough not to slip, short enough mid-drawing. */
 const HOLD_MS = FORCE_MS / 4
-/** The space between chat lines, --s1 in the stylesheet. */
 const CHAT_GAP = 4
 
-/**
- * The board's guesses as a stream's chat: one list, bottom-anchored, kept by
- * `pushChat`. A new line slides in at the foot and pushes every line above it
- * up one slot together; a wrong guess that falls off the top fades out where it
- * stood; right guesses that reach the top stay there.
- *
- * Motion is measured against the column, not the list: the list itself moves
- * while it fills, and a line's place in it does not. Lines are one line tall,
- * so the train moves in whole slots.
- */
 export function SketchChat({ turn, misses, correct, nameOf, colorOf }: {
   turn: string
   misses: SketchMiss[]
@@ -98,18 +80,12 @@ export function SketchChat({ turn, misses, correct, nameOf, colorOf }: {
   nameOf: (id: string) => string
   colorOf: (id: string) => string
 }) {
-  // `leaving` holds lines the deque has let go of that are still on screen: a
-  // line is gone from the chat when it has slid out, not when it is dropped.
   const chat = useRef({ turn: '', seen: 0, lines: [] as ChatLine[], leaving: new Map<number, ChatLine>() })
   const [, redraw] = useState(0)
   const list = useRef<HTMLOListElement>(null)
-  // Each line's resting place in the column after the last change.
   const places = useRef(new Map<string, number>())
-  // Frames arrive many times a second; only one that changed the lines moves them.
   const changed = useRef(false)
-  // When the slide in flight will settle.
   const settles = useRef(0)
-  // Dropped lines being wiped by the line rising under them, and the frame loop doing it.
   const wiping = useRef(new Map<HTMLElement, { until: number; done: () => void }>())
   const wipeLoop = useRef(0)
   const wipe = () => {
@@ -145,8 +121,6 @@ export function SketchChat({ turn, misses, correct, nameOf, colorOf }: {
     for (const line of evicted) chat.current.leaving.set(line.seq, line)
     changed.current = true
   }
-  // One list in arrival order, leaving lines where they were, so no element
-  // ever moves in the DOM and a slide in flight is never cut short.
   const shown = [...chat.current.lines, ...chat.current.leaving.values()].sort((a, b) => a.seq - b.seq)
 
   useLayoutEffect(() => {
@@ -164,11 +138,6 @@ export function SketchChat({ turn, misses, correct, nameOf, colorOf }: {
     const ms = settles.current > at ? chatSlideMs(at, settles.current) : CHAT_SLIDE_MS
     settles.current = at + ms
 
-    // Lines just let go of: out of the flow, so the rest close up, but held
-    // where they stand, finishing any slide they were in. Each frame the line
-    // rising under one cuts it off at its own top edge, so a dropped line is
-    // wiped away by the next one arriving and the two never overlap; it is
-    // removed once the slide is over.
     const going = all.filter((row) => row.classList.contains('is-gone') && !row.dataset.going)
     for (const row of going) {
       const seq = Number(row.dataset.key)
@@ -217,23 +186,14 @@ export function SketchChat({ turn, misses, correct, nameOf, colorOf }: {
   </div>
 }
 
-/**
- * Keeps a phone's keyboard from moving the screen. The field is focused
- * without the browser scrolling the page to it, and only `ref` (the guess
- * form) lifts, by exactly as much as the keyboard would cover it, so the bar
- * and the drawing stay where they are.
- */
 export function useKeyboardLift(ref: { current: HTMLElement | null }) {
   useEffect(() => {
     const vv = window.visualViewport
     if (!vv) return
     const place = () => {
       const el = ref.current
-      // A pan that got through anyway goes back; the form does the moving.
       if (window.scrollY) window.scrollTo(0, 0)
       if (!el) return
-      // Where the form rests unlifted: its box less the offset it is drawn at
-      // right now, read off the element because the form is a new one each turn.
       const drawn = parseFloat(getComputedStyle(el).translate.split(' ')[1] ?? '') || 0
       const bottom = el.getBoundingClientRect().bottom - drawn
       const lift = Math.max(0, bottom - (vv.offsetTop + vv.height) + 8)
@@ -248,7 +208,6 @@ export function useKeyboardLift(ref: { current: HTMLElement | null }) {
   }, [ref])
 }
 
-/** Focus a field on touch without the browser scrolling the page to it. */
 export function focusInPlace(event: TouchEvent) {
   const field = event.currentTarget as HTMLInputElement
   if (document.activeElement === field) return
@@ -263,11 +222,6 @@ export function SketchInk({ strokes, live, class: cls = '' }: { strokes: InkStro
   </svg>
 }
 
-/**
- * The drawer's canvas. Sends the live stroke every 50 ms and commits on lift.
- * The phone shows its own draft until the server has processed every stroke,
- * undo and clear it sent.
- */
 export function SketchCanvas({ strokes, author, processed, send, onPass }: {
   strokes: InkStrokeView[]
   author: string
@@ -328,8 +282,6 @@ export function SketchCanvas({ strokes, author, processed, send, onPass }: {
         {points.current && <path d={strokePath(points.current, W, H)} class="ink-stroke is-live" />}
       </svg>
     </div>
-    {/* In the thumb's reach, and only Undo acts on a tap: wiping the drawing
-        or giving up the turn takes a hold. */}
     <div class="sketch-tools">
       <button class="btn" disabled={!shown.length} onClick={() => commit(draftUndo(draft.current, server, performance.now()), { kind: 'undo' })}>Undo</button>
       <HoldButton label="Hold to clear" ms={HOLD_MS} onHeld={() => { if (shown.length) commit(draftClear(draft.current, server, performance.now()), { kind: 'clear' }) }} />

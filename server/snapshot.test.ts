@@ -85,7 +85,6 @@ test('versioned saves retain durable data and independently flush multiple files
   assert.deepEqual(loaded.round, newState().round)
   assert.equal(loaded.players[0].connected, false)
   assert.deepEqual(loaded.packs, [])
-  // Original unversioned snapshots follow the same restart policy.
   writeFileSync(first, JSON.stringify(state))
   assert.deepEqual(loadState(first).round, newState().round)
 })
@@ -124,7 +123,6 @@ test('a restart drops a playing minigame\'s host lines', (t) => {
 test('undo keeps an introduction under a fresh id and never a lobby', () => {
   const state = newState()
   const hub = new Hub(state)
-  // Read through a function: `assert.equal(x, undefined)` narrows a property for good.
   const arrival = () => state.arrival
   hub.dispatch({ a: 'setSetlist', blocks: [{ game: 'trivia', options: {}, count: 2 }] })
   const intro = arrival()!
@@ -208,7 +206,6 @@ test('a version 2 file round-trips the ledger, and a version 1 file loads with a
   const { night, ...withoutNight } = old.state
   writeFileSync(file, JSON.stringify({ version: 1, state: withoutNight }))
   assert.deepEqual(loadState(file).night, { facts: [] })
-  // A version 2 file whose ledger was damaged by hand is no better than none.
   writeFileSync(file, JSON.stringify({ version: 2, state: { ...withoutNight, night: { facts: 'x' } } }))
   assert.deepEqual(loadState(file).night, { facts: [] })
 })

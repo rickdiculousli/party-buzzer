@@ -6,7 +6,6 @@ import { beginFor } from './night.ts'
 import { MinigameRuntime } from './minigames/runtime.ts'
 import type { HostAction, SetlistBlock } from '../shared/protocol.ts'
 
-/** The night runs on the mock clock: `tick` advances timers and `Date.now()` together. */
 function test(name: string, fn: () => void): void {
   nodeTest(name, () => {
     mock.timers.enable({ apis: ['setTimeout', 'Date'] })
@@ -23,7 +22,6 @@ const tick = (ms: number) => mock.timers.tick(ms)
 const QUIZ: SetlistBlock = { game: 'trivia', options: {}, count: 1, pack: 'p.txt' }
 const BOW: SetlistBlock = { game: 'bow', options: { durationSec: 5, seed: 1 }, count: 1 }
 
-/** A hub with two connected players, a real minigame runtime and a recording reader. */
 function room(opts: { introSec?: number; nextSec?: number; autoplay?: boolean } = {}) {
   const state = newState()
   state.players = [
@@ -48,13 +46,11 @@ function room(opts: { introSec?: number; nextSec?: number; autoplay?: boolean } 
     return [id, conn]
   }))
   const dispatch = (action: HostAction) => hub.dispatch(action)
-  /** The host's Continue on whatever introduction is up. */
   const go = () => dispatch({ a: 'closeArrival', arrivalId: state.arrival!.id })
   if (opts.autoplay !== false) {
     dispatch({ a: 'setAutoplay', on: true, nextSec: opts.nextSec ?? 3, buzzSec: 10, reboundSec: 4, introSec: opts.introSec ?? 5 })
   }
   const ready = (id: string) => hub.handle(conns[id], { t: 'minigameLobby', change: { do: 'ready', on: true } })
-  /** Play a started match to its results, as the runtime pump would. */
   const finishMatch = () => {
     tick(3_100)
     runtime.pump()

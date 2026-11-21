@@ -112,9 +112,6 @@ void main() {
   gl_FragColor = print;
 }`
 
-/** Two whole textured cards. No DOM paint, buffer allocation or texture upload on drag frames.
- * The caller owns input, rAF and native/GPU visibility. This renderer has no animation clock.
- */
 export class PokerPeekRenderer {
   ready = false
   private disposed = false
@@ -184,7 +181,6 @@ export class PokerPeekRenderer {
       for (const name of ['box', 'pose', 'size', 'crease', 'normal', 'profile', 'span', 'arc', 'layer', 'shadow', 'print', 'face', 'back', 'shadow_mask', 'shadow_step']) {
         this.uniforms[name] = gl.getUniformLocation(this.program, `u_${name === 'arc' ? 'arc[0]' : name}`)
       }
-      // Crease-aligned bands: only material depth bends. Flat and raised planes need one band each.
       const rows = [-1, ...Array.from({ length: BANDS + 1 }, (_, i) => i / BANDS), 2]
       const vertices = new Float32Array(rows.flatMap(s => [0, s, 1, s]))
       const indices = new Uint16Array(this.count)
@@ -299,8 +295,6 @@ export class PokerPeekRenderer {
         gl.drawElements(gl.TRIANGLES, this.count, gl.UNSIGNED_SHORT, 0)
       }
     }
-    // Flatten all stock into one binary occlusion mask. Self-overlap and pair overlap
-    // overwrite the same value; neither can accumulate darkness.
     this.vertices(0)
     gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, null)
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.shadowTarget)
@@ -324,7 +318,6 @@ export class PokerPeekRenderer {
   private lost = (event: Event) => {
     event.preventDefault()
     this.ready = false
-    // Lost-context objects are invalid; restoration builds a fresh, bounded resource set.
     this.program = null; this.shaders = []; this.buffers = []; this.textures = []
     this.shadowTarget = null; this.shadowTexture = null; this.shadowWidth = 0; this.shadowHeight = 0
     this.unavailable()
@@ -347,7 +340,6 @@ export class PokerPeekRenderer {
     this.canvas.removeEventListener('webglcontextlost', this.lost)
     this.canvas.removeEventListener('webglcontextrestored', this.restored)
     this.release(); this.images = []
-    // Connected canvases may be reused when artwork/showdown state changes. Keep their context usable.
     if (!this.canvas.isConnected) this.gl.getExtension('WEBGL_lose_context')?.loseContext()
     else { this.canvas.width = 1; this.canvas.height = 1 }
   }

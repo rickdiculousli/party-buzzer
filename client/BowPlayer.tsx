@@ -9,11 +9,7 @@ export function BowPlayer({ state, playerId, connected, frame, now, send, ack }:
   const spectator = frame?.matchId === session.matchId && frame.role === 'spectator'
   const start = useRef<{ x: number; y: number } | null>(null)
   const [aim, setAim] = useState({ angle: 0, tension: 0 })
-  // The drawn bow rests at the last shot's direction and eases toward the live aim
-  // as tension builds; the aim sent to the server is unaffected.
   const restAngle = useRef(0)
-  // One pulse on reaching full draw. It re-arms only after tension drops below 95%,
-  // and never pulses within 100ms of the last, so hovering at the edge stays quiet.
   const fullDrawArmed = useRef(true)
   const lastFullDrawPulse = useRef(0)
 

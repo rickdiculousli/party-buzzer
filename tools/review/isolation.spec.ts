@@ -5,7 +5,6 @@ import { join } from 'node:path'
 import { capturePreviews } from './capture.ts'
 
 
-/** The phone is a drawer; open it and wait for it to stop sliding before measuring. */
 async function openPhone(page: Page) {
   await page.getByRole('button', { name: /^Phone/ }).click()
   await page.waitForFunction(() => getComputedStyle(document.querySelector('.review__drawer--phone')!).transform === 'none')
@@ -63,7 +62,6 @@ test('a disabled buzzer can be annotated and the note survives reload', async ({
   await expect(note).toBeVisible()
   await note.fill('Explain when this player can buzz again.')
 
-  // Clicking the same element again returns to its note instead of opening a second one.
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
   await expect(page.locator('.review__note')).toHaveCount(1)
   await expect(note).toBeFocused()
@@ -159,8 +157,6 @@ test('Send posts the saved note to the exact conversation and Refresh remounts p
   const before = await frame.getAttribute('src')
   await page.getByRole('button', { name: 'Refresh previews' }).click()
   await expect(frame).not.toHaveAttribute('src', before ?? '')
-  // A sent note leaves the editable list, so pressing Send again cannot resubmit
-  // it, and is kept under Done across a remount.
   await expect(page.getByLabel('Suggestion 1')).toHaveCount(0)
   await expect(page.getByRole('button', { name: /^Send 0 notes$/ })).toBeDisabled()
   await expect(page.locator('.review__done')).toContainText(
@@ -195,7 +191,6 @@ test('a located suggestion is outlined on the shot, an unlocatable one is not', 
     expect(captures['phone:rebound:ada']).toBe('phone-rebound-ada.png')
     return readFile(join(into, 'phone-rebound-ada.png'))
   }
-  // An unknown id marks nothing, so its shot matches the plain one byte for byte.
   const plain = await shot()
   expect(await shot('phone:nothing-here')).toEqual(plain)
   expect(await shot('phone:buzzer')).not.toEqual(plain)

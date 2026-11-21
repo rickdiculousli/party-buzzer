@@ -130,7 +130,6 @@ export function makeReviewScenarios(): ReviewScenario[] {
   correct.round.award = { name: 'Ada', points: 400 }
   correct.round.answer = 'Pacific Ocean'
   correct.scores.ada += 400
-  // The server scores to IDLE and keeps the order up.
   correct.round.phase = 'IDLE'
 
   const wrong = structuredClone(answering)
@@ -181,13 +180,11 @@ export function makeReviewScenarios(): ReviewScenario[] {
     at: 1,
     done: 0,
   }
-  // The podium's two steps, frozen a beat into each: the stamp is read against NOW.
   const third = base()
   third.setlist = { ...spent.setlist, spentAt: NOW - FINALE_SCHEDULE.build - 500 }
   const second = base()
   second.setlist = { ...spent.setlist, spentAt: NOW - FINALE_SCHEDULE.build - FINALE_SCHEDULE.third - 500 }
 
-  // Four in the room: two on one answer, one on another, one yet to pick.
   const picking = question()
   picking.players.push({ id: 'di', name: 'Di', connected: true })
   picking.scores.di = 0
@@ -203,7 +200,6 @@ export function makeReviewScenarios(): ReviewScenario[] {
   revealed.round.phase = 'IDLE'
   revealed.scores = { ada: 1000, bo: 400, cy: 600, di: 0 }
 
-  // Seven in the room, four in; nobody's number is on the wall yet.
   const guessing = question()
   for (const [id, name] of [['di', 'Di'], ['ed', 'Ed'], ['fen', 'Fen'], ['gus', 'Gus']]) {
     guessing.players.push({ id, name, connected: true })
@@ -215,7 +211,6 @@ export function makeReviewScenarios(): ReviewScenario[] {
   guessing.round.guessing = { unit: 'steps', closesAt: NOW + 12_000 }
   guessing.round.guesses = { ada: 1700, cy: 1500, bo: 1200, di: 1720 }
 
-  // Everyone in: a cluster near the answer, one wild guess parked at the end.
   const lined = structuredClone(guessing)
   lined.round.guesses = { ada: 1700, cy: 1500, bo: 1200, di: 1720, ed: 1650, fen: 900, gus: 25000 }
   lined.round.truth = 1665
@@ -225,7 +220,6 @@ export function makeReviewScenarios(): ReviewScenario[] {
   lined.round.phase = 'IDLE'
   lined.scores = { ...lined.scores, ed: 200, ada: 100 }
 
-  // Twelve in, three tied on the answer and a crowd around it: the lanes' worst case.
   const tied = question()
   const CROWD: [string, string, number][] = [
     ['ada', 'Ada', 88], ['bo', 'Bo', 88], ['cy', 'Cy', 88], ['di', 'Di', 52], ['ed', 'Ed', 76], ['fen', 'Fen', 80],
@@ -270,9 +264,6 @@ export function makeReviewScenarios(): ReviewScenario[] {
     }
   }
 
-  // Each column holds more slips than it can show. The fixture pack has twenty
-  // prompts and reshuffles its discards long before that, so the slips are laid
-  // on the frame of a real mid-turn state; a full pack gets there in play.
   const inkDiscardFull = ink('ink-discard-full', 'Ink with a full discard column', (game) => {
     game.chooseWord().ask()
     game.stroke(game.writer())
@@ -287,7 +278,6 @@ export function makeReviewScenarios(): ReviewScenario[] {
   const sketchState = (session: ReturnType<typeof sketchSession>, players = SKETCH_PLAYERS) => {
     const state = base()
     state.players = structuredClone(players)
-    // A finished match has already been added to the night, as the hub does.
     state.scores = Object.fromEntries(players.map((player) => [
       player.id, session.results?.find((result) => result.playerId === player.id)?.points ?? 0,
     ]))
@@ -321,8 +311,6 @@ export function makeReviewScenarios(): ReviewScenario[] {
     { playerId: 'eve', points: 95, shots: 0 },
   ]))
 
-  // A timed match waiting at ready (no world yet, so an empty field) or at its
-  // results, with eight players: the screens that carry the join code.
   const EIGHT = ['Ada', 'Bo', 'Cy', 'Di', 'Eve', 'Fay', 'Gus', 'Hana'].map((name) => ({ id: name.toLowerCase(), name, connected: true }))
   const matchState = (id: 'bow' | 'tank' | 'tug' | 'poker', phase: 'ready' | 'results') => {
     const state = base()
@@ -341,15 +329,11 @@ export function makeReviewScenarios(): ReviewScenario[] {
     }
     return state
   }
-  // Board only, for the board's join code: the phones at these moments do not
-  // fit yet (Bow's overflows a small phone, Poker's lamp lies over its text).
   const matchScenarios = (['bow', 'tank', 'tug', 'poker'] as const).flatMap((id) => [
     { ...build(`${id}-ready`, `${MINIGAME_INFO[id].name} ready`, matchState(id, 'ready'), at()), phones: [] },
     { ...build(`${id}-results`, `${MINIGAME_INFO[id].name} results, eight players`, matchState(id, 'results'), at()), phones: [] },
   ])
 
-  // Arrival. Pulses are frozen against a fixed local clock, so the screen shows a
-  // lit moment without any time passing.
   const lobby = (players: State['players'], tested: string[]) => {
     const state = base()
     state.players = players
@@ -362,14 +346,11 @@ export function makeReviewScenarios(): ReviewScenario[] {
     lobbyId: 'review-lobby',
     pulses: Object.fromEntries(received.map(([id, receivedAt], i) => [id, { seq: i + 1, receivedAt }])),
   })
-  // Reactions frozen mid-rise: `n` receipts for the question, from Bo and Cy in
-  // turn, the oldest a second up and the rest a beat apart.
   const KINDS: QuizReactKind[] = ['tooslow', 'ooh', 'noway', 'legend']
   const reacting = (n: number): TimedReaction[] => Array.from({ length: n }, (_, i) => i).reduce<TimedReaction[]>(
     (list, i) => recordReaction(list, { questionId: 'review-question', seq: i + 1, playerId: ['bo', 'cy'][i % 2], kind: KINDS[i % 4] }, 'review-question', PULSE_NOW - 1000 + i * 90),
     [],
   )
-  // A near tie puts Bo on a second timeline row, which the pill band must sit under.
   const answeringTwoRows = structuredClone(answering)
   answeringTwoRows.round.order = [
     { playerId: 'ada', name: 'Ada', at: NOW - 300, deltaMs: 0 },
@@ -470,7 +451,6 @@ export function makeReviewScenarios(): ReviewScenario[] {
       game.spell(2)
       game.missLetter()
     }),
-    // Names have no length limit, so the chin, the phone bar and the lobby have to cope.
     ink('ink-long-names', 'Ink with long names', (game) => {
       game.chooseWord()
       game.clueTurn()

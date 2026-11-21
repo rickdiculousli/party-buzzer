@@ -9,7 +9,6 @@ import { awardPots, buildPots } from './pots.ts'
 import type { Legal, PokerAction, PokerCheckpoint, PokerOptions, PokerWorld, Seat } from './types.ts'
 
 export const STEP_MS = 50
-/** How long each beat of a hand lasts, in ms. */
 export const PACE = { dealLandMs: 500, revealMs: 1200, runoutMs: 2500, showdownMs: 5000, muckMs: 4000, awayShotMs: 2000 }
 const FEED_MAX = 20
 
@@ -36,11 +35,9 @@ function table(seed: number, deckSeed: number, opts: PokerOptions, seats: PokerC
   }
 }
 
-/** `deckSeed` shuffles the cards; a live match draws it secretly, tests pass one to replay a deal. */
 export function createTable(seed: number, participants: PlayerId[], opts: PokerOptions, deckSeed = seed): PokerWorld {
   const rand = mulberry32(seed)
   const order = shuffle(rand, participants)
-  // The first hand moves the button one seat on, onto a seeded seat.
   const button = (Math.floor(rand() * order.length) + order.length - 1) % order.length
   const w = table(seed, deckSeed, opts, order.map((player) => ({ player, stack: opts.stack, out: false })), button)
   startHand(w)
@@ -51,7 +48,6 @@ export function tableCheckpoint(w: PokerWorld): { version: number; label: string
   return w.saved && { version: w.saved.handNo, label: `hand ${w.saved.handNo}`, data: w.saved }
 }
 
-/** Deals the checkpoint's hand again, from the same stacks, button and deck. */
 export function resumeTable(data: PokerCheckpoint, opts: PokerOptions): PokerWorld {
   const w = table(data.seed, data.deckSeed, opts, data.seats, data.button)
   w.busted = data.busted.map((row) => ({ ...row }))
@@ -67,7 +63,6 @@ export function feed(w: PokerWorld, entry: Omit<PokerFeedEntry, 'id'>): void {
   if (w.feed.length > FEED_MAX) w.feed.splice(0, w.feed.length - FEED_MAX)
 }
 
-/** The next seat after `from`, going left, that passes `test`; -1 if none. */
 function next(w: PokerWorld, from: number, test: (seat: Seat) => boolean): number {
   const n = w.seats.length
   for (let step = 1; step <= n; step++) {
@@ -77,7 +72,6 @@ function next(w: PokerWorld, from: number, test: (seat: Seat) => boolean): numbe
   return -1
 }
 
-/** Seat players in order starting left of the button. */
 function leftOfButton(w: PokerWorld): PlayerId[] {
   const n = w.seats.length
   return Array.from({ length: n }, (_, step) => w.seats[(w.button + 1 + step) % n].player)
@@ -115,7 +109,6 @@ export function startHand(w: PokerWorld): void {
   for (const seat of w.seats) {
     Object.assign(seat, { hole: null, bet: 0, contributed: 0, folded: false, acted: false, mayRaise: true, faceUp: false, startStack: seat.stack })
   }
-  // ponytail: the button simply moves to the next seat with chips, no dead-button rule; add one if a regular table asks.
   w.button = next(w, w.button, (seat) => !seat.out)
   const sbSeat = live.length === 2 ? w.button : next(w, w.button, (seat) => !seat.out)
   w.sbSeat = sbSeat
@@ -137,10 +130,8 @@ export function startHand(w: PokerWorld): void {
   w.phase = { at: 'deal', until: w.tick + ticks(pokerDealSpan(live.length) + PACE.dealLandMs) }
 }
 
-/** Whose turn follows `from`, or -1 when the street is done. */
 function nextActor(w: PokerWorld, from: number): number {
   const bettors = w.seats.filter(canBet)
-  // A lone player with chips who owes nothing has nobody to bet against.
   if (bettors.length === 1 && bettors[0].bet >= w.highBet) return -1
   if (bettors.length === 0) return -1
   return next(w, from, (seat) => canBet(seat) && (!seat.acted || seat.bet < w.highBet))
@@ -180,13 +171,11 @@ function raiseTo(w: PokerWorld, seat: Seat, to: number): void {
     w.raiseSize = increment
     for (const other of w.seats) if (other !== seat && canBet(other)) { other.acted = false; other.mayRaise = true }
   } else {
-    // A short all-in: whoever owes must act again, but may only call or fold.
     for (const other of w.seats) if (other !== seat && canBet(other) && other.bet < to) other.acted = false
   }
   feed(w, { player: seat.player, kind: seat.stack === 0 ? 'allIn' : opening ? 'bet' : 'raise', amount: to })
 }
 
-/** `auto` marks an action the shot clock took. */
 export function act(w: PokerWorld, player: PlayerId, action: PokerAction, auto = false): InputOutcome {
   if (action.kind === 'show') {
     if (w.phase.at !== 'muck' || w.phase.winner !== player || w.phase.shown) return NO
@@ -278,7 +267,6 @@ function updateEquity(w: PokerWorld): void {
   w.equity = equity(hands, w.board, mulberry32((w.seed ^ Math.imul(w.handNo, 31) ^ w.board.length) >>> 0), w.evaluations)
 }
 
-/** Pays out and empties the hand's contributions; `hands` names each winner's hand at a showdown. */
 function award(w: PokerWorld, won: Record<PlayerId, number>, hands: Record<PlayerId, string> = {}): void {
   for (const seat of w.seats) seat.contributed = 0
   for (const [player, amount] of Object.entries(won)) {
@@ -297,7 +285,6 @@ function showdown(w: PokerWorld): void {
     const winners = pot.eligible.filter((id) => compare(scores[id], scores[top]) === 0)
     return { winners, name: scored[top].name, five: scored[top].five, amount: pot.amount }
   })
-  // An uncalled bet goes back to its owner quietly; only contested pots are won.
   for (const pot of w.pots) if (pot.eligible.length === 1) w.seats.find((seat) => seat.player === pot.eligible[0])!.stack += pot.amount
   const contested = w.pots.filter((pot) => pot.eligible.length > 1)
   award(w, awardPots(contested, scores, leftOfButton(w)), Object.fromEntries(Object.entries(scored).map(([id, s]) => [id, s.name])))
@@ -307,7 +294,6 @@ function showdown(w: PokerWorld): void {
 
 function endByFold(w: PokerWorld, winner: Seat): void {
   gather(w)
-  // A pot only a folder reached is their unmatched bet coming back; the rest is the winner's.
   const won: Record<PlayerId, number> = {}
   for (const pot of w.pots) {
     const to = pot.eligible.length === 1 ? pot.eligible[0] : winner.player
@@ -317,10 +303,6 @@ function endByFold(w: PokerWorld, winner: Seat): void {
   w.phase = { at: 'muck', until: w.tick + ticks(PACE.muckMs), winner: winner.player, shown: false }
 }
 
-/**
- * Players left with no chips go out. Several out in one hand are placed by
- * their stacks as it began, larger first; equal stacks share the place.
- */
 function finishHand(w: PokerWorld): void {
   const live = w.seats.filter((seat) => !seat.out)
   const gone = live.filter((seat) => seat.stack === 0).sort((a, b) => b.startStack - a.startStack)
@@ -345,14 +327,12 @@ export function setPresence(w: PokerWorld, connected: PlayerId[]): void {
   const wasAway = actor ? !actor.connected : false
   for (const seat of w.seats) seat.connected = connected.includes(seat.player)
   if (!actor || w.actBy === null) return
-  // Someone who drops on their turn gets the short clock from now; coming back restores their own.
   if (!actor.connected) w.actBy = Math.min(w.actBy, w.tick + ticks(PACE.awayShotMs))
   else if (wasAway) w.actBy = Math.max(w.actBy, w.actFrom + ticks(w.opts.shotSec * 1000))
 }
 
 export const finished = (w: PokerWorld) => w.phase.at === 'over'
 
-/** Everyone's finishing place; whoever is still seated is first. */
 export function places(w: PokerWorld): { playerId: PlayerId; place: number }[] {
   return [
     ...w.seats.filter((seat) => !seat.out).map((seat) => ({ playerId: seat.player, place: 1 })),
@@ -378,8 +358,6 @@ export function stepTable(w: PokerWorld): void {
       dealStreet(w)
       return setActor(w, w.button)
     case 'runout':
-      // The river gets its own beat to land and turn before anyone is called the winner; the odds stay
-      // as the turn left them, since a full board's odds would name the winner while the river is still down.
       if (w.board.length === 5) return showdown(w)
       dealStreet(w)
       if (w.board.length < 5) updateEquity(w)

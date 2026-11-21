@@ -3,24 +3,7 @@ import { isMinigameId } from '../shared/protocol.ts'
 import type { Refusal } from '../shared/legality.ts'
 import { MINIGAME_INFO } from './minigame-info.ts'
 
-/**
- * A refusal, in words the host can act on.
- *
- * `shared/legality.ts` returns a code and nothing else, for the same reason
- * `shared/wall.ts` returns `penalised` rather than `red`: the identity is the
- * contract, the words are the surface's. This is the host's half of that split,
- * and it is a `Record<Refusal, string>` on purpose — a ninth code does not
- * typecheck until somebody has written its sentence, which is the only thing
- * standing between this and a tooltip that says "not-idle".
- *
- * The voice is `closeBlockReason`'s: state the fact, then the consequence, and
- * where there is something the host can press instead, name it. A host reads
- * these one-handed with a room waiting.
- */
 export const REFUSAL_TEXT: Record<Refusal, string> = {
-  // "Round", not "question": §9 keeps them apart, and what is in flight is the
-  // arm-to-verdict cycle, which is still running through a hold and a rebound
-  // after the question itself has been read out.
   'not-idle': 'A round is in flight — this waits for it to end.',
   'no-leader': 'Nobody is locked in — there is nothing to judge yet.',
   'already-scored': 'This round is already scored — Undo first to change it.',
@@ -46,7 +29,6 @@ export const REFUSAL_TEXT: Record<Refusal, string> = {
   'duel-active': 'A duel is open — finish or cancel it first.',
 }
 
-/** Accepted changes already explain themselves through the state update. */
 export function actionFeedback(action: HostAction['a'] | 'loadSetlist', result: ActionResult): string | null {
   if (result.status === 'refused') return REFUSAL_TEXT[result.reason]
   if (result.status === 'failed') return result.message
@@ -56,20 +38,12 @@ export function actionFeedback(action: HostAction['a'] | 'loadSetlist', result: 
 
 const IDS = ['var(--id-1)', 'var(--id-2)', 'var(--id-3)', 'var(--id-4)', 'var(--id-5)', 'var(--id-6)']
 
-/**
- * A stable identity colour for anyone without one. Hashing the id rather than
- * using position keeps a player the same colour when someone above them leaves.
- */
 export function colorFor(key: ScoreKey): string {
   let h = 0
   for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0
   return IDS[Math.abs(h) % IDS.length]
 }
 
-/**
- * Words grouped for the typewriter reveal: mostly pairs, a single every third
- * beat so the rhythm reads as a person typing rather than a metronome.
- */
 export function chunks(text: string): string[] {
   const words = text.split(/\s+/).filter(Boolean)
   const out: string[] = []
@@ -83,7 +57,6 @@ export function chunks(text: string): string[] {
 
 export type Standing = { key: ScoreKey; label: string; color: string; score: number; away?: boolean }
 
-/** Whoever holds the score this game: teams in a teams grouping, players in solo. */
 export function standings(state: State, sorted = true): Standing[] {
   const rows: Standing[] =
     state.grouping === 'teams'
@@ -93,7 +66,6 @@ export function standings(state: State, sorted = true): Standing[] {
   return sorted ? withScores.sort((a, b) => b.score - a.score) : withScores
 }
 
-/** The board's setlist label: mode and position, without calling a question a round. */
 export function setlistPosition(state: Pick<State, 'setlist' | 'games'>): string | null {
   const list = state.setlist
   const block = list?.blocks[list.at]
@@ -104,11 +76,9 @@ export function setlistPosition(state: Pick<State, 'setlist' | 'games'>): string
   return `${mode} · ${position} · Question ${list.done + 1}/${block.count}`
 }
 
-/** A player's name, or '?' for an id no longer in the room. */
 export const playerName = (state: State, playerId: string) =>
   state.players.find((player) => player.id === playerId)?.name ?? '?'
 
-/** The identity colour of the thing a buzz scores for. */
 export function colorForPlayer(state: State, playerId: string): string {
   const team = state.grouping === 'teams'
     ? state.teams.find((t) => t.id === state.players.find((p) => p.id === playerId)?.teamId)
@@ -116,7 +86,6 @@ export function colorForPlayer(state: State, playerId: string): string {
   return team?.color ?? colorFor(playerId)
 }
 
-/** Locked-out score keys as the names the room recognises. */
 export function lockedNames(state: State): string[] {
   return state.round.lockedOut.map(
     (k) =>
@@ -126,25 +95,10 @@ export function lockedNames(state: State): string[] {
   )
 }
 
-/** Who a duel may seat: connected, and on a team when the game has them. */
 export function eligibleForDuel(state: State) {
   return state.players.filter((p) => p.connected && (state.grouping !== 'teams' || !!p.teamId))
 }
 
-/**
- * The pair a `votes` duel would seat if the host closed the window right now.
- *
- * Same ranking and one-per-team logic as `resolveDuel` in server/duel.ts,
- * duplicated here for display only — the actual seat is still decided
- * server-side when the host closes, and this never mutates anything. It lives
- * in one place because two surfaces predict it: the host desk highlights the
- * pair it would seat, and the board marks the same names for the room. Those
- * two disagreeing is worse than either being wrong.
- *
- * Null for every rule that does not resolve by votes. A random draw genuinely
- * has no leader, and lighting up the two loudest names would promise the room
- * an outcome the coin is about to ignore.
- */
 export function willSeat(state: State): [ScoreKey, ScoreKey] | null {
   const duel = state.duel
   const rule = state.duelRules.find((r) => r.id === duel?.rule)
@@ -164,20 +118,12 @@ export function willSeat(state: State): [ScoreKey, ScoreKey] | null {
   return second ? [first, second] : null
 }
 
-/**
- * A pack as a picker names it: with what its next read costs on a paid voice,
- * so a bill is never a surprise. A free voice leaves the name bare.
- */
 export function packLabel(state: State, pack: string): string {
   const cost = state.packCost[pack]
   if (cost === undefined) return pack
   return cost ? `${pack} — ~${credits(cost)} credits` : `${pack} — paid`
 }
 
-/**
- * Characters to credits. ponytail: the rate v3 billed on this account in
- * testing; an estimate, and it moves with the plan.
- */
 export function credits(chars: number): string {
   return Math.round(chars * 0.55).toLocaleString()
 }
@@ -188,7 +134,6 @@ export function ordinal(n: number): string {
   return `${n}${suffix}`
 }
 
-/** Scored rows first, highest score on top; unscored rows keep the minigame's order. */
 export const sortHostRows = (rows: HostRow[]) =>
   [...rows].sort((a, b) => a.score === undefined || b.score === undefined
     ? Number(a.score === undefined) - Number(b.score === undefined)

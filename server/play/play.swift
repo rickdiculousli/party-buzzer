@@ -1,12 +1,3 @@
-// Play a clip, optionally from part way in.
-//
-// `afplay` cannot seek, and it did not need to while every fragment was its own
-// clip: an interruption killed the clip and the fragment played again from its
-// start. A question read as one breath is one clip, so every resume after a
-// pause or a buzz is a seek into the middle of it.
-//
-// Built by swiftc at server boot; see speech.ts. Without it playback falls back
-// to `afplay` and a resume starts the question over.
 import AVFoundation
 import Foundation
 
@@ -28,8 +19,6 @@ guard player.play() else {
     exit(1)
 }
 
-// The caller times the reveal off this line, not off the spawn: process start
-// is tens of milliseconds and the board must never run ahead of the voice.
 FileHandle.standardOutput.write("playing\n".data(using: .utf8)!)
 
 while player.isPlaying {

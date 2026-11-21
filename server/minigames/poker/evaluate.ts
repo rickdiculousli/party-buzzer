@@ -1,7 +1,6 @@
 import type { Card } from '../../../shared/protocol.ts'
 import { rankOf } from './cards.ts'
 
-/** `score` compares lexicographically: category first, then tiebreak ranks high to low. */
 export type Scored = { score: number[]; category: number; name: string; five: Card[] }
 
 const ONE = ['two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'jack', 'queen', 'king', 'ace']
@@ -15,7 +14,6 @@ export function compare(a: number[], b: number[]): number {
   return 0
 }
 
-/** The top rank of a straight in these five distinct ranks, or -1. The wheel's top is the five. */
 function straightTop(ranks: number[]): number {
   const set = new Set(ranks)
   if (set.size !== 5) return -1
@@ -43,7 +41,6 @@ function scoreFive(five: Card[]): number[] {
   const ranks = five.map(rankOf)
   const flush = new Set(five.map((card) => card[1])).size === 1
   const top = straightTop(ranks)
-  // Group ranks by count, bigger groups first, then higher ranks.
   const counts = new Map<number, number>()
   for (const rank of ranks) counts.set(rank, (counts.get(rank) ?? 0) + 1)
   const groups = [...counts].sort((a, b) => b[1] - a[1] || b[0] - a[0])
@@ -60,7 +57,6 @@ function scoreFive(five: Card[]): number[] {
   return [0, ...byGroup]
 }
 
-/** The best five of five to seven cards. */
 export function best(cards: Card[]): Scored {
   let top: { score: number[]; five: Card[] } | null = null
   for (const five of fives(cards)) {

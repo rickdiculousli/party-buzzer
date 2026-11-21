@@ -1,19 +1,10 @@
 import type { Refusal } from './legality.ts'
 
 export type PlayerId = string
-/** A playing card: rank from `23456789TJQKA`, then suit from `shdc`, e.g. `As`, `Td`. */
 export type Card = string
 export type TeamId = string
-/** Scores key on team id in a teams grouping, player id in solo. */
 export type ScoreKey = string
 
-/**
- * Arming is scheduled this far ahead instead of taking effect on arrival, so
- * every surface opens at the same real instant however late its packet lands.
- * Long enough to cover LAN jitter, short enough that the host never waits.
- * Part of the wire contract: clients count down to `round.armedAt` and use this
- * as the ceiling on how long that countdown can possibly be.
- */
 export const ARM_DELAY_MS = 300
 
 export type Role = 'player' | 'host' | 'board'
@@ -33,264 +24,119 @@ export type Team = {
   color: string
 }
 
-/** One resolved buzz. `at` is server-domain ms; `deltaMs` is ms behind first place. */
 export type BuzzEntry = {
   playerId: PlayerId
   name: string
   at: number
   deltaMs: number
-  /** Only on a phone's own projected entry; rounded margins can tie. */
   leader?: boolean
 }
 
-/**
- * How long buzzes are collected after the first one lands, before the order
- * is published. One window, one second: inputs coalesce within it and the
- * clamped press time alone decides the order, so a slow phone carrying an
- * early stamp still wins. Nothing is revealed to the room until it closes.
- */
 export const COLLECT_MS = 1000
 
-/** How often the server checks each socket and tells it the link is alive. */
 export const BEAT_MS = 2000
-/** Beats either end misses before it calls the socket dead: long enough to ride out a phone's WiFi stall. */
 export const BEAT_MISSES = 3
 
 export type Award = { name: string; points: number; penalty?: true }
 
-/**
- * Was this verdict a miss? True for every wrong answer, including the host's
- * "Wrong, no penalty" — a deduction of zero is still a deduction.
- *
- * The `points < 0` half is for an award a module stamped without the flag; the
- * flag is what makes a zero-point miss readable at all.
- */
 export function isPenalty(award: Award | undefined): boolean {
   return !!award && (award.penalty === true || award.points < 0)
 }
 
 export type Round = {
-  /** Stable through rebounds; empty when no question is in progress. */
   questionId: string
-  /** A new identity for every arm, rebound, or restored attempt. */
   attemptId: string
   value: number
   phase: Phase
   armedAt: number
-  /** Full list for host/board. Redacted to the recipient's own entry for players. */
   order: BuzzEntry[]
-  /** How many buzzed in total, so a redacted player still sees "2 of 5". */
   total: number
-  /** Score keys barred from this round after a wrong answer. */
   lockedOut: ScoreKey[]
-  /** The only players who may buzz this round. Set by a duel; absent = open. */
   buzzable?: PlayerId[]
-  /**
-   * Set when a question has been scored, and cleared when the next one starts.
-   * The board keeps the result up for as long as this is here — the payoff
-   * needs to outlive the button press that caused it. A wrong answer stamps a
-   * penalty, and it rides the rebound that follows.
-   *
-   * `penalty` is which verdict happened, not how much it cost. Carrying both on
-   * the sign is wrong at exactly one value: a no-penalty wrong is a penalty of
-   * zero, and reading it off `points` makes it a payoff of zero instead, so the
-   * miss vanishes from the wall. `-0` does not survive the trip (`State` is
-   * JSON, and `JSON.stringify(-0)` is `"0"`), so the fact is a field. Use
-   * `isPenalty`, never the sign.
-   */
   award?: Award
-  /**
-   * The judge's offer to the locked-in leader. Present means push-to-talk is
-   * live; `until` is the server-domain deadline, absent means the host ends a
-   * stall by hand. Swept with the next arm; ended by any verdict.
-   */
   judge?: { until?: number }
-  /**
-   * What the locked-in player said and how it scored. Kept through a rebound —
-   * the room heard it — and cleared on the next arm.
-   */
   spoken?: { name: string; transcript: string; hit: boolean }
-  /**
-   * A miss is on the board and its rebound has not opened yet. Set only when
-   * the reader is driving, cleared by the `rebound` that opens it.
-   *
-   * The phase stays `LOCKED` while this is true, which is already "nobody may
-   * buzz" everywhere it matters, and `order` is emptied — so there is no leader
-   * for the judge to re-offer its window to either.
-   */
   held?: boolean
-  /** Question text revealed so far, in order. Stripped from player views. */
   fragments?: string[]
-  /**
-   * The whole question, sent at the arm so the board can lay it out before a
-   * word of it is spoken — the revealed prefix is `fragments.join(' ')`, and
-   * what is past that renders invisible rather than absent, which is what stops
-   * every line reflowing as the next clause lands.
-   *
-   * Never reaches a player. `viewFor` strips it unconditionally, including when
-   * `mirrorFragments` is on: the mirror is a record of what the room has
-   * already heard, and this is the opposite of that.
-   */
   whole?: string
-  /** URL of the question's picture, sent at the arm. Players see it only with the mirror on. */
   image?: string
-  /** Revealed after scoring, if a question pack supplied one. Stripped from player views. */
   answer?: string
-  /** How the question is put to the room. Absent = read aloud and revealed as it is spoken. */
   kind?: QuestionKind
-  /** A choice question's options, published once the question has been read. Every role sees them. */
   choices?: string[]
-  /**
-   * Server-time end of the room's window: picking on a choice question, set
-   * when the voice finishes the options; or, under autoplay, the buzz window
-   * after the voice finishes a spoken question.
-   */
   closesAt?: number
-  /** Each player's pick, by index. Host and board see all; a phone sees its own. */
   picks?: Record<PlayerId, number>
-  /** The right option, set when picking closes. Its presence is what "revealed" means. */
   correct?: number
-  /**
-   * A closest question's window, published once the question has been read:
-   * the unit the phones' pad shows, and the server-time end of guessing.
-   */
   guessing?: { unit?: string; closesAt: number; plain?: true }
-  /** Each player's number on a closest question. Host and board see all; a phone sees its own. */
   guesses?: Record<PlayerId, number>
-  /**
-   * A closest question's answer and what it paid, set when guessing closes.
-   * `truth`'s presence is what "revealed" means. `paid` names only players who
-   * scored. Every role sees both: the board puts them all on the wall.
-   */
   truth?: number
   paid?: Record<PlayerId, number>
-  /** How far the nearest guess was, set with `truth`, so a phone that scored can tell first place from second. */
   nearest?: number
-  /** How many guessed, set with `truth`: every surface times the reveal from it (`closestTimes`). */
   guessed?: number
-  /**
-   * A picture reveal's clock, set at the arm: the board's mosaic sharpens from
-   * `from` to `until` (server time), and the value on offer decays with it
-   * (`revealValue`). A leader's press holds the picture; a miss keeps it held
-   * at `heldAt` until the rebound opens and resumes it from there.
-   */
   reveal?: Reveal
 }
 
-/** Server times. `heldAt` is set only between a miss and its rebound. */
 export type Reveal = { from: number; until: number; heldAt?: number }
 
-/**
- * Absent = read aloud. `closest` is the room typing a number; the nearest takes
- * it. `reveal` is a picture that sharpens on the board while an early buzz pays more.
- */
 export type QuestionKind = 'shown' | 'choice' | 'closest' | 'reveal'
 
-/** The active game mode. `id` names a registered module; the rest is its data. */
 export type GameState = {
   id: string
-  /** Values for the module's declared option schema, defaults filled. */
   options: Record<string, unknown>
-  /** Opaque to the framework; the module owns and interprets it. */
   moduleState: unknown
-  /** Derived by the module for the host; never persisted or sent to phones. */
   status?: ModeStatus
 }
 
 export type ModeStatus = { label: string; tone: 'active' | 'inactive' }
 
-/**
- * A mode option, declared as data so the host settings form needs no per-mode
- * code. `label` is a sentence-case name; `hint` is the reason or the unit, shown
- * under it.
- */
 export type OptionSpec =
   | { kind: 'int'; key: string; label: string; hint?: string; default: number; min: number; max: number }
   | { kind: 'bool'; key: string; label: string; hint?: string; default: boolean }
   | { kind: 'choice'; key: string; label: string; hint?: string; default: string; choices: string[] }
 
-/** One registered mode, for the host's settings form. Ships in the state payload. */
 export type GameInfo = { id: string; name: string; options: OptionSpec[]; scoreless?: boolean }
 
-/** A nomination pool entry. `votes` holds voter ids, not a count — one vote per player falls out of the shape. */
 export type DuelPoolEntry = {
   playerId: PlayerId
   votes: PlayerId[]
-  /** Volunteered and not backed off. */
   in: boolean
 }
 
-/** A duel being set up or played. Rides State, so snapshot/undo/broadcast come free. */
 export type DuelState = {
-  /** Id into the duelRules catalog. */
   rule: string
   pool: DuelPoolEntry[]
-  /** The seated pair, once the host closes the window (or an instant rule resolves). */
   seated?: [PlayerId, PlayerId]
-  /** Seated players who answered wrong this question — drives the exclusive rebound. */
   missed: PlayerId[]
 }
 
-/** One selection rule, declared as data so the host rule picker needs no per-rule code. */
 export type DuelRuleInfo = {
   id: string
   name: string
-  /** How players enter the pool; 'none' = host-pick / random. */
   entry: 'vote' | 'volunteer' | 'both' | 'none'
-  /** How the pool narrows to two; 'host' = the host seats explicitly. */
   resolve: 'votes' | 'random' | 'host'
 }
 
-/**
- * A live item effect. Stamped with the arm it belongs to when the question
- * opens; swept on the next arm, so nothing leaks across questions.
- */
 export type ActiveEffect = {
   kind: 'frozen' | 'steal'
   playerId: PlayerId
   attemptId?: string
 }
 
-/** One stretch of the night: N questions of one mode, optionally as duels. */
 export type SetlistBlock = {
-  /** Module id, into the same catalog the host settings form renders from. */
   game: string
-  /** Values for that module's option schema; sanitized when applied. */
   options: Record<string, unknown>
-  /** Questions in this block. */
   count: number
-  /** Pack the reader takes them from. Absent = nothing to read; you read it. */
   pack?: string
-  /** Round value for the block. Absent = leave whatever the host set. */
   value?: number
-  /** Duel rule id, opened before every question in the block. */
   duel?: string
 }
 
-/**
- * The setlist and where the room is in it. Rides State, so snapshot, undo and
- * broadcast come free — the same bargain `duel` and `items` take.
- */
 export type SetlistState = {
   blocks: SetlistBlock[]
-  /** Index of the running block. Equals blocks.length when the setlist is spent. */
   at: number
-  /** Questions gone by inside the current block. */
   done: number
-  /**
-   * Server time the setlist was spent, re-stamped by a jump to its end. The
-   * board and the phones read the finale's step from it, so a reload or a
-   * restart shows the settled finale rather than replaying the ceremony. An
-   * older disk file has none: that finale counts as settled.
-   */
   spentAt?: number
 }
 
-/**
- * Private pack progress for host and board. The public `readingActive` fact
- * tells every screen whether the reader drives the question. Neither is saved
- * or restored by undo; the reader owns playback and stops on restoration.
- */
 export type ReadingState = {
   pack: string
   qIndex: number
@@ -298,22 +144,15 @@ export type ReadingState = {
   fragIndex: number
   fragTotal: number
   paused: boolean
-  /** Present only while a freshly selected pack is being synthesised. */
   rendering?: { done: number; total: number }
 }
 
 export type ReadingUpdate = { progress: ReadingState; active: boolean }
 
-/** A solo crew uses the same player for both roles. */
 export type TankCrew = { id: string; driver: PlayerId; gunner: PlayerId }
 
 export type MinigameId = 'bow' | 'tank' | 'ink' | 'sketch' | 'poker' | 'tug'
 
-/**
- * Each minigame's host-settable options, as the same schema the modes ship.
- * The runtime sanitizes against it and the host renders its form from it, so a
- * new option is one line here.
- */
 export const MINIGAME_OPTIONS: Record<MinigameId, Extract<OptionSpec, { kind: 'int' }>[]> = {
   bow: [
     { kind: 'int', key: 'durationSec', label: 'Time limit', hint: 'Seconds', default: 40, min: 5, max: 180 },
@@ -339,21 +178,15 @@ export const MINIGAME_OPTIONS: Record<MinigameId, Extract<OptionSpec, { kind: 'i
 
 export const isMinigameId = (id: string): id is MinigameId => Object.hasOwn(MINIGAME_OPTIONS, id)
 export type MinigamePhase = 'ready' | 'countdown' | 'playing' | 'results'
-/** `place` is a finishing place, for a minigame that ranks rather than scores. */
 export type MinigameResult = { playerId: PlayerId; points: number; shots: number; place?: number }
 
-/** One betting round of a poker hand. */
 export type PokerStreet = 'preflop' | 'flop' | 'turn' | 'river'
-/** The deal's rhythm, ms: a beat between pitches, a longer one before the second card goes round. */
 export const POKER_DEAL = { gapMs: 260, roundMs: 750 }
-/** When the last card of a deal to `seats` players leaves the dealer's hand. */
 export const pokerDealSpan = (seats: number) => (seats * 2 - 2) * POKER_DEAL.gapMs + POKER_DEAL.roundMs - POKER_DEAL.gapMs
 export type ReactKind = 'nice' | 'ouch' | 'bluff' | 'wow'
 export const REACT_LABEL: Record<ReactKind, string> = { nice: 'Nice hand', ouch: 'Ouch', bluff: 'Bluff?', wow: 'Wow' }
-/** A fold's flick: a unit direction (y grows downward) and a speed from 0 to 1. */
 export type PokerFlick = { dx: number; dy: number; speed: number }
 export type PokerFeedKind = 'blind' | 'fold' | 'check' | 'call' | 'bet' | 'raise' | 'allIn' | 'show' | 'win' | 'bust' | 'level'
-/** One line of the table's action feed. `id` rises, so a surface animates each entry once. */
 export type PokerFeedEntry = {
   id: number
   player: PlayerId | null
@@ -361,12 +194,9 @@ export type PokerFeedEntry = {
   amount?: number
   flick?: PokerFlick
   auto?: true
-  /** The winning hand's name. A bust carries its place in `amount`, a level its big blind. */
   hand?: string
 }
-/** One pot's result at a showdown. */
 export type PokerPotResult = { winners: PlayerId[]; name: string; five: Card[]; amount: number }
-/** `canAllIn` is false when going all in would be a raise this player may not make. */
 export type PokerLegal = { canCheck: boolean; call: number; canRaise: boolean; canAllIn: boolean; minTo: number; maxTo: number }
 export type PokerPhase = 'deal' | 'bet' | 'reveal' | 'runout' | 'showdown' | 'muck' | 'over'
 
@@ -386,14 +216,11 @@ export type PokerSeatView = {
   folded: boolean
   allIn: boolean
   busted: boolean
-  /** The finishing place once out, else null. */
   place: number | null
   away: boolean
-  /** Only once the cards are face up. */
   cards: [Card, Card] | null
 }
 
-/** What the board sees, and every phone underneath its private fields. */
 export type PokerShared = {
   phase: PokerPhase
   street: PokerStreet
@@ -401,14 +228,11 @@ export type PokerShared = {
   board: Card[]
   pots: number[]
   actor: PlayerId | null
-  /** Server time the actor's shot clock runs out. */
   actBy: number | null
   handNo: number
   sb: number
   bb: number
-  /** Server time the blinds next rise. */
   nextLevelAt: number
-  /** Win share per hand while a runout deals. */
   equity: Record<PlayerId, number> | null
   runout: boolean
   showdown: PokerPotResult[] | null
@@ -418,27 +242,21 @@ export type PokerShared = {
 
 export type PokerPrivate = {
   hole: [Card, Card] | null
-  /** Null when it is not this player's turn. */
   legal: PokerLegal | null
   canShow: boolean
-  /** Set once this player is out. */
   place: number | null
 }
 
 export type InkTeamName = 'sun' | 'moon'
 
-/** 1-based rows with the peek mark. */
 export const INK_PEEK_ROWS: Record<InkTeamName, number[]> = { sun: [4, 6, 7], moon: [3, 5, 6] }
-/** Row-normalized stroke points may run past the row by this much; the board clips them. */
 export const INK_REACH = { min: -1, max: 2 }
 
-/** Both ends round strokes the same way, so a phone's own ink lands where the server puts it. */
 export function quantizePoint(x: number, y: number): InkPoint {
   const q = (n: number) => Math.round(Math.min(INK_REACH.max, Math.max(INK_REACH.min, n)) * 1000) / 1000
   return [q(x), q(y)]
 }
 
-/** Ink and Sketch strokes both arrive as at most this many points. */
 export const MAX_STROKE_POINTS = 500
 
 export function validPoints(points: unknown): points is InkPoint[] {
@@ -449,7 +267,6 @@ export function validPoints(points: unknown): points is InkPoint[] {
 export type MinigameLobby = {
   teams: Record<PlayerId, InkTeamName>
   volunteers: PlayerId[]
-  /** Players who tapped Ready; autoplay starts the match when every connected player has. */
   ready: PlayerId[]
 }
 
@@ -465,30 +282,23 @@ export type MinigameState = {
   id: MinigameId
   matchId: string
   phase: MinigamePhase
-  /** The runtime owns duration and seed; each minigame adds its own numeric options. */
   options: { durationSec: number; seed: number } & Record<string, number>
   participants: PlayerId[]
   startsAt?: number
   endsAt?: number
   results?: MinigameResult[]
-  /** Tank crews for the current match. Reshuffled on every start. */
   crews?: TankCrew[]
-  /** Team picks made during ready. Kept across cancel. */
   lobby?: MinigameLobby
-  /** Where a long minigame picks up after a stop or a restart. Kept across cancel; dropped by results. */
   checkpoint?: MinigameCheckpoint
-  /** The definition's lines for the host desk; `until` is a server time to count down to. */
   status?: { text: string; until?: number }[]
 }
 
-/** `data` stays on the server: views carry only the version and label. */
 export type MinigameCheckpoint = { version: number; label: string; data?: unknown }
 
 export type BowInput =
   | { kind: 'aim'; angle: number; tension: number }
   | { kind: 'release'; at: number }
 
-/** One tap on the rope handle. */
 export type TugInput = { kind: 'pull' }
 
 export type TankInput =
@@ -503,65 +313,46 @@ export type InkPoint = [number, number]
 
 export type InkInput =
   | { kind: 'pickWord'; index: number; at: number }
-  /** An empty choice clears the vote. */
   | { kind: 'vote'; choice: string; at: number }
   | { kind: 'force'; at: number }
   | { kind: 'keep'; prompt: number; at: number }
-  /** The stroke in progress, repeated while drawing. */
   | { kind: 'ink'; points: InkPoint[] }
   | { kind: 'stroke'; points: InkPoint[]; at: number }
   | { kind: 'undo'; at: number }
   | { kind: 'stop'; at: number }
   | { kind: 'done'; at: number }
   | { kind: 'endClue'; at: number }
-  /** One letter of the guess, checked against the secret word the moment it arrives. */
   | { kind: 'letter'; value: string; at: number }
 
 export type SketchStep = 'choosing' | 'drawing' | 'reveal' | 'over'
-/** How a turn ended: everyone guessed it, the draw time ran out, or the drawer passed. */
 export type SketchEnd = 'all' | 'timeup' | 'pass'
-/** A wrong guess. `seq` rises across the match, so a trimmed feed still shows what is new. */
 export type SketchMiss = { seq: number; player: PlayerId; text: string }
-/** A correct guess and its time since the drawing started. */
 export type SketchCorrect = { seq: number; player: PlayerId; ms: number }
 
-/** What the board sees, and every phone underneath its private fields. */
 export type SketchShared = {
   step: SketchStep
   drawer: PlayerId
-  /** 0-based. */
   turn: number
   turns: number
-  /** The word with each hidden letter or digit as `_`; empty while choosing. */
   blanks: string
-  /** Present when they changed and once a second. */
   strokes?: InkStrokeView[]
   live: InkPoint[] | null
-  /** Server time the current step ends. */
   endsAt: number
-  /** The latest wrong guesses, oldest first. */
   misses: SketchMiss[]
-  /** Fastest first. */
   correct: SketchCorrect[]
   end: SketchEnd | null
-  /** This match's points so far, one entry per participant. */
   scores: Record<PlayerId, number>
-  /** At the reveal for everyone; sooner for the drawer and for anyone who guessed it. */
   word: string | null
 }
 
 export type SketchPrivate = {
-  /** The drawer's three words while choosing. */
   choices: string[]
-  /** Close guesses this turn; the phone flashes Close! when it rises. */
   close: number
-  /** Stroke, undo and clear inputs processed from this phone. */
   inkOps: number
 }
 
 export type SketchInput =
   | { kind: 'pickWord'; index: number; at: number }
-  /** The stroke in progress, repeated while drawing. */
   | { kind: 'ink'; points: InkPoint[] }
   | { kind: 'stroke'; points: InkPoint[]; at: number }
   | { kind: 'undo'; at: number }
@@ -600,35 +391,26 @@ export type BowFrameArrow = {
   tailKick: number
 }
 
-/** A Tug half of the room. A team name and colour when the side is exactly one team. */
 export type TugSide = { name: string; color: string; members: PlayerId[] }
 
 export type TugShared = {
   sides: [TugSide, TugSide]
-  /** The flag: -1 is side 0's mark, 1 is side 1's mark, 0 the centre. */
   flag: number
-  /** Each side's pull this frame, per connected member, 0 to about 1. */
   effort: [number, number]
-  /** Server time the rope stops. */
   endsAt: number
-  /** The side that won, null for a draw, absent while pulling. */
   winner?: 0 | 1 | null
 }
 
 type FrameBase<Id extends MinigameId> = { id: Id; matchId: string; tick: number; serverTime: number }
 
-/** One line of the host's match desk: a player, crew or team, with its score and a word for its state. */
 export type HostRow = { players: PlayerId[]; score?: number; word?: string }
 
 export type TankFrameTank = {
   id: string
   crew: TankCrew
   position: { x: number; y: number }
-  /** Radians, 0 = +x, clockwise. */
   hull: number
-  /** Radians relative to the hull. */
   turret: number
-  /** Absolute heading the driver is steering toward. */
   hullTarget: number | null
   hp: number
   dead: boolean
@@ -636,7 +418,6 @@ export type TankFrameTank = {
   score: number
 }
 
-/** `reloadUntil` is server time; the weapon is reloading while now is before it. */
 export type TankFrameWeapon = { clip: number; size: number; reloadUntil: number; reloadMs: number }
 
 export type MinigameFrame =
@@ -651,13 +432,10 @@ export type MinigameFrame =
   | (FrameBase<'tank'> & {
       role: 'board'
       field: { width: number; height: number }
-      /** One '0'/'1' digit per cell, row-major; present on the first frame and once a second. */
       cover?: string
-      /** Cells cleared since the previous frame. */
       coverChanged: number[]
       tanks: TankFrameTank[]
       projectiles: { id: string; weapon: 'gun' | 'cannon'; position: { x: number; y: number } }[]
-      /** Explosions since the previous frame. */
       blasts: { position: { x: number; y: number }; radius: number; weapon: 'gun' | 'cannon' }[]
     })
   | (FrameBase<'tank'> & {
@@ -683,9 +461,7 @@ export type InkRowView = {
   strikes: [number, number][]
   ended: boolean
   won?: true
-  /** Guess rows are typed, not drawn. */
   letters: string[]
-  /** The last letter missed the secret word. */
   wrong?: true
 }
 export type InkRoster = Record<InkTeamName, { writer: PlayerId; guessers: PlayerId[] }>
@@ -706,13 +482,10 @@ export type InkShared = {
   turn: InkTeamName
   row: number
   step: InkStepView
-  /** Present when the pad changed, and once a second. */
   pad?: Record<InkTeamName, InkRowView[]>
   live: { player: PlayerId; team: InkTeamName; row: number; points: InkPoint[] }[]
-  /** Discarded prompts, by the team that threw them away. */
   discard: Record<InkTeamName, string[]>
   deck: number
-  /** Revealed to everyone once the game is over. */
   secret: string | null
 }
 
@@ -720,48 +493,30 @@ export type InkCardView = { id: number; text: string }
 
 export type InkPrivate = {
   me: { team: InkTeamName; role: 'writer' | 'guesser' }
-  /** Guessers only. */
   hand: InkCardView[]
-  /** The own team's votes. */
   votes: { player: PlayerId; choice: string }[]
   asked: string[]
-  /** The two prompts in play: during keep for the team, then the kept one. */
   offered: InkCardView[]
   kept: string | null
-  /** Writers see the secret word and, while choosing, the word card and picks. */
   wordCard: string[]
   picks: Partial<Record<InkTeamName, number>>
   canUndo: boolean
-  /** Stroke and undo inputs the server has processed from this player. */
   inkOps: number
 }
 
-/**
- * The opening of a game night: a lobby where joined players test their
- * buzzers, or the introduction to a block of the setlist (the first on a fresh
- * start; any block entered under autoplay). `blockKey` names the block's
- * position and content and survives an undo restore, which changes `id`. Every entry
- * gets a fresh id, so a control or receipt from an older arrival cannot act on
- * a newer one. Runtime only: undo keeps an introduction, never a lobby, and
- * neither reaches disk.
- */
 export type Arrival =
   | { kind: 'lobby'; id: string; testedPlayerIds: PlayerId[] }
   | { kind: 'introduction'; id: string; blockAt: number; blockKey: string }
 
-/** The server's echo of one accepted practice press. `seq` rises within a lobby. */
 export type PracticeReceipt = {
   lobbyId: string
   seq: number
   playerId: PlayerId
 }
 
-/** The quiz room's four words, for the phones locked out while one player answers. Poker keeps its own. */
 export type QuizReactKind = 'ooh' | 'noway' | 'tooslow' | 'legend'
 export const QUIZ_REACT_LABEL: Record<QuizReactKind, string> = { ooh: 'Ooh', noway: 'No way', tooslow: 'Too slow', legend: 'Legend' }
-/** One reaction per player this often; the phone dims its row for the same span. */
 export const REACT_COOLDOWN_MS = 3000
-/** The server's relay of one accepted reaction, to boards only. `seq` rises for the room's life. */
 export type ReactionReceipt = {
   questionId: string
   seq: number
@@ -769,34 +524,22 @@ export type ReactionReceipt = {
   kind: QuizReactKind
 }
 
-/**
- * Autoplay: the two beats a human host provides by instinct and the reader
- * otherwise waits on forever. `on` only removes keypresses — the host still
- * judges, unless the spoken-answer judge is doing that too.
- */
 export type Autoplay = {
   on: boolean
-  /** Seconds the answer sits on the wall before the next question is armed. */
   nextSec: number
-  /** Seconds the buzzers stay open after the read before nobody has it. */
   buzzSec: number
-  /** Seconds of silence after a wrong answer before the clue picks back up. */
   reboundSec: number
-  /** Seconds an introduction holds the room before it dismisses itself. */
   introSec: number
 }
 
-/** One thing that happened tonight. Appended by the Hub on applied actions and minigame completions; never edited. */
 export type NightFact =
   | {
       kind: 'verdict'; at: number; questionId: string; block?: number
       playerId: PlayerId; key: ScoreKey; name: string
       points: number; hit: boolean
-      /** Buzz verdicts only: ms from the buzzers opening to the leader's press, and ms ahead of the next buzz (absent when alone). */
       reactionMs?: number; marginMs?: number
       source: 'buzz' | 'choice' | 'closest'
     }
-  /** The standings whenever their key order changed or first place stopped being shared (and on the first applied action). Top-of-standings changes and comebacks derive from these. */
   | { kind: 'standings'; at: number; questionId?: string; matchId?: string; order: { key: ScoreKey; score: number }[] }
   | {
       kind: 'minigame'; at: number; id: MinigameId; matchId: string; block?: number
@@ -813,56 +556,26 @@ export type State = {
   scores: Record<ScoreKey, number>
   round: Round
   game: GameState
-  /** Item ids per player; duplicates mean a count. */
   items: Record<PlayerId, string[]>
   effects: ActiveEffect[]
-  /** Static module catalog. The hub refreshes it at startup; snapshots keep a stale copy harmlessly. */
   games: GameInfo[]
-  /** A duel in setup or play. Absent = today's game. */
   duel?: DuelState
-  /** Static rule catalog. Refreshed at startup beside `games`. */
   duelRules: DuelRuleInfo[]
-  /** The setlist, if the host built one. Absent = the host is driving freehand. */
   setlist?: SetlistState
-  /** Saved setlist filenames on disk. Filenames only, like `packs`. */
   setlists: string[]
-  /** Pack filenames on disk. Filenames only — question content never enters State. */
   packs: string[]
-  /** Questions per pack. A count is not content, and the builder needs it. */
   packSizes: Record<string, number>
-  /**
-   * Characters per pack that a paid voice has not rendered yet — what its next
-   * read will be billed for. 0 is paid for. Empty when the voice is free.
-   */
   packCost: Record<string, number>
-  /** Whether players see round.fragments. Off for quizbowl: reading a whole
-   *  sentence at its start beats hearing it word by word. */
   mirrorFragments: boolean
-  /** Seconds a locked-in player has to speak before silence scores wrong. 0 = no timeout. */
   answerWindowSec: number
-  /** Seconds of picking after the voice has read a choice question's options, or of guessing on a closest one. */
   choiceSec: number
-  /** Seconds a picture reveal takes to go from mosaic to sharp. */
   revealSec: number
-  /** Hands-off reading: the reader supplies its own N and paces the beats. */
   autoplay: Autoplay
-  /** Public gameplay fact, independent of private pack progress. */
   readingActive: boolean
   reading?: ReadingState
-  /**
-   * A question the host typed for the wall, read from paper rather than a pack.
-   * The clue while no reader is putting one up; Next and a starting reader
-   * clear it. Runtime: neither undo nor disk, and phones get it only with the mirror.
-   */
   typed?: string
-  /** Durable lifecycle only. The live world travels in role-specific frames. */
   minigame?: MinigameState
-  /** A lobby or first-block introduction covering the room. */
   arrival?: Arrival
-  /**
-   * What happened since the room was last cleared. Optional only because a
-   * phone's view omits it; `newState` and `loadState` always set it.
-   */
   night?: Night
 }
 
@@ -874,9 +587,7 @@ export type HostAction =
   | { a: 'setRevealTime'; sec: number }
   | { a: 'correct' }
   | { a: 'wrong'; neg: number }
-  /** The buzzers were open and nobody took the question: shut them and keep it up for its answer. */
   | { a: 'timeUp' }
-  /** Opens a rebound the miss is still holding. No-op if none is held. */
   | { a: 'rebound' }
   | { a: 'next' }
   | { a: 'resetRound' }
@@ -889,16 +600,12 @@ export type HostAction =
   | { a: 'setGrouping'; grouping: Grouping }
   | { a: 'addTeam'; name: string; color: string }
   | { a: 'assign'; playerId: PlayerId; teamId?: TeamId }
-  /** `keepScores` is the setlist crossing a block boundary; a host switch resets. */
   | { a: 'setMode'; id: string; options: Record<string, unknown>; keepScores?: boolean }
   | { a: 'setMirror'; on: boolean }
-  /** The whole quadruple every time: one edit, one undo step, no partial merge. */
   | { a: 'setAutoplay'; on: boolean; nextSec: number; buzzSec: number; reboundSec: number; introSec: number }
   | { a: 'openDuel'; rule: string }
-  /** ids = host override (and the only path for resolve:'host' rules); absent = resolve by rule. */
   | { a: 'closeDuel'; playerIds?: [PlayerId, PlayerId] }
   | { a: 'cancelDuel' }
-  /** The builder writes the whole array: one edit, one undo step. Empty clears. */
   | { a: 'setSetlist'; blocks: SetlistBlock[] }
   | { a: 'setlistJump'; at: number }
   | { a: 'clearSetlist' }
@@ -906,11 +613,8 @@ export type HostAction =
   | { a: 'startMinigame' }
   | { a: 'cancelMinigame' }
   | { a: 'closeMinigame' }
-  /** Open the practice lobby. Runtime only: no undo step. */
   | { a: 'openLobby' }
-  /** Close the arrival with this id: a lobby without an undo step, an introduction with one. */
   | { a: 'closeArrival'; arrivalId: string }
-  /** Forget the night's ledger. A fresh party on the same room. */
   | { a: 'clearNight' }
 
 export type ClientMsg =
@@ -918,14 +622,11 @@ export type ClientMsg =
   | { t: 'ping'; t0: number }
   | { t: 'buzz'; at: number }
   | { t: 'host'; action: HostAction }
-  /** Module and item actions. Dispatched by the hub; unknown acts are dropped. */
   | { t: 'act'; act: string; data?: unknown }
   | MinigameInputMsg
   | { t: 'minigameLobby'; change: LobbyChange }
   | { t: 'minigameTouch'; matchId: string; target: string; x: number; y: number }
-  /** A buzzer test in the open lobby. Never a buzz. */
   | { t: 'practiceBuzz'; lobbyId: string }
-  /** A reaction from a phone that cannot buzz right now. Never enters State. */
   | { t: 'react'; kind: QuizReactKind }
 
 export type ServerMsg =
@@ -940,7 +641,6 @@ export type ServerMsg =
   | { t: 'practiceBuzz'; receipt: PracticeReceipt }
   | { t: 'reaction'; receipt: ReactionReceipt }
 
-/** A command outcome, distinct from the state updates it may produce. */
 export type ActionResult =
   | { status: 'applied' | 'unchanged' }
   | { status: 'refused'; reason: Refusal }

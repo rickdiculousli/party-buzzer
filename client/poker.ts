@@ -5,14 +5,8 @@ import type { Cue } from './sound.ts'
 import { dealSchedule } from './toss.ts'
 import { ordinal } from './ui.ts'
 
-/** A board or phone frame, as far as cues and wording need one. */
 export type PokerView = PokerShared & { matchId: string; serverTime: number }
 
-/**
- * Gesture thresholds, to tune on a real phone. A still touch shorter than
- * `pressMs` is a tap; longer is a press (the peek). Speeds are px/ms over the
- * last `releaseMs` of the trace.
- */
 export const GESTURE = {
   tapSlopPx: 10,
   doubleGapMs: 300,
@@ -23,27 +17,10 @@ export const GESTURE = {
   releaseMs: 80,
 }
 
-/**
- * The peek, to tune on a real phone. A hold or drag below the peek line, `line` card widths (about
- * a rank) above the pair's lowest point, on the cards or the felt, bends up the pair's bottom edge
- * where the finger holds it, both cards together, the way a pair is squeezed.
- * The bent edge is levered: it rises `lever` times as far as the finger has come up since it
- * touched, so a short drag shows a lot, and the edge runs ahead of the finger rather than under
- * it. The pull always leans `tilt` degrees up and to the left, which lifts the right corners
- * furthest, so a peek always opens on them; the finger may ease it back at most `flex` degrees
- * toward upright. It rises at most `reach` card widths, enough for both indices. It eases in
- * over `liftMs` and drops back over `dropMs`.
- */
 export const PEEK = { line: 0.25, lever: 2.5, tilt: 15, flex: 7, reach: 1.45, liftMs: 140, dropMs: 80 }
 
 export type Point = { x: number; y: number }
 
-/**
- * Where a peek pulls the held point `corner` of the bottom edge, in screen px for a card `w` wide,
- * once the finger has moved from `from` to `finger`: up `lever` times the finger's rise, at most
- * `reach`, leaning `tilt` to the left, or up to `flex` less as far as the finger leans right.
- * Null until the finger has risen, so the cards lie flat.
- */
 export function peekTip(corner: Point, from: Point, finger: Point, w: number, p = PEEK): Point | null {
   const rise = from.y - finger.y
   if (rise * p.lever < 1) return null
@@ -53,11 +30,9 @@ export function peekTip(corner: Point, from: Point, finger: Point, w: number, p 
   return { x: corner.x + lean * up, y: corner.y - up }
 }
 
-/** y grows downward, as on screen. */
 export type TracePoint = { x: number; y: number; t: number }
 export type Gesture = { kind: 'tap' | 'doubleTap' | 'flick' | 'press' | 'none'; flick?: PokerFlick }
 
-/** Names one finished touch. `prevTapEnd` is when the last tap lifted, for double taps. */
 export function classifyGesture(trace: TracePoint[], prevTapEnd: number | null, g = GESTURE): Gesture {
   if (!trace.length) return { kind: 'none' }
   const start = trace[0]
@@ -80,19 +55,12 @@ export function classifyGesture(trace: TracePoint[], prevTapEnd: number | null, 
   return { kind: 'none' }
 }
 
-/** A stable seed for one card's throw, so a re-render never re-rolls its path. */
 export const seedOf = (...parts: (string | number)[]) => {
   let h = 2166136261
   for (const ch of parts.join('|')) h = Math.imul(h ^ ch.charCodeAt(0), 16777619)
   return h >>> 0
 }
 
-/**
- * When each seat's two cards leave the dealer's hand, ms from the start of the deal:
- * clockwise from the seat left of the button, one card each, then the second.
- * The board and every phone read the same times, so a phone's cards arrive as the
- * board's dealer reaches that seat. Busted seats get none.
- */
 export function dealTimes(seats: PokerSeatView[], handNo: number): Map<number, [number, number]> {
   const buttonAt = seats.findIndex((seat) => seat.button)
   const live = seats.map((seat, i) => ({ seat, i })).filter(({ seat }) => !seat.busted)
@@ -102,55 +70,33 @@ export function dealTimes(seats: PokerSeatView[], handNo: number): Map<number, [
   return new Map(order.map((i, at) => [i, [schedule[at], schedule[order.length + at]]]))
 }
 
-/** How far off square a card comes to rest, in degrees, fixed for that card so it never moves after landing. */
 export const lie = (spread: number, ...parts: (string | number)[]) => (mulberry32(seedOf('lie', ...parts))() * 2 - 1) * spread
 
-/** A seat's hole card `k` on the board, turned this far beyond the seat's own tilt: squared up, the second a little across the first. */
 export const holeRest = (handNo: number, seat: number, k: 0 | 1) => (k ? 3 : -2) + lie(2, handNo, seat, k)
 
-/**
- * Which way a seat's pair turns over at showdown, as the board turns it (`turnUp`, toward the
- * middle along the cards' width): true for toward screen right. The phone turns its pair the
- * same way. The seat straight below the middle has the middle dead ahead, so the pair's own
- * slight tilt decides, as it does on the board.
- */
 export function showsRight(seats: number, seat: number, handNo: number): boolean {
   const at = seatPositions(seats)[seat]
   const dx = ELLIPSE.cx - at.x
   if (Math.abs(dx) > 1e-6) return dx > 0
-  // Dead ahead, the pair's width tips toward the middle by its tilt: a seat below the middle turns
-  // right when the pair leans anticlockwise, a seat above when it leans clockwise.
   const tilt = (holeRest(handNo, seat, 0) + holeRest(handNo, seat, 1)) / 2
   return at.y > ELLIPSE.cy ? tilt <= 0 : tilt >= 0
 }
 
-/** The table's oval in board-normalized units. */
 export const ELLIPSE = { cx: 0.44, cy: 0.5, rx: 0.37, ry: 0.4 }
 
-/** Seat centres around the oval: the first at bottom centre, then clockwise, which is the table's "left". */
 export function seatPositions(n: number): { x: number; y: number }[] {
   return Array.from({ length: n }, (_, i) => {
     const angle = Math.PI / 2 + (2 * Math.PI * i) / n
     const x = ELLIPSE.cx + ELLIPSE.rx * Math.cos(angle)
     const y = ELLIPSE.cy + ELLIPSE.ry * Math.sin(angle)
-    // Snap the float noise off the first seat so it lands exactly at bottom centre.
     return i === 0 ? { x: ELLIPSE.cx, y: ELLIPSE.cy + ELLIPSE.ry } : { x, y }
   })
 }
 
-/** The shot clock's last seconds tick. */
 const TICK_FROM = 5
-/** Tick from the local deadline clock; sparse state pushes do not carry countdown cues. */
 export const pokerClockCue = (before: number | null, after: number): Cue | null =>
   before !== null && after < before && after >= 1 && after <= TICK_FROM ? 'poker-tick' : null
 
-/**
- * The cues one surface plays for the change from `prev` to `next`. `who` is
- * `'board'` or the phone's player id. Room cues play on the board, a player's
- * own cues on their phone. A first frame, or one from another match, only sets
- * the baseline. Cards and chips that move sound as they move (`Piece`), so
- * only what has no motion of its own is here.
- */
 export function pokerCues(prev: PokerView | null, next: PokerView, who: 'board' | PlayerId): { cue: Cue }[] {
   if (!prev || prev.matchId !== next.matchId) return []
   const out: Cue[] = []
@@ -178,10 +124,8 @@ export function pokerCues(prev: PokerView | null, next: PokerView, who: 'board' 
   return out.map((cue) => ({ cue }))
 }
 
-/** The lobby's one-line explanation, on the board. */
 export const POKER_RULES = "No-limit Hold'em to the last stack. Flick your cards up to fold, double tap to check or call. Blinds rise on the clock."
 
-/** One feed entry as the room reads it. `nameOf` may return '' for a line without the name. */
 export function feedLine(entry: PokerFeedEntry, nameOf: (id: PlayerId) => string): string {
   const who = entry.player ? nameOf(entry.player) : ''
   switch (entry.kind) {
@@ -199,18 +143,11 @@ export function feedLine(entry: PokerFeedEntry, nameOf: (id: PlayerId) => string
   }
 }
 
-/** Raise sizes as fractions of the pot, the way players say them: the usual postflop sizes and two overbets. */
 const POT_SIZES: [number, string][] = [
   [1 / 3, '1/3 pot'], [1 / 2, '1/2 pot'], [2 / 3, '2/3 pot'], [3 / 4, '3/4 pot'], [1, 'Pot'], [1.5, '1.5× pot'], [2, '2× pot'],
 ]
-/** An unopened pot preflop is raised in big blinds instead. */
 const OPEN_SIZES: [number, string][] = [[2, '2 BB'], [2.5, '2.5 BB'], [3, '3 BB'], [4, '4 BB'], [5, '5 BB']]
 
-/**
- * The stops of the raise slider: the minimum and each standard size short of all in, which has its own
- * button. Preflop with only the blinds in, sizes are big blinds; otherwise a fraction of the pot once
- * the call is in, on top of the bet to match. Every size rounds to the small blind.
- */
 export function raiseStops(
   { minTo, maxTo, highBet, pot, call, sb, bb, unopened }:
   { minTo: number; maxTo: number; highBet: number; pot: number; call: number; sb: number; bb: number; unopened: boolean },

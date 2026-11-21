@@ -1,17 +1,3 @@
-/**
- * Hear the paid voice without starting the game.
- *
- *   npm run voice -- quizbowl-lite.txt               what's new, what's cached, how long each runs
- *   npm run voice -- quizbowl-lite.txt --go          render the new lines (spends credits)
- *   npm run voice -- quizbowl-lite.txt --play        play the performed lines: S:, R: and the quip pools
- *   npm run voice -- "[snickers] Okay. [deadpan, quick] Absolutely not." --go --play
- *   npm run voice -- quizbowl-lite.txt --html        a workbench: listen, edit, nix, note, copy feedback
- *
- * A pack's texts come from the reader itself (`textsOf`), and takes land in
- * the cache the game reads, keyed the same way. So a line rendered here is
- * already paid for when the game reaches it, and a line the game rendered
- * plays here for free. Nothing renders without `--go`.
- */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Hub } from '../server/hub.ts'
@@ -43,7 +29,6 @@ const texts = isPack
   ? new Reader(new Hub(newState(), { packDir }), {
       packDir,
       cacheDir,
-      // Only its presence matters: with an aligner a question is one utterance.
       align: async () => [],
       perform: true,
       quips,
@@ -85,11 +70,6 @@ if (fresh.length && !go) {
 }
 
 if (html) {
-  // ponytail: a static page opened from disk. Listen, edit, nix and note here;
-  // "Copy feedback" turns it into text to paste back. Nothing writes the files
-  // from the page.
-  // Every performed line that exists, every pack: S: and R: lines, then the
-  // pools. Then the drafts in draft.txt, which the game never reads.
   type Row = { id: number; kind: string; t: string; path?: string; ms?: number }
   const all: Row[] = []
   const add = (kind: string, t: string, render = true) => {

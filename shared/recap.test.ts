@@ -83,12 +83,9 @@ test('comeback: bottom half to the podium, once per key, four keys or more, rank
   const found = milestones(facts, r).filter((m) => m.kind === 'comeback')
   assert.deepEqual(found.map((m) => m.text), ['Comeback: Fay, 6th to 3rd'])
   assert.equal(found[0]!.questionId, 'q1')
-  // The card reads the best place held after the climb, which is where the night ended.
   assert.deepEqual(card(recapCards(facts, r), 'comeback-f'), { id: 'comeback-f', title: 'Comeback', name: 'Fay', detail: '6th to 1st' })
   const small = roster(['a', 'b', 'c'])
   assert.deepEqual(milestones(night(standings(['a', 'b', 'c']), standings(['c', 'a', 'b'])), small).filter((m) => m.kind === 'comeback'), [])
-  // Four keys: the podium is the top two, so 3rd place is no comeback from 4th; and an
-  // opening 0-0-0-0 ranks everyone first, so roster order alone is never "last".
   const four = roster(['a', 'b', 'c', 'd'])
   const level = (scores: number[], at?: { questionId: string }): NightFact => ({
     kind: 'standings', at: 0, ...at, order: ['a', 'b', 'c', 'd'].map((key, i) => ({ key, score: scores[i]! })).sort((x, y) => y.score - x.score),

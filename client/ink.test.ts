@@ -84,9 +84,7 @@ test('a draft keeps stroke then undo hidden until the server has processed both'
   assert.deepEqual(undone.strokes, [on(0)])
   assert.equal(draftCanUndo(undone, true), false, 'one undo per stroke')
 
-  // The server has processed the stroke but not the undo: its row shows the stroke, the draft still hides it.
   assert.equal(liveDraft(undone, 4, 20), undone)
-  // Both processed: the server row is the truth again.
   assert.equal(liveDraft(undone, 5, 30), null)
   assert.equal(draftCanUndo(liveDraft(undone, 5, 30), false), false)
 })

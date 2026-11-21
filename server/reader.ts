@@ -1,24 +1,3 @@
-/**
- * The reader: speaks a question pack aloud, fragment by fragment, and drives the
- * game in time with its own voice.
- *
- * Game actions use Hub.dispatch, the same commit path as host clicks and the
- * judge. A synthetic host connection publishes private playback progress and
- * clue text; those runtime updates do not create undo steps.
- *
- * The human host still judges. C and W on the host screen score the round as
- * always — a wrong answer re-arms for a rebound and the reader waits it out.
- *
- * Autoplay removes the keypresses either side of that judgment, not the
- * judgment: the payoff sits for `nextSec` and the reader presses N itself, a
- * rebound holds the miss for `reboundSec` with the buzzers shut and then opens
- * itself, and a question nobody
- * touched passes on its own rather than wedging the loop. With the spoken
- * judge running too, that is a pack that reads itself end to end.
- *
- * Pause holds the audio while buzzers stay live. Fragment completion follows
- * actual playback, so module rules stay in step through pauses and rebounds.
- */
 import { join as joinFragments, type Fold, type Joined } from './align.ts'
 import type { Hub, Conn } from './hub.ts'
 import { loadPack } from './packs.ts'
@@ -32,11 +11,6 @@ import { Picker, type Pools, type Verdict } from './quips.ts'
 import { isPenalty } from '../shared/protocol.ts'
 import { arrivalBlocksPlay } from '../shared/arrival.ts'
 
-/**
- * Where the fragments and clauses fall inside a clip of the whole question.
- * Injected rather than reached for, so the reader neither spawns anything nor
- * knows that finding out involves speech recognition at all.
- */
 export type Aligner = (joined: Joined, clip: Clip) => Promise<Fold[]>
 
 export type ReaderOpts = {
@@ -44,58 +18,19 @@ export type ReaderOpts = {
   cacheDir: string
   speech?: Speech
   voice?: string
-  /** The judge scores the spoken answer; absent, the host judges as always. */
   judge?: Judge
-  /**
-   * Absent, the reader speaks a fragment at a time as it always did. Present,
-   * it speaks the whole question in one breath and reveals it a clause at a
-   * time — which needs to know where the clauses are, which is this.
-   */
   align?: Aligner
-  /**
-   * Speak a question's `S:` script, when it has one, in place of its fragments.
-   * Only for a voice that performs tags and stress — `say` would read the
-   * brackets aloud.
-   */
   perform?: boolean
-  /**
-   * The verdict asides, for a performing voice. Each line renders as its own
-   * take and plays whole.
-   */
   quips?: { pools: Pools; plain?: Pools }
-  /** Observer for tests: every clip that starts playing, with its start time. */
   onClip?: (clip: Clip, startedAt: number) => void
-  /**
-   * How long the "Next question" card holds the wall, with the new value on
-   * it, before the reader arms. Absent, it arms at once.
-   * ponytail: one number for every room; make it an autoplay field beside
-   * `nextSec` if hosts want to tune it.
-   */
   nextCardMs?: number
-  /** Said over that card, so a room that drifted off turns back. Absent, the card is silent. */
   nextCue?: string
 }
 
-/**
- * How far behind the voice the board is held. Negative, deliberately: a clause
- * is meant to be up as the reader starts saying it, and every estimate feeding
- * it rounds late — the bisection brackets to the far end, the oracle counts
- * pessimistically, and the audio device costs a few more milliseconds on top.
- * This cancels that, so "as it is spoken" does not drift into "just after".
- *
- * The knob for how far ahead the board runs. Toward zero to hold it back to the
- * voice; further negative to have the line waiting when the clause begins.
- */
 const REVEAL_LAG_MS = -80
 
-/**
- * The beat between the last pick landing and the answer. Without it the grid
- * lights the instant the last phone taps, and the room never sees that
- * everyone is in before it is told who was right.
- */
 const LOCK_BEAT_MS = 1000
 
-/** What the reader says over the next-question card. */
 export const NEXT_CUE = 'Next question.'
 
 export class Reader {
@@ -103,23 +38,10 @@ export class Reader {
   private opts: ReaderOpts
   private speech: Speech
   private conn: Conn
-  /** Every pack loaded this session, by filename. A setlist may name several. */
   private loaded = new Map<string, Question[]>()
-  /** Where each of them is up to, so a block returning to one picks up there. */
   private pos = new Map<string, number>()
-  /** Clips are keyed by the text spoken, so two packs sharing one share the clip. */
   private clips = new Map<string, string>()
-  /**
-   * A whole question's clip and where its fragments and clauses fall in it,
-   * keyed by the joined text. Empty when no aligner was supplied, which is what
-   * puts the reader back on one clip per fragment.
-   */
   private aligned = new Map<string, { clip: Clip; folds: Fold[] }>()
-  /**
-   * Text -> resolves once its clip (and its folds) are in hand. Rendering runs
-   * behind the game rather than in front of it, so this is what the loop waits
-   * on before a question it may have reached first.
-   */
   private ready = new Map<string, Promise<void>>()
   private resolvers = new Map<string, () => void>()
   private queue: string[] = []
@@ -129,27 +51,14 @@ export class Reader {
   private pack = ''
   private fragIndex = 0
   private paused = false
-  /** The host's Close on the choice question being read. Reset per question. */
   private closeNow = false
   private playback: Playback | undefined
-  /**
-   * A quip, apart from `playback`: it plays over the payoff, where every state
-   * change would otherwise stop it as if it were the question being buzzed.
-   */
   private quipback: Playback | undefined
-  /** Rises on stop and pause, so an announcement still rendering when either lands is dropped. */
   private voiceEpoch = 0
   private picker = new Picker()
   private loop: Promise<void> = Promise.resolve()
   private running = false
   private waiters = new Set<() => void>()
-  /**
-   * The read session's lifetime, as a signal. `stop()` aborts it and `start()`
-   * replaces it — an aborted controller never un-aborts, so it has to be a new
-   * one each session rather than a reset. Everything the read loop awaits takes
-   * this (composed with the question's own scope) and throws when it fires,
-   * which is what stops a stopped reader waking up inside a live round.
-   */
   private session = new AbortController()
 
   constructor(hub: Hub, opts: ReaderOpts) {
@@ -159,20 +68,15 @@ export class Reader {
     this.conn = { id: 'reader', role: 'host', send: () => {} }
   }
 
-  /** Called from the hub's onChange. Wakes anything waiting on a condition. */
   onStateChange(state: State): void {
-    // A buzz cuts the voice mid-word. The room is answering now, and a reader
-    // who keeps talking over the buzz is giving away the rest of the clue.
     if (state.round.phase !== 'ARMED') this.playback?.stop()
     for (const w of [...this.waiters]) w()
   }
 
-  /** Resolves when the current loop has finished — the test seam for the loop. */
   settled(): Promise<void> {
     return this.loop
   }
 
-  /** The pack being read right now, and how far into it we are. */
   private get questions(): Question[] {
     return this.loaded.get(this.pack) ?? []
   }
@@ -185,18 +89,10 @@ export class Reader {
     this.pos.set(this.pack, n)
   }
 
-  /**
-   * Forget where every pack got to. A setlist's Read picks up where its packs
-   * left off (mid-question, resuming is Pause's job, and Stop forgets a pack
-   * chosen by hand), so this exists for the one caller that needs the opposite:
-   * a scripted walkthrough has to start from the same frame however the last
-   * run ended.
-   */
   rewind(): void {
     this.pos.clear()
   }
 
-  /** The host picked a pack: stop, and start it from the top. */
   async select(name: string): Promise<void> {
     this.stop()
     await this.ensure(name)
@@ -206,29 +102,12 @@ export class Reader {
     this.publish({})
   }
 
-  /**
-   * What gets spoken for a question: one utterance when we can place the folds
-   * inside it, one per fragment when we cannot. Reading a whole question in a
-   * breath is the point — a fragment spoken alone gets sentence-final
-   * intonation even when it ends mid-sentence, which is what makes a
-   * fragment-at-a-time read sound chopped.
-   */
   private textsFor(q: Question): string[] {
     const question = this.opts.align ? [this.spoken(q)] : q.fragments
     const reaction = this.opts.perform && q.reaction ? [q.reaction] : []
     return [...question, ...(q.choices ? [optionsText(q.choices)] : []), ...reaction]
   }
 
-  /**
-   * Load a pack if this session has not already, and queue its audio. Resolves
-   * once the *first* question is ready rather than the pack: a twenty-question
-   * pack is a minute of synthesis, and none of it but the first question is
-   * needed to start playing. The rest lands behind the game, which is safe
-   * because `waitFor` gates every question on its own audio.
-   *
-   * Packs stay in memory once rendered, which is what lets a setlist cross
-   * between them at a block boundary without a stall in the middle of the night.
-   */
   private async ensure(name: string, sig?: AbortSignal): Promise<void> {
     if (this.loaded.has(name)) {
       sig?.throwIfAborted()
@@ -240,13 +119,8 @@ export class Reader {
       throw new Error(`pack "${name}" has no valid questions`)
     }
     this.loaded.set(name, questions)
-    // Publishing needs a current pack to report against, and the first ensure
-    // of a session has none yet.
     if (!this.pack) this.pack = name
 
-    // Dedupe: two identical texts would otherwise land two workers on the same
-    // cache path at once, and `speech.render` has no lock of its own to protect
-    // that write. Deduped across packs too, so a shared line renders once ever.
     const texts = [...new Set(questions.flatMap((q) => this.textsFor(q)))]
     for (const text of [...texts, ...this.cueTexts(), ...this.poolTexts()]) {
       if (this.ready.has(text)) continue
@@ -256,18 +130,9 @@ export class Reader {
     }
     this.pump()
     await this.ready.get(texts[0])
-    // Rendering is minutes of synthesis and takes no notice of the reader, so a
-    // session stopped during it wakes here and must not carry on.
     sig?.throwIfAborted()
   }
 
-  /**
-   * ponytail: four at a time, FIFO. Serial is too slow for a long pack and
-   * unbounded floods the box; alignment rides the same width, which is about
-   * where the speech daemon stops going faster however many ask it. A pack
-   * queued while another is still rendering waits its turn — the order packs
-   * are ensured in is the order they are read in, so FIFO is the right guess.
-   */
   private pump(): void {
     while (this.renderers < 4 && this.queue.length) {
       this.renderers += 1
@@ -289,9 +154,6 @@ export class Reader {
         const clip = await this.speech.render(this.opts.cacheDir, text, this.opts.voice)
         this.clips.set(text, clip.path)
         if (this.opts.align) {
-          // A question whose folds cannot be found is still read aloud in full;
-          // its text simply lands when the clip ends, because the one thing
-          // worse than a board that lags is a board that runs ahead.
           const j = joinFragments(this.fragmentsFor(text))
           const folds = await this.opts.align(j, clip).catch((e) => {
             console.warn(`[reader] alignment failed, reveal stays coarse — ${e}`)
@@ -300,8 +162,6 @@ export class Reader {
           this.aligned.set(text, { clip, folds })
         }
       } catch (e) {
-        // A text that cannot be rendered still has to release whoever is
-        // waiting on it; the question goes up on the board unspoken.
         console.warn(`[reader] could not render — ${e}`)
       } finally {
         this.resolvers.get(text)?.()
@@ -312,11 +172,6 @@ export class Reader {
     }
   }
 
-  /**
-   * What each pack's next read would be billed for, on the host screen before
-   * anyone presses Read. Counted from the same texts `ensure` renders, so the
-   * number is what gets sent. Re-run whenever rendering drains.
-   */
   priceUp(): void {
     const cached = this.speech.cached
     if (!cached) return
@@ -334,11 +189,6 @@ export class Reader {
     this.hub.broadcast()
   }
 
-  /**
-   * Every text a read of this pack speaks, cues and quip pools included, each
-   * once. What `priceUp` prices and `tools/voice.ts` renders, so a take made
-   * offline is the same take the game asks for.
-   */
   textsOf(name: string): string[] {
     const { questions } = loadPack(this.opts.packDir, name)
     return [...new Set([...questions.flatMap((q) => this.textsFor(q)), ...this.cueTexts(), ...this.poolTexts()])]
@@ -348,17 +198,11 @@ export class Reader {
     return this.opts.nextCue ? [this.opts.nextCue] : []
   }
 
-  /** Every quip and plain verdict line, each its own take. None without a performing voice. */
   private poolTexts(): string[] {
     const q = this.opts.perform ? this.opts.quips : undefined
     return [q?.pools, q?.plain].flatMap((p) => Object.values(p ?? {})).flat().map((l) => l.text)
   }
 
-  /**
-   * Say something about the verdict, or nothing — the picker skips most. A
-   * question's own `R:` line always plays on a right answer. Resolves when the
-   * quip is over, so the caller does not start the next thing on top of it.
-   */
   private async quip(v: Verdict, q?: Question): Promise<void> {
     if (!this.opts.perform) return
     let path: string | undefined
@@ -377,11 +221,6 @@ export class Reader {
     if (this.quipback === pb) this.quipback = undefined
   }
 
-  /**
-   * Say an introduction, in the quip slot so a stop or pause cuts it. Only a
-   * performing voice does; anything else is silent. Rendered on first use and
-   * kept like a cue. Never throws: an unrendered line is simply not spoken.
-   */
   announce(text: string): void {
     if (!this.opts.perform || !text) return
     const epoch = this.voiceEpoch
@@ -394,7 +233,6 @@ export class Reader {
       }
       await this.ready.get(text)
       const path = this.clips.get(text)
-      // A stop or pause since the request cancels it.
       if (!path || epoch !== this.voiceEpoch) return
       const pb = this.speech.play(path)
       this.quipback?.stop()
@@ -404,7 +242,6 @@ export class Reader {
     })().catch((e) => console.warn(`[reader] announcement failed — ${e}`))
   }
 
-  /** A fixed line, in the quip slot so pause and stop cut it. Unrendered, it is skipped. */
   private async cue(text: string | undefined): Promise<void> {
     if (!text) return
     await this.ready.get(text)
@@ -416,18 +253,15 @@ export class Reader {
     if (this.quipback === pb) this.quipback = undefined
   }
 
-  /** Hold the loop until this question's audio exists. Usually already true. */
   private async waitFor(q: Question, sig?: AbortSignal): Promise<void> {
     await Promise.all(this.textsFor(q).map((t) => this.ready.get(t)))
     sig?.throwIfAborted()
   }
 
-  /** What is said for a question read in one breath: its script, or its fragments joined. */
   private spoken(q: Question): string {
     return (this.opts.perform && q.script) || joinFragments(q.fragments).text
   }
 
-  /** The fragments behind this spoken text — needed to place their boundaries. */
   private fragmentsFor(spokenText: string): string[] {
     for (const questions of this.loaded.values()) {
       const q = questions.find((x) => this.spoken(x) === spokenText)
@@ -438,25 +272,13 @@ export class Reader {
 
   start(): void {
     if (this.running) return
-    // An introduction holds play. Read is refused outright, never queued for
-    // after Continue, and nothing is activated or prepared.
     if (arrivalBlocksPlay(this.hub.state)) return
-    // Read means read. A pack played to its end keeps its position past the
-    // last question — that is what makes a setlist stop there rather than wrap
-    // — so pressing Read is the boundary where every spent pack starts over.
-    // All of them, not just the current one: under a setlist the pack this
-    // press is about to reach is not necessarily the one it left off in.
     for (const [name, questions] of this.loaded) {
       if ((this.pos.get(name) ?? 0) >= questions.length) this.pos.set(name, 0)
     }
     this.begin()
   }
 
-  /**
-   * The night moves on to the next block: the same loop as `start()`, but spent
-   * packs stay spent. A setlist that returns to a pack it already read to the
-   * end finds it spent, and autoplay stops there as it does without a night.
-   */
   carryOn(): void {
     if (this.running) return
     if (arrivalBlocksPlay(this.hub.state)) return
@@ -464,15 +286,11 @@ export class Reader {
   }
 
   private begin(): void {
-    // An introduction announcement still playing or rendering is cut before the cue.
     this.voiceEpoch += 1
     this.quipback?.stop()
     this.running = true
     this.paused = false
     this.session = new AbortController()
-    // Flip the host screen to Pause the instant playback genuinely begins;
-    // `stop()` (called explicitly, or by `run()` when the pack ends) is what
-    // clears `state.reading` — this call must not race a later one that undoes it.
     this.publish({})
     const session = this.session
     this.loop = this.run().finally(() => {
@@ -483,7 +301,6 @@ export class Reader {
   pause(): void {
     this.paused = true
     this.voiceEpoch += 1
-    // Kill the clip; `speak` sees `paused` still set and holds, then replays it.
     this.playback?.stop()
     this.quipback?.stop()
     this.publish({})
@@ -516,13 +333,6 @@ export class Reader {
     for (const w of [...this.waiters]) w()
   }
 
-  /**
-   * A signal that aborts the moment `ok()` stops being true.
-   *
-   * It rides `this.waiters` — the same state-change callbacks `until` uses — so
-   * a predicate over hub state is re-asked exactly when hub state moves, and no
-   * second notification path exists to fall out of step with the first.
-   */
   private watch(ok: () => boolean): AbortSignal {
     const c = new AbortController()
     const check = () => {
@@ -535,7 +345,6 @@ export class Reader {
     return c.signal
   }
 
-  /** Push the current position into State, for the host screen only. */
   private publish(patch: { rendering?: { done: number; total: number } | undefined }): void {
     const q = this.questions[this.qIndex]
     const reading = {
@@ -550,13 +359,6 @@ export class Reader {
     this.hub.send(this.conn, { t: 'act', act: 'reading', data: { progress: reading, active: this.running } })
   }
 
-  /**
-   * Which pack the next question comes from. A setlist block names its own, so
-   * the reader follows the setlist across pack boundaries; without a setlist it is
-   * whatever the host picked. Undefined means there is nothing to read — a
-   * spent setlist, or a block whose questions the host is reading aloud
-   * themselves — and the loop ends rather than reading the wrong pack.
-   */
   private nextPack(): string | undefined {
     const setlist = this.hub.state.setlist
     if (!setlist) return this.pack || undefined
@@ -564,32 +366,13 @@ export class Reader {
   }
 
   private async run(): Promise<void> {
-    // This loop's own session: a Stop then Read replaces `this.session` while it unwinds.
     const session = this.session
-    // Every pack the setlist names, queued before the first question rather
-    // than at the block boundary where it would be thirty seconds of silence.
-    // Queued, not awaited: rendering runs behind the game now, in the order the
-    // blocks will be read, so the first question is not held up by the last.
     for (const b of this.hub.state.setlist?.blocks ?? []) {
       if (b.pack) void this.ensure(b.pack).catch((e) => console.warn(`[reader] ${b.pack}: ${e}`))
     }
 
-    // Whether the loop ended because there is nothing left to read. A stop or
-    // an abort ends it too (an introduction stops the reader on purpose), and
-    // that must leave autoplay exactly as it was.
     let spent = false
     while (this.running) {
-      // One question, one scope, and the scope is a signal rather than a flag
-      // somebody has to remember to test. Everything below is awaited with it,
-      // and everything awaited with it throws the moment the question stops
-      // being ours — a stop, an undo, a fresh arm under our feet. The catch is
-      // the only place that answer is needed: an abort is how a question
-      // normally ends, so it ends the read loop quietly rather than logging.
-      //
-      // `mine` is this iteration's own kill switch. Without it the watcher
-      // below would sit in `waiters` for the rest of the session — one stale
-      // predicate per question read — because a question that ends *well*
-      // never falsifies `stillMine`.
       let mine = true
       try {
         const want = this.nextPack()
@@ -606,24 +389,14 @@ export class Reader {
           spent = true
           break
         }
-        // The one place the warm start can bite: a room that outran the renderer.
-        // Wait here rather than arming onto a clip that does not exist yet, which
-        // would open the buzzers on silence.
         await this.waitFor(q, session.signal)
         this.fragIndex = 0
         if (q.value !== undefined) {
           this.hub.dispatch({ a: 'setValue', value: q.value })
         }
-        // The room reads what the next one is worth before it starts, and hears
-        // it coming over the same beat.
         await Promise.all([this.cue(this.opts.nextCue), this.opts.nextCardMs && sleep(this.opts.nextCardMs, session.signal)])
         session.signal.throwIfAborted()
-        // A refused arm (an introduction arrived during the dwell) will never
-        // reach ARMED, so the session ends here instead of waiting on it, the
-        // way an abort does: autoplay and the position stay as they are.
         if (this.hub.dispatch({ a: 'arm', ...(q.kind && { kind: q.kind }) }).status !== 'applied') return
-        // Answer variants, memory only — this is the one path by which the judge
-        // ever learns what the room is about to be asked.
         if (q.kind !== 'choice' && q.kind !== 'closest') this.opts.judge?.prime(q.answers)
         await this.until((s) => s.round.phase === 'ARMED', undefined, session.signal)
 
@@ -632,9 +405,6 @@ export class Reader {
         const questionId = this.hub.state.round.questionId
         const stillMine = () => this.hub.state.round.questionId === questionId
 
-        // The question's scope: the session's lifetime and this round's, as one
-        // signal. Declared here because `stillMine` is only answerable once the
-        // arm it belongs to has a stamp.
         const sig = AbortSignal.any([session.signal, this.watch(() => mine && stillMine())])
 
         await sleep(Math.max(0, stamp - Date.now()), sig)
@@ -644,9 +414,6 @@ export class Reader {
         if (q.kind === 'choice' || q.kind === 'closest') {
           if (q.kind === 'choice') await this.runChoice(q, stillMine, sig)
           else await this.runClosest(q, stillMine, sig)
-          // The grid, or the line, stays up with its answer; the host's N, or
-          // the autoplay dwell, moves on. A closest dwell starts once the
-          // board's reveal has played, so the room gets the whole payoff.
           const dwell = this.dwellMs()
           const reveal = q.kind === 'closest' ? closestTimes(this.hub.state.round.guessed ?? 0).doneAt : 0
           await this.until(() => !stillMine(), dwell === undefined ? undefined : dwell + reveal, session.signal)
@@ -658,34 +425,16 @@ export class Reader {
           continue
         }
 
-        // The host judges from here. Resolved means scored, or passed with nobody
-        // left in the round.
         const resolved = (s: State) =>
           s.round.phase === 'IDLE' &&
           (!!s.round.award || (s.round.order.length === 0 && s.round.lockedOut.length === 0))
 
-        // Dead air — the clue ran out and nobody pressed anything — has no
-        // resolution to wait for. A host passes it by hand; autoplay gives it the
-        // same dwell as a payoff and then moves on, since the alternative is a
-        // loop that waits forever on a room that has already stopped playing.
-        //
-        // From here the question is the host's, and the waits are the session's
-        // scope rather than the question's: `next` clears `round.questionId`,
-        // which is exactly what falsifies `stillMine` — a payoff wait armed with
-        // the question's signal would abort on the very keypress that releases
-        // it.
         let deadAir = false
         while (this.running && !resolved(this.hub.state)) {
-          // A miss after the voice has finished is held all the same, and
-          // opening its rebound is still the reader's beat.
           if (this.hub.state.round.held) {
             await this.waitOutBuzz(session.signal)
             continue
           }
-          // The wall counts the room down to the moment this wait gives up. A
-          // picture still sharpening gets its whole reveal first: the window
-          // is the buzz beat after the picture is sharp, and a rebound that
-          // resumed the reveal moves it.
           const sharpAt = this.hub.state.round.reveal?.until
           const beat = this.dwellMs('buzzSec')
           const dwell = beat === undefined ? undefined : beat + Math.max(0, (sharpAt ?? 0) - Date.now())
@@ -697,13 +446,10 @@ export class Reader {
           )
           if (!stillMine()) {
             if (this.hub.state.round.questionId) throw new DOMException('Question replaced', 'AbortError')
-            break // The host's Next completed this question.
+            break
           }
           if (this.hub.state.round.held || this.hub.state.round.reveal?.until !== sharpAt) continue
           const r = this.hub.state.round
-          // Only silence passes itself. Anything else still pending is somebody
-          // mid-answer, and their verdict is worth waiting out however long the
-          // host takes over it.
           if (!resolved(this.hub.state) && r.phase === 'ARMED' && r.order.length === 0) {
             deadAir = true
             break
@@ -712,15 +458,11 @@ export class Reader {
         if (stillMine() && (this.hub.state.round.award || deadAir)) {
           this.hub.send(this.conn, { t: 'act', act: 'revealAnswer', data: q.answer })
         }
-        // Silence shuts the buzzers and puts the answer up, after it is in the
-        // round, so the wall never shows the moment without it.
         if (stillMine() && deadAir) this.hub.dispatch({ a: 'timeUp' })
         const award = this.hub.state.round.award
         const said = stillMine()
           ? this.quip(award && !isPenalty(award) ? 'correct' : deadAir ? 'nobody' : 'wrong', q)
           : Promise.resolve()
-        // Let the payoff sit on the wall; the host's N clears it and releases us —
-        // under autoplay the reader presses N itself once the dwell is up.
         await this.until(
           (s) => !stillMine() || (!deadAir && s.round.phase === 'IDLE' && !s.round.award),
           this.dwellMs(),
@@ -729,30 +471,21 @@ export class Reader {
         if (!stillMine() && this.hub.state.round.questionId) {
           throw new DOMException('Question replaced', 'AbortError')
         }
-        // The quip runs over the dwell, not after it — but the next question
-        // never starts on top of its tail.
         await said
         session.signal.throwIfAborted()
         if (stillMine() && (this.hub.state.round.award || deadAir)) {
           this.hub.dispatch({ a: 'next' })
         }
-        // Done with this one. The `next` above may have rolled the setlist into a
-        // block with a different pack, which the top of the loop picks up.
         this.qIndex += 1
       } catch (e) {
         if (!(e instanceof DOMException && e.name === 'AbortError')) throw e
         return
       } finally {
         mine = false
-        // Retires this question's watcher: `watch` drops itself the first time
-        // its predicate is false, and nothing else is going to falsify it.
         this.wake()
       }
     }
     if (!spent) return
-    // The pack is spent, so autoplay goes off with it. Leaving it on would hand
-    // the room back to a host whose next question advances itself out from
-    // under them; off, the game simply carries on by hand.
     const auto = this.hub.state.autoplay
     if (auto.on) {
       this.hub.dispatch({ ...auto, a: 'setAutoplay', on: false })
@@ -760,11 +493,6 @@ export class Reader {
     this.stop()
   }
 
-  /**
-   * Put the question on the board and read it. A read question is revealed as
-   * the voice reaches each clause; a shown or choice question is up whole from
-   * the arm. Either way the mode hears each fragment end as the voice passes it.
-   */
   private async speakQuestion(
     q: Question,
     questionId: string,
@@ -773,9 +501,6 @@ export class Reader {
   ): Promise<void> {
     const revealAll = !!q.kind
     const j = joinFragments(q.fragments)
-    // The board needs the shape of the whole question before it says any of
-    // it, or every line it has already put up moves when the next one lands.
-    // Players never see this — the hub strips it.
     this.hub.send(this.conn, { t: 'act', act: 'whole', data: j.text })
     if (q.image) {
       this.hub.send(this.conn, { t: 'act', act: 'image', data: `/pack-media/${encodeURI(q.image)}` })
@@ -788,9 +513,8 @@ export class Reader {
     const whole = this.aligned.get(this.spoken(q))
 
     if (whole) {
-      // One clip, revealed a clause at a time as the voice reaches each one.
-      let shown = 0 // characters of the joined text on the board
-      let frags = 0 // how many fragment entries that has taken
+      let shown = 0
+      let frags = 0
       let completed = 0
 
       const revealTo = (upto: number) => {
@@ -802,8 +526,6 @@ export class Reader {
           const text = q.fragments[i].slice(0, Math.min(q.fragments[i].length, upto - start)).trimEnd()
           if (!text) continue
           if (i >= frags) {
-            // Crossing into a fragment starts a new entry, so `fragments`
-            // stays a list of fragments however finely it is revealed.
             this.hub.send(this.conn, { t: 'act', act: 'fragment', data: text })
             frags = i + 1
             this.fragIndex = i + 1
@@ -812,7 +534,6 @@ export class Reader {
             this.hub.send(this.conn, { t: 'act', act: 'extend', data: text })
           }
         }
-        // Report whole fragments once, even when a fold crosses several.
         const complete = q.fragments.filter((f, i) => upto >= j.fragmentAt[i] + f.length).length
         if (complete > completed) {
           completed = complete
@@ -820,10 +541,6 @@ export class Reader {
         }
       }
 
-      // Both scopes, not just the question's: a fold timer due in the window
-      // between `stop()` and the `clearTimeout` after `pb.done` would
-      // otherwise reveal into a dead session, which is the class this file
-      // was converted to kill still alive inside one callback.
       const live = () => !sig.aborted && stillMine()
       const finished = await this.speakWhole(whole, j, revealTo, live, sig)
       if (finished) revealTo(j.text.length)
@@ -836,28 +553,17 @@ export class Reader {
           this.publish({})
         }
         const finished = await this.speak(text, sig)
-        // Someone buzzed and the question was scored while they held the
-        // floor. The rest of the clue is not read out — the host judges.
         if (!finished) break
         this.hub.fragmentEnded(questionId, f + 1)
       }
     }
   }
 
-  /**
-   * The choices go up once the question has been read, and the phones take
-   * picks from then on. The voice reads the options meanwhile, and the
-   * countdown starts when it finishes, so the read-out does not use up the
-   * room's time. Picking ends on the last eligible pick, the deadline, or the
-   * host's Close.
-   */
   private async runChoice(q: Question, stillMine: () => boolean, sig: AbortSignal): Promise<void> {
     const choices = q.choices!
     this.closeNow = false
     this.hub.send(this.conn, { t: 'act', act: 'choices', data: choices })
     let done = false
-    // Set by the timer itself: a timeout can fire a millisecond before the
-    // clock reads the deadline, and a re-check of the clock would then wait forever.
     let expired = false
     let timer: NodeJS.Timeout | undefined
     const options = this.speak(optionsText(choices), sig).then(
@@ -883,27 +589,18 @@ export class Reader {
       done = true
       clearTimeout(timer)
     }
-    // The host's Close shuts the window now, not at the settle, as on a closest question.
     if (this.closeNow && stillMine()) this.hub.send(this.conn, { t: 'act', act: 'closesAt', data: Date.now() })
-    // Everyone is in; the rest of the options would be read to nobody.
     this.playback?.stop()
     await options
-    // The bar fills, the room reads it, then the answer.
     await sleep(LOCK_BEAT_MS, sig)
     if (stillMine()) this.hub.dispatch({ a: 'settleChoice', correct: q.correct! })
   }
 
-  /**
-   * Guessing opens once the question has been read, with nothing more to read:
-   * the countdown starts at once. It ends on the last eligible guess, the
-   * deadline, or the host's Close, and the pack's number settles it.
-   */
   private async runClosest(q: Question, stillMine: () => boolean, sig: AbortSignal): Promise<void> {
     this.closeNow = false
     const ms = this.hub.state.choiceSec * 1000
     const data = { ...(q.unit && { unit: q.unit }), ...(q.plain && { plain: true }), closesAt: Date.now() + ms }
     this.hub.send(this.conn, { t: 'act', act: 'guessing', data })
-    // Set by the timer itself, as in `runChoice`.
     let expired = false
     const timer = setTimeout(() => {
       expired = true
@@ -915,32 +612,13 @@ export class Reader {
     } finally {
       clearTimeout(timer)
     }
-    // The host's Close shuts the window now, not at the settle: no guess lands
-    // in the beat before the answer, and the board's bar warms with it.
     if (this.closeNow && stillMine()) {
       this.hub.send(this.conn, { t: 'act', act: 'guessing', data: { ...data, closesAt: Date.now() } })
     }
-    // The last dot lands and the room reads the spread, then the answer.
     await sleep(LOCK_BEAT_MS, sig)
     if (stillMine()) this.hub.dispatch({ a: 'settleClosest', truth: q.truth! })
   }
 
-  /**
-   * Speak a whole question, revealing it as the voice reaches each fold.
-   *
-   * The reveal is driven by timers rather than by the player reporting where it
-   * is, and the clock starts when playback actually begins rather than when the
-   * process spawns — a board keyed off the spawn would run ahead of the sound by
-   * however long the audio device took to open.
-   *
-   * Interruption still re-reads the clause, exactly as it re-read the fragment
-   * before: playback resumes at the last clause or fragment fold, so the room
-   * hears a whole clause rather than being dropped between two words. The board
-   * may already be a few words ahead of that point — the reveal never rewinds —
-   * which is the same thing a human reader backing up a clause does. Without a
-   * seeking player the resume starts the question over instead, and the reveal
-   * simply catches up.
-   */
   private async speakWhole(
     whole: { clip: Clip; folds: Fold[] },
     j: Joined,
@@ -954,8 +632,6 @@ export class Reader {
 
     while (this.running) {
       if (this.paused) {
-        // Pause is not an abort. It holds here and re-reads the clause it was
-        // in the middle of; the signal only fires if the question itself goes.
         await this.until(() => !this.paused, undefined, sig)
         continue
       }
@@ -984,16 +660,11 @@ export class Reader {
         })
 
       await pb.done
-      // Timers first: an abort thrown with these still pending leaves the reveal
-      // firing into a round that is no longer this question's.
       for (const t of timers) clearTimeout(t)
       this.playback = undefined
       sig.throwIfAborted()
       if (!this.paused && !this.buzzed()) return true
 
-      // Back to the top of the clause that was in progress. Folds are the only
-      // places the board has moved, so this is always a point the room has both
-      // heard and seen.
       const stoppedAt = from + (Date.now() - t0)
       atMs = steps.reduce((best, s) => (s.ms <= stoppedAt && s.ms > best ? s.ms : best), 0)
     }
@@ -1001,25 +672,11 @@ export class Reader {
     return true
   }
 
-  /**
-   * Speak one fragment, holding here for as long as the host keeps us paused.
-   *
-   * There is no seek: an interruption kills the clip and the fragment is
-   * replayed from its start. That is the whole cost of the stutter-free pause,
-   * and it is the right behaviour anyway — a human reader interrupted
-   * mid-clause re-reads the clause rather than picking up mid-word.
-   *
-   * Two things interrupt: the host's pause, and a buzz. A buzz holds here until
-   * the question either rebounds (wrong answer, ARMED again — the fragment is
-   * re-read) or is done with (returns false, and the caller stops reading it).
-   */
   private async speak(text: string, sig: AbortSignal): Promise<boolean> {
     const path = this.clips.get(text)
     if (!path) return true
     while (this.running) {
       if (this.paused) {
-        // publish() on resume is what wakes this. Pause is not an abort — the
-        // fragment is re-read, not abandoned.
         await this.until(() => !this.paused, undefined, sig)
         continue
       }
@@ -1028,40 +685,18 @@ export class Reader {
         continue
       }
       const pb = this.speech.play(path)
-      // speak() holds only the path; the window's end comes from the stop,
-      // so durationMs is 0 here and means "until stopped".
       this.opts.onClip?.({ path, durationMs: 0 }, Date.now())
       this.playback = pb
       await pb.done
       this.playback = undefined
       sig.throwIfAborted()
-      // An untouched clip reached its own end; otherwise pause() or a buzz
-      // killed it, so loop round and wait to say it again.
       if (!this.paused && !this.buzzed()) return true
     }
     sig.throwIfAborted()
     return true
   }
 
-  /** Somebody has the floor: collecting, locked, or already judged. */
-  /**
-   * Held here from the moment someone buzzes until the question is either the
-   * reader's again or gone. False means gone — scored, stopped, or replaced —
-   * and the caller stops reading it.
-   *
-   * A held rebound is the reader's to open, and the beat runs on this side of
-   * the arm: the miss sits on the board with the buzzers shut, and only then
-   * does the arm go out, so the room and the phones learn the question is live
-   * again at the same moment. Opening first and beating afterwards leaves the
-   * buzzers open while nothing is being read and the wall shows a result, which
-   * makes buzzing on the verdict the dominant strategy — a race on a signal only
-   * the phones have.
-   *
-   * An unheld rebound — a host judging by hand while the box reads — opens
-   * without a beat, because they opened it themselves when they pressed W.
-   */
   private async waitOutBuzz(sig: AbortSignal): Promise<boolean> {
-    // The session, not `sig`: a host's Next during the quip below ends the question, and the loop moves on from that.
     const session = this.session
     await this.until(
       (s) => s.round.phase === 'ARMED' || s.round.phase === 'IDLE' || !!s.round.held,
@@ -1070,10 +705,7 @@ export class Reader {
     )
     const auto = this.hub.state.autoplay
     if (this.hub.state.round.held) {
-      // The miss gets its quip in the beat before the rebound opens, and the
-      // rebound waits for it: a live buzzer under the host's voice is a race.
       const said = this.quip('wrong')
-      // Ends early if anything else takes the round — a host arming, an undo.
       await this.until((s) => !s.round.held, auto.reboundSec * 1000, sig)
       await said
       session.signal.throwIfAborted()
@@ -1091,35 +723,16 @@ export class Reader {
     return this.hub.state.round.phase !== 'ARMED'
   }
 
-  /**
-   * How long a wait for the host may run before the reader takes the decision
-   * itself, or undefined for the wait that never expires. Read fresh each time:
-   * the toggle is a live setting, so turning autoplay on mid-question takes
-   * effect on the next beat rather than the next pack.
-   */
   private dwellMs(beat: 'nextSec' | 'buzzSec' = 'nextSec'): number | undefined {
     const auto = this.hub.state.autoplay
     return auto.on ? auto[beat] * 1000 : undefined
   }
 
-  /**
-   * Wait until the state satisfies a predicate, the dwell runs out, or the
-   * scope this wait belongs to ends.
-   *
-   * It always resolved when the reader stopped; what it never did was say
-   * *why*, so every caller re-asked with a flag test of its own and the
-   * protection against a stale question writing into a live one was that
-   * somebody had remembered to write one. With a signal it throws instead, and
-   * the answer arrives at the `await` rather than after it.
-   */
   private async until(ok: (s: State) => boolean, dwellMs?: number, sig?: AbortSignal): Promise<void> {
     sig?.throwIfAborted()
     if (this.running && !ok(this.hub.state)) {
       await new Promise<void>((resolve) => {
         let timer: NodeJS.Timeout | undefined
-        // Every path out of here goes through `done`, including the abort: a
-        // waiter left in the set would be re-run for the rest of the session,
-        // and a dwell timer left behind holds the process open past Ctrl-C.
         const done = () => {
           this.waiters.delete(check)
           sig?.removeEventListener('abort', done)
@@ -1142,13 +755,6 @@ export class Reader {
   }
 }
 
-/**
- * The waits with no predicate behind them — the next-question card, and the
- * count down to `armedAt`. They take the signal for the same reason the others
- * do, and clear their timer on the way out either way. Not unref'd: both are
- * short and load-bearing, and a question half-armed is worse than a process
- * that waits two seconds to exit.
- */
 const sleep = (ms: number, sig?: AbortSignal): Promise<void> => {
   sig?.throwIfAborted()
   return new Promise<void>((resolve, reject) => {

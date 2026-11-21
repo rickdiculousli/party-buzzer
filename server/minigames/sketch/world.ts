@@ -11,7 +11,6 @@ export const STEP_MS = 50
 export const TICKS_PER_SEC = 1_000 / STEP_MS
 export const CHOOSE_TICKS = 10 * TICKS_PER_SEC
 export const REVEAL_TICKS = 5 * TICKS_PER_SEC
-/** Wrong guesses kept for the board. */
 export const FEED = 8
 export const GUESS_MAX = 40
 
@@ -22,20 +21,15 @@ export type SketchWorld = {
   tick: number
   drawTicks: number
   participants: PlayerId[]
-  /** Drawers in turn order. */
   order: PlayerId[]
-  /** Words not yet offered this match. */
   deck: string[]
   turn: number
   step: SketchStep
-  /** Tick the current step ends. */
   stepEnds: number
-  /** Tick the current drawing started. */
   drawStart: number
   choices: string[]
   word: string | null
   revealed: number[]
-  /** Ticks at which the remaining hints are due. */
   hintAt: number[]
   strokes: InkStrokeView[]
   strokesVersion: number
@@ -121,7 +115,6 @@ function endTurn(w: SketchWorld, end: SketchEnd): void {
 
 function revealHint(w: SketchWorld): void {
   const hidden = letterIndexes(w.word!).filter((i) => !w.revealed.includes(i))
-  // A hint never gives away the last hidden letter.
   if (hidden.length > 1) w.revealed.push(hidden[Math.floor(w.rand() * hidden.length)])
 }
 
@@ -150,7 +143,6 @@ function guess(w: SketchWorld, player: PlayerId, raw: string, at: number): Input
     w.correct.push({ seq, player, at, tick: w.tick })
     if (w.correct.length === w.participants.length - 1) endTurn(w, 'all')
   } else if (isClose(text, w.word!) || normalize(text).includes(normalize(w.word!))) {
-    // A guess that contains the word would show the room the answer, so it counts as close.
     w.close[player] = (w.close[player] ?? 0) + 1
   } else {
     w.misses = [...w.misses, { seq, player, text }].slice(-FEED)

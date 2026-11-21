@@ -1,9 +1,3 @@
-/**
- * A scripted Tug of war match on the real board. The server's own world runs
- * here with six scripted pullers, publishing a frame every 50 ms like the
- * runtime, so the flag eases, jitters, swaps halves and crosses a mark exactly
- * as it does in a room. Retrigger to replay from the countdown.
- */
 import { useEffect, useState } from 'preact/hooks'
 import type { MinigameFrame, State } from '../../shared/protocol.ts'
 import { mulberry32 } from '../../shared/random.ts'

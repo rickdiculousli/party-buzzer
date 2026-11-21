@@ -12,7 +12,6 @@ const DISCRETE = new Set(['pickWord', 'stroke', 'undo', 'clear', 'pass', 'guess'
 
 const sendsStrokes = (w: SketchWorld) => w.strokesVersion !== w.sentVersion || w.tick >= w.nextStrokesTick
 
-/** Times come from each press, clamped to the drawing and to the step that took it. */
 function correctView(w: SketchWorld, clock: Clock): SketchCorrect[] {
   const start = clock(w.drawStart * STEP_MS)
   return w.correct
@@ -68,7 +67,6 @@ export function makeSketch(load: () => string[] | null, rand: () => number = Mat
     },
     startable(_lobby, connected) {
       if (connected.length < 2) return 'too-few-players'
-      // ponytail: sized for everyone drawing; the Drawers option only lowers the need.
       return words.length < CHOICES * connected.length ? 'sketch-words' : null
     },
     create(_seed, participants, options) {

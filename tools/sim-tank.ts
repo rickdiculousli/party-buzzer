@@ -1,20 +1,3 @@
-/**
- * Synthetic self-play for the tank minigame. Bots join, get paired into crews
- * by the server, and fight. Drivers work the dial like a person: point at a
- * heading, drive forward through the arc while the hull swings round, circle
- * the nearest enemy at mid range, back off when crowded, and steer around the
- * cover in front of them. Gunners select an absolute world heading and fire once
- * the slewing turret is actually lined up. Solo crews aim their fixed turret
- * with the hull.
- *
- * Bots read the shared field through a board connection, like the TV does.
- *
- *   npm run sim-tank                        endless 60-second matches
- *   npm run sim-tank -- 3 30                three 30-second matches
- *   npm run sim-tank -- 3 30 http://box:8080
- *
- * Ctrl-C cancels the match and removes the bots.
- */
 import { setTimeout as sleep } from 'node:timers/promises'
 import { connect, reachable, type Conn } from './conn.ts'
 import { link } from '../server/net.ts'
@@ -35,10 +18,8 @@ const wrap = (radians: number) => Math.atan2(Math.sin(radians), Math.cos(radians
 const log = (s = '') => console.log(s)
 type Point = { x: number; y: number }
 
-// Headings tried around the wanted one, nearest first, when cover is in the way.
 const DETOURS = [0, 0.35, -0.35, 0.7, -0.7, 1.05, -1.05, 1.4, -1.4, 1.75, -1.75, 2.1, -2.1]
 
-/** Whether a tank can drive about a hull length along a heading without meeting cover or the field edge. */
 function clearAhead(cover: Uint8Array | null, from: Point, heading: number, sign = 1): boolean {
   for (const distance of [30, 60, 90]) {
     const p = { x: from.x + Math.cos(heading) * distance * sign, y: from.y + Math.sin(heading) * distance * sign }
@@ -49,7 +30,6 @@ function clearAhead(cover: Uint8Array | null, from: Point, heading: number, sign
   return true
 }
 
-/** The open heading nearest the wanted one, or null when every detour is blocked. */
 const openHeading = (cover: Uint8Array | null, from: Point, wanted: number) =>
   DETOURS.map((offset) => wrap(wanted + offset)).find((heading) => clearAhead(cover, from, heading)) ?? null
 
@@ -66,7 +46,6 @@ async function crewLoop(crew: TankCrew, bots: Map<string, Bot>, board: Conn, mat
   let stuckTicks = 0
   let escapeTicks = 0
   let cover: Uint8Array | null = null
-  // Which way this crew circles its target; it changes its mind now and then.
   let orbit = Math.random() < 0.5 ? 1 : -1
   let orbitUntil = 0
   let dial: number | null = null
@@ -76,7 +55,6 @@ async function crewLoop(crew: TankCrew, bots: Map<string, Bot>, board: Conn, mat
     await sleep(TICK_MS)
     const frame = board.frame()
     if (frame?.role !== 'board' || frame.id !== 'tank' || frame.matchId !== matchId) continue
-    // The full grid arrives about once a second; cover only shrinks, so a stale copy just steers wider.
     if (frame.cover) cover = Uint8Array.from(frame.cover, (digit) => digit === '1' ? 1 : 0)
     const me = frame.tanks.find((tank) => tank.id === crew.id)
     const enemies = frame.tanks.filter((tank) => tank.id !== crew.id && !tank.dead)
@@ -91,8 +69,6 @@ async function crewLoop(crew: TankCrew, bots: Map<string, Bot>, board: Conn, mat
       orbitUntil = board.now() + 5_000 + Math.random() * 5_000
     }
 
-    // Driver: close in from far away, circle at mid range, and reverse out when crowded,
-    // still facing the enemy. Solo crews face the enemy so their fixed turret bears.
     const moved = Math.hypot(me.position.x - last.x, me.position.y - last.y)
     last = { ...me.position }
     stuckTicks = drive !== 0 && moved < 0.5 ? stuckTicks + 1 : 0
@@ -103,7 +79,6 @@ async function crewLoop(crew: TankCrew, bots: Map<string, Bot>, board: Conn, mat
     let wanted: number
     let nextDrive: -1 | 0 | 1
     if (escapeTicks > 0) {
-      // Back straight out and swing the nose toward the new orbit side.
       escapeTicks--
       wanted = dial ?? me.hull
       if (escapeTicks === 13) wanted = wrap(me.hull + orbit * Math.PI / 2)
@@ -116,12 +91,10 @@ async function crewLoop(crew: TankCrew, bots: Map<string, Bot>, board: Conn, mat
         : distance > 450 ? bearing + orbit * 0.3
         : bearing + orbit * (Math.PI / 2 - 0.35)
       wanted = openHeading(cover, me.position, aim) ?? wrap(aim + Math.PI)
-      // Drive through gentle turns; stop and pivot only when the heading is well behind.
       const holding = solo && distance <= 450 && Math.abs(wrap(bearing - me.hull)) < 0.3
       nextDrive = holding || Math.abs(wrap(wanted - me.hull)) > 1.3 ? 0 : 1
     }
 
-    // A hand on the dial: move it when the plan changes, with a little wobble.
     if (dial === null || Math.abs(wrap(wanted - dial)) > 0.15 || board.now() - dialAt > 600) {
       dial = wrap(wanted + (Math.random() - 0.5) * 0.08)
       dialAt = board.now()
@@ -132,8 +105,6 @@ async function crewLoop(crew: TankCrew, bots: Map<string, Bot>, board: Conn, mat
       send(driver, { kind: 'drive', dir: drive })
     }
 
-    // Gunner: point in world space with a little hand wobble. The server slews
-    // the relative turret angle so this target stays fixed while the hull turns.
     if (!solo) send(gunner, { kind: 'turretAim', angle: wrap(bearing + (Math.random() - 0.5) * 0.1) })
     const aimError = wrap(bearing - me.hull - me.turret)
     const aligned = Math.abs(aimError) < 0.08
@@ -157,7 +128,6 @@ async function main() {
   const board = await connect(URL, 'board')
   const bots = new Map<string, Bot>()
   for (const name of NAMES) {
-    // Sequence numbers start from the clock so a rerun never reuses remembered ones.
     const bot: Bot = { name, conn: await connect(URL, 'player', name), seq: Date.now() }
     bots.set(bot.conn.playerId, bot)
     await sleep(40)
@@ -167,7 +137,6 @@ async function main() {
   const cleanup = () => {
     host.send({ t: 'host', action: { a: 'cancelMinigame' } })
     host.send({ t: 'host', action: { a: 'closeMinigame' } })
-    // Back to Ready: whatever the round held before the match does not come back up.
     host.send({ t: 'host', action: { a: 'next' } })
     for (const bot of bots.values()) host.send({ t: 'host', action: { a: 'kick', playerId: bot.conn.playerId } })
     board.close()

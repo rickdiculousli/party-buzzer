@@ -20,7 +20,6 @@ const table = (handNo: number): PokerShared => ({
   board: [], pots: [], showdown: null, equity: null, runout: false, feed: [], reactions: [],
 })
 
-/** Real surfaces, synthetic pushes: never connects to or changes the room. */
 export function PokerStress({ lead, surface }: { lead: boolean; surface: 'board' | 'phone' }) {
   const [source, setSource] = useState(() => table(1))
   const [delivered, setDelivered] = useState(source)

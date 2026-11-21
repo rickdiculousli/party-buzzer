@@ -5,12 +5,6 @@ import { SKETCH_RULES, revealStamp, stepLine } from './sketch.ts'
 import { Countdown } from './Countdown.tsx'
 import { colorForPlayer, playerName, setlistPosition, standings } from './ui.ts'
 
-/**
- * Sketch on the big screen, in the quiz's frame: the stage on the left, the
- * standings beside it. The drawing is the stage; the word sits above it, the
- * guesses beside it and the seconds left loom through it, and the reveal
- * stamps the result the way a scored question does.
- */
 export function SketchBoard({ state, frame, now, join }: MinigameBoardProps) {
   const session = state.minigame!
   const sketch = matchFrame(frame, 'sketch', 'board', session.matchId)
@@ -75,8 +69,6 @@ export function SketchBoard({ state, frame, now, join }: MinigameBoardProps) {
       </header>
 
       {sketch.step === 'choosing' ? (
-        // Nothing to look at yet, so the stage says whose turn it is instead of
-        // showing an empty frame.
         <div class="sketch-stage">
           <Countdown until={sketch.endsAt} now={now} />
           <div class="board__next fx-rise" key={sketch.turn}>

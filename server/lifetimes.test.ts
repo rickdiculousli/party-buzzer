@@ -6,24 +6,6 @@ import { newState } from './state.ts'
 import { gameSnapshot, persistedSnapshot, restoreGame } from './snapshot.ts'
 import type { State } from '../shared/protocol.ts'
 
-/**
- * Every `State` field's lifetime, in one place. A new field fails here by name
- * until it has a row; changing a row is the deliberate decision AGENTS.md asks for.
- *
- * undo  yes:  in `gameSnapshot`, so an undo returns it.
- *       live: left out, and the current value survives an undo (catalogs).
- *       no:   left out, and an undo clears or resets it (playback).
- * disk  yes:  written to `persistedSnapshot` unchanged.
- *       reset: written in a narrowed or rewound form (round value only, a reset match).
- *       no:   not written; a restart rebuilds or forgets it.
- * phone full: a player's `viewFor` carries what the host's does.
- *       own:  a player gets a projection of its own (redacted to their share).
- *       none: a player never gets it.
- *
- * A row describes the fixture below. Some fields vary by shape: a lobby
- * `arrival` is dropped from undo, and a `minigame` in ready or results is
- * written to disk unchanged. snapshot.test.ts covers those cases.
- */
 type Lifetime = { undo: 'yes' | 'no' | 'live'; disk: 'yes' | 'no' | 'reset'; phone: 'full' | 'own' | 'none' }
 
 const lifetimes = {
@@ -50,14 +32,12 @@ const lifetimes = {
   autoplay: { undo: 'yes', disk: 'yes', phone: 'full' },
   readingActive: { undo: 'no', disk: 'no', phone: 'full' },
   reading: { undo: 'no', disk: 'no', phone: 'none' },
-  // Phone `none` in the fixture, whose mirror is off; with it on, a phone gets it whole (hub.test.ts).
   typed: { undo: 'live', disk: 'no', phone: 'none' },
   minigame: { undo: 'yes', disk: 'reset', phone: 'full' },
   arrival: { undo: 'yes', disk: 'no', phone: 'full' },
   night: { undo: 'yes', disk: 'yes', phone: 'none' },
 } satisfies Record<keyof State, Lifetime> as Record<keyof State, Lifetime>
 
-/** A state with every optional field present (the table's type catches one this misses) and something in each to redact or reset. */
 function everyField(): State {
   const state = newState()
   state.players = [{ id: 'a', name: 'Ada', connected: true }, { id: 'b', name: 'Bo', connected: true }]
@@ -108,7 +88,6 @@ function everyField(): State {
 const keysWhere = (pick: (l: Lifetime) => boolean) =>
   (Object.keys(lifetimes) as (keyof State)[]).filter((k) => pick(lifetimes[k])).sort()
 
-/** The field names written in `State`'s declaration, so an unset optional one still counts. */
 function declaredFields(): string[] {
   const source = readFileSync(new URL('../shared/protocol.ts', import.meta.url), 'utf8')
   const body = source.split('\nexport type State = {\n')[1]!.split('\n}\n')[0]!

@@ -1,10 +1,3 @@
-/*
- * Chrome for the harness only. Nothing here is allowed to describe how the
- * anchors look or move — that lives in style.css, which this page loads
- * unmodified. If a rule in this file starts affecting the preview, it is a bug:
- * you would be tuning against something the board does not have.
- */
-
 .harness {
   display: grid;
   grid-template-columns: 20rem 1fr;
@@ -74,16 +67,13 @@
   text-transform: uppercase;
   color: var(--dim);
 }
-/* The value is data, not a label — it does not take the label's uppercase. */
 .harness__value { color: var(--cyan); text-transform: none; letter-spacing: 0; }
-/* Moved off its original reads as live, not as measurement. */
 .harness__value.is-moved { color: var(--tungsten); }
 
 .harness__track {
   position: relative;
   display: flex;
   flex-direction: column;
-  /* Room for the origin notch beneath the track. */
   padding-bottom: 7px;
 }
 .harness__dial input[type='range'] {
@@ -91,9 +81,6 @@
   margin: 0;
   accent-color: var(--tungsten);
 }
-/* Where this dial started. A notch under the track rather than a line across
-   it: an overlay would sit either behind the input's own track, where it is
-   invisible, or on top of the thumb, where it reads as part of the handle. */
 .harness__origin {
   position: absolute;
   bottom: 0;
@@ -104,7 +91,6 @@
   pointer-events: none;
 }
 
-/* The original's value, and the way back to it. A button because it is one. */
 .harness__was {
   align-self: start;
   background: none;
@@ -147,20 +133,8 @@
   margin: 0;
 }
 
-/*
- * Holds a band open while its subject is being held back.
- *
- * The board never has this gap — its middle band always contains either a name
- * or the go cue, and `.board__mid--cue` reserves a hero line for the latter. It
- * exists only because a lead-up frame deliberately removes something the real
- * stage would never be without, and without it that band collapses and drags
- * the timeline up with it. Harness scaffolding, so it lives here rather than in
- * style.css.
- */
 .harness__ghost { height: calc(var(--t-hero) * 0.86); }
 
-/* The preview side. Stage colour and nothing else, so what you are looking at
-   is the component and its real container. */
 .harness__stage {
   position: relative;
   background: var(--stage);
@@ -169,9 +143,6 @@
   flex-direction: column;
   min-width: 0;
 }
-/* The caption over the stage. Absolute, so it sits on the scene without
-   taking a row from it — which makes it the wrong element for anything
-   inside the panel, where text has to hold its place in the column. */
 .harness__note {
   position: absolute;
   top: var(--s3);
@@ -184,8 +155,6 @@
   pointer-events: none;
 }
 
-/* Explanatory text in the panel: what a control will do, what an empty list
-   means. Inline, and wrapping, unlike the stage caption above. */
 .harness__hint {
   margin: var(--s2) 0;
   font-size: var(--t-xs);
@@ -212,7 +181,6 @@
   .harness { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; }
 }
 
-/* --- interest kit gallery --------------------------------------------- */
 .fx-stage {
   display: grid;
   place-items: center;
@@ -245,13 +213,11 @@
   background: var(--tungsten);
 }
 
-/* Real poker surfaces keep their own viewport inside the instrument. */
 .poker-stress { padding-top: 2rem; width: min(100%, 1280px); }
 .poker-stress__surface { position: relative; width: 100%; height: 720px; overflow: hidden; margin-top: 1rem; }
 .poker-stress__surface > .board, .poker-stress__surface > .player { width: 100%; height: 100%; min-height: 0; }
 .poker-stress--phone { width: 390px; }
 .poker-stress--phone .poker-stress__surface { height: 844px; }
 
-/* --- tug replay: the real board at 16:9 inside the preview --- */
 .harness-tug { width: 100%; aspect-ratio: 16 / 9; max-height: 100%; margin: auto; }
 .harness-tug .tug-board { height: 100%; }

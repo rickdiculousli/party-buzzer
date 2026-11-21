@@ -2,7 +2,6 @@ import type { Vec2 } from '../bow/types.ts'
 import { mulberry32 } from '../bow/world.ts'
 import { CELL, COLS, ROWS } from './types.ts'
 
-/** Point-symmetric pairs around the field center. */
 export const SPAWNS: Vec2[] = [
   { x: 100, y: 100 }, { x: 1500, y: 800 },
   { x: 1500, y: 100 }, { x: 100, y: 800 },
@@ -35,7 +34,6 @@ export function createCover(seed: number, spawns: Vec2[]): Uint8Array {
   return cover
 }
 
-/** Indices of in-field cells whose rectangle the circle reaches. */
 function cellsTouching(center: Vec2, radius: number): number[] {
   const cells: number[] = []
   const c0 = Math.max(0, Math.floor((center.x - radius) / CELL))
@@ -64,7 +62,6 @@ export function carve(cover: Uint8Array, center: Vec2, radius: number): number[]
 
 export const encodeCover = (cover: Uint8Array): string => cover.join('')
 
-/** False outside the field; edges are handled by their callers. */
 export function solidAt(cover: Uint8Array, p: Vec2): boolean {
   if (p.x < 0 || p.y < 0 || p.x >= COLS * CELL || p.y >= ROWS * CELL) return false
   return cover[Math.floor(p.y / CELL) * COLS + Math.floor(p.x / CELL)] === 1

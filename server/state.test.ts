@@ -228,7 +228,6 @@ test('setMode keeps the standings when the setlist asks it to', () => {
   applyHostAction(state, { a: 'setMode', id: 'quizbowl', options: {}, keepScores: true })
   assert.equal(state.game.id, 'quizbowl')
   assert.deepEqual(state.scores, { ada: 300 })
-  // Items and effects are mode-flavoured and reset either way.
   assert.deepEqual(state.items, {})
 })
 
@@ -246,9 +245,7 @@ const setlistBlocks: SetlistBlock[] = [
   { game: 'quizbowl', options: {}, count: 1, duel: 'vote' },
 ]
 
-/** A round that was actually played, so `next` counts it. */
 function playRound(state: State): void {
-  // A fresh setlist opens on its introduction; the host continues before playing.
   if (state.arrival) applyHostAction(state, { a: 'closeArrival', arrivalId: state.arrival.id })
   applyHostAction(state, { a: 'arm' })
   applyHostAction(state, { a: 'next' })
@@ -338,11 +335,6 @@ test('setSetlist that changes the current block while a duel is open does not to
   applyHostAction(state, { a: 'setSetlist', blocks: duelBlocks })
   assert.equal(state.duel?.rule, 'vote')
   state.duel!.pool.push({ playerId: 'a', votes: ['b'], in: true })
-  // Tweaking count while the nomination window is open — the finding's own
-  // example. count isn't part of sameSetup, so this must not touch setup or
-  // the duel at all: no re-applied setMode (which would itself cancel an
-  // unseated duel, same as any host-driven mode resave) and no re-fired
-  // openDuel (which would hand back a fresh, empty pool).
   const changed: SetlistBlock[] = [{ ...duelBlocks[0], count: 5 }]
   applyHostAction(state, { a: 'setSetlist', blocks: changed })
   assert.deepEqual(
@@ -429,11 +421,6 @@ test('setSetlist routes through sanitizeBlocks: an unknown game is dropped, a Na
 })
 
 test('a stray rebound changes nothing, and a penalised question is still judgeable', () => {
-  // Both halves of the host desk's rebound fix lean on this. The Reopen button
-  // takes over the Correct slot during a hold, and C follows it there — safe
-  // only because `rebound` is inert when nothing is held. And the desk now
-  // judges a retake that locked with the previous miss's award still up, which
-  // the server has always allowed.
   const state = newState()
   const id = withPlayer(state)
   state.round.phase = 'ARMED'
@@ -443,7 +430,6 @@ test('a stray rebound changes nothing, and a penalised question is still judgeab
   applyHostAction(state, { a: 'rebound' })
   assert.deepEqual(state.round, before, 'no hold, no change')
 
-  // A miss's award rides the rebound; the retake locks with it still standing.
   state.round.phase = 'LOCKED'
   state.round.award = { name: 'Bo', points: -400 }
   applyHostAction(state, { a: 'correct' })
@@ -451,22 +437,7 @@ test('a stray rebound changes nothing, and a penalised question is still judgeab
   assert.equal(state.round.award?.name, 'Ada', 'and the award is hers now')
 })
 
-/**
- * The parity test: the table and the server say the same thing.
- *
- * `shared/legality.ts` only earns its keep if `applyHostAction` actually obeys
- * it, and the failure that costs a game night is the quiet direction — the
- * table says yes, the host's button is live, and the server returns without
- * touching anything. So: for every action kind across a spread of rooms, when
- * `refuses` returns null, applying it has to change the state. This is the
- * `hub.test.ts` wall-parity test pointed at the other contract.
- */
-
-/** Every room the actions are tried in. Rebuilt per pair — each one is mutated. */
 const ROOMS: Record<string, () => State> = {
-  // Between questions, not virgin: a room that has played one. `next` and
-  // `resetRound` on a state where nothing has ever happened are legitimately
-  // inert, and that is a fact about an empty room rather than about the table.
   idle: () => {
     const s = room()
     s.round.armedAt = 1000
@@ -487,9 +458,6 @@ const ROOMS: Record<string, () => State> = {
     s.round.total = 1
     return s
   },
-  // The verdict already landed and the desk is dead: LOCKED, the leader still on
-  // the board, a payoff stamped. The room that pins `already-scored` — without
-  // it the sweep never reaches a state where scoring twice is possible.
   scored: () => {
     const s = room()
     s.round.phase = 'LOCKED'
@@ -499,8 +467,6 @@ const ROOMS: Record<string, () => State> = {
     s.round.award = { name: 'Ada', points: 100 }
     return s
   },
-  // A miss the reader is holding: LOCKED with the order emptied, the penalty
-  // stamped, and nobody on the buzzer until `rebound` opens it.
   held: () => {
     const s = room()
     s.round.phase = 'LOCKED'
@@ -521,10 +487,6 @@ const ROOMS: Record<string, () => State> = {
     s.round.buzzable = ['p1', 'p2']
     return s
   },
-  // A seated pair with the question in flight — the room that exercises the
-  // order `shared/legality.ts` comments on: `closeDuel` here refuses for being
-  // seated rather than for the phase, and both are true. Without it neither
-  // direction of the parity test ever sees the two rules at once.
   'duel seated mid-question': () => {
     const s = room()
     s.duel = { rule: 'vote', pool: [], missed: [], seated: ['p1', 'p2'] }
@@ -535,8 +497,6 @@ const ROOMS: Record<string, () => State> = {
     s.round.total = 1
     return s
   },
-  // The only room the three setlist actions are live in, which is the point of
-  // its being here: without it they refuse everywhere and go unchecked.
   setlist: () => {
     const s = room()
     s.round.armedAt = 1000
@@ -554,12 +514,6 @@ const ROOMS: Record<string, () => State> = {
 
 function room(): State {
   const s = newState()
-  // The catalogs the hub fills in at boot. `newState` ships them empty and the
-  // table treats empty as "no opinion", so a room without them would let an
-  // unknown rule or game past the check that is supposed to catch it here.
-  // Both, not one: `games` and `duelRules` are the same lookup twice, and a
-  // parity test that exercises one of them vacuously is the hole this branch is
-  // about, one field over.
   s.games = catalog()
   s.duelRules = duelCatalog()
   s.players = [
@@ -570,17 +524,6 @@ function room(): State {
   return s
 }
 
-/**
- * Named one by one rather than derived from the type: a `HostAction` added
- * later has to be added here too, and a derived list would let it slip out of
- * the parity check the day it was written.
- *
- * Every argument is deliberately DIFFERENT from what the rooms already hold.
- * The idempotent setters — `setValue`, `setScore`, `rename`, `assign` and the
- * rest — legitimately change nothing when handed the value that is already in
- * place, so a room-matching argument here would fail the parity assertion for a
- * defect in the test rather than in the server.
- */
 const ACTIONS: HostAction[] = [
   { a: 'arm' },
   { a: 'correct' },
@@ -600,12 +543,7 @@ const ACTIONS: HostAction[] = [
   { a: 'setMode', id: 'quizbowl', options: {} },
   { a: 'setMirror', on: true },
   { a: 'setAutoplay', on: true, nextSec: 3, buzzSec: 3, reboundSec: 2, introSec: 12 },
-  // 'host-pick' rather than 'random': an instant rule seats (or deletes itself)
-  // on the spot, which makes what the action did depend on the draw.
   { a: 'openDuel', rule: 'host-pick' },
-  // The bad-argument case, and the only one in this list: the table refuses an
-  // unknown rule, so the server must too. A table that allows it while
-  // `applyHostAction` drops it silently is a direction-1 failure.
   { a: 'openDuel', rule: 'nonsense' },
   { a: 'closeDuel', playerIds: ['p1', 'p2'] },
   { a: 'cancelDuel' },
@@ -614,14 +552,7 @@ const ACTIONS: HostAction[] = [
   { a: 'clearSetlist' },
 ]
 
-/**
- * The legal-but-inert pairs, each with the reason it is not a parity failure.
- * Kept to deletions of something that is not there, plus `undo`. Anything else
- * that lands here is the drift this test exists to catch, not a new row.
- */
 function inertlyLegal(s: State, a: HostAction): string | null {
-  // The hub owns the snapshot stack; `applyHostAction`'s `undo` case is an
-  // empty return by design, so "changed something" can never hold for it.
   if (a.a === 'undo') return 'the hub owns undo'
   if (a.a === 'cancelDuel' && !s.duel && !s.round.buzzable) return 'no duel to cancel'
   if (a.a === 'clearSetlist' && !s.setlist) return 'no setlist to clear'
@@ -706,7 +637,6 @@ test('a jump to the end drops the question on the wall, so the finale is up when
   applyHostAction(state, { a: 'setSetlist', blocks: setlistBlocks })
   if (state.arrival) applyHostAction(state, { a: 'closeArrival', arrivalId: state.arrival.id })
   applyHostAction(state, { a: 'arm' })
-  // The last question shut with nobody scoring: the unanswered result holds the wall.
   state.round.phase = 'IDLE'
   state.round.spoken = { name: 'Ada', transcript: 'no idea', hit: false }
   state.typed = 'Who painted it?'
@@ -716,7 +646,6 @@ test('a jump to the end drops the question on the wall, so the finale is up when
   assert.deepEqual([state.round.questionId, state.round.spoken, state.typed], ['', undefined, undefined])
   const stamped = state.setlist!.spentAt!
   assert.ok(stamped > 0)
-  // Nothing was played since, so Next spends nothing and the ceremony keeps its stamp.
   applyHostAction(state, { a: 'next' })
   assert.equal(state.setlist!.spentAt, stamped)
 })

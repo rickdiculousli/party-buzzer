@@ -21,7 +21,6 @@ import { usePracticeTime } from './usePractice.ts'
 import { arrivalPresentation } from '../shared/arrival.ts'
 import { Letters, ScoreChange, useFlip } from './fx.tsx'
 
-/** `phoneOf` names the mood; the stylesheet is where it becomes a colour. */
 const MOOD_CLASS: Record<Mood, string> = {
   waiting: 'is-waiting',
   open: 'is-open',
@@ -31,11 +30,6 @@ const MOOD_CLASS: Record<Mood, string> = {
   verdict: 'is-verdict',
 }
 
-/**
- * The award, once the board has told the room. Under the judge the board types
- * the transcript and holds `--verdict-hold` before it stamps the award; a phone
- * showing it sooner would read the result out ahead of the line.
- */
 function useTold(round: State['round'] | undefined, instant: boolean): Award | undefined {
   const spoken = round?.spoken
   const spokenKey = spoken ? `${spoken.name}:${spoken.hit}:${spoken.transcript}` : ''
@@ -48,10 +42,6 @@ function useTold(round: State['round'] | undefined, instant: boolean): Award | u
   return !spokenKey || instant || toldKey === spokenKey ? round?.award : undefined
 }
 
-/**
- * A short square-wave blip. Cheaper and more reliable than shipping an audio
- * file. Resumes first: iOS suspends the context whenever the phone locks.
- */
 function blip(ctx: AudioContext | null, hz = 660, ms = 150) {
   if (!ctx) return
   if (ctx.state === 'suspended') void ctx.resume()
@@ -66,18 +56,11 @@ function blip(ctx: AudioContext | null, hz = 660, ms = 150) {
   osc.stop(ctx.currentTime + ms / 1000)
 }
 
-/**
- * The standings as a picker dial: three rows through a clear window, the rest
- * of the field a scroll away under frosted edges. Rows tilt around a shared
- * cylinder axis by their distance from the middle, like the old time pickers.
- */
 export function StandingsDial({ state, playerId, held = false }: { state: State; playerId?: string | null; held?: boolean }) {
   const rows = standings(state)
   const list = useRef<HTMLOListElement>(null)
   const touched = useRef(-Infinity)
   useFlip(list)
-  // Rest on the player's own row: on mount and whenever the order changes, but
-  // never within a second of a finger on the list, so a flick is not fought.
   const mine = playerId ? scoreKey(state, playerId) : undefined
   const at = rows.findIndex((r) => r.key === mine)
   const order = rows.map((r) => r.key).join('|')
@@ -86,7 +69,6 @@ export function StandingsDial({ state, playerId, held = false }: { state: State;
     if (!el || at < 0 || Date.now() - touched.current < 1000) return
     const row = el.children[at] as HTMLElement | undefined
     if (!row) return
-    // Your row in the band; the two rows of padding let even 1st sit there.
     el.scrollTop = Math.max(0, row.offsetTop + row.offsetHeight / 2 - el.clientHeight / 2)
   }, [order, at])
   const ordinal = (i: number) =>
@@ -111,7 +93,6 @@ export function StandingsDial({ state, playerId, held = false }: { state: State;
   )
 }
 
-/** Someone else's verdict, felt once per verdict: three light ticks, unlike every other cue. */
 function VerdictTap() {
   useEffect(() => { navigator.vibrate?.([20, 70, 20, 70, 20]) }, [])
   return null
@@ -119,13 +100,11 @@ function VerdictTap() {
 
 export type PlayerPreview = {
   socket: SocketFixture
-  /** The frozen clock the fixture's practice pulses are read against. */
   practiceNow?: number
   open: boolean
   pressed: boolean
 }
 
-/** The seconds left to pick, so a phone knows how long it has. */
 function PickCountdown({ until, now }: { until: number; now: () => number }) {
   const left = useSecondsLeft(until, now)
   return <p class="player__countdown" data-review-id="phone:countdown" aria-label={`${left} seconds`}>{left}</p>
@@ -135,15 +114,12 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
   const { state, playerId, connected, now, send, minigameFrame, minigameAck, minigameTouches, practice } = useSocket('player', preview?.socket)
   const pulseNow = usePracticeTime(practice, practiceLobbyId(state), preview?.practiceNow)
   const [name, setName] = useState(() => localStorage.getItem('playerName') ?? '')
-  // Always start behind the tap, even for a phone we recognise. Audio only
-  // unlocks inside a user gesture, so skipping the tap means silence all game.
   const [ready, setReady] = useState(!!preview)
   const returning = !!localStorage.getItem('playerId')
   const audio = useRef<AudioContext | null>(null)
   const wakeLock = useRef<WakeLockSentinel | null>(null)
   const micOk = useRef(false)
 
-  // Hold the screen awake while playing; re-acquire after the tab is hidden.
   useEffect(() => {
     if (preview) return
     if (!ready) return
@@ -151,15 +127,12 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
       try {
         wakeLock.current = await navigator.wakeLock?.request('screen')
       } catch {
-        // Unsupported or denied. The game still works, the screen just dims.
       }
     }
     void acquire()
     const onVisible = () => {
       if (document.visibilityState !== 'visible') return
       void acquire()
-      // A screen lock suspends the audio context. Coming back is a resume
-      // opportunity, so take it rather than waiting for the next gesture.
       void audio.current?.resume()
     }
     document.addEventListener('visibilitychange', onVisible)
@@ -171,9 +144,6 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
 
   const round = state?.round
   const mine = round?.order.find((b) => b.playerId === playerId)
-  // This phone has pressed for this arm. Local, because the room learns nothing
-  // for a full second and a buzzer that looks unchanged after a press feels
-  // broken. Keyed on the arm so it clears itself for the next question.
   const [pressedFor, setPressedFor] = useState(
     preview?.pressed ? (state?.round.attemptId ?? '') : '',
   )
@@ -193,9 +163,6 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
   const nameOf = (id: string) => state?.players.find((p) => p.id === id)?.name ?? '?'
   const buzzableNames = round?.buzzable?.map(nameOf)
 
-  // A closest reveal plays on the board for a few seconds after it settles;
-  // this phone keeps its "Locked" and the old scores until it has, so the
-  // room learns the result from the wall rather than from a hand.
   const holding = useClosestHold(round, !preview)
   const told = useTold(round, !!preview)
   const shownState = state && holding ? { ...state, scores: scoresBeforeClosest(state) } : state
@@ -203,8 +170,6 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
   const armed = round?.phase === 'ARMED' || round?.phase === 'COLLECTING'
   const pressed = !!round && pressedFor === round.attemptId && !!round.attemptId
 
-  // The go cue. Lower than the buzz blip so the two never get confused, and
-  // skipped for players who are locked out and cannot act on it.
   const opening = useOpen(round, now, () => {
     if (preview) return
     if (barred || frozen || spectator) return
@@ -213,8 +178,6 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
   }, !preview)
   const open = preview?.open ?? opening.open
 
-  // A distinct low double-thud when you are shut out, so the phone tells you
-  // why nothing happened instead of leaving you mashing a dead button.
   useEffect(() => {
     if (preview) return
     if (!ready || !barred) return
@@ -222,23 +185,17 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     blip(audio.current, 180, 260)
   }, [barred, ready, preview])
 
-  // A new phone's first hello waits for a socket: the tap may land while it is down,
-  // and on reopening the socket only says hello for a phone with a stored id.
   useEffect(() => {
     if (preview || !ready || !connected || playerId) return
     send({ t: 'hello', role: 'player', name: name.trim() })
   }, [ready, connected, playerId, preview])
 
-  // The join tap doubles as the gesture that unlocks audio on iOS.
   const join = () => {
     const trimmed = name.trim()
     if (!trimmed) return
     localStorage.setItem('playerName', trimmed)
     audio.current = new AudioContext()
     void audio.current.resume()
-    // Mic permission, asked once up front inside the same mandatory tap. The
-    // stream itself opens on lock-in — this is only the dialog, so that the
-    // first answer of the night is not spent staring at it.
     void navigator.mediaDevices
       ?.getUserMedia({ audio: true })
       .then((s) => {
@@ -246,7 +203,6 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
         for (const t of s.getTracks()) t.stop()
       })
       .catch(() => {})
-    // A returning phone's tap can rename it; a socket that is down says this name on reopening.
     if (returning) send({ t: 'hello', role: 'player', name: trimmed })
     setReady(true)
   }
@@ -286,7 +242,6 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     </div>
   }
 
-  // Neither has a buzz: the whole room answers on its phone.
   const choice = round?.kind === 'choice' || round?.kind === 'closest'
   const myPick = playerId ? round?.picks?.[playerId] : undefined
   const pick = (i: number) => {
@@ -301,8 +256,6 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     navigator.vibrate?.(30)
   }
 
-  // Practice rides the buzzer's own press feel but never touches a round; the
-  // server confirms with a receipt, so nothing is claimed while disconnected.
   const practiceBuzz = () => {
     const lobbyId = practiceLobbyId(state)
     if (preview || !connected || lobbyId === undefined) return
@@ -311,10 +264,6 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     blip(audio.current)
   }
 
-  // One reaction per cooldown, as the server counts it; the row dims for the
-  // same span whether or not the server kept the tap, so a dropped tap is never
-  // silent. A beat longer than the server, so a tap the instant the row relights
-  // is not refused on the jitter between the two clocks.
   const [coolingUntil, setCoolingUntil] = useState(0)
   const cooling = coolingUntil > now()
   useEffect(() => {
@@ -332,30 +281,22 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
   const buzz = () => {
     if (preview) return
     if (!open || barred || pressed || frozen || spectator || choice) return
-    // Stamp before anything else so render work never inflates the time.
     if (!send({ t: 'buzz', at: now() })) return
     setPressedFor(round?.attemptId ?? '')
     navigator.vibrate?.(60)
     blip(audio.current)
   }
 
-  // The rounded displayed margin can be zero for a later buzz too. The hub
-  // projects this player's actual place without exposing anyone else's order.
   const won = mine?.leader === true
 
-  // `settled` and `retired` are both already true here: the phone renders no
-  // transcript and no award stamp, so it has no reveal to wait on — neither
-  // dwell exists on this surface for the moment to sit through.
   const reached = state
     ? momentOf(state, { open, settled: true, retired: true })
     : ('idle:welcome' as const)
   const moment = holding && reached === 'closest:reveal' ? 'closest:guessing' : reached
-  // Past the deadline, settled, or the board still revealing: a pad here would take a guess the server refuses.
   const guessingClosed = holding || round?.truth !== undefined || (!!round?.guessing && now() >= round.guessing.closesAt)
   const place = shownState ? 1 + standings(shownState).filter((r) => r.score > score).length : undefined
   const finale = useFinale(state, now, !preview).step
   const called = place !== undefined && finaleCalled(finale, place)
-  // The dial would call every place at once: it waits for the winner, as the board's sidebar does.
   const dialHeld = moment === 'idle:finale' && finale !== 1
   const me = state?.players.find((p) => p.id === playerId)
   const { label, sub, mood, talk, tone, react } = phoneOf(moment, {
@@ -364,9 +305,6 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     spectator,
     locked: round?.phase === 'LOCKED',
     scored: !!round?.award,
-    // Not taken from the moment: `verdict:hold` outranks `duel:dead` on the
-    // wall, and telling a phone "reopening in a moment" when both seated players
-    // have missed is a promise nothing will keep.
     dead: state?.round.buzzable?.length === 0,
     buzzableNames,
     won,
@@ -391,9 +329,6 @@ export function Player({ preview }: { preview?: PlayerPreview } = {}) {
     nearest: round?.nearest,
     value: round?.value,
     awardPoints: round?.award && !round.award.penalty ? round.award.points : undefined,
-    // Your own verdict is Right or Out, never your name: a mode that locks
-    // nobody out leaves the one who missed neither leader nor barred.
-    // shortcut: matched by name, as `Award` carries no id; two players sharing a name miss each other's verdict, upgrade if names stop being distinct.
     told: told && told.name !== me?.name ? told : undefined,
   })
 

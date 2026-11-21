@@ -29,7 +29,6 @@ test('a socket that stops answering pings is cut after the allowed misses; one t
     await new Promise((resolve) => gone.ws.on('close', resolve))
     assert.equal(gone.beats(), BEAT_MISSES)
 
-    // Long enough for the answering socket to have been cut too, were its pongs not counted.
     await new Promise((resolve) => setTimeout(resolve, 30 * (BEAT_MISSES + 3)))
     const connected = (id: string) => server.hub.state.players.find((p) => p.id === id)?.connected
     assert.equal(connected('gone'), false)

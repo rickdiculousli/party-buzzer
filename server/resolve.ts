@@ -1,8 +1,6 @@
 export type RawBuzz = {
   playerId: string
-  /** Client's own estimate of the press moment, already in server-domain ms. */
   at: number
-  /** Server-domain ms when the packet actually landed. */
   arrivedAt: number
 }
 
@@ -12,14 +10,6 @@ export type Resolved = {
   deltaMs: number
 }
 
-/**
- * Order buzzes by when they were actually pressed.
- *
- * A client's claimed stamp is trusted only within `[armedAt, arrivedAt]`: it
- * cannot predate the question opening, and cannot be later than the moment its
- * packet landed. That single clamp handles both a badly synced clock and a
- * client that hand-edits its timestamp.
- */
 export function resolveBuzzes(
   buzzes: RawBuzz[],
   armedAt: number,
@@ -46,9 +36,5 @@ export function resolveBuzzes(
   )
 
   const first = sorted[0]?.at ?? 0
-  // Rounded because this is a number people read. Clients stamp with
-  // performance.now(), which carries a fractional part that would render as
-  // "+57.53271484375ms" — precision the clock sync cannot back up anyway.
-  // Ordering above still uses the full-precision stamp.
   return sorted.map((b) => ({ ...b, deltaMs: Math.round(b.at - first) }))
 }

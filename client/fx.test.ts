@@ -2,7 +2,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BURST_COUNT, countAt, flashTimes, flipDeltas, glitchCut, graphemes, particles, words, type BurstKind } from './fx.ts'
 
-/** A deterministic stand-in for Math.random. */
 function seeded(seed = 1) {
   return () => (seed = (seed * 16807) % 2147483647) / 2147483647
 }

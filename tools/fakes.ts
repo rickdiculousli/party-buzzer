@@ -1,23 +1,9 @@
-/**
- * Fake players with fake scores, for filling out the standings when you're
- * working on the board or the phone dial and don't want to run a whole sim.
- *
- *   node tools/fakes.ts add [n]     join n fakes (default 8) with random scores
- *   node tools/fakes.ts remove      kick every fake
- *   URL=http://box:8080 node tools/fakes.ts add
- *
- * IDs are pinned to fake-01..fake-99, so re-running `add` retargets the same
- * players instead of minting duplicates, and `remove` can never touch a real
- * player. The fakes disconnect when the tool exits; their roster entries and
- * scores stay until you remove them.
- */
 import { setTimeout as sleep } from 'node:timers/promises'
 import { reachable } from './conn.ts'
 import type { ClientMsg, ServerMsg, State } from '../shared/protocol.ts'
 
 const URL = await reachable(process.env.URL)
 
-/** The pinned range. Everything this tool does stays inside it. */
 const PREFIX = 'fake-'
 const MAX = 99
 const fid = (i: number) => `${PREFIX}${String(i + 1).padStart(2, '0')}`
@@ -48,7 +34,6 @@ async function connect(hello: ClientMsg & { t: 'hello' }): Promise<Sock> {
   return { send: (m) => ws.send(JSON.stringify(m)), state: () => state, close: () => ws.close() }
 }
 
-/** A plausible game-night spread: a couple in the red, most a few hundred up. */
 const fakeScore = () => (Math.floor(Math.random() * 14) - 2) * 100
 
 async function add(n: number): Promise<void> {
@@ -57,7 +42,7 @@ async function add(n: number): Promise<void> {
   for (let i = 0; i < n; i++) {
     fakes.push(await connect({ t: 'hello', role: 'player', name: NAMES[i % NAMES.length], playerId: fid(i) }))
   }
-  await sleep(200) // let the hellos land before scoring
+  await sleep(200)
   for (let i = 0; i < n; i++) {
     host.send({ t: 'host', action: { a: 'setScore', key: fid(i), score: fakeScore() } })
   }

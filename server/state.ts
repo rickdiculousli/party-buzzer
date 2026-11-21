@@ -19,10 +19,8 @@ import type {
 
 export { ARM_DELAY_MS }
 
-/** What a setlist block may name: a quiz mode or a minigame. */
 const knownGame = (id: string) => knownModule(id) || isMinigameId(id)
 
-/** A dwell the host typed: tenths of a second, never negative, never a minute. */
 const secs = (n: number, fallback: number): number =>
   Number.isFinite(n) ? Math.min(60, Math.max(0, Math.round(n * 10) / 10)) : fallback
 
@@ -34,8 +32,6 @@ export function newState(): State {
     players: [],
     teams: [],
     scores: {},
-    // The default mode is trivia, which has no options and an empty module
-    // state; written as a literal so newState never touches the registry.
     game: { id: 'trivia', options: {}, moduleState: {} },
     items: {},
     effects: [],
@@ -46,17 +42,9 @@ export function newState(): State {
     packSizes: {},
     packCost: {},
     mirrorFragments: false,
-    // Ten seconds of silence is a stall. Only ever read by the judge, which
-    // only runs while the reader drives a pack, so host-read games never feel it.
     answerWindowSec: 10,
     choiceSec: 20,
     revealSec: 10,
-    // Off by default: a host who has not asked for it should never find the
-    // room moving on without them.
-    // The rebound beat is long enough for the board to finish the miss: the
-    // transcript types out, holds, the penalty stamps and dwells, and only then
-    // does the clue pick up. At two seconds the voice came back while the −400
-    // was still landing, which is two things happening at once.
     autoplay: { on: false, nextSec: 5, buzzSec: 10, reboundSec: 4, introSec: 12 },
     round: {
       questionId: '',
@@ -71,12 +59,6 @@ export function newState(): State {
   }
 }
 
-/**
- * Whether two blocks would run the room the same way. A shallow compare of
- * `options` is a corner cut — a block that swaps one option value for a
- * deep-equal-but-different object would false-negative here — but options
- * arrive from the builder's own form, which never produces that shape.
- */
 function sameSetup(a: SetlistBlock, b: SetlistBlock): boolean {
   if (a.game !== b.game || a.value !== b.value) return false
   const ak = Object.keys(a.options)
@@ -85,11 +67,6 @@ function sameSetup(a: SetlistBlock, b: SetlistBlock): boolean {
   return ak.every((k) => a.options[k] === b.options[k])
 }
 
-/**
- * The rebound proper: same question, buzzers open again for everyone not
- * locked out, scheduled the same way any arm is. The question is still live, so
- * effects ride along under the new arm instant.
- */
 function openRebound(state: State): void {
   const round = state.round
   delete round.held
@@ -98,14 +75,10 @@ function openRebound(state: State): void {
   round.armedAt = Date.now() + ARM_DELAY_MS
   round.order = []
   round.total = 0
-  // A picture the miss held carries on from where it stopped, from the instant
-  // the buzzers open; the board holds it until then (`RevealWall.opensAt`).
   if (round.reveal) round.reveal = resumeReveal(round.reveal, round.armedAt)
   for (const e of state.effects) e.attemptId = round.attemptId
 }
 
-/** Everything a question put on the round. Cleared whenever a question ends or starts. */
-/** Forget the last question entirely, so nothing about it counts as played. */
 function forgetQuestion(round: State['round']): void {
   round.questionId = ''
   round.attemptId = ''
@@ -137,12 +110,6 @@ function clearQuestion(round: State['round']): void {
   delete round.reveal
 }
 
-/**
- * Drop the question and everything the room could still read of it: the
- * result, the transcript, the typed clue, the judge's window. What `next`
- * does, and what a jump to the end of the setlist does, so the finale is what
- * the room sees when its clock is stamped.
- */
 function dropQuestion(state: State): void {
   forgetQuestion(state.round)
   delete state.typed
@@ -151,16 +118,13 @@ function dropQuestion(state: State): void {
   delete state.round.buzzable
 }
 
-/** Next, reset, jump and clear move past the first block, so its introduction goes. */
 function dropIntroduction(state: State): void {
   if (arrivalBlocksPlay(state)) delete state.arrival
 }
 
-/** Validate before mutation and report whether anything actually changed. */
 export function applyHostAction(state: State, action: HostAction): ActionResult {
   const reason = refuses(state, action)
   if (reason) return { status: 'refused', reason }
-  // A bare state can precede catalog initialization in tests or on startup.
   if (action.a === 'setMode' && !knownModule(action.id)) {
     return { status: 'refused', reason: 'unknown-mode' }
   }
@@ -174,15 +138,7 @@ export function applyHostAction(state: State, action: HostAction): ActionResult 
 
 function mutateHostAction(state: State, action: HostAction): void {
   const round = state.round
-  // Used unnarrowed by `correct` and `wrong`, and that is not an oversight the
-  // compiler is missing: `refuses` returns `no-leader` for both unless
-  // `r.order[0]` is there, and the `return` below is what makes it a guarantee.
-  // It only typechecks because `noUncheckedIndexedAccess` is off, so the
-  // guarantor is a different file now — name it rather than leave it looking
-  // like luck.
   const leader = round.order[0]
-  // The setlist applies its blocks through this same function: entering a block is
-  // exactly the actions a host would press, so every validation still runs.
   const apply = (a: HostAction) => applyHostAction(state, a)
 
   switch (action.a) {
@@ -201,14 +157,10 @@ function mutateHostAction(state: State, action: HostAction): void {
       delete round.judge
       delete round.spoken
       delete round.buzzable
-      // A fresh question: sweep effects stamped to the last one, stamp the
-      // live ones (a freeze fired between questions lands here).
       state.effects = state.effects.filter((e) => e.attemptId === undefined)
       for (const e of state.effects) e.attemptId = round.attemptId
       moduleFor(state.game.id).onArm?.(state)
       duelOnArm(state)
-      // Real play begins: the lobby is over. `refuses` has already kept an
-      // introduction from reaching here.
       endLobby(state)
       return
     }
@@ -220,13 +172,10 @@ function mutateHostAction(state: State, action: HostAction): void {
       } else {
         const points = leaderValue(round)
         bump(state, scoreKey(state, leader.playerId), points)
-        // The order stays up. Clearing it here vanishes the result at the exact
-        // moment the room looks at it; `arm` and `next` clear it.
         round.award = { name: leader.name, points }
       }
       round.phase = 'IDLE'
       round.lockedOut = []
-      // The window is over; the transcript stays up beside the award.
       delete round.judge
       if (mod.grants) executeGrants(state, mod.grants(state))
       return
@@ -235,45 +184,20 @@ function mutateHostAction(state: State, action: HostAction): void {
     case 'wrong': {
       const key = scoreKey(state, leader.playerId)
       const mod = moduleFor(state.game.id)
-      // Cleared first, stamped second: a penalty gets the award's mirror and it
-      // stays up through the rebound, where the next arm (or a correct) takes it
-      // down. The module owns its own penalty the way it owns its own payoff,
-      // so the clear has to happen before `onWrong`, not after it.
       delete round.award
       delete round.held
-      // The picture stays where the press stopped it, through the verdict and
-      // any held beat, until the rebound opens.
       if (round.reveal) round.reveal = { ...round.reveal, heldAt: leader.at }
       if (mod.onWrong) {
         mod.onWrong(state, action.neg)
       } else {
         if (action.neg) bump(state, key, -action.neg)
         if (!round.lockedOut.includes(key)) round.lockedOut.push(key)
-        // Stamped whatever it cost, zero included: the award is how the wall
-        // knows a miss happened at all, and without one it sits on a bare
-        // "Ready" through the rebound that miss caused.
         round.award = { name: leader.name, points: -action.neg, penalty: true }
       }
-      // Same: the verdict ended the window, but what was said rides the rebound.
       delete round.judge
-      // Nobody is answering any more, whether the rebound opens now or waits.
-      // Emptying the order is also what keeps the judge quiet through a held
-      // one: its window needs a leader, and between the miss and the arm there
-      // isn't one.
       round.order = []
       round.total = 0
 
-      // Who opens the rebound. With the box driving, the room reads the miss
-      // first and the reader arms it after its rebound beat — otherwise the
-      // buzzers were open for that whole beat while nothing was being read and
-      // the wall was showing a result, which made buzzing on the verdict a race
-      // on a signal only the phones had.
-      //
-      // A host judging by hand keeps the instant rebound: they pressed W when
-      // they were ready, and there is no reader to arm it for them. The
-      // `readingActive` half of the check is what makes that safe — autoplay
-      // left on with nobody reading would otherwise hold a round nothing ever
-      // opens.
       if (state.autoplay.on && state.readingActive) round.held = true
       else openRebound(state)
       duelOnWrong(state, leader.playerId)
@@ -281,77 +205,51 @@ function mutateHostAction(state: State, action: HostAction): void {
     }
 
     case 'timeUp':
-      // The question stays — its answer is what the room reads next — but
-      // nobody may buzz on it any more.
       round.phase = 'IDLE'
       round.lockedOut = []
       return
 
     case 'rebound':
-      // The hold *was* the room's look at the miss. Opening it hands the wall
-      // back to the clue, and the clue resumes in the same instant — so the
-      // transcript goes with the hold rather than sitting over the next two
-      // sentences in red. Not in `openRebound`: a rebound nobody held opens in
-      // the same tick the judge published the transcript, and clearing it there
-      // would mean the room never read it at all.
       delete round.spoken
       openRebound(state)
       return
 
     case 'next':
     case 'resetRound': {
-      // Captured before the reset clears it: this is what tells a finished
-      // question from a double-tap on N or a stale award being cleared.
       const played = round.armedAt > 0
       round.phase = 'IDLE'
       dropQuestion(state)
-      // A duel is one question. The host re-opens (or rematches by arming
-      // before next) rather than the pair leaking into the next round.
       delete state.duel
       dropIntroduction(state)
-      // After the reset, never before: the block's `openDuel` needs an IDLE
-      // round and a cleared duel to land on. `resetRound` is the host taking a
-      // question back, so it spends nothing.
       if (action.a === 'next' && played) advanceSetlist(state, apply, Date.now())
       return
     }
 
     case 'undo':
-      // Handled by the hub, which owns the snapshot stack.
       return
 
     case 'prepareMinigame':
     case 'startMinigame':
     case 'cancelMinigame':
     case 'closeMinigame':
-      // Owned by MinigameRuntime through Hub.dispatch.
       return
 
-    // The lobby is runtime, opened and closed by the hub without an undo step.
     case 'openLobby':
       return
 
-    // Reached for an introduction; `refuses` has matched the id. Nothing else
-    // moves: no question, block, arm, read, seat or match.
     case 'closeArrival':
       delete state.arrival
       return
 
     case 'setMode': {
-      // A pool was built under the old game's room; a seated pair is a
-      // commitment and survives.
       if (state.duel && !state.duel.seated) delete state.duel
       const mod = moduleFor(action.id)
       const options = sanitizeOptions(mod.options, action.options)
       if (action.id === state.game.id) {
-        // Re-saving the current mode's options is not a switch: scores survive.
         state.game.options = options
         return
       }
       state.game = { id: mod.id, options, moduleState: mod.init(options) }
-      // A host switching modes is starting a fresh game. The setlist crossing a
-      // block boundary is not — erasing the standings at block 2 would be the
-      // worst thing this feature could do.
       if (!action.keepScores) state.scores = {}
       state.items = {}
       state.effects = []
@@ -371,8 +269,6 @@ function mutateHostAction(state: State, action: HostAction): void {
       round.phase = 'IDLE'
       return
 
-    // The room's numbers against the pack's, paid without the mode's hooks the
-    // way a choice question is: nobody buzzed, so there is no leader to score.
     case 'settleClosest': {
       const paid = closestAwards(round.guesses ?? {}, action.truth, round.value)
       for (const [playerId, points] of Object.entries(paid)) bump(state, scoreKey(state, playerId), points)
@@ -421,7 +317,6 @@ function mutateHostAction(state: State, action: HostAction): void {
 
     case 'setGrouping':
       state.grouping = action.grouping
-      // Teams constraints shape the pool; re-open under the new grouping.
       if (state.duel && !state.duel.seated) delete state.duel
       return
 
@@ -430,8 +325,6 @@ function mutateHostAction(state: State, action: HostAction): void {
       return
 
     case 'setAutoplay':
-      // Clamped here rather than at the input: a number field is a text box
-      // with arrows on it, and a NaN dwell is a reader that never wakes up.
       state.autoplay = {
         on: action.on,
         nextSec: secs(action.nextSec, 5),
@@ -457,32 +350,20 @@ function mutateHostAction(state: State, action: HostAction): void {
     }
 
     case 'openDuel': {
-      // A lookup, and only a lookup: the table refuses an unknown rule against
-      // `state.duelRules` now, so this is fetching the `entry`/`resolve` the
-      // case is about to read, not ruling on legality. It still returns on a
-      // miss because the catalog it reads is `server/duel.ts`'s and the table's
-      // is State's copy — the same pair as `knownModule` and `state.games`.
       const rule = duelRule(action.rule)
       if (!rule) return
       state.duel = { rule: rule.id, pool: [], missed: [] }
-      // A duel launch ends the lobby the way an arm does.
       endLobby(state)
-      // Instant rules (no entry gate — 'random') seat now, against everyone
-      // eligible. Entry rules wait for the host to close, however they
-      // resolve: 'volunteer-random' still needs its volunteer window open
-      // before there is anyone to draw from.
       if (rule.entry === 'none' && rule.resolve === 'random') {
         const pair = resolveDuel(state, state.duel)
         if (pair) state.duel.seated = pair
-        else delete state.duel // fewer than two eligible — nothing to close
+        else delete state.duel
       }
       return
     }
 
     case 'closeDuel': {
       const duel = state.duel
-      // Whether a seated duel may be re-closed is the table's call; what is
-      // left here is the lookup `resolveDuel` needs a value for.
       if (!duel) return
       if (action.playerIds) {
         seatDuel(state, action.playerIds)
@@ -495,7 +376,6 @@ function mutateHostAction(state: State, action: HostAction): void {
 
     case 'cancelDuel':
       delete state.duel
-      // Mid-round cancel reopens the floor for the question in flight.
       delete round.buzzable
       return
 
@@ -507,45 +387,26 @@ function mutateHostAction(state: State, action: HostAction): void {
         return
       }
       const prev = state.setlist
-      // Editing block 4 during block 2 must not restart the night; a setlist
-      // too short for where the room is has to start over — and so does a
-      // spent one: `prev.at === prev.blocks.length` was never a block anyone
-      // entered, so there is nothing mid-flight to preserve.
       const keep = prev && prev.at < prev.blocks.length && prev.at < blocks.length
       const at = keep ? prev.at : 0
       const done = keep ? Math.min(prev.done, blocks[at].count - 1) : 0
-      // Keeping position doesn't mean the block AT that position is unchanged —
-      // the host may have just edited the one being played. Compare it against
-      // what was there before and re-apply setup alone if it moved, so the
-      // room's mode never drifts from what the play strip claims. Never
-      // re-open a duel here: that is a per-question event, not a per-edit one,
-      // and firing it on a settings tweak would wipe an in-flight vote pool.
       const changed = keep && !sameSetup(prev.blocks[at], blocks[at])
       state.setlist = { blocks, at, done }
       if (!keep) {
-        // The last setlist's question is not the first block's: its award
-        // must not resurface after Continue or count toward block 0 on Next.
         forgetQuestion(round)
         enterBlock(state, apply, true, Date.now())
-        // A fresh start introduces its first block, after setup and any duel
-        // window are in place, and replaces a lobby. A kept position leaves
-        // a pending introduction and its id alone.
         introduceBlock(state, true)
       } else if (changed) applySetup(state, apply)
       return
     }
 
     case 'setlistJump': {
-      // A lookup again: the table has already refused a jump with no setlist,
-      // this is the value the case moves.
       const setlist = state.setlist
       if (!setlist) return
       const at = Number.isFinite(action.at) ? Math.round(action.at) : 0
       setlist.at = Math.min(Math.max(0, at), setlist.blocks.length)
       setlist.done = 0
       dropIntroduction(state)
-      // Skipping to the end is the finale, now: a result or transcript left on
-      // the wall would hold the stage while the ceremony's clock ran under it.
       if (setlist.at >= setlist.blocks.length) dropQuestion(state)
       enterBlock(state, apply, true, Date.now())
       introduceBlock(state, false)
@@ -553,17 +414,12 @@ function mutateHostAction(state: State, action: HostAction): void {
     }
 
     case 'clearSetlist':
-      // The setlist goes; the game in progress stays. Clearing a plan is not a
-      // reason to change the mode or cancel a duel the room is already voting on.
       delete state.setlist
       dropIntroduction(state)
       return
   }
 }
 
-// ponytail: rewrites the whole file on every change, debounced. State is a few
-// KB and writes are rare, so this stays well under a millisecond. Switch to an
-// append-only log only if a game ever grows large enough to stutter.
 const queued = new Map<string, { timer: NodeJS.Timeout; snapshot: string }>()
 
 function write(path: string): void {
@@ -573,17 +429,11 @@ function write(path: string): void {
   try {
     writeFileSync(path, entry.snapshot)
   } catch (err) {
-    // A failed snapshot must never take the game down mid-question.
     console.error('[state] snapshot failed:', err)
   }
   queued.delete(path)
 }
 
-/**
- * Coalescing write. The first change schedules the flush and later ones only
- * replace what gets written, so a burst costs one write and never pushes the
- * deadline back — a game that keeps changing still gets saved.
- */
 export function saveState(path: string, state: State): void {
   const snapshot = JSON.stringify(persistedSnapshot(state))
   const entry = queued.get(path)
@@ -596,7 +446,6 @@ export function saveState(path: string, state: State): void {
   queued.set(path, { timer, snapshot })
 }
 
-/** Write anything outstanding right now. Sync, so shutdown cannot wait on it. */
 export function flushSave(): void {
   for (const path of queued.keys()) write(path)
 }
@@ -612,19 +461,12 @@ export function loadState(path: string): State {
   try {
     const parsed = JSON.parse(raw)
     if ('version' in parsed && parsed.version !== 1 && parsed.version !== 2) throw new Error('Unsupported snapshot version')
-    // Unversioned files are the original live-State format.
     const loaded = { ...newState(), ...('version' in parsed ? parsed.state : parsed) } as State
-    // Version 1 files predate the ledger; a damaged one is no better than none.
     if (!Array.isArray(loaded.night?.facts)) loaded.night = { facts: [] }
-    // Snapshots from before game modes — or naming a module this build does
-    // not register — must still boot.
     loaded.items ??= {}
     loaded.effects ??= []
     loaded.duelRules ??= []
     if (!Array.isArray(loaded.setlists)) loaded.setlists = []
-    // A setlist written by another build may name modules this one does not
-    // register. Drop what we cannot run rather than booting into a setlist that
-    // silently misbehaves at block 3.
     if (loaded.setlist) {
       loaded.setlist.blocks = sanitizeBlocks(loaded.setlist.blocks, knownGame, (id) => !!duelRule(id))
       if (loaded.setlist.blocks.length === 0) delete loaded.setlist
@@ -634,23 +476,15 @@ export function loadState(path: string): State {
         if (!Number.isFinite(loaded.setlist.spentAt)) delete loaded.setlist.spentAt
       }
     }
-    // A minigame lobby from before the ready flag existed.
     if (loaded.minigame?.lobby) loaded.minigame.lobby.ready ??= []
-    // A duel mid-setup can't survive a restart: the pool was voted under a
-    // room that may not be back. Fresh boot, no duel — and round.buzzable
-    // goes with it, since without the duel it is just two ids that can buzz
-    // for a reason nobody can see anymore.
     delete loaded.duel
     delete loaded.round.buzzable
-    // Arrival is runtime only. A crafted or older file carrying one must not
-    // resume it, and nothing recreates an introduction from `at`/`done`.
     delete loaded.arrival
     if (!Array.isArray(loaded.packs)) loaded.packs = []
     if (typeof loaded.mirrorFragments !== 'boolean') loaded.mirrorFragments = false
     if (typeof loaded.answerWindowSec !== 'number') loaded.answerWindowSec = 10
     if (typeof loaded.choiceSec !== 'number') loaded.choiceSec = 20
     if (typeof loaded.revealSec !== 'number') loaded.revealSec = 10
-    // A snapshot from before autoplay existed, or one hand-edited into nonsense.
     const auto = loaded.autoplay as Partial<State['autoplay']> | undefined
     loaded.autoplay = {
       on: auto?.on === true,
@@ -666,9 +500,7 @@ export function loadState(path: string): State {
       )
       loaded.game = { id: 'trivia', options: {}, moduleState: {} }
     }
-    // Nobody is connected yet; sockets re-establish that on their own.
     for (const p of loaded.players) p.connected = false
-    // A round mid-flight can't survive a restart: no timer, no pending buzzes.
     loaded.round = { ...newState().round, value: loaded.round.value }
     loaded.effects = loaded.effects.filter((e) => e.attemptId === undefined && !('roundArmedAt' in e))
     const mod = moduleFor(loaded.game.id)
@@ -680,10 +512,6 @@ export function loadState(path: string): State {
     loaded.packSizes = {}
     loaded.packCost = {}
     loaded.setlists = []
-    // A reader is never mid-pack on a fresh boot — the Reader instance that
-    // would drive it is built fresh too. Without this, a stale `running: true`
-    // offers Pause on a reader that never started, and the next Read runs
-    // paused from the first clip with nothing on screen to explain why.
     loaded.readingActive = false
     delete loaded.reading
     return loaded

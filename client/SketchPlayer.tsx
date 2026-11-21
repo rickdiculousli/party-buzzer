@@ -13,15 +13,8 @@ import { colorForPlayer, playerName } from './ui.ts'
 import { sidewaysClass, useSideways } from './useSideways.ts'
 
 const CLOSE_MS = 1_500
-/** Your own wrong guesses kept on the phone, newest last. */
 const MINE = 3
 
-/**
- * The quiz phone's blocking, kept for every Sketch screen: the identity bar,
- * one centred line where the countdown sits, the card that fills the middle
- * the way the buzzer does, and whatever you act with below it. Everything
- * shares the one gutter and the one centre line.
- */
 function Screen({ bar, line, card, foot, tight }: { bar: ComponentChildren; line?: ComponentChildren; card: ComponentChildren; foot?: ComponentChildren; tight?: boolean }) {
   return <main class={tight ? 'player sketch-phone sketch-phone--tight' : 'player sketch-phone'}>
     {bar}
@@ -53,7 +46,6 @@ export function SketchPlayer({ state, playerId, connected = true, frame, now, se
 
   const nameOf = (id: string) => playerName(state, id)
   const me = playerId ?? ''
-  // This match's points while it runs; the night's once it is over.
   const score = sketch && session.phase === 'playing' ? sketch.scores[me] ?? 0 : state.scores[me] ?? 0
   const bar = <PlayerBar state={state} playerId={playerId} connected={connected} score={score} />
 
@@ -117,8 +109,6 @@ export function SketchPlayer({ state, playerId, connected = true, frame, now, se
         foot={<PendingBar label="Get ready to guess" />}
       />
 
-  // Drawing is sideways with the phone's left edge down, as Ink's writing is:
-  // a 4:3 drawing gets the phone's long side instead of its short one.
   if (drawer && sketch.step === 'drawing') return <main class={`player sketch-phone sketch-phone--draw ${sidewaysClass(rotation)}`}>
     {bar}
     <div class="sketch-phone__row">
@@ -159,17 +149,13 @@ export function SketchPlayer({ state, playerId, connected = true, frame, now, se
       if (!text.trim()) return
       input({ kind: 'guess', text })
       setText('')
-      // Guessing is a run of tries: the keyboard stays up between them.
       field.current?.focus({ preventScroll: true })
     }}>
       <input ref={field} class="input sketch-guess__field" value={text} maxLength={40} placeholder="Your guess"
         aria-label="Your guess" autocomplete="off" autocapitalize="off" enterkeyhint="send" onTouchEnd={focusInPlace}
         onInput={(event) => setText((event.currentTarget as HTMLInputElement).value)} />
-      {/* Pressing Send never takes focus from the field, so the keyboard stays open. */}
       <button class="btn btn--primary sketch-guess__send" type="submit" disabled={!text.trim()}
         onPointerDown={(event) => event.preventDefault()}>Send</button>
-      {/* Your own misses stay in view, so a cleared field never reads as a
-          guess that went nowhere; Close takes their place for a moment. */}
       <p class="sketch-guess__tried">
         {flash
           ? <span class="chip chip--armed fx-pop">Close</span>

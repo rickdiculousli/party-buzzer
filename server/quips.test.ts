@@ -28,14 +28,14 @@ const line = (text: string): Line => ({ text, sincere: false })
 
 test('a quip never repeats the line just said', () => {
   const quips = [line('a'), line('b')]
-  const picker = new Picker(() => 0) // always under the odds, always the first open line
+  const picker = new Picker(() => 0)
   assert.equal(picker.pick('wrong', quips)?.text, 'a')
   assert.equal(picker.pick('wrong', quips)?.text, 'b', 'not the line just said')
   assert.equal(picker.pick('wrong', quips)?.text, 'a')
 })
 
 test('a verdict the quip skips gets the next plain line, in rotation', () => {
-  const picker = new Picker(() => 0.9) // always over the odds
+  const picker = new Picker(() => 0.9)
   const plain = [line('Correct.'), line('Right.'), line('Yes.')]
   const said = [1, 2, 3, 4].map(() => picker.pick('correct', [line('quip')], plain)?.text)
   assert.deepEqual(said, ['Correct.', 'Right.', 'Yes.', 'Correct.'])

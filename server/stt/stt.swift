@@ -1,12 +1,3 @@
-// One audio file in (argv 1), one transcript out (stdout). On-device, so party
-// WiFi — which has no route to the internet — is enough. Built by swiftc at
-// server boot; see server/stt.ts.
-//
-// `stt --session <file>` instead opens the file once and serves ranges: a line
-// "<fromMs> <toMs>" on stdin yields one transcript line on stdout. The reader's
-// alignment asks the same clip hundreds of questions to find where its words
-// end, and roughly nine tenths of a one-shot run is process startup — so the
-// difference between a loop and a spawn per question is minutes per pack.
 import Speech
 import AVFoundation
 import Foundation
@@ -23,10 +14,6 @@ let fail = { (msg: String, _ code: Int32) -> Never in
     exit(code)
 }
 
-/// Turns the main runloop until `ready()` or the deadline. Never a semaphore:
-/// XPC to speechd is set up on the main runloop, and parking that thread
-/// starves it — the task then never calls back, which is the one failure mode
-/// the original spike actually hit.
 func pump(until ready: () -> Bool, seconds: Double) {
     let deadline = Date().addingTimeInterval(seconds)
     while !ready() && Date() < deadline {
@@ -36,9 +23,6 @@ func pump(until ready: () -> Bool, seconds: Double) {
 
 var recognizer: SFSpeechRecognizer?
 
-/// Authorization is lazy so session protocol requests that require no speech
-/// service can still be answered deterministically. Real transcription takes
-/// the same authorization path on its first non-empty range.
 func speechRecognizer() -> SFSpeechRecognizer? {
     if let recognizer { return recognizer }
     var authDone = false
@@ -59,9 +43,6 @@ do { file = try AVAudioFile(forReading: url) } catch {
 }
 let rate = file.processingFormat.sampleRate
 
-/// Transcribe a frame range of the open file. An empty string means the
-/// recogniser heard nothing it would commit to, which here is a real
-/// answer — the audio up to here contains no complete word.
 func transcribe(fromMs: Int, toMs: Int) -> String? {
     let first = max(0, AVAudioFramePosition(Double(fromMs) / 1000.0 * rate))
     let last = min(file.length, AVAudioFramePosition(Double(toMs) / 1000.0 * rate))
@@ -84,8 +65,6 @@ func transcribe(fromMs: Int, toMs: Int) -> String? {
     var failed = false
     let task = recognizer.recognitionTask(with: request) { result, error in
         if let error {
-            // No speech in the slice is reported as an error,             // that is the informative case, not a broken run.
-            // One file at a time is a judged answer; say why it came back empty.
             if !sessionMode {
                 FileHandle.standardError.write("stt: \(error.localizedDescription) [\((error as NSError).domain) \((error as NSError).code)]\n".data(using: .utf8)!)
             }
@@ -104,11 +83,6 @@ func transcribe(fromMs: Int, toMs: Int) -> String? {
     return out
 }
 
-/// Line out, right now. `print` is line-buffered on a terminal and block-
-/// buffered on a pipe, which is the only way this is ever run for real — the
-/// answer would sit in a 4KB buffer while the caller waited for it and we
-/// waited for the caller's next question. Both processes then idle forever at
-/// zero CPU, which is what a deadlock looks like from the outside.
 func emit(_ s: String) {
     FileHandle.standardOutput.write("\(s)\n".data(using: .utf8)!)
 }

@@ -9,14 +9,12 @@ const shared = (world: TugWorld, clock: Clock) => ({
   ...(world.endedAtMs !== undefined ? { winner: world.winner ?? null } : {}),
 })
 
-/** Tug of war: two sides tap to drag the flag past their mark, or are ahead when the rope stops. */
 export const tug: MinigameDefinition<TugWorld> = {
   stepMs: TUG_STEP_MS,
   create: (_seed, participants, options, _lobby, room = { grouping: 'solo', players: [], teams: [], scores: {} }) => ({
     world: createTugWorld({ participants, room, durationSec: options.durationSec, value: options.value }),
   }),
   startable: (_lobby, connected) => connected.length < 2 ? 'too-few-players' : null,
-  // Taps are a flood, not commands: no ack, applied in arrival order each step.
   classify: (input) => (input as { kind?: unknown } | null)?.kind === 'pull' ? 'continuous' : null,
   apply(world, playerId) {
     pull(world, playerId)

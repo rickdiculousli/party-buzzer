@@ -1,21 +1,3 @@
-/**
- * A motion-harness scenario as a contact sheet, for a critic who cannot watch it.
- *
- *   node tools/qa/filmstrip.ts --list
- *   node tools/qa/filmstrip.ts poker-deal                 # 12 frames across the move
- *   node tools/qa/filmstrip.ts poker-flop --frames 20 --out .qa/flop
- *   node tools/qa/filmstrip.ts poker-street --at 0,200,400,560,620,700
- *
- * Starts its own Vite on a spare port, opens `anim.html` on the scenario in
- * headless Chromium, waits for the moment to mount, pauses every animation on
- * the stage and steps them all to each sample time on one shared clock, so a
- * frame is exactly what the room sees at that instant. Writes `sheet.png`
- * (frames left to right, top to bottom, each captioned with its time) and
- * `timing.json` (every animation's target, delay, duration and easing).
- *
- * The harness stage is a patch of felt, not the whole board, and sound is not
- * captured. Timing, audio and touch feel still need a person.
- */
 import { spawn } from 'node:child_process'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -23,7 +5,6 @@ import { fileURLToPath } from 'node:url'
 import { chromium } from '@playwright/test'
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url))
-// A port of its own, so critics capturing at the same time do not collide.
 const PORT = 5200 + Math.floor(Math.random() * 700)
 
 const args = process.argv.slice(2)
@@ -42,7 +23,7 @@ const vite = spawn('npx', ['vite', '--host', '127.0.0.1', '--port', String(PORT)
 const base = `http://127.0.0.1:${PORT}`
 try {
   for (let i = 0; ; i++) {
-    try { if ((await fetch(`${base}/anim.html`)).ok) break } catch { /* not up yet */ }
+    try { if ((await fetch(`${base}/anim.html`)).ok) break } catch {}
     if (i > 100) throw new Error('vite did not start')
     await new Promise((r) => setTimeout(r, 150))
   }
@@ -53,7 +34,6 @@ try {
     await page.goto(`${base}/anim.html`)
     const stage = page.locator('.harness__preview')
     await stage.waitFor()
-    // The harness holds the lead-up frame for 500ms, then mounts the moment and rewinds it to 0.
     await page.waitForTimeout(900)
     const timing = await page.evaluate(() => {
       const root = document.querySelector('.harness__preview')!
@@ -66,7 +46,6 @@ try {
       return runs.map((a) => {
         const t = a.effect!.getComputedTiming()
         const el = (a.effect as KeyframeEffect).target as Element
-        // A CSS animation's curve lives on its keyframes; the effect timing reads 'linear'.
         return { target: `${el.tagName.toLowerCase()}.${[...el.classList].join('.')}`, kind: a.constructor.name, delay: t.delay, duration: t.duration, endTime: t.endTime, easing: (a.effect as KeyframeEffect).getKeyframes()[0]?.easing ?? t.easing }
       })
     })
@@ -74,7 +53,6 @@ try {
     const end = Math.max(...timing.map((t) => Number(t.endTime) || 0))
     const n = Number(flag('frames') ?? 12)
     const times = flag('at')?.split(',').map(Number) ?? Array.from({ length: n }, (_, i) => Math.round((end * i) / (n - 1)))
-    // The felt or stage the scenario draws on, not the harness's empty margins around it.
     const tight = stage.locator('.fx-stage > *').first()
     const shot = await tight.count() ? tight : stage
     const shots: { t: number; png: string }[] = []

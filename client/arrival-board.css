@@ -1,5 +1,3 @@
-/* The wall's arrival occupant. It spans all three wall rows because the
-   arrival moments empty every lane the wall would otherwise lay out. */
 .arrival-board {
   grid-row: 1 / -1;
   align-self: center;
@@ -24,7 +22,6 @@
 }
 .arrival-board__goal { margin: 0; font-size: var(--t-xl); color: var(--dim); text-wrap: balance; }
 
-/* Up to a screenful of names at any roster size: columns wrap, long names wrap too. */
 .arrival-board__roster {
   list-style: none;
   margin: var(--s4) 0 0;

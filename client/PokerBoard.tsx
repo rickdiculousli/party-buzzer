@@ -13,10 +13,6 @@ import { chain, chipStack, gather, potOf, CHIP_FACE, flop, turnUp, pitch, receiv
 import { colorForPlayer, ordinal, playerName, setlistPosition } from './ui.ts'
 
 type Point = { x: number; y: number }
-/**
- * What each move sounds like. A pair or a stack that moves as one sounds once,
- * from its first card. Cards whoosh through the air and land silently.
- */
 const DEALT: PieceSound = { air: 'poker-deal', tap: 'poker-tap' }
 const DEALT_SECOND: PieceSound = { air: 'poker-deal' }
 const LAID: PieceSound = { air: 'poker-deal', flip: 'poker-flip' }
@@ -25,24 +21,16 @@ const FOLDED: PieceSound = { air: 'poker-fold' }
 const BET: PieceSound = { stop: 'poker-chips' }
 const SWEPT: PieceSound = { start: 'poker-sweep', stop: 'poker-chips' }
 const PUSHED: PieceSound = { start: 'poker-sweep', stop: 'poker-push' }
-/** How long thrown-away cards lie where they stopped before they pop away. */
 const LINGER_MS = 800
 const BANNER_MS = 2_600
 const REACTION_MS = 1_800
 const LOG_LINES = 7
-/**
- * Where things sit in from a seat, in card widths: the pair clears the seat's
- * name and notes (which run deeper above and below a seat than beside it),
- * and the bet sits past the pair toward the middle.
- */
 const HOLE_IN = { across: 1.7, along: 1.75 }
 const BET_BEYOND = 1.6
-/** How far from the middle a fold always stops, in card widths: wide to the sides where the board cards and pot lie, short above and below. */
 const KEEP_CLEAR = { across: 4, along: 1.6 }
 
 const toward = (p: Point, c: Point, by: number): Point => ({ x: p.x + (c.x - p.x) * by, y: p.y + (c.y - p.y) * by })
 
-/** Entries newer than the last frame's. The first frame only sets the baseline, so a reload replays nothing. */
 function useFresh<T extends { id: number }>(list: T[] | undefined, matchId: string): T[] {
   const seen = useRef<{ match: string; id: number } | null>(null)
   if (!list) return []
@@ -58,15 +46,10 @@ function useFresh<T extends { id: number }>(list: T[] | undefined, matchId: stri
 
 type Ghost = { key: string; pose: Pose; frames: Frame[]; sound?: PieceSound; kind: 'fold' | 'chips' | 'bet'; amount?: number; chips?: number[]; corral?: { x: number; y: number; chips: number[] }[]; held?: number; pending?: number; seat?: number; popping?: boolean; stay?: boolean }
 
-/**
- * The board is the table under one lamp: felt to every edge, seats printed
- * around it, and a dealer just off the top edge who pitches every card.
- */
 export function PokerBoard({ state, frame, now, join }: MinigameBoardProps) {
   const session = state.minigame!
   const poker = matchFrame(frame, 'poker', 'board', session.matchId)
   usePokerCues(poker, 'board')
-  // The winner's name slams in over the table; a reload onto the results stays quiet.
   const shownPhase = useRef(session.phase)
   useEffect(() => {
     if (session.phase === 'results' && shownPhase.current !== 'results') play('leader')
@@ -85,20 +68,12 @@ export function PokerBoard({ state, frame, now, join }: MinigameBoardProps) {
   }
   useEffect(() => () => { for (const timer of timers.current) clearTimeout(timer) }, [])
   const [floats, setFloats] = useState<{ key: string; player: PlayerId; text: string }[]>([])
-  /** Each community card's motion, turn over included, and the hinge it turns on, per hand. */
   const laid = useRef<{ hand: number; cards: { frames: Frame[] | null; delay: number; hinge?: number }[]; busy: number } | null>(null)
-  /** Hole cards this hand that the board has seen face down, `seat-card`: only those are turned over when shown. */
   const seenDown = useRef<{ hand: number; cards: Set<string> }>({ hand: -1, cards: new Set() })
   if (poker && seenDown.current.hand !== poker.handNo) seenDown.current = { hand: poker.handNo, cards: new Set() }
-  // When this hand was dealt. A reload mid-hand deals nothing; one that lands during a deal still watches it.
   const deal = useRef<{ hand: number; at: number | null } | null>(null)
   if (poker && deal.current?.hand !== poker.handNo) deal.current = { hand: poker.handNo, at: deal.current || poker.phase === 'deal' ? performance.now() : null }
-  /** Each seat's bet as it was put in, every call or raise on top of the last; `top` is how many chips the last one added. */
   const piles = useRef(new Map<number, { hand: number; street: string; total: number; chips: number[]; top: number }>())
-  /**
-   * The pot as the stacks it was pushed into, the bets still sliding in, hidden from their stack until they land, and
-   * who won it, waiting for those bets before the pot is pushed their way.
-   */
   const pot = useRef<{ hand: number; total: number; stacks: PotStack[]; landing: { key: string; seat: number; stack: number; base: number; count: number; sent?: boolean }[]; wins: { id: number; seat: number; amount: number }[] }>({ hand: -1, total: 0, stacks: [], landing: [], wins: [] })
   const paths = useRef<{ key: string; deals: Map<number, [Frame[], Frame[]]>; shows: Map<number, ReturnType<typeof turnUp>> }>({ key: '', deals: new Map(), shows: new Map() })
   const pathKey = `${session.matchId}:${poker?.handNo}:${w}:${h}:${poker?.seats.map((s) => `${s.button}-${s.busted}`).join(',')}`
@@ -108,26 +83,18 @@ export function PokerBoard({ state, frame, now, join }: MinigameBoardProps) {
   const freshReacts = useFresh(poker?.reactions, session.matchId)
   const prev = useRef<typeof poker>(null)
 
-  // Geometry, in table pixels.
   const seats = poker?.seats ?? []
   const cardW = Math.round(Math.min(92, Math.max(44, w * 0.046)))
   const centre = { x: ELLIPSE.cx * w, y: ELLIPSE.cy * h }
   const spots = useMemo(() => seatPositions(seats.length).map((p) => ({ x: p.x * w, y: p.y * h })), [seats.length, w, h])
   const dealer = { x: centre.x, y: -cardW * 1.6 }
-  // A dealer's board is never a perfect grid: each card rests a little off its line.
   const board = (i: number): Pose => {
     const hand = poker?.handNo ?? 0
     return { x: centre.x + (i - 2) * cardW * 1.14 + lie(cardW * 0.06, hand, 'bx', i), y: centre.y + lie(cardW * 0.05, hand, 'by', i), rot: lie(2, hand, 'b', i) }
   }
-  // The pot sits beside the board cards, so the lanes above and below them stay clear for the seats there.
   const potAt = { x: centre.x + cardW * 3.8, y: centre.y }
   const chipW = cardW * 0.64
   const potStackAt = (stack: PotStack): Pose => ({ x: potAt.x + stack.x * chipW, y: potAt.y + stack.y * chipW * CHIP_FACE, rot: 0 })
-  /**
-   * The pot pushed to its winners as the stacks it stands in, keeping their
-   * shape: each stack goes to whoever is still owed the most, and lies there
-   * through the verdict until the next hand. Empties the pot.
-   */
   const pushPot = (): Ghost[] => {
     const { wins, stacks } = pot.current
     if (!wins.length) return []
@@ -151,7 +118,6 @@ export function PokerBoard({ state, frame, now, join }: MinigameBoardProps) {
     pot.current.stacks = []
     return ghosts
   }
-  /** The unit direction from a seat toward the middle, and how much of it runs across the table (1) rather than along it (0). */
   const inward = (i: number) => {
     const dx = centre.x - spots[i].x
     const dy = centre.y - spots[i].y
@@ -167,7 +133,6 @@ export function PokerBoard({ state, frame, now, join }: MinigameBoardProps) {
     const reach = into(i, HOLE_IN)
     const at = { x: spots[i].x + u.x * reach, y: spots[i].y + u.y * reach }
     const tilt = ((spots[i].x - centre.x) / w) * -18
-    // A collected pair: squared up, the second card just offset over the first.
     return { x: at.x + (k ? 0.14 : -0.14) * cardW, y: at.y + (k ? 2 : 0), rot: tilt + holeRest(poker?.handNo ?? 0, i, k) }
   }
   const betOf = (i: number) => {
@@ -186,8 +151,6 @@ export function PokerBoard({ state, frame, now, join }: MinigameBoardProps) {
     for (const entry of fresh) {
       const i = seatIndex(entry.player)
       if (entry.kind === 'fold' && i >= 0 && motion) {
-        // The two cards leave together but fly apart, each on its own throw; they lie where they stop for a beat, then pop away.
-        // Usually both turn a little; now and then one of them gets away and spins, never both.
         const wild = wildCard(mulberry32(seedOf(entry.id, 'wild')))
         for (const k of [0, 1] as const) {
           const thrown = toss(holeOf(i, k), centre, entry.flick ?? null, mulberry32(seedOf(entry.id, k)), into(i, KEEP_CLEAR), k === wild)
@@ -212,7 +175,6 @@ export function PokerBoard({ state, frame, now, join }: MinigameBoardProps) {
         later(() => setBanners((all) => all.filter((b) => b.key !== key)), BANNER_MS)
       }
     }
-    // A street closes: the dealer draws every bet into the pot.
     for (const land of pot.current.landing) {
       if (land.sent) continue
       land.sent = true
@@ -220,7 +182,6 @@ export function PokerBoard({ state, frame, now, join }: MinigameBoardProps) {
       add.push({ key: land.key, kind: 'chips', sound: SWEPT, chips: stack.chips, held: land.base, pending: stack.chips.length - land.base - land.count, pose: potStackAt(stack), frames: sweep({ ...betOf(land.seat), rot: 0 }, potStackAt(stack)) })
     }
     if (!pot.current.landing.length) add.push(...pushPot())
-    // A new hand clears the last pot from in front of its winner.
     const newHand = before && before.handNo !== poker.handNo
     if (add.length || newHand) setGhosts((all) => [...(newHand ? all.filter((g) => !g.stay) : all), ...add])
     if (freshReacts.length) {
@@ -230,8 +191,6 @@ export function PokerBoard({ state, frame, now, join }: MinigameBoardProps) {
     }
   }, [poker, w, h])
 
-  // Community cards land face down and the dealer turns each street over; a street that comes while the last is still moving waits for it.
-  // The board seen first (a reload) is already face up and still.
   if (poker && w > 0) {
     const first = !laid.current
     if (laid.current?.hand !== poker.handNo) laid.current = { hand: poker.handNo, cards: [], busy: 0 }
@@ -250,8 +209,6 @@ export function PokerBoard({ state, frame, now, join }: MinigameBoardProps) {
     }
   }
 
-  // Chips as they were put in. A bet that grows gets the difference on top; one swept to zero, or left from a street
-  // the board missed the end of, goes to the pot.
   if (poker) {
     const swept: { seat: number; chips: number[]; amount: number }[] = []
     poker.seats.forEach((seat, i) => {
@@ -277,11 +234,9 @@ export function PokerBoard({ state, frame, now, join }: MinigameBoardProps) {
     if (table.total !== total) {
       const rand = mulberry32(seedOf(poker.handNo, poker.street, table.total, 'pot'))
       if (total < table.total || (!table.total && !swept.length)) {
-        // Seen for the first time, or given back: laid out from the total.
         table.stacks = potOf(total, rand)
         table.landing = []
       } else {
-        // Whatever the board did not see go in joins the pot as one more stack.
         const missed = total - table.total - swept.reduce((a, b) => a + b.amount, 0)
         const bets = [...swept.map((bet) => bet.chips), ...(missed > 0 ? [chipStack(missed)] : [])]
         const { pot: stacks, onto } = gather(table.stacks, bets, rand)
@@ -331,7 +286,6 @@ export function PokerBoard({ state, frame, now, join }: MinigameBoardProps) {
     </div>
   </main>
 
-  // Each seat's last word this hand. A hand's log starts at its two blinds.
   const lastBy = new Map<PlayerId, PokerFeedEntry>()
   const blindAt = poker.feed.findLastIndex((entry) => entry.kind === 'blind')
   const handStart = blindAt > 0 && poker.feed[blindAt - 1].kind === 'blind' ? blindAt - 1 : Math.max(0, blindAt)
@@ -349,11 +303,6 @@ export function PokerBoard({ state, frame, now, join }: MinigameBoardProps) {
     const at = times.get(i)?.[k]
     return dealtAt === null || at === undefined ? null : Math.max(0, dealtAt + at - performance.now())
   }
-  /**
-   * One seat's deal: both cards land loose where the pitches leave them, and
-   * once the second is down the player takes a moment, gathers the pair and
-   * taps it square. Null when this hand was not dealt in front of us.
-   */
   const dealtTo = (i: number): [Frame[], Frame[]] | null => {
     if (dealtAt === null || !times.has(i)) return null
     const cached = paths.current.deals.get(i)
@@ -362,8 +311,6 @@ export function PokerBoard({ state, frame, now, join }: MinigameBoardProps) {
     const flights = ([0, 1] as const).map((k) => pitch(dealer, scatter(holeOf(i, k), cardW, mulberry32(seedOf(poker.handNo, i, k, 'land'))), mulberry32(seedOf(poker.handNo, i, k))))
     const react = RECEIVE.reactMs[0] + (RECEIVE.reactMs[1] - RECEIVE.reactMs[0]) * mulberry32(seedOf(poker.handNo, i, 'react'))()
     const collect = delays[1]! + flights[1][flights[1].length - 1].t + react
-    // One tap rhythm per player: both cards of the pair move as one. In the air a card flies over every card
-    // already down, later pitches over earlier ones; landed, it lies with the rest.
     const pair = ([0, 1] as const).map((k) => {
       const lands = flights[k][flights[k].length - 1].t
       const pitched = pitches.indexOf(times.get(i)![k])
@@ -375,9 +322,7 @@ export function PokerBoard({ state, frame, now, join }: MinigameBoardProps) {
   }
   const incomingBet = new Set(ghosts.filter((g) => g.kind === 'bet').map((g) => g.seat))
   const pushing = poker.phase === 'showdown' || poker.phase === 'muck'
-  // The button lies beside the seat's cards, clear of the cards and the bets in front.
   const puck = buttonAt >= 0 ? (({ x, y }, u) => ({ x: x - u.y * cardW * 1.35, y: y + u.x * cardW * 1.35 }))(holeOf(buttonAt, 0), inward(buttonAt)) : null
-  // The betting line is a generous oval inside the seats, the shape of the table; bets are pushed over it.
   const lineRx = ELLIPSE.rx * w * 0.66
   const lineRy = ELLIPSE.ry * h * 0.6
 
@@ -386,7 +331,6 @@ export function PokerBoard({ state, frame, now, join }: MinigameBoardProps) {
       <div class="felt__lamp felt__lamp--centre" aria-hidden="true" />
       {actor >= 0 && <div class="felt__lamp felt__lamp--seat" aria-hidden="true" style={{ transform: `translate(${spots[actor].x}px, ${spots[actor].y}px) translate(-50%, -50%)` }} />}
       <svg class="felt-line" viewBox={`0 0 ${w || 1} ${h || 1}`} aria-hidden="true">
-        {/* The betting line is sheared into the pile: a shadowed upper edge over a lighter, shorter-napped band. */}
         <ellipse class="felt-line__shade" cx={centre.x} cy={centre.y - 1} rx={lineRx} ry={lineRy} />
         <PaintPile id="line-pile" />
         <ellipse class="felt-line__sheen" filter="url(#line-pile)" cx={centre.x} cy={centre.y} rx={lineRx} ry={lineRy} />
@@ -407,7 +351,6 @@ export function PokerBoard({ state, frame, now, join }: MinigameBoardProps) {
         })}
 
         {potTotal > 0 && (!pushing || pot.current.landing.length > 0 || fresh.some((entry) => entry.kind === 'win')) && <>
-          {/* Every shadow first, then every stack, back to front: a shadow falls on the felt, never over a chip. */}
           <Piece key={`pot-${poker.handNo}`} pose={{ ...potAt, rot: 0 }}>
             <Corral at={potAt} lamp={centre} chipW={chipW} stacks={pot.current.stacks.map((stack, k) => {
               const landing = pot.current.landing.filter((land) => land.stack === k)
@@ -429,7 +372,6 @@ export function PokerBoard({ state, frame, now, join }: MinigameBoardProps) {
           const won = winners.has(seat.player)
           const card = seat.cards?.[k] ?? null
           if (!card) seenDown.current.cards.add(`${i}-${k}`)
-          // Shown at showdown: the player turns the pair over as one toward the middle, from where it lay.
           if (card && seenDown.current.cards.has(`${i}-${k}`) && !reducedMotion()) {
             let pair = paths.current.shows.get(i)
             if (!pair) { pair = turnUp([holeOf(i, 0), holeOf(i, 1)], centre, cardW); paths.current.shows.set(i, pair) }
@@ -438,7 +380,6 @@ export function PokerBoard({ state, frame, now, join }: MinigameBoardProps) {
               <PlayingCard card={card} up hinge={shown.hinge} class={five.size ? (won && five.has(card) ? 'poker-card--win' : won ? '' : 'poker-card--dim') : ''} />
             </Piece>
           }
-          // A dealt card flies above the chips and the button it passes.
           return <Piece key={`${poker.handNo}-${i}-${k}`} pose={holeOf(i, k)} frames={frames} delay={delay ?? 0} sound={k ? DEALT_SECOND : DEALT} class={frames ? 'poker-piece--dealt' : ''}>
             <PlayingCard card={card} up={!!card} class={card && five.size ? (won && five.has(card) ? 'poker-card--win' : won ? '' : 'poker-card--dim') : ''} />
           </Piece>
@@ -451,7 +392,6 @@ export function PokerBoard({ state, frame, now, join }: MinigameBoardProps) {
 
         {ghosts.map((g) => {
           const gone = () => setGhosts((all) => all.filter((other) => other.key !== g.key))
-          // Folded cards pop away after lying still; chips have arrived where the table shows them.
           const arrived = g.kind === 'fold' ? () => (play('poker-poof'), setGhosts((all) => all.map((other) => other.key === g.key ? { ...other, popping: true } : other))) : g.stay ? undefined : () => {
             pot.current.landing = pot.current.landing.filter((land) => land.key !== g.key)
             const pushed = pot.current.landing.length ? [] : pushPot()

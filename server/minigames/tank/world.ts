@@ -21,12 +21,10 @@ export const DEFAULT_TANK_CONFIG: Readonly<TankConfig> = {
   ceaseFireMs: Infinity,
 }
 
-// Tick times are multiples of a repeating fraction; compare deadlines with a tolerance.
 const reached = (world: TankWorld, ms: number) => world.nowMs + 1e-6 >= ms
 const wrap = (radians: number) => Math.atan2(Math.sin(radians), Math.cos(radians))
 const TURN_INPUT_TTL_MS = 200
 const TURRET_AIM_RADIANS_PER_SEC = Math.PI * 4
-// Tunable: the hull swings slowly so a dial flick reads as steering, not a snap.
 const HULL_AIM_RADIANS_PER_SEC = Math.PI * 0.75
 
 export function formCrews(random: () => number, participants: string[]): TankCrew[] {
@@ -38,7 +36,6 @@ export function formCrews(random: () => number, participants: string[]): TankCre
   return crews
 }
 
-// ponytail: more than 8 tanks reuse spawn points shifted sideways; add spawns if rooms get that big.
 export function spawnPoint(spawns: Vec2[], index: number): Vec2 {
   const base = spawns[index % spawns.length]
   const lap = Math.floor(index / spawns.length)
@@ -268,7 +265,6 @@ function flyProjectiles(world: TankWorld, dt: number): void {
   const impacts = projectilePairImpacts(motions)
   for (let motion = 0; motion < motions.length; motion++) {
     const { shot } = motions[motion]
-    // Environment samples stay at most 4 px apart; projectile pairs use exact swept contact above.
     const samples = Math.max(1, Math.ceil(Math.hypot(shot.velocity.x, shot.velocity.y) * dt / 4))
     for (let sample = 1; sample <= samples; sample++) {
       const time = sample / samples
@@ -337,7 +333,6 @@ function turn(world: TankWorld, tank: Tank, dt: number): void {
     : approach(tank.turret, wrap(tank.turretTarget - tank.hull), TURRET_AIM_RADIANS_PER_SEC * dt)
 }
 
-/** Step an angle toward a target by at most `step` radians, the short way round. */
 function approach(angle: number, target: number, step: number): number {
   const remaining = wrap(target - angle)
   return Math.abs(remaining) <= step ? target : wrap(angle + Math.sign(remaining) * step)
@@ -354,7 +349,6 @@ function blocked(world: TankWorld, tank: Tank, next: Vec2): boolean {
   const r = TANK_RADIUS
   if (next.x < r || next.y < r || next.x > TANK_FIELD.width - r || next.y > TANK_FIELD.height - r) return true
   if (circleHitsCover(world.cover, next, r)) return true
-  // An overlapping pair may still move apart, so a respawn on top of a tank never locks both.
   return world.tanks.some((other) => {
     if (other === tank || other.deadUntilMs !== null) return false
     const after = Math.hypot(other.position.x - next.x, other.position.y - next.y)
@@ -368,7 +362,6 @@ function move(world: TankWorld, tank: Tank, dt: number): void {
   const dx = Math.cos(tank.hull) * speed * dt
   const dy = Math.sin(tank.hull) * speed * dt
   const { x, y } = tank.position
-  // Slide along whatever blocks one axis.
   for (const next of [{ x: x + dx, y: y + dy }, { x: x + dx, y }, { x, y: y + dy }]) {
     if (!blocked(world, tank, next)) {
       tank.position = next

@@ -1,17 +1,3 @@
-/**
- * The JavaScript's copy of a CSS tunable agrees with the stylesheet's.
- *
- * `TUNE` exists so a property the DOM cannot answer for still has a number, and
- * that number is only useful while it is the same number the room actually
- * sees. Nothing at runtime notices when it stops being: the fallback fires only
- * when the property is missing, so a rename or a build that eats a declaration
- * changes the tempo of a moment silently and correctly-in-dev. This is the
- * thing that notices.
- *
- * It reads the `anim:tunables` block specifically, not the whole file: a
- * tunable declared outside it is one the harness cannot write, which makes the
- * dial a lie whatever its value.
- */
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -31,15 +17,12 @@ test('every tunable the JS reads is declared in the block, at the same value', (
   for (const [name, fallback] of Object.entries(TUNE)) {
     const m = block.match(new RegExp(`${name}:\\s*([^;]+);`))
     assert.ok(m, `${name} is not declared in anim:tunables`)
-    // Through the same parser the browser's value goes through, so a stylesheet
-    // written in `s` and a fallback written in ms still compare equal.
     assert.equal(parseTune(m[1], NaN), fallback, `${name} disagrees with its fallback in sound.ts`)
   }
 })
 
 test('every --fx-* default the kit or its gallery reads is declared in the block', () => {
   const gallery = readFileSync(new URL('./anim/scenarios.tsx', import.meta.url), 'utf8')
-  // The per-element overrides are set by callers, never declared as defaults.
   const OVERRIDES = new Set(['--fx-dur', '--fx-amp', '--fx-color', '--fx-from', '--fx-ease', '--fx-delay'])
   const used = new Set([...(css + gallery).matchAll(/--fx-[a-z-]+/g)].map((m) => m[0]))
   for (const name of used) {
@@ -49,9 +32,6 @@ test('every --fx-* default the kit or its gallery reads is declared in the block
 })
 
 test('the finale schedule builds for exactly the flash animation', () => {
-  // `--finale-build-dur` sits on `.board__finale-flash`, outside the tunables
-  // block: the step after the build is timed from the server's stamp while
-  // the flash runs on its own animation, so the two must agree.
   const m = css.match(/\.board__finale-flash\s*\{[^}]*--finale-build-dur:\s*([^;]+);/)
   assert.ok(m, '--finale-build-dur is not declared on .board__finale-flash')
   assert.equal(parseTune(m[1], NaN), FINALE_SCHEDULE.build)

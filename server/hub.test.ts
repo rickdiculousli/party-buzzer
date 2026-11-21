@@ -314,13 +314,11 @@ test('a selectPack that fails is logged, not thrown — the process must survive
   console.warn = (s: string) => warnings.push(s)
   try {
     hub.handle(host, { t: 'act', act: 'selectPack', data: 'nope.txt' })
-    // Let the rejected promise's .catch handler run.
     await new Promise((r) => setTimeout(r, 0))
   } finally {
     console.warn = orig
   }
   assert.ok(warnings.some((w) => w.includes('selectPack failed')))
-  // The hub is still usable — the rejection did not take the process down.
   hub.handle(host, { t: 'act', act: 'fragment', data: 'still alive' })
   assert.deepEqual(hub.state.round.fragments, ['still alive'])
 })
@@ -369,10 +367,6 @@ test('the duel pool is visible in player views', () => {
 })
 
 test('the wall and the phones never disagree about the moment', async () => {
-  // The whole point of putting `Moment` in shared/: `viewFor` redacts `order`,
-  // `whole`, `fragments` and `answer`, so a moment derived from any of them
-  // would differ per phone. Stepping a real question through the hub is the
-  // check that none of them crept in.
   const { state, hub, conn, lastState } = rig()
   const host = conn('host')
   const ada = conn('player')
@@ -382,8 +376,6 @@ test('the wall and the phones never disagree about the moment', async () => {
 
   const l: Local = { open: false, settled: true, retired: false }
   const agree = (why: string) => {
-    // lastState(1) is Ada, who buzzes; lastState(2) is Cy, who never does —
-    // the redaction gap is widest between those two.
     assert.equal(momentOf(hub.state, l), momentOf(lastState(1), l), `${why}: Ada`)
     assert.equal(momentOf(hub.state, l), momentOf(lastState(2), l), `${why}: Cy`)
   }
@@ -402,9 +394,6 @@ test('the wall and the phones never disagree about the moment', async () => {
 
   hub.handle(host, { t: 'host', action: { a: 'wrong', neg: 100 } })
   agree('the penalty and its rebound')
-  // Refused: nobody has buzzed the rebound, so this changes nothing — and a
-  // moment that stayed in step through a no-op is the one that would have
-  // drifted if it read `order`.
   hub.handle(host, { t: 'host', action: { a: 'correct' } })
   agree('a verdict refused for want of a leader')
   assert.equal(state.round.phase, 'ARMED', 'the rebound is still open')
@@ -546,7 +535,6 @@ test('closing the minigame a setlist block names moves to the next block in one 
   const host = conn('host')
   const act = (action: import('../shared/protocol.ts').HostAction) => hub.handle(host, { t: 'host', action })
   act({ a: 'setSetlist', blocks: [{ game: 'bow', options: {}, count: 1 }, { game: 'trivia', options: {}, count: 3 }] })
-  // The first block's introduction holds the minigame until the host continues.
   act({ a: 'closeArrival', arrivalId: state.arrival!.id })
   act({ a: 'prepareMinigame', id: 'bow', options: {} })
   act({ a: 'closeMinigame' })
@@ -590,7 +578,6 @@ test('hello sends a current private or board frame even when poker is quiet', ()
   assert.ok(phone?.t === 'minigameFrame' && phone.frame.id === 'poker' && phone.frame.role === 'player' && phone.frame.hole?.length === 2)
 })
 
-/** A room with Ada and Bo joined and a lobby open, plus a spy on `onChange`. */
 function lobbyRig() {
   const state = newState()
   let changes = 0
@@ -654,7 +641,6 @@ test('a stale practice press or stale close has no effect on the current arrival
   assert.deepEqual(hub.dispatch({ a: 'closeArrival', arrivalId: oldId }), { status: 'refused', reason: 'arrival-changed' })
   assert.deepEqual(state.arrival, current)
 
-  // The same for an introduction: an old Continue cannot dismiss a newer one.
   hub.dispatch({ a: 'setSetlist', blocks: [{ game: 'trivia', options: {}, count: 2 }] })
   const intro = structuredClone(state.arrival)
   assert.equal(intro?.kind, 'introduction')
@@ -737,7 +723,6 @@ test('clearSetlist clears the night\'s pending timers', () => {
     assert.equal(hub.dispatch({ a: 'clearSetlist' }).status, 'applied')
     assert.equal(state.arrival, undefined)
     assert.equal(held(), 0)
-    // A refusal or a no-op touches nothing: a second clear changes no timer.
     hub.dispatch({ a: 'setSetlist', blocks: [{ game: 'trivia', options: {}, count: 1 }, { game: 'trivia', options: {}, count: 1 }] })
     hub.dispatch({ a: 'setlistJump', at: 1 })
     assert.equal(hub.dispatch({ a: 'closeArrival', arrivalId: 'stale' }).status, 'refused')
@@ -763,7 +748,6 @@ test('clearSetlist clears a pending ready or results timer', () => {
     mock.timers.tick(1_000)
     assert.equal(state.minigame?.phase, 'ready')
     assert.ok(held().has('ready'), 'the ready fallback is on a clock')
-    // An open match refuses clearSetlist outright, so its timers can only end by closing it.
     assert.equal(hub.dispatch({ a: 'clearSetlist' }).status, 'refused', 'an open match holds the setlist')
     assert.ok(held().has('ready'), 'a refusal leaves the fallback alone')
     assert.equal(hub.dispatch({ a: 'closeMinigame' }).status, 'applied')
@@ -898,7 +882,6 @@ test('undo restores the finale stamp a Replay replaced', () => {
   act({ a: 'next' })
   const first = state.setlist!.spentAt!
   assert.ok(first > 0, 'the spend is stamped')
-  // Forced apart: two stamps in one millisecond would read as no change.
   state.setlist!.spentAt = first - 10
   assert.equal(hub.dispatch({ a: 'setlistJump', at: 1 }).status, 'applied', 'Replay finale re-stamps')
   assert.ok(state.setlist!.spentAt! > first - 10)

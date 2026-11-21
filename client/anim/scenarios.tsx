@@ -1,26 +1,3 @@
-/**
- * What the harness can put on screen, and which numbers each one exposes.
- *
- * A scenario is markup plus a list of dials. The markup is the real component
- * in a stripped-down copy of its real container — a mark on an actual timeline
- * rail with neighbours, a name in the actual three-band stage — because a glow
- * against an empty void reads nothing like the same glow beside a cyan rail and
- * three other names. Tuning against the void is how you land a value that looks
- * wrong the moment it ships.
- *
- * Every scenario renders in two phases, and `render(lead)` is how it says what
- * each one holds. The lead-up frame is the board an instant before the moment
- * happens: everything that was already there, sitting still, with only the new
- * thing missing. Then the new thing arrives. That is the actual shape of these
- * moments — an award lands on a stage that already has the name and the
- * timeline on it — and it is the only frame against which an entrance can be
- * judged.
- *
- * The dials name custom properties from the `anim:tunables` block in style.css.
- * Nothing here restates a duration or a colour: the harness sets those
- * properties on a wrapper and the real rules pick them up, so a scenario cannot
- * drift from what the board actually does.
- */
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { PokerStress } from './PokerStress.tsx'
 import { TugReplay } from './TugReplay.tsx'
@@ -45,30 +22,16 @@ import { RevealPicture, RevealStakes } from '../RevealPicture.tsx'
 import type { RevealWall } from '../../shared/wall.ts'
 import { LIFTS, PILL_CAP } from '../reactions.ts'
 
-/**
- * A number the harness can move.
- *
- * Three kinds, told apart by which one they address: `var` is a CSS custom
- * property in the `anim:tunables` block, `recipe` is a field in a cue's recipe
- * written as `cue.layer.field`, and `motion` is a number in one of toss.ts's
- * constants written as `NAME.field`, or `NAME.field.i` for one end of a range.
- * Everything downstream — the slider, the origin marker, the dirty state,
- * Save — works the same on all three, which is the point of giving them one
- * type.
- */
 export type Dial =
   | { var: string; label: string; min: number; max: number; step: number; unit: string }
   | { var: string; label: string; text: true }
   | { recipe: string; label: string; min: number; max: number; step: number; unit: string }
   | { motion: string; label: string; min: number; max: number; step: number; unit: string }
 
-/** What a dial is stored under. The kinds never collide: a var has dashes, a motion key starts with a capital. */
 export const dialKey = (d: Dial) => ('var' in d ? d.var : 'recipe' in d ? d.recipe : d.motion)
 
 type Constants = Record<string, Record<string, unknown>>
-/** The constants motion dials reach, live: the throws read them on every take. */
 const MOTION = { TOSS, RECEIVE, REVEAL, FOLD } as unknown as Constants
-/** The same constants as toss.ts holds them, for origins and for putting the live ones back. */
 const COMMITTED = structuredClone(MOTION)
 
 const cell = (table: Constants, key: string) => {
@@ -76,12 +39,10 @@ const cell = (table: Constants, key: string) => {
   const holder = (i === undefined ? table[name] : table[name][field]) as Record<string, number>
   return { holder, at: i ?? field }
 }
-/** A motion dial's number as toss.ts holds it. */
 export const committedMotion = (key: string) => {
   const { holder, at } = cell(COMMITTED, key)
   return holder[at]
 }
-/** Puts every constant back as committed, then moves the dialled ones. */
 export function applyMotion(dialled: Record<string, string>) {
   for (const [name, fields] of Object.entries(COMMITTED)) Object.assign(MOTION[name], structuredClone(fields))
   for (const [key, value] of Object.entries(dialled)) {
@@ -89,7 +50,6 @@ export function applyMotion(dialled: Record<string, string>) {
     holder[at] = parseFloat(value)
   }
 }
-/** After a save, what was dialled is what toss.ts holds. */
 export function commitMotion(saved: Record<string, string>) {
   for (const [key, value] of Object.entries(saved)) {
     const { holder, at } = cell(COMMITTED, key)
@@ -100,45 +60,15 @@ export function commitMotion(saved: Record<string, string>) {
 export type Scenario = {
   id: string
   label: string
-  /** Heading the harness list groups this under. Every scenario has one. */
   family?: string
-  /** One line on what the moment is, shown above the stage. */
   note: string
-  /**
-   * What this scenario is actually about, as a selector.
-   *
-   * Everything else is context and is held still: on a scenario change the
-   * whole scene mounts at once, and the harness cancels any animation outside
-   * this selector so the context settles instead of going off together. Within
-   * a take it mostly looks after itself — the context is never remounted, so it
-   * has nothing to fire.
-   *
-   * Matching the subject itself or anything inside it counts, so naming
-   * `.timeline__mark` also keeps its pin and its name.
-   */
   subject: string
   dials: Dial[]
-  /**
-   * The sample this moment fires, if it has one. It plays on the same trigger
-   * as the animation, which is the only way to judge whether the two are one
-   * event or two. Several are layers of one moment, fired together.
-   */
   sound?: Cue | Cue[]
-  /**
-   * A cue the panel should show but the trigger should not fire, because the
-   * component fires it itself — `spoken` taps once per chunk as each lands,
-   * so a cue on `sound` would be one extra tap on top of the line's own.
-   */
   tune?: Cue | Cue[]
-  /** `lead` is the frame before the moment: everything but the new thing. */
   render: (lead: boolean) => preact.JSX.Element
 }
 
-/**
- * Range and step per recipe field. One table, so every layer dials alike, and
- * keyed off `NUMERIC` so the fields the canvas may write are exactly the ones
- * the panel can show.
- */
 const FIELD: Record<NumericField, { max: number; step: number; unit: string }> = {
   freq: { max: 4000, step: 10, unit: 'Hz' },
   freqTo: { max: 4000, step: 10, unit: 'Hz' },
@@ -152,13 +82,6 @@ const FIELD: Record<NumericField, { max: number; step: number; unit: string }> =
   head: { max: 1000, step: 5, unit: 'ms' },
 }
 
-/**
- * Every numeric field actually present in a cue's recipe, as dials.
- *
- * Driven off the recipe passed in rather than off the committed table, because
- * the harness now edits a draft: a layer you added a moment ago has to get its
- * dials without a reload, and a layer you removed has to lose them.
- */
 export function recipeDials(cue: string, recipe: Recipe): Dial[] {
   return recipe.flatMap((layer, i) =>
     NUMERIC.filter((f) => typeof layer[f] === 'number').map((f) => ({
@@ -169,8 +92,6 @@ export function recipeDials(cue: string, recipe: Recipe): Dial[] {
     })),
   )
 }
-
-// --- shared dial groups ------------------------------------------------------
 
 const STAMP: Dial[] = [
   { var: '--stamp-dur', label: 'Stamp', min: 40, max: 600, step: 10, unit: 'ms' },
@@ -188,9 +109,6 @@ const BLOOM: Dial[] = [
   { var: '--bloom-name-halo', label: 'Name halo', min: 0, max: 160, step: 2, unit: 'px' },
 ]
 
-// --- the marks ---------------------------------------------------------------
-
-/** Four buzzes with the spread a real question produces. */
 const MARKS = [
   { name: 'Ada', ms: 0, id: 'var(--id-1)' },
   { name: 'Bo', ms: 180, id: 'var(--id-3)' },
@@ -198,7 +116,6 @@ const MARKS = [
   { name: 'Dee', ms: 720, id: 'var(--id-4)' },
 ]
 
-/** Six reactions in six columns, in the identity colours of six phones. */
 const REACTIONS = [
   { word: QUIZ_REACT_LABEL.tooslow, id: 'var(--id-2)' },
   { word: QUIZ_REACT_LABEL.ooh, id: 'var(--id-3)' },
@@ -208,11 +125,6 @@ const REACTIONS = [
   { word: QUIZ_REACT_LABEL.tooslow, id: 'var(--id-4)' },
 ]
 
-/**
- * `held` marks are left out. Keyed by name, so the ones already on screen keep
- * their DOM when the last one appears and therefore do not re-stamp — the same
- * reason the board only animates the mark that just arrived.
- */
 function Timeline({ held = 0 }: { held?: number }) {
   const shown = MARKS.slice(0, MARKS.length - held)
   return (
@@ -239,12 +151,8 @@ function Timeline({ held = 0 }: { held?: number }) {
   )
 }
 
-/** Voter ids for the nomination pool. Stable, so slicing one more off the
-    front mounts exactly one new figure — which is what the flare fires on. */
 const VOTERS = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6']
 
-/** The stage's three bands, so a scenario sits where it really sits. */
-/** The walkthrough's Eiffel Tower question, seven guesses with one wild. */
 const GUESSES: [string, string, number, string][] = [
   ['ada', 'Ada', 1700, 'var(--id-1)'], ['cy', 'Cy', 1500, 'var(--id-6)'], ['bo', 'Bo', 1200, 'var(--id-3)'],
   ['di', 'Di', 1720, 'var(--id-4)'], ['ed', 'Ed', 1650, 'var(--id-5)'], ['fen', 'Fen', 900, 'var(--id-2)'],
@@ -270,7 +178,6 @@ function closestWall(revealed: boolean): ClosestWall {
   }
 }
 
-/** The wall as `Board.tsx` lays it out for a closest question. */
 function ClosestScene({ revealed }: { revealed: boolean }) {
   const c = closestWall(revealed)
   const colorOf = (id: string) => GUESSES.find(([g]) => g === id)?.[3] ?? 'var(--chalk)'
@@ -288,13 +195,6 @@ function ClosestScene({ revealed }: { revealed: boolean }) {
 const CAMEL = new URL('../../packs/images/camel.svg', import.meta.url).href
 const REVEAL_MS = 10_000
 
-/**
- * A picture reveal from mosaic to sharp, on the live path the board takes. The
- * board's clock is server time; here it is an invisible animation's
- * `currentTime`, read every frame, so the filmstrip's stepped clock drives the
- * mosaic and the stakes chip exactly as it drives CSS. Both still only change
- * on the 250 ms steps `revealShownAt` quantises to.
- */
 function RevealScene({ lead }: { lead: boolean }) {
   const clock = useRef<HTMLSpanElement>(null)
   const t = useRef(0)
@@ -329,7 +229,6 @@ function RevealScene({ lead }: { lead: boolean }) {
   )
 }
 
-/** The night before a tug of war, then after it paid Bo and Nia's side: Nia climbs from 4th to 2nd, Bo from 5th to 4th. */
 const NIGHT = [
   { key: 'ada', label: 'Ada', color: 'var(--id-1)', before: 300, after: 300 },
   { key: 'cy', label: 'Cy', color: 'var(--id-6)', before: 200, after: 200 },
@@ -338,7 +237,6 @@ const NIGHT = [
   { key: 'bo', label: 'Bo', color: 'var(--id-3)', before: 90, after: 190 },
 ]
 
-/** The board's sidebar as a match hands it back: held at the night before the match, then the paid scores. */
 function MatchCloseScene({ paid }: { paid: boolean }) {
   const list = useRef<HTMLOListElement>(null)
   useFlip(list)
@@ -355,7 +253,6 @@ function MatchCloseScene({ paid }: { paid: boolean }) {
 
 const PODIUM: Tier[] = [{ place: 1, names: ['Ada'], score: 900 }, { place: 2, names: ['Bo'], score: 700 }, { place: 3, names: ['Cy'], score: 400 }]
 
-/** The whole ceremony from a spend at mount, on this browser's clock. */
 function FinaleScene() {
   const [spentAt] = useState(() => performance.now())
   const room = {
@@ -389,7 +286,6 @@ function Stage({
   above?: preact.JSX.Element | false
   mid?: preact.JSX.Element | false
   below?: preact.JSX.Element | false
-  /** A layer floating over the bands, positioned against the wall. */
   over?: preact.JSX.Element | false
 }) {
   return (
@@ -402,13 +298,6 @@ function Stage({
   )
 }
 
-/*
- * The interest kit, one scenario per effect.
- *
- * Dial names are written out in full on purpose: tunables.test.ts scans this
- * file for `--fx-*` names to check each one is declared in anim:tunables, and a
- * name built from a template would slip past it.
- */
 const ms = (v: string, max: number, label = 'Duration'): Dial => ({ var: v, label, min: 0, max, step: 5, unit: 'ms' })
 const amount = (v: string, min: number, max: number, step: number, unit: string, label = 'Amount'): Dial => ({
   var: v,
@@ -432,11 +321,6 @@ const letters = (text: string): El => (cls) => (
 const tile: El = (cls) => <div class={`fx-tile ${cls}`} />
 const chip: El = (cls) => <span class={`chip chip--won ${cls}`}>Winner</span>
 
-/**
- * `enter`: the lead frame holds the element's space, hidden, and the take
- * mounts it with the class. `class`: the element is there all along and the
- * take adds the class, which is how a loop or a hit starts in the game.
- */
 function fx(
   family: string,
   name: string,
@@ -477,7 +361,6 @@ function burst(
     render: (lead) => (
       <div class="fx-stage">
         <p class="fx-demo fx-anchor">
-          {/* A long name for an edge burst, so the outline is visibly long. */}
           {aim.from ? 'Alexander' : 'Ada'}
           {!lead && <Burst kind={kind} glyph="🦆" {...aim} />}
         </p>
@@ -540,8 +423,6 @@ const FX: Scenario[] = [
     subject: '.fx-poof, .fx-burst',
     dials: [ms('--fx-poof-dur', 1000), ...BURST_DIALS],
     render: (lead) => (
-      // The burst sits beside the word, not inside it: inside, it would
-      // shrink away with the word it is covering for.
       <div class="fx-stage">
         <p class="fx-demo fx-anchor">
           <span class={lead ? '' : 'fx-poof'} style="display:inline-block">
@@ -617,7 +498,6 @@ const FX: Scenario[] = [
   burst('confetti', 'Confetti (top)', '<Burst kind="confetti" from="top"> — off the whole top edge of a wide word.', { from: 'top' }),
 ]
 
-/** The stage for Poker's motion: a patch of felt 576 × 320 px with a dealer off its top edge. */
 const PATCH = { w: 576, h: 320 }
 const pokerStage = (children: preact.ComponentChildren) => (
   <div class="fx-stage">
@@ -628,12 +508,10 @@ const pokerStage = (children: preact.ComponentChildren) => (
   </div>
 )
 
-/** Both ends of a range in toss.ts, as two dials. */
 const range = (key: string, label: string, min: number, max: number, step: number, unit = ''): Dial[] => [
   { motion: `${key}.0`, label: `${label}, least`, min, max, step, unit },
   { motion: `${key}.1`, label: `${label}, most`, min, max, step, unit },
 ]
-/** The lamp's shadow, on every card. Fractions of a card's width. */
 const SHADOW: Dial[] = [
   { var: '--card-shadow-rest', label: 'Shadow at rest', min: 0, max: 0.1, step: 0.005, unit: '' },
   { var: '--card-shadow-contact', label: 'Shadow darkness at the edge', min: 0, max: 1, step: 0.01, unit: '' },
@@ -641,7 +519,6 @@ const SHADOW: Dial[] = [
   { var: '--card-shadow-spread', label: 'Shadow spread in the air', min: 0, max: 0.3, step: 0.01, unit: '' },
   { var: '--card-shadow-dark', label: 'Shadow darkness in the air', min: 0, max: 0.5, step: 0.01, unit: '' },
 ]
-/** Turning a card over, and how dark its face goes while it stands on its edge. */
 const TURN: Dial[] = [
   { motion: 'REVEAL.hinge', label: 'Hinge, in from the lifted side', min: 0.5, max: 1, step: 0.01, unit: '' },
   { motion: 'REVEAL.turnMs', label: 'Turn over', min: 120, max: 900, step: 10, unit: 'ms' },
@@ -662,7 +539,6 @@ const FOLD_DIALS: Dial[] = [
   ...SHADOW,
 ]
 
-/** A fold thrown into the middle, left to lie for a beat, then popped away. Physics tunables are `TOSS` in client/toss.ts. */
 function foldScenario(id: string, label: string, flick: { dx: number; dy: number; speed: number } | null, wild: -1 | 0 | 1 = -1): Scenario {
   const from = { x: PATCH.w / 2, y: PATCH.h * 0.86, rot: -4 }
   const aim = { x: PATCH.w / 2, y: PATCH.h * 0.45 }
@@ -675,7 +551,6 @@ function foldScenario(id: string, label: string, flick: { dx: number; dy: number
     dials: FOLD_DIALS,
     tune: ['poker-fold'],
     render: (lead) => pokerStage(([0, 1] as const).map((k) => {
-      // The pair lies side by side before the throw, where each card's throw starts.
       const held = { ...from, x: from.x + (k ? 16 : -16) }
       const thrown = toss(held, aim, flick, mulberry32(k + 3), 0, k === wild)
       return <Piece key={`${k}-${lead}`} pose={lead ? held : thrown.rest} frames={lead ? null : chain(thrown.frames, 800 + k * 60, [thrown.frames[thrown.frames.length - 1]])} sound={k ? undefined : { air: 'poker-fold' }}>
@@ -685,7 +560,6 @@ function foldScenario(id: string, label: string, flick: { dx: number; dy: number
   }
 }
 
-/** Two cards dealt to one seat: pitched loose from off the top edge, then gathered and tapped square. */
 const dealScenario: Scenario = {
   id: 'poker-deal',
   label: 'Deal',
@@ -717,7 +591,6 @@ const dealScenario: Scenario = {
 
 const BOARD_SLOTS = [0, 1, 2, 3].map((i) => ({ x: PATCH.w / 2 + (i - 1.5) * 64 + (i % 2 ? 2 : -2), y: PATCH.h * 0.5 + (i === 1 ? 2 : -1), rot: [-1, 1.5, 0.5, -1.5][i] }))
 
-/** The flop as the dealer lays it out: one face-down stack, a beat, turned over, spread left to right. */
 const flopScenario: Scenario = {
   id: 'poker-flop',
   label: 'Flop',
@@ -746,7 +619,6 @@ const flopScenario: Scenario = {
   },
 }
 
-/** The turn beside a flop that is already down: pitched a little off its slot, turned over, drawn into line. */
 const streetScenario: Scenario = {
   id: 'poker-street',
   label: 'Turn card',
@@ -770,7 +642,6 @@ const streetScenario: Scenario = {
   },
 }
 
-/** A player on the left of the table shows their pair at showdown, turning it over as one toward the middle. */
 const showdownScenario: Scenario = {
   id: 'poker-showdown',
   label: 'Showdown',
@@ -820,10 +691,6 @@ export const SCENARIOS: Scenario[] = [
       { var: '--flare-throw', label: 'Throw', min: 0, max: 400, step: 5, unit: 'px' },
     ],
     sound: 'leader',
-    // The ghost keeps the middle band open while the name is held back. An
-    // empty band collapses, and the timeline underneath would step up and back
-    // down on every take — motion the board does not have, in the exact place
-    // you are trying to judge some.
     render: (lead) => (
       <Stage
         mid={lead ? <div class="harness__ghost" /> : <p class="board__hero">Alexander</p>}
@@ -864,8 +731,6 @@ export const SCENARIOS: Scenario[] = [
     ],
     sound: 'penalty',
     render: (lead) => (
-      // The frame the penalty belongs to: somebody answered, and the name
-      // stays up, turning tally with the stamp above it.
       <Stage
         above={!lead && <p class="board__award is-neg">−400</p>}
         mid={<p class={lead ? 'board__hero' : 'board__hero is-penalised'}>Ada</p>}
@@ -948,10 +813,6 @@ export const SCENARIOS: Scenario[] = [
     id: 'vote',
     family: 'Signature',
     label: 'A vote lands',
-    // The pool below carries a duel mid-vote, because a single figure arriving
-    // beside an empty name reads nothing like the same figure joining a row
-    // that already has three — and the second is what a real window looks like
-    // for all but its first second.
     note: 'The nomination window is open and the room is voting. Bo picks up one more, which is what this board does every second or two while the window is up.',
     subject: '.vote',
     dials: [
@@ -993,9 +854,6 @@ export const SCENARIOS: Scenario[] = [
       { var: '--type-chunk', label: 'Chunk pace', min: 60, max: 600, step: 10, unit: 'ms' },
       { var: '--verdict-hold', label: 'Verdict hold', min: 0, max: 1500, step: 50, unit: 'ms' },
     ],
-    // Not `sound`: the taps are not one cue fired on the trigger but one per
-    // chunk, and Spoken fires them itself as each lands. `tune` puts the `type`
-    // recipe's layers and dials in the panel without a tap on the trigger.
     tune: 'type',
     render: (lead) => (
       <Stage
@@ -1014,7 +872,6 @@ export const SCENARIOS: Scenario[] = [
     family: 'Quiz',
     note: 'Seven guesses are in. They drop onto the line, it holds, the answer runs in from the right, and the nearest lights.',
     subject: '.closest__mark, .closest__truth, .board__award',
-    // Its timings are `CLOSEST_REVEAL` in shared/closest.ts, which the phones and the reader keep too.
     dials: [],
     render: (lead) => <ClosestScene revealed={!lead} />,
   },
@@ -1024,7 +881,6 @@ export const SCENARIOS: Scenario[] = [
     family: 'Quiz',
     note: 'A picture question arms as a mosaic six cells across and sharpens on 250 ms steps over ten seconds; the stakes chip falls from double to the plain value a quarter at a time.',
     subject: '.board__reveal, .reveal-clock, .board__stakes',
-    // Its timings are `client/reveal.ts`; the length is the host's Reveal time.
     dials: [],
     render: (lead) => <RevealScene lead={lead} />,
   },
@@ -1065,7 +921,6 @@ export const SCENARIOS: Scenario[] = [
     family: 'Quiz',
     note: 'A tug of war closed and gave the board back. The standings held the night as it stood before the match; now its points land on the winning side: Nia and Bo count up in brass; Nia slides from 4th to 2nd and Bo from 5th to 4th, and the rows they pass give way without popping.',
     subject: '.row',
-    // The hold before this is `MATCH_HOLD_MS` in Board.tsx, a JS clock; the slide is `--rank-slide-dur`.
     dials: [ms('--rank-slide-dur', 1500, 'Slide'), ms('--fx-flash-dur', 1200, 'Flash')],
     render: (lead) => <MatchCloseScene paid={!lead} />,
   },

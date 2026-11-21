@@ -3,11 +3,6 @@ import { compare } from './evaluate.ts'
 
 export type Pot = { amount: number; eligible: PlayerId[] }
 
-/**
- * Slices the chips at each all-in level, main pot first. Folded chips count
- * toward the amount; a layer only one player reached is their uncalled bet
- * coming back.
- */
 export function buildPots(contributed: Record<PlayerId, number>, folded: PlayerId[]): Pot[] {
   const players = Object.keys(contributed)
   const levels = [...new Set(players.filter((id) => !folded.includes(id)).map((id) => contributed[id]))]
@@ -21,8 +16,6 @@ export function buildPots(contributed: Record<PlayerId, number>, folded: PlayerI
     if (amount > 0) pots.push({ amount, eligible })
     floor = level
   }
-  // Folded chips above every live level: a layer two folders both reached is dead money for
-  // the last pot; a layer only one folder reached nobody matched, so it is theirs again.
   const above = [...new Set(players.map((id) => contributed[id]).filter((level) => level > floor))].sort((a, b) => a - b)
   for (const level of above) {
     const reached = players.filter((id) => contributed[id] >= level)
@@ -34,7 +27,6 @@ export function buildPots(contributed: Record<PlayerId, number>, folded: PlayerI
   return pots
 }
 
-/** Splits each pot among its best hands; odd chips go to the first winner left of the button. */
 export function awardPots(pots: Pot[], scores: Record<PlayerId, number[]>, leftOfButton: PlayerId[]): Record<PlayerId, number> {
   const won: Record<PlayerId, number> = {}
   for (const pot of pots) {

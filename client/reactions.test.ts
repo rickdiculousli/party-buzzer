@@ -28,15 +28,10 @@ test('past the cap a receipt only counts, for as long as a pill is up, and never
   const shown = shownPills(list, 'q1', 1200)
   assert.deepEqual(shown.pills.map((p) => [p.seq, p.col]), [[1, 0], [2, 1], [3, 2], [4, 3], [5, 4], [6, 5]])
   assert.equal(shown.more, 3)
-  // The first three expire: the folded ones stay folded, so no pill is ever
-  // mounted with less than its whole rise, hold and fade left.
   const later = shownPills(list, 'q1', 1030 + PILL_MS)
   assert.deepEqual(later.pills.map((p) => p.seq), [4, 5, 6])
   assert.equal(later.more, 3)
-  // Once the last pill is gone the count goes too, whatever the folded ones' clocks say.
   assert.deepEqual(shownPills(list, 'q1', 1065 + PILL_MS), { pills: [], more: 0 })
-  // A column freed by expiry goes to the next receipt to arrive, never one a
-  // live pill still holds: the lowest free one, not the sequence number.
   list = recordReaction(list, receipt(10, 'p10'), 'q1', 1040 + PILL_MS, 6)
   assert.deepEqual(shownPills(list, 'q1', 1040 + PILL_MS).pills.map((p) => [p.seq, p.col]), [[5, 4], [6, 5], [10, 0]])
   assert.equal(PILL_CAP, 6, 'the default cap is 6')

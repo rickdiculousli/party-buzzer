@@ -10,10 +10,6 @@ function currentRotation(): TankViewRotation {
   return tankViewRotation(screenAngle(), window.innerWidth >= window.innerHeight)
 }
 
-/**
- * The CSS rotation that keeps a view in speaker-left landscape (the phone's
- * left edge down), following the screen as it autorotates.
- */
 export function useSideways(): TankViewRotation {
   const [rotation, setRotation] = useState(currentRotation)
   useEffect(() => {

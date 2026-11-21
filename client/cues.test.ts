@@ -18,19 +18,6 @@ test('every shipped recipe is non-empty', () => {
   for (const [cue, r] of Object.entries(RECIPES)) assert.ok(r.length > 0, `${cue} is empty`)
 })
 
-/**
- * Every hand-tuned WAV that ships, and which cue's layer plays it.
- *
- * The wrapper around these files must keep changing nothing. The envelope
- * gates the file, so this is the assertion that catches the two ways it can
- * silently ruin them: a segment list shorter than the audio truncates the cue,
- * and a missing `level` collapses the whole thing to `GAIN_FLOOR`.
- *
- * `leader` carries two of them — the drop and the buzzer under it — because
- * they are one moment, and one cue is what puts them on one timeline.
- *
- * Durations are the real ones, measured off the files in client/public/sounds.
- */
 const FILE_LAYERS: Record<string, { file: string; ms: number }[]> = {
   stamp: [{ file: '/sounds/stamp.wav', ms: 216 }],
   leader: [
@@ -39,12 +26,10 @@ const FILE_LAYERS: Record<string, { file: string; ms: number }[]> = {
   ],
 }
 
-/** The scheduled gain at one instant, walking the steps the way WebAudio does. */
 function gainAt(steps: Step[], t: number): number {
   let prev = steps[0]
   for (const s of steps) {
     if (s.t > t) {
-      // A `set` in the future holds the previous value; a ramp travels to it.
       if (s.curve === 'set') return prev.value
       const span = s.t - prev.t
       const k = span <= 0 ? 1 : (t - prev.t) / span
@@ -65,12 +50,6 @@ test('every anchor layer still plays its own WAV, in order', () => {
   }
 })
 
-/**
- * The level each file is held at for its whole length.
- *
- * 0.8 is the layer's own `gain`, which is the envelope's peak. One home for it,
- * rather than a stylesheet property applied after the envelope.
- */
 const LEVEL = 0.8
 
 test('the file envelope holds its level for the whole file and outlives it', () => {
@@ -80,13 +59,8 @@ test('the file envelope holds its level for the whole file and outlives it', () 
       const v = voices[i]
       const dur = l.ms / 1000
       assert.ok(v.stop > dur, `${l.file} stops at ${v.stop}s, before its ${dur}s of audio`)
-      // Sampled rather than reasoned about: flat from the first sample to the
-      // last, so nothing about the file's own shape is altered. A dip anywhere
-      // in here is the envelope eating into audio it was only meant to pass.
       for (let n = 0; n <= 40; n++) {
         const t = (dur * n) / 40
-        // Not exact: the last sample lands on the sustain boundary, and float64 can
-        // put it a femtosecond the wrong side of it.
         assert.ok(
           Math.abs(gainAt(v.gain, t) - LEVEL) < 0.001,
           `${l.file} is at ${gainAt(v.gain, t)} rather than ${LEVEL} at ${t}s`,
@@ -96,11 +70,6 @@ test('the file envelope holds its level for the whole file and outlives it', () 
   }
 })
 
-/**
- * `leader`'s two layers are one cue fired as a chord: both start together at
- * zero and run their own full length. A stray `delay` on either one is the one
- * edit that would quietly reorder a moment the room knows by ear.
- */
 test('the leader drop and its buzzer still start together', () => {
   const [drop, buzzer] = schedule(RECIPES.leader)
   assert.equal(drop.start, 0)
@@ -115,8 +84,6 @@ test('setPath writes one field and leaves the source table alone', () => {
   assert.equal(SAMPLE.stamp[1].freq, 900, 'the source table was mutated')
 })
 
-// The canvas draws every handle whatever the recipe declares, so a drag on a
-// layer with no sustain has to be able to give it one.
 test('setPath can introduce a field the layer omits', () => {
   assert.equal(setPath(SAMPLE, 'stamp.0.sustain', 120).stamp[0].sustain, 120)
 })
@@ -129,7 +96,6 @@ test('setPath naming nothing real returns the table unchanged', () => {
 
 test('span is the longest layer end, delay included', () => {
   assert.equal(span([{ source: 'sine', attack: 10, decay: 90 }]), 100)
-  // The second layer is shorter but starts late enough to finish last.
   assert.equal(
     span([
       { source: 'sine', attack: 10, decay: 90 },

@@ -1,10 +1,3 @@
-/**
- * Quizbowl-lite: powers, negs, bouncebacks, and item drops.
- *
- * The reader reports completed fragments; this module owns the power boundary.
- * Buzzes before its cutoff earn a bonus. Without a reader, power remains open;
- * the existing powerEnds act also lets a host-side script close it manually.
- */
 import type { GameModule, ModeContext } from '../../shared/modes/types.ts'
 import { bump, leaderValue, scoreKey } from '../../shared/scoring.ts'
 
@@ -50,8 +43,6 @@ export const quizbowl: GameModule<QuizbowlOptions, QuizbowlState> = {
 
   init: () => ({}),
 
-  // The power cutoff belongs to the question, not the arm: a `wrong` rebound
-  // re-arms but keeps it, so rebound buzzes are correctly unpowered.
   onArm: (state) => {
     state.game.moduleState.powerEndsAt = undefined
   },
@@ -91,13 +82,9 @@ export const quizbowl: GameModule<QuizbowlOptions, QuizbowlState> = {
     const leader = state.round.order[0]
     if (!leader) return
     const key = scoreKey(state, leader.playerId)
-    // The host's "no penalty" button sends 0 and always means it; otherwise
-    // the module's configured neg wins over whatever the button said.
     state.scores[key] ??= 0
     const penalty = neg === 0 ? 0 : state.game.options.neg
     if (penalty) bump(state, key, -penalty)
-    // Outside the `if`: a neg of zero is still a neg, and the room has to see
-    // that the question was missed even when it cost nothing.
     state.round.award = { name: leader.name, points: -penalty, penalty: true }
     if (state.game.options.bouncebacks !== false) {
       if (!state.round.lockedOut.includes(key)) state.round.lockedOut.push(key)
@@ -111,5 +98,4 @@ export const quizbowl: GameModule<QuizbowlOptions, QuizbowlState> = {
     return [{ playerId: leader.playerId, random: true }]
   },
 
-  // No viewModuleState: the default hides module memory from phones.
 }

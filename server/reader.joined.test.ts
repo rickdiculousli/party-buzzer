@@ -1,8 +1,3 @@
-/**
- * The reader with an aligner: one clip per question, revealed a clause at a
- * time. Everything here is fake except the reader and the hub — the point is
- * what reaches State and when, not whether a Mac can talk.
- */
 import { test as nodeTest, mock } from 'node:test'
 import type { TestContext, TestOptions } from 'node:test'
 import assert from 'node:assert/strict'
@@ -19,7 +14,6 @@ import { ARM_DELAY_MS } from '../shared/protocol.ts'
 const FRAGMENTS = ['First one, with a clause.', 'Second one.']
 const PACK = `V: 300\n${FRAGMENTS.join(' / ')}\nA: gold\n`
 
-/** A clip the test holds open, so a pause or a buzz can land mid-question. */
 function heldSpeech() {
   const plays: { path: string; fromMs: number; end: () => void }[] = []
   const speech: Speech = {
@@ -34,11 +28,6 @@ function heldSpeech() {
   return { speech, plays }
 }
 
-/**
- * Folds where a real aligner would put them for the pack above: after the
- * comma, and at the second fragment. Times are far enough apart that the test
- * can step between them.
- */
 function foldsFor(): Aligner {
   return async (j) => {
     const comma = j.text.indexOf(',') + 2
@@ -67,11 +56,6 @@ function rig(align?: Aligner, nextCardMs?: number) {
   return { hub, state, reader, plays }
 }
 
-/**
- * Every test runs on a mock clock: `settle(ms)` advances timers and
- * `Date.now()` together in 5 ms steps, yielding to the event loop between them
- * so promise chains keep pace. A busy machine cannot move a fold past a check.
- */
 const STEP_MS = 5
 
 type Body = (t: TestContext) => void | Promise<void>
@@ -81,7 +65,6 @@ function test(name: string, a: TestOptions | Body, b?: Body) {
   const opts = typeof a === 'function' ? {} : a
   const fn = (typeof a === 'function' ? a : b) as Body
   nodeTest(name, opts, async (t) => {
-    // A test that timed out never reached its `finally`; don't fail the rest.
     mock.timers.reset()
     mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] })
     try {
@@ -93,14 +76,12 @@ function test(name: string, a: TestOptions | Body, b?: Body) {
 }
 
 async function settle(ms = 30) {
-  // Small steps, so work that waits on a timer and then on a promise keeps pace.
   for (let left = ms; left > 0; left -= STEP_MS) {
     mock.timers.tick(Math.min(STEP_MS, left))
     await new Promise((r) => setImmediate(r))
   }
 }
 
-/** Drives the clock until the reader's loop has finished. */
 async function settled(reader: Reader) {
   let done = false
   const finished = reader.settled().then(() => { done = true })
@@ -158,9 +139,6 @@ test('a clause goes up as it begins, and never crosses into the next fragment', 
   reader.start()
   await reachArm(state)
 
-  // The opening clause is on the board as the reader starts saying it, not
-  // after — that is the whole point of folding on a clause's first word. What
-  // must never be up is a fragment the voice has not reached at all.
   const early = state.round.fragments ?? []
   assert.equal(early.length, 1, 'the fragment in progress, and no other')
   assert.ok(
@@ -181,8 +159,6 @@ test('a clause goes up as it begins, and never crosses into the next fragment', 
 
 test('the first entry grows rather than the board gaining a third fragment', async () => {
   const { state, reader } = rig(async (j) => [
-    // Only the clause fold, so the first fragment is revealed in two goes and
-    // the second is never reached.
     { at: j.text.indexOf(',') + 2, ms: 100, kind: 'clause', sure: true },
   ])
   await reader.select('one.txt')
@@ -208,7 +184,7 @@ test('a question with no folds found says everything and shows it at the end', a
   await settle(200)
 
   assert.equal(state.round.fragments ?? undefined, undefined, 'nothing early')
-  plays[0].end() // the clip runs out
+  plays[0].end()
   await settle(60)
   assert.deepEqual(state.round.fragments, FRAGMENTS, 'all of it, once it has all been said')
   reader.stop()
@@ -219,7 +195,7 @@ test('an interruption picks the clause up again rather than the question', async
   await reader.select('one.txt')
   reader.start()
   await reachArm(state)
-  await settle(250) // past the clause fold and the fragment fold, short of the end
+  await settle(250)
 
   reader.pause()
   await settle(30)
@@ -321,12 +297,9 @@ test('Read during an introduction never activates the reader, and Continue does 
 })
 
 test('an introduction arriving during the card dwell refuses the arm and the loop ends rather than waiting', { timeout: 3000 }, async () => {
-  // The hub is not wired to stop this reader, so the dwell runs out into the
-  // introduction and the arm itself is refused.
   const { hub, state, reader, plays } = rig(foldsFor(), 40)
   await reader.select('one.txt')
   reader.start()
-  // The pack's value lands immediately before the card dwell.
   while (state.round.value !== 300) await settle(1)
   hub.dispatch({ a: 'setSetlist', blocks: introBlocks })
   assert.equal(state.arrival?.kind, 'introduction')

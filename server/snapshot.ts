@@ -2,15 +2,10 @@ import { randomUUID } from 'node:crypto'
 import type { State } from '../shared/protocol.ts'
 import { resumeReveal, revealHeldAt } from '../shared/scoring.ts'
 
-/** Undo owns game data, not connections, catalogs, or playback. */
 export function gameSnapshot(state: State) {
   const { reading, readingActive, typed, games, duelRules, packs, packSizes, packCost, setlists, ...game } = state
   const snapshot = structuredClone(game)
   delete snapshot.round.judge
-  // An introduction is part of the game an undo returns to; a lobby is runtime.
-  // `autoplay.introSec` and a minigame lobby's `ready` list are game settings and
-  // lobby facts: both ride the snapshot, and so both undo and persist. The
-  // night's timers and the match autoplay opened are Hub memory, in neither.
   if (snapshot.arrival?.kind === 'lobby') delete snapshot.arrival
   return {
     ...snapshot,
@@ -22,7 +17,6 @@ export type GameSnapshot = ReturnType<typeof gameSnapshot>
 
 export function restoreGame(state: State, snapshot: GameSnapshot): void {
   const connected = new Map(state.players.map((p) => [p.id, p.connected]))
-  // Joining is not a host action: a phone arriving after the saved action stays.
   const joined = state.players.filter((p) => !snapshot.players.some((old) => old.id === p.id))
   const scores = Object.fromEntries(joined.map((p) => [p.id, state.scores[p.id] ?? 0]))
   const restored = structuredClone(snapshot)
@@ -35,11 +29,7 @@ export function restoreGame(state: State, snapshot: GameSnapshot): void {
     scores: { ...restored.scores, ...scores },
     readingActive: false,
   })
-  // Raw buzz packets and their timers cannot be restored. Reopen that attempt;
-  // a settled leader can still be judged manually after undoing a verdict.
   if (state.round.phase === 'COLLECTING' || state.round.held) {
-    // A picture a press or a miss was holding resumes with the reopened
-    // attempt, from where it stood. Read before the order goes.
     const heldAt = revealHeldAt(state.round)
     state.round.phase = 'ARMED'
     state.round.order = []
@@ -48,7 +38,6 @@ export function restoreGame(state: State, snapshot: GameSnapshot): void {
   }
   delete state.round.held
   delete state.round.judge
-  // A restored introduction is a new arrival: controls for the old id stay dead.
   if (state.arrival) state.arrival = { ...state.arrival, id: randomUUID() }
   if (state.round.questionId) {
     state.round.attemptId = randomUUID()
@@ -71,7 +60,6 @@ export function restoreGame(state: State, snapshot: GameSnapshot): void {
   }
 }
 
-/** Versioned disk data intentionally excludes the question, the arrival and all runtime state. */
 export function persistedSnapshot(state: State) {
   return {
     version: 2 as const,

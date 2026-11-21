@@ -1,20 +1,9 @@
-/**
- * Speech-to-text, one spawn per answer. The helper is a few dozen lines of
- * Swift built by `swiftc` on demand at server boot — the same machine-binary
- * posture as `say`/`afplay`/`ffmpeg`, never an npm dependency. Without the
- * source or the compiler every call degrades to null and the judge stays off,
- * the way speech.ts degrades to silence.
- */
 import { spawn } from 'node:child_process'
 import { existsSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Transcriber } from './align.ts'
 import { run } from './speech.ts'
 
-/**
- * The path to a working helper, or null. Rebuilds when the source is newer, so
- * an edit to stt.swift takes effect on the next boot with nothing to remember.
- */
 export async function sttBinary(dir: string): Promise<string | null> {
   const src = join(dir, 'stt.swift')
   const bin = join(dir, 'stt')
@@ -30,14 +19,6 @@ export async function sttBinary(dir: string): Promise<string | null> {
   return bin
 }
 
-/**
- * A clip held open for questioning. The aligner asks one clip hundreds of
- * ranges, and nine tenths of a one-shot run is process startup, so the process
- * outlives the question it answered. Serial by construction: the bisection cannot ask its next
- * question until this one is answered. Run whole questions concurrently to keep
- * the machine busy — about four at once, past which the speech daemon
- * serialises anyway.
- */
 export function transcribeSession(bin: string, audioPath: string): {
   transcribe: Transcriber
   close(): void
@@ -56,9 +37,6 @@ export function transcribeSession(bin: string, audioPath: string): {
       waiting.shift()?.(line)
     }
   })
-  // A helper that dies mid-alignment must not hang the render: every question
-  // still queued gets an empty answer, which the aligner reads as "no word has
-  // finished" and turns into a fold at the end of the clip.
   const drain = () => {
     while (waiting.length) waiting.shift()?.('')
   }
@@ -78,15 +56,6 @@ export function transcribeSession(bin: string, audioPath: string): {
   }
 }
 
-/**
- * Several sessions on one clip, handed out to whoever asks next.  * transcribes a whole level of its search at once, and a single session answers
- * those one at a time; this is what turns the level into one round.
- *
- * Width past about four buys nothing — the speech daemon serialises beyond
- * that however many processes ask — so the useful setting is small. Across a
- * pack the same ceiling applies, which is why questions run concurrently at
- * the same modest width rather than all at once.
- */
 export function transcribePool(bin: string, audioPath: string, width = 4): {
   transcribe: Transcriber
   close(): void
@@ -117,15 +86,9 @@ export function transcribePool(bin: string, audioPath: string, width = 4): {
   }
 }
 
-/** One file in, one transcript out. Any failure is a null: the caller scores a miss. */
 export async function transcribe(bin: string, wavPath: string): Promise<string | null> {
   const { ok, stdout, stderr, signal } = await run(bin, [wavPath])
-  // The helper says why an answer came back empty: "Siri and Dictation are
-  // disabled" is a settings switch, not a quiet player.
   if (stderr.trim()) console.warn(`[stt] ${stderr.trim()}`)
-  // Hearing nothing exits 1; being killed is different. macOS kills the helper
-  // when the app that launched the server has no speech-recognition permission
-  // (T3 Code, for one), and every answer then scores as silence.
   if (signal) console.warn(`[stt] helper killed by ${signal} — start the server from Terminal, whose speech permission it borrows`)
   if (!ok) return null
   return stdout.trim() || null

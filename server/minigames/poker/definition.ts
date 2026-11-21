@@ -15,7 +15,6 @@ const INVALID: InputOutcome = { status: 'refused', reason: 'invalid' }
 const optionsOf = (options: Record<string, number>): PokerOptions =>
   ({ stack: options.stack, bigBlind: options.bigBlind, levelMin: options.levelMin, shotSec: options.shotSec })
 
-/** A unit direction and a speed clamped to 0–1, or nothing when the numbers are unusable. */
 function cleanFlick(flick: unknown): PokerFlick | undefined {
   const f = flick as Partial<PokerFlick> | null
   if (!f || ![f.dx, f.dy, f.speed].every((n) => typeof n === 'number' && Number.isFinite(n))) return undefined
@@ -105,8 +104,6 @@ export const poker: MinigameDefinition<PokerWorld> = {
   },
   step: stepTable,
   tick: (w) => w.tick,
-  // Feed ids cover actions/reactions/awards; the remaining facts cover timed
-  // streets, presence, turn deadlines and the next blind-level clock.
   frameKey: (w) => [w.handNo, w.nextFeedId, w.phase.at, w.board.length, w.actor, w.actBy,
     levelOf(w).nextAtTick, ...w.seats.map((seat) => Number(seat.connected))].join('|'),
   boardFrame: (w, clock) => shared(w, clock),

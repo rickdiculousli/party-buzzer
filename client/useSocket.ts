@@ -17,18 +17,10 @@ export type SocketFixture = {
   connected?: boolean
   now: number
   frame?: MinigameFrame
-  /** Frozen pulses; review fixtures pair them with `usePracticeTime`'s `frozenNow`. */
   practice?: PracticeFeedback
-  /** Frozen reactions, stamped on the same frozen clock. */
   reactions?: TimedReaction[]
 }
 
-/**
- * Clock sync, NTP style. `performance.now()` is monotonic, so a phone whose
- * wall clock jumps mid-game cannot corrupt the offset. We keep the median of
- * several samples after discarding the slowest round-trips, which are the ones
- * most distorted by WiFi jitter.
- */
 function medianOffset(samples: { rtt: number; offset: number }[]): number {
   const best = [...samples]
     .sort((a, b) => a.rtt - b.rtt)
@@ -38,7 +30,6 @@ function medianOffset(samples: { rtt: number; offset: number }[]): number {
   return best[Math.floor(best.length / 2)]
 }
 
-/** Whole seconds until `until` on the server clock, re-rendering four times a second. */
 export function useSecondsLeft(until: number, now: () => number): number {
   const [, tick] = useState(0)
   useEffect(() => {
@@ -48,13 +39,6 @@ export function useSecondsLeft(until: number, now: () => number): number {
   return Math.max(0, Math.ceil((until - now()) / 1000))
 }
 
-/**
- * Where the finale's ceremony is, from the server's `setlist.spentAt` on this
- * surface's synced clock, re-rendering at each boundary of the schedule. The
- * board and the phones call each place together from the one stamp; a spent
- * setlist with no stamp (an older disk file) is settled. `elapsed` lets the
- * board position its flash where the schedule already is.
- */
 export function useFinale(
   state: Pick<State, 'setlist' | 'grouping' | 'players' | 'teams' | 'scores'> | null | undefined,
   now: () => number,
@@ -65,9 +49,6 @@ export function useFinale(
   const [ticks, tick] = useState(0)
   const elapsed = spentAt === undefined ? 0 : now() - spentAt
   const { step, until } = finaleStep(tiers, elapsed)
-  // `ticks` is a dependency on purpose: a timer can fire a fraction of a
-  // millisecond before the boundary, leaving the step where it was, and the
-  // only cure is scheduling again from where the clock now is.
   useEffect(() => {
     if (!active || spentAt === undefined || until === Infinity) return
     const t = setTimeout(() => tick((n) => n + 1), Math.max(0, until - (now() - spentAt)))
@@ -76,12 +57,6 @@ export function useFinale(
   return { step, elapsed }
 }
 
-/**
- * The buzzers open at `round.armedAt`, which the server sets a beat in the
- * future. Every surface counts down to that instant on its own synced clock,
- * so a phone whose arm packet arrived late still opens with everyone else.
- * Re-renders at the transition and fires `onOpen` there — that is the cue.
- */
 export function useOpen(
   round: State['round'] | undefined,
   now: () => number,
@@ -91,9 +66,6 @@ export function useOpen(
   const armed = round?.phase === 'ARMED' || round?.phase === 'COLLECTING'
   const armedAt = round?.armedAt ?? 0
   const attemptId = round?.attemptId ?? ''
-  // Which arm we have opened for. The timer is the authority — re-reading the
-  // clock here would leave us shut whenever setTimeout fires a hair early, with
-  // no second render coming to correct it.
   const [openedFor, setOpenedFor] = useState('')
   const fire = useRef(onOpen)
   fire.current = onOpen
@@ -105,11 +77,7 @@ export function useOpen(
       setOpenedFor(attemptId)
       fire.current?.()
     }
-    // Never longer than the delay the server actually schedules. Without the
-    // clamp a client whose clock is behind — including one that armed before
-    // its first sync landed — waits roughly the current unix time and never opens.
     const wait = Math.min(ARM_DELAY_MS, Math.max(0, armedAt - now()))
-    // Already past it: this client heard late. Open now rather than never.
     if (wait <= 0) return go()
     const id = setTimeout(go, wait)
     return () => clearTimeout(id)
@@ -129,20 +97,14 @@ export function useSocket(role: Role, fixture?: SocketFixture) {
   const [minigameAck, setMinigameAck] = useState<MinigameInputAck | null>(null)
   const [minigameTouches, setMinigameTouches] = useState<TimedTouch[]>([])
   const [practice, setPractice] = useState<PracticeFeedback>(() => fixture?.practice ?? emptyPractice())
-  // The lobby receipts are checked against, read inside the message handler.
   const lobbyId = useRef<string | undefined>(undefined)
-  // Reactions, as the board keeps them: receipts for the current question only.
   const [reactions, setReactions] = useState<TimedReaction[]>(() => fixture?.reactions ?? [])
   const questionId = useRef<string | undefined>(undefined)
 
   const socket = useRef<WebSocket | null>(null)
-  // Seeded from this device's own wall clock so `now()` is in the server's
-  // domain from the first render, not only once sync lands. Sync then refines
-  // it from device accuracy to millisecond accuracy.
   const offset = useRef(Date.now() - performance.now())
   const samples = useRef<{ rtt: number; offset: number }[]>([])
 
-  /** Whether the message left: one sent with the socket down is gone, not queued. */
   const send = (msg: ClientMsg): boolean => {
     if (fixture) return false
     if (msg.t === 'host' || msg.t === 'act') setActionMessage(null)
@@ -178,8 +140,6 @@ export function useSocket(role: Role, fixture?: SocketFixture) {
         retry = 500
         setConnected(true)
         const stored = localStorage.getItem('playerId')
-        // A player we have never seen has no name yet, and saying hello would
-        // mint an unnamed ghost. Their join tap sends the first hello instead.
         if (role !== 'player' || stored) {
           send({
             t: 'hello',
@@ -198,7 +158,6 @@ export function useSocket(role: Role, fixture?: SocketFixture) {
         if (msg.t === 'state') {
           setState(msg.state)
           if (!msg.state.minigame) setMinigameFrame(null)
-          // A new or closed lobby clears pulses; a departed player loses theirs.
           lobbyId.current = practiceLobbyId(msg.state)
           questionId.current = msg.state.round.questionId
           const ids = msg.state.players.map((p) => p.id)
@@ -236,7 +195,6 @@ export function useSocket(role: Role, fixture?: SocketFixture) {
 
       const reconnect = () => {
         setConnected(false)
-        // A pulse is never replayed: the next connection starts from tested marks alone.
         lobbyId.current = undefined
         setPractice(emptyPractice())
         questionId.current = undefined
@@ -250,8 +208,6 @@ export function useSocket(role: Role, fixture?: SocketFixture) {
 
       ws.onclose = reconnect
       ws.onerror = () => ws.close()
-      // The server beats, so silence means a dead link. Closing one can wait a long
-      // time on a handshake nobody will answer, so this reconnects without it.
       watchdog = setInterval(() => {
         if (performance.now() - heard < BEAT_MS * BEAT_MISSES) return
         ws.onclose = ws.onerror = ws.onmessage = ws.onopen = null

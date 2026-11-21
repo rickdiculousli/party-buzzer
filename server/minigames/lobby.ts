@@ -1,7 +1,6 @@
 import type { InkTeamName, LobbyChange, MinigameLobby, PlayerId } from '../../shared/protocol.ts'
 import type { Refusal } from '../../shared/legality.ts'
 
-/** Returns whether the lobby changed. */
 export function applyLobby(lobby: MinigameLobby, playerId: PlayerId, change: LobbyChange): boolean {
   const team = lobby.teams[playerId]
   const volunteering = lobby.volunteers.includes(playerId)

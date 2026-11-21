@@ -12,11 +12,10 @@ const solo = (names: string[], scores: Record<string, number> = {}): MinigameRoo
 function world(names = ['a', 'b', 'c', 'd'], extra: Partial<{ durationSec: number; value: number; room: MinigameRoom }> = {}) {
   const room = extra.room ?? solo(names)
   const w = createTugWorld({ participants: [...names].sort(), room, durationSec: extra.durationSec ?? 30, value: extra.value ?? 100 })
-  stepTug(w) // past the countdown guard
+  stepTug(w)
   return w
 }
 
-/** Steps for `ms`, letting `tapper(id, ms)` decide who taps in each step. */
 function run(w: TugWorld, ms: number, tapper: (id: string, at: number) => boolean) {
   for (let t = 0; t < ms && w.endedAtMs === undefined; t += TUG_STEP_MS) {
     for (const id of Object.keys(w.pullers)) if (tapper(id, w.nowMs)) pull(w, id)
@@ -24,7 +23,6 @@ function run(w: TugWorld, ms: number, tapper: (id: string, at: number) => boolea
   }
 }
 
-/** The pull one player banks from a schedule of tap times; their opponent matches them so the rope stays in play. */
 function banked(times: number[]) {
   const w = world(['a', 'b'])
   for (const at of times) {

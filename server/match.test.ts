@@ -36,20 +36,12 @@ test('an empty transcript never matches', () => {
   assert.equal(matchAnswer('the a an', ['Vermont']), false)
 })
 
-/**
- * `npm run walk-read-quizbowl` speaks three answers aloud and asserts three scores. If
- * one of them stops landing on the side the walkthrough expects, the run turns
- * into a minute of audio that ends on the wrong numbers with nothing saying
- * why — so the pack and the words the script says are checked together here.
- */
 test('walk-read-quizbowl: the pack takes the answers the walkthrough speaks, and refuses the miss', () => {
   const { questions, errors } = parsePack(
     readFileSync(join(import.meta.dirname, '..', 'packs', 'walk-c.txt'), 'utf8'),
   )
   assert.deepEqual(errors, [])
   assert.equal(questions.length, 3)
-  // Question two has to be long enough for the miss and the rebound to sit two
-  // sentences apart; the script's buzz offset is measured against these.
   assert.ok(questions[1].fragments.length >= 4)
 
   assert.ok(matchAnswer('the Pacific Ocean', questions[0].answers))
@@ -57,16 +49,13 @@ test('walk-read-quizbowl: the pack takes the answers the walkthrough speaks, and
   assert.ok(!matchAnswer('Rosalind Franklin', questions[1].answers))
 })
 
-/** The same pairing for `npm run walk-read-trivia`: shown questions, one choice question and one closest. */
 test('walk-read-trivia: the pack takes the answers the walkthrough speaks, and refuses the miss', () => {
   const { questions, errors } = parsePack(
     readFileSync(join(import.meta.dirname, '..', 'packs', 'walk-trivia.txt'), 'utf8'),
   )
   assert.deepEqual(errors, [])
   assert.deepEqual(questions.map((q) => q.kind), ['shown', 'shown', 'choice', 'closest', 'shown'])
-  // The walk picks by letter: Ada and Cy pick C, Bo picks D.
   assert.equal(questions[2].correct, 2)
-  // And guesses 1,700, 1,200 and 1,500: Ada's is nearest.
   assert.equal(questions[3].truth, 1665)
 
   assert.ok(matchAnswer('Mars', questions[0].answers))

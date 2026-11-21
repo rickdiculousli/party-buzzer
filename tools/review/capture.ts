@@ -4,12 +4,6 @@ import type { Annotation } from '../../client/review/model.ts'
 
 type Mark = { label: number; targetId: string }
 
-/**
- * Number each suggestion on the shot it belongs to. The workbench's own bounds
- * are in its fluid iframe's pixels, so the target is found again here and
- * measured at the capture viewport. An id that is missing or repeated is left
- * unmarked rather than boxed around the wrong thing.
- */
 function outline(marks: Mark[]) {
   for (const mark of marks) {
     const found = document.querySelectorAll(`[data-review-id="${CSS.escape(mark.targetId)}"]`)
@@ -59,7 +53,6 @@ export async function capturePreviews(
       url.searchParams.set('surface', note.surface)
       if (note.playerId) url.searchParams.set('player', note.playerId)
       await page.goto(url.toString())
-      // Wait on the attribute, not visibility: an ink pad collapses <html> to zero height.
       await page.locator('html[data-review-ready]').waitFor({ state: 'attached' })
       const ready = await page.evaluate(() => ({
         state: document.documentElement.dataset.reviewReady,

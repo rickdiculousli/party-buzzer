@@ -70,9 +70,7 @@ test('steal only works on a rebound, and stamps this arm', () => {
   state.round.phase = 'COLLECTING'
   state.round.armedAt = 50
   state.round.attemptId = 'attempt'
-  // First asking: nobody is locked out, so there is nothing to steal.
   assert.equal(useItem(state, 'p2', { itemId: 'steal' }), false)
-  // Rebound: p1 answered wrong and is locked out; p2 jumps the queue.
   state.round.lockedOut = ['p1']
   assert.equal(useItem(state, 'p2', { itemId: 'steal' }), true)
   assert.deepEqual(state.effects, [{ kind: 'steal', playerId: 'p2', attemptId: 'attempt' }])

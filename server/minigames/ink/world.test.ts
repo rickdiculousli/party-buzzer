@@ -6,7 +6,6 @@ import { CARDS } from './fixtures.ts'
 import { applyInk, createInkWorld, inkFinished, inkResults, leadingChoice, peekTargets, roleOf } from './world.ts'
 import type { InkWorld } from './types.ts'
 
-/** Sun: sw writes, s1 s2 guess. Moon: mw writes, m1 guesses. */
 function world(): InkWorld {
   return createInkWorld({
     rand: mulberry32(1),
@@ -212,13 +211,11 @@ function voteAll(w: InkWorld, choice: string) {
   for (const g of w.roster[w.turn].guessers) act(w, g, { kind: 'vote', choice })
 }
 
-/** Votes to guess and spends the turn on one letter the secret does not start with. */
 function missGuess(w: InkWorld, guesser: string) {
   voteAll(w, 'guess')
   act(w, guesser, { kind: 'letter', value: 'Z' })
 }
 
-/** The secret is Snowman; one guesser types the whole guess. */
 test('a guess is typed letter by letter and the server checks each one', () => {
   const w = started()
   voteAll(w, 'guess')
@@ -259,7 +256,6 @@ test('redraw replaces the hand once per team and keeps the turn', () => {
   assert.equal(act(w, 's1', { kind: 'vote', choice: 'redraw' }).status, 'refused')
 })
 
-/** Plays a sun clue with one stroke and no period, then passes moon's turn with a wrong guess letter. */
 function sunClueMoonMiss(w: InkWorld) {
   askUntilClue(w, 'sun')
   act(w, 'sw', { kind: 'stroke', points: line })
@@ -270,13 +266,13 @@ function sunClueMoonMiss(w: InkWorld) {
 
 test('a turn starting on a peek row picks an unfinished clue and its writer adds one letter', () => {
   const w = started()
-  sunClueMoonMiss(w) // sun row 1, moon row 1
-  sunClueMoonMiss(w) // sun row 2, moon row 2
+  sunClueMoonMiss(w)
+  sunClueMoonMiss(w)
   assert.equal(w.turn, 'sun')
   askUntilClue(w, 'sun')
   act(w, 'sw', { kind: 'stroke', points: line })
   act(w, 's1', { kind: 'stop' })
-  act(w, 'sw', { kind: 'done' }) // sun row 3; moon now starts on row 3, a peek row
+  act(w, 'sw', { kind: 'done' })
   assert.equal(w.turn, 'moon')
   assert.equal(w.row, 2)
   assert.deepEqual(w.step, { at: 'peekPick' })

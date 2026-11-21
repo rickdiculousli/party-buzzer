@@ -10,7 +10,6 @@ import {
 const WORDS = ['banana', 'cherry', 'dragon', 'eggplant', 'fennel', 'grapes', 'honeydew', 'kiwifruit', 'lemons', 'mango']
 const SHORT = ['cat', 'dog', 'fox', 'owl', 'bee', 'ant', 'yak', 'emu', 'pig']
 
-/** Three players, 10-second draws: 200 draw ticks, hints at 100 and 150. */
 function world(over: Partial<Parameters<typeof createSketchWorld>[0]> = {}): SketchWorld {
   return createSketchWorld({ rand: mulberry32(1), words: WORDS, participants: ['a', 'b', 'c'], drawSec: 10, drawers: 0, ...over })
 }

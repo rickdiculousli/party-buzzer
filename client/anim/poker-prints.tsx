@@ -1,4 +1,3 @@
-/** Development-only: the actual component/fonts/tokens are the texture source. */
 import { render } from 'preact'
 import { PlayingCard } from '../PokerParts.tsx'
 

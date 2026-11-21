@@ -26,7 +26,6 @@ export function segmentCircleHit(a: Vec2, b: Vec2, center: Vec2, radius: number)
   const dx = b.x - a.x, dy = b.y - a.y
   const ox = a.x - center.x, oy = a.y - center.y
   const c = ox * ox + oy * oy - radius * radius
-  // Initial overlap is contact now, not the later exit from the circle.
   if (c <= 0) return { t: 0, point: { ...a }, normal: normalize({ x: ox, y: oy }) }
   const squared = dx * dx + dy * dy
   if (squared === 0) return null
@@ -49,7 +48,6 @@ export function segmentDistance(a: Vec2, b: Vec2, c: Vec2, d: Vec2): number {
     const u = (acx * aby - acy * abx) / cross
     if (t >= 0 && t <= 1 && u >= 0 && u <= 1) return 0
   }
-  // Endpoint projections also cover parallel, collinear, and point segments.
   return Math.min(
     pointSegmentDistance(a, c, d),
     pointSegmentDistance(b, c, d),
@@ -58,7 +56,6 @@ export function segmentDistance(a: Vec2, b: Vec2, c: Vec2, d: Vec2): number {
   )
 }
 
-// Scalar path avoids allocating temporary points for each shaft pair.
 function pointSegmentDistance(p: Vec2, a: Vec2, b: Vec2): number {
   const dx = b.x - a.x, dy = b.y - a.y
   const squared = dx * dx + dy * dy
@@ -70,9 +67,6 @@ function pointSegmentDistance(p: Vec2, a: Vec2, b: Vec2): number {
 
 export type SweepHit = { t: number; normal: Vec2 }
 
-// First contact between translating capsules. Radius is the sum of their radii.
-// Relative motion compares shafts at the SAME time, avoiding swept-footprint
-// false positives. Directions are fixed over the sweep (no angular dynamics).
 export function sweptSegmentHit(
   a: Vec2, b: Vec2, delta: Vec2, c: Vec2, d: Vec2, otherDelta: Vec2, radius: number,
 ): SweepHit | null {
@@ -87,12 +81,9 @@ export function sweptSegmentHit(
         distance = length(candidate)
       }
     }
-    // Crossing interiors have no unique normal. Use the incoming motion;
-    // coincident stationary shafts inherit normalize's deterministic fallback.
     return { t: 0, normal: normalize(distance > radius || distance === 0 ? scale(relative, -1) : separation) }
   }
   let first: SweepHit | null = null
-  // For disjoint 2D segments, first contact involves at least one endpoint.
   for (const [p, start, end, sign] of [[a, c, d, 1], [b, c, d, 1], [c, a, b, -1], [d, a, b, -1]] as const) {
     const hit = pointCapsuleHit(p, scale(relative, sign), start, end, radius)
     if (hit && (!first || hit.t < first.t)) first = { t: hit.t, normal: scale(hit.normal, sign) }
@@ -100,8 +91,6 @@ export function sweptSegmentHit(
   return first
 }
 
-// First contact of a moving arrow tip with a stuck arrow's shaft (a capsule).
-// Initial overlap is contact now; a tip exactly on the shaft uses the incoming motion.
 export function tipCapsuleHit(p: Vec2, delta: Vec2, a: Vec2, b: Vec2, radius: number): SweepHit | null {
   const away = sub(p, closestPointOnSegment(p, a, b).point)
   if (length(away) <= radius) return { t: 0, normal: normalize(length(away) === 0 ? scale(delta, -1) : away) }

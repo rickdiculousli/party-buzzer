@@ -6,7 +6,6 @@ import { join as pathJoin } from 'node:path'
 import { join } from './align.ts'
 import { folds, synthesize, timedFor, type Timed } from './eleven.ts'
 
-/** Every character 10ms long, so a time reads back as a character offset. */
 function timed(text: string): Timed {
   return { text, startMs: [...text].map((_, i) => i * 10), endMs: [...text].map((_, i) => i * 10 + 10) }
 }

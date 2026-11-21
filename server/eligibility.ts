@@ -2,9 +2,7 @@ import type { PlayerId, State } from '../shared/protocol.ts'
 import { pickers } from '../shared/choice.ts'
 import { moduleFor } from './modes/index.ts'
 
-/** Effects and mode restrictions; score-key lockouts are resolved separately. */
 export function buzzBlockReason(state: State, playerId: PlayerId): string | null {
-  // The whole room answers a choice question on its phones; there is no buzz to win.
   if (state.round.kind === 'choice') return 'choice'
   if (state.round.kind === 'closest') return 'closest'
   const frozen = state.effects.some((e) =>
@@ -14,7 +12,6 @@ export function buzzBlockReason(state: State, playerId: PlayerId): string | null
   return moduleFor(state.game.id).canBuzz?.(state, playerId) ?? null
 }
 
-/** Why this player may not pick right now, or null. A pick is final. */
 export function pickBlockReason(state: State, playerId: PlayerId, at = Date.now()): string | null {
   const r = state.round
   if (r.kind !== 'choice' || !r.choices || r.correct !== undefined) return 'not-picking'
@@ -24,7 +21,6 @@ export function pickBlockReason(state: State, playerId: PlayerId, at = Date.now(
   return null
 }
 
-/** Why this player may not guess right now, or null. A guess is final, and a number. */
 export function guessBlockReason(state: State, playerId: PlayerId, guess: unknown, at = Date.now()): string | null {
   const r = state.round
   if (r.kind !== 'closest' || !r.guessing || r.truth !== undefined) return 'not-guessing'
@@ -35,11 +31,6 @@ export function guessBlockReason(state: State, playerId: PlayerId, guess: unknow
   return null
 }
 
-/**
- * Why this player may not react right now, or null. Reactions are for the
- * phones that cannot buzz: the room while the leader answers, and everyone
- * once a verdict is up. Never under an arrival or a minigame.
- */
 export function reactBlockReason(state: State, playerId: PlayerId): string | null {
   if (state.arrival) return 'arrival'
   if (state.minigame) return 'minigame'

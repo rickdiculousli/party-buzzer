@@ -10,7 +10,6 @@ const MATCH = 'review-sketch'
 const FALLBACK_WORDS = ['lighthouse', 'giraffe', 'birthday cake', 'rocket', 'umbrella', 'snowman', 'volcano',
   'guitar', 'pirate', 'octopus', 'castle', 'bicycle', 'cactus', 'robot', 'penguin', 'pizza', 'dragon', 'kite']
 
-/** A house with a door and a sun, drawn in the canvas's unit square. */
 const HOUSE: InkPoint[][] = [
   [[0.25, 0.85], [0.25, 0.5], [0.5, 0.25], [0.75, 0.5], [0.75, 0.85], [0.25, 0.85]],
   [[0.45, 0.85], [0.45, 0.65], [0.55, 0.65], [0.55, 0.85]],
@@ -28,7 +27,6 @@ export const SKETCH_PLAYERS: Player[] = [
   { id: 'fay', name: 'Fay', connected: true },
 ]
 
-/** Twelve at the table, for the standings column at its longest. */
 export const SKETCH_CROWD: Player[] = [
   ...SKETCH_PLAYERS,
   ...['Gus', 'Hana', 'Ivo', 'Jun', 'Kit', 'Lu'].map((name) => ({ id: name.toLowerCase(), name, connected: true })),
@@ -53,7 +51,6 @@ function mulberry32(seed: number): () => number {
   }
 }
 
-/** Drives the real Sketch rules to a state, so a preview cannot show an impossible one. */
 export class SketchGame {
   private readonly def: MinigameDefinition<SketchWorld>
   private readonly world: SketchWorld
@@ -75,7 +72,6 @@ export class SketchGame {
     return this.world.word
   }
 
-  /** Refuse loudly: a fixture that silently dropped an input would show a lie. */
   play(playerId: PlayerId, input: Record<string, unknown>): this {
     const outcome = this.def.apply(this.world, playerId, { at: this.clock(this.world.tick * STEP_MS) + this.at++, ...input } as SketchInput)
     if (outcome.status !== 'accepted') {
@@ -98,7 +94,6 @@ export class SketchGame {
 
   guess(playerId: PlayerId, text: string): this { return this.play(playerId, { kind: 'guess', text }) }
 
-  /** One wrong guess from each guesser still guessing, in turn, `count` in all. */
   misses(count: number): this {
     const open = this.guessers.filter((id) => !this.world.correct.some((c) => c.player === id))
     for (let i = 0; i < count; i++) this.guess(open[i % open.length], WRONG[i % WRONG.length])
@@ -116,7 +111,6 @@ export class SketchGame {
     return (mine ? { ...this.base(), role: 'player', ...mine } : { ...this.base(), role: 'spectator' }) as MinigameFrame
   }
 
-  /** World time mapped so the current tick lands on the preview's `now`. */
   private clock(worldMs: number): number { return this.now - this.world.tick * STEP_MS + worldMs }
   private clockFn(): Clock { return (worldMs) => this.clock(worldMs) }
 

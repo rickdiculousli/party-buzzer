@@ -9,7 +9,6 @@ import { tank } from './definition.ts'
 const close = (actual: number, expected: number, epsilon = 1e-9) =>
   assert.ok(Math.abs(actual - expected) < epsilon, `${actual} is not ${expected}`)
 
-/** A world with no cover and every tank parked facing +x. */
 function open(crews: TankCrew[], at = [{ x: 800, y: 450 }, { x: 1200, y: 450 }]) {
   const world = createTankWorld({ seed: 1, crews, cover: new Uint8Array(COLS * ROWS) })
   world.tanks.forEach((tank, index) => { tank.position = { ...at[index] }; tank.hull = 0; tank.turret = 0 })
@@ -98,7 +97,7 @@ test('only the driver drives: 160 px/s forward, 100 px/s back', () => {
 
 test('cover and other tanks block movement', () => {
   const world = open([DG, { id: 'crew-1', driver: 'x', gunner: 'y' }], [{ x: 800, y: 450 }, { x: 800, y: 300 }])
-  for (let row = 0; row < ROWS; row++) world.cover[row * COLS + 85] = 1 // wall at x 850..860
+  for (let row = 0; row < ROWS; row++) world.cover[row * COLS + 85] = 1
   applyTankInput(world, 'd', { kind: 'drive', dir: 1 })
   steps(world, 120)
   const tank = world.tanks[0]
@@ -115,7 +114,7 @@ test('holding the gun fires 10 rounds a second, then reloads 2 s after the clip 
   applyTankInput(world, 'g', { kind: 'trigger', weapon: 'gun', down: true, at: 0 })
   steps(world, 60)
   assert.equal(world.tanks[0].shots, 10)
-  steps(world, 174) // tick 234: the 20th round fired at tick 115
+  steps(world, 174)
   assert.equal(world.tanks[0].shots, 20)
   assert.equal(world.tanks[0].gunClip, 0)
   steps(world, 1)
@@ -181,7 +180,7 @@ test('projectiles fired by the same tank do not collide', () => {
 
 test('cover stops a shell, and the blast carves it', () => {
   const world = open([DG, YZ], [{ x: 800, y: 450 }, { x: 1000, y: 450 }])
-  for (let row = 0; row < ROWS; row++) world.cover[row * COLS + 90] = 1 // x 900..910
+  for (let row = 0; row < ROWS; row++) world.cover[row * COLS + 90] = 1
   cannon(world)
   steps(world, 30)
   assert.equal(world.tanks[1].hp, 100)
@@ -200,7 +199,7 @@ test('a direct cannon hit does 30 with no extra splash', () => {
 
 test('cannon splash falls off with distance', () => {
   const world = open([DG, YZ], [{ x: 800, y: 450 }, { x: 1000, y: 480 }])
-  world.cover[45 * COLS + 100] = 1 // x 1000..1010, y 450..460: the shell bursts 8 px from the tank's edge
+  world.cover[45 * COLS + 100] = 1
   cannon(world)
   steps(world, 30)
   assert.equal(world.tanks[1].hp, 83)
@@ -209,7 +208,7 @@ test('cannon splash falls off with distance', () => {
 
 test('splash hurts the firing tank and scores nothing', () => {
   const world = open([DG, YZ], [{ x: 800, y: 450 }, { x: 1400, y: 800 }])
-  world.cover[45 * COLS + 83] = 1 // right at the muzzle
+  world.cover[45 * COLS + 83] = 1
   cannon(world)
   stepTank(world)
   assert.ok(world.tanks[0].hp < 100 && world.tanks[0].hp > 80, `hp ${world.tanks[0].hp}`)

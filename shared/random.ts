@@ -1,4 +1,3 @@
-/** A small seeded 0–1 stream: the same seed gives the same sequence on server and browser. */
 export const mulberry32 = (seed: number) => () => {
   seed |= 0
   seed = seed + 0x6d2b79f5 | 0

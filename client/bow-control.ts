@@ -1,7 +1,5 @@
-/** Degrees clockwise from straight up; the 65° span matches `launchBow` on the server. */
 export const aimDegrees = (angle: number) => angle * 65
 
-/** The shot points opposite the drag vector; its length sets tension. */
 export function aimFromDrag(dx: number, dy: number) {
   const down = Math.max(0, dy)
   return {

@@ -3,12 +3,6 @@ import { activePracticePlayers, practiceLobbyId, type PracticeFeedback } from '.
 import { NEXT_LABEL, type ArrivalPresentation } from '../shared/arrival.ts'
 import type { PlayerId, State } from '../shared/protocol.ts'
 
-/**
- * The phone while the room arrives. The parent keeps the identity bar and owns
- * the socket and the local press feedback (`onPractice`); this is one native
- * button in the lobby and one instruction in an introduction. "Buzzer tested"
- * needs this player's own receipt, so it never claims more than the server saw.
- */
 export function ArrivalPhone({ state, arrival, playerId, connected, feedback, pulseNow, onPractice }: {
   state: State
   arrival: ArrivalPresentation
@@ -39,7 +33,6 @@ export function ArrivalPhone({ state, arrival, playerId, connected, feedback, pu
 
   return (
     <div class="arrival-phone" data-review-id="phone:arrival-lobby">
-      {/* Pointer down for the same snap as the real buzzer; click only for keyboard activation. */}
       <button
         data-review-id="phone:practice"
         class={confirmed ? 'buzzer arrival-phone__test is-first' : 'buzzer arrival-phone__test is-waiting'}

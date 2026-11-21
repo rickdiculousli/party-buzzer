@@ -1,8 +1,3 @@
-/**
- * Practice pulses as the browser sees them: the latest receipt per player,
- * stamped with local monotonic receipt time. Pure, so expiry and staleness are
- * testable with injected times; `useSocket` feeds it and one surface tick reads it.
- */
 import { PRACTICE_PULSE_MS } from '../shared/arrival.ts'
 import type { PlayerId, PracticeReceipt, State } from '../shared/protocol.ts'
 
@@ -11,7 +6,6 @@ export type PracticeFeedback = {
   pulses: Record<PlayerId, { seq: number; receivedAt: number }>
 }
 
-/** The open lobby's id, the scope every receipt and pulse is checked against. */
 export function practiceLobbyId(state: State | null | undefined): string | undefined {
   return state?.arrival?.kind === 'lobby' ? state.arrival.id : undefined
 }
@@ -20,7 +14,6 @@ export function emptyPractice(lobbyId?: string): PracticeFeedback {
   return lobbyId === undefined ? { pulses: {} } : { lobbyId, pulses: {} }
 }
 
-/** Keep a receipt for the current lobby that is newer than that player's last one. */
 export function recordPractice(
   feedback: PracticeFeedback,
   receipt: PracticeReceipt,
@@ -34,7 +27,6 @@ export function recordPractice(
   return { lobbyId, pulses: { ...base.pulses, [receipt.playerId]: { seq: receipt.seq, receivedAt } } }
 }
 
-/** Scope feedback to the current lobby and roster. Unchanged feedback keeps its identity. */
 export function prunePractice(
   feedback: PracticeFeedback,
   lobbyId: string | undefined,
@@ -47,7 +39,6 @@ export function prunePractice(
   return { ...feedback, pulses: Object.fromEntries(kept.map((id) => [id, feedback.pulses[id]])) }
 }
 
-/** Players whose pulse is still lit at local time `now`. */
 export function activePracticePlayers(
   feedback: PracticeFeedback,
   lobbyId: string | undefined,

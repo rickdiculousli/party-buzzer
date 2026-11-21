@@ -94,7 +94,6 @@ test('arrival presentation is the same from full and redacted state and carries 
     answer: 'Secret answer', choices: ['A', 'B'], correct: 1, award: { name: 'Ada', points: 100 },
   }
   full.reading = { pack: 'secret.txt', qIndex: 2, qTotal: 3, fragIndex: 1, fragTotal: 2, paused: false }
-  // What a phone receives: the round and reader progress stripped.
   const redacted: State = {
     ...full,
     round: { ...full.round, fragments: undefined, whole: undefined, answer: undefined },
@@ -135,7 +134,6 @@ test('the composed line names the quiz block\'s count, value and duel rule, and 
   assert.equal(intro(0).next, false)
   assert.equal(intro(1).detail, '1 question')
 
-  // A minigame promises Ready only when autoplay will open it; Poker never.
   assert.equal(intro(2).detail, undefined)
   s.autoplay.on = true
   assert.equal(intro(2).detail, 'Tap Ready when the match opens')

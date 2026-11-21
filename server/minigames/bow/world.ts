@@ -23,7 +23,6 @@ function createTargets(seed: number, players: BowPlayer[]): BowTarget[] {
   const targets: BowTarget[] = []
   const laneWidth = BOW_FIELD.width / 5
   for (let lane = 0; lane < 5; lane++) {
-    // The fallback fits entirely inside its lane and stays well above bows.
     let target: BowTarget = {
       id: `target-${lane}`, center: { x: (lane + 0.5) * laneWidth, y: 280 }, radius: 50,
     }
@@ -117,7 +116,6 @@ function launchBow(player: BowPlayer, config: BowConfig): { position: Vec2; velo
 
 type SurfaceHit = { t: number; point: Vec2; target?: BowTarget; bottom?: boolean }
 
-// Treat an already-outside tip as immediate contact.
 function outsideField(point: Vec2): SurfaceHit | null {
   if (point.y > BOW_FIELD.height) return { t: 0, point: { ...point }, bottom: true }
   if (point.x < 0 || point.x > BOW_FIELD.width || point.y < 0) return {
@@ -134,7 +132,6 @@ function surfaceHit(world: BowWorld, start: Vec2, velocity: Vec2, seconds: numbe
   const take = (hit: SurfaceHit) => {
     if (hit.t >= 0 && hit.t <= 1 && (!first || hit.t < first.t)) first = hit
   }
-  // Boundaries win exact ties; target ties use ids, never caller array order.
   for (const [axis, edge, bottom] of [
     ['x', 0, false], ['x', BOW_FIELD.width, false],
     ['y', 0, false], ['y', BOW_FIELD.height, true],
@@ -180,8 +177,8 @@ function lodge(world: BowWorld, arrow: BowArrow, hit: SurfaceHit): void {
 }
 
 const SHAFT_LENGTH = 48
-const PAIR_RADIUS = 8 // Two radius-4 shafts in flight.
-const TIP_RADIUS = 4 // A flying tip point against a stuck radius-4 shaft.
+const PAIR_RADIUS = 8
+const TIP_RADIUS = 4
 const RESTITUTION = 0.35
 const tail = (arrow: BowArrow): Vec2 => ({
   x: arrow.position.x - SHAFT_LENGTH * Math.cos(arrow.angle),
@@ -189,8 +186,6 @@ const tail = (arrow: BowArrow): Vec2 => ({
 })
 const motion = (arrow: BowArrow): Vec2 => arrow.state === 'flying' ? arrow.velocity : { x: 0, y: 0 }
 
-// Arrows in flight collide shaft to shaft. A flying arrow meets a stuck one only
-// with its tip, as `a`; the normal points from `b` toward `a`.
 function collide(a: BowArrow, b: BowArrow, normal: Vec2): number {
   const aFree = a.state === 'flying', bFree = b.state === 'flying'
   const relativeNormal = dot(sub(motion(a), motion(b)), normal)
@@ -201,16 +196,12 @@ function collide(a: BowArrow, b: BowArrow, normal: Vec2): number {
     if (bFree) b.velocity = sub(b.velocity, scale(normal, impulse))
     if (!aFree || !bFree) {
       const flying = aFree ? a : b, fixed = aFree ? b : a
-      // Restitution chooses the reflected direction; total retained speed is 80%.
       flying.velocity = scale(normalize(flying.velocity), 0.8 * (aFree ? speedA : speedB))
       fixed.tailKick = Math.max(-1, Math.min(1, fixed.tailKick + (aFree ? 1 : -1) * impulse / 1500))
     }
   }
   if (aFree) a.angle = Math.atan2(a.velocity.y, a.velocity.x)
   if (bFree) b.angle = Math.atan2(b.velocity.y, b.velocity.x)
-  // Return each free arrow's separation distance for a surface sweep. A tip
-  // clears the stuck shaft; reorienting shafts in flight can put a tail through
-  // the other, so both whole shafts clear.
   const bMax = Math.max(dot(b.position, normal), dot(tail(b), normal))
   const separation = aFree && bFree
     ? Math.max(0, PAIR_RADIUS + 1e-7 - (Math.min(dot(a.position, normal), dot(tail(a), normal)) - bMax))
@@ -225,10 +216,7 @@ type Contact =
 export function stepBow(world: BowWorld): void {
   const dt = BOW_STEP_MS / 1000
   world.tick++
-  // Derive time from ticks so repeated addition cannot delay a reload by a tick.
   world.nowMs = world.tick * BOW_STEP_MS
-  // A tiny time tolerance keeps exact tick lifetimes from slipping one tick
-  // through floating-point addition. Legacy explicit fixtures may omit lodgedAtMs.
   world.arrows = world.arrows.filter(arrow => {
     const flying = arrow.state === 'flying'
     const start = flying ? arrow.bornAtMs : arrow.lodgedAtMs ?? arrow.bornAtMs
@@ -248,9 +236,6 @@ export function stepBow(world: BowWorld): void {
   const removed = new Set<BowArrow>()
   const paired = new Set<string>()
   let remaining = dt
-  // Each event either settles/removes an arrow or consumes an unordered pair.
-  // Recompute after impacts so a deflection cannot score on its old path.
-  // Drain zero-time contacts too, including ties at the very end of the tick.
   while (true) {
     let first: Contact | null = null
     for (const arrow of arrows) {
@@ -289,8 +274,6 @@ export function stepBow(world: BowWorld): void {
     } else {
       paired.add(first.key)
       const share = collide(first.a, first.b, first.normal)
-      // Separation is instantaneous, but its tip path must still stop at the
-      // earliest surface. Keep the reflected velocity for lodging and scoring.
       for (const [arrow, sign] of [[first.a, 1], [first.b, -1]] as const) {
         if (arrow.state !== 'flying') continue
         const delta = scale(first.normal, sign * share)
@@ -304,8 +287,6 @@ export function stepBow(world: BowWorld): void {
   world.arrows = world.arrows.filter(arrow => !removed.has(arrow))
 }
 
-// One future fixed-step position per sample, excluding the launch point.
-// Preview is ballistic: reload, obstacles, scoring, and lifetime do not affect it.
 export function sampleBowTrajectory(world: BowWorld, playerId: string, count: number): Vec2[] {
   if (!Object.hasOwn(world.players, playerId) || !Number.isFinite(count)) return []
   const { position, velocity } = launchBow(world.players[playerId], world.config)

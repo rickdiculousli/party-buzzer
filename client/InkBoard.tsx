@@ -6,11 +6,6 @@ import { TEAM_LABEL, stepLine } from './ink.ts'
 import { DiscardSlip, InkDefs, InkLobby, InkPad, useInkPad } from './InkParts.tsx'
 import { playerName, setlistPosition } from './ui.ts'
 
-/**
- * Phantom Ink on the big screen: its own table, not the quiz's frame. Each
- * team's page is a set angled toward the room, the call runs across the top,
- * and each team's discarded prompts stack on its outer side, newest first.
- */
 export function InkBoard({ state, frame, touches, join }: MinigameBoardProps) {
   const session = state.minigame!
   const ink = matchFrame(frame, 'ink', 'board', session.matchId)
@@ -45,7 +40,6 @@ export function InkBoard({ state, frame, touches, join }: MinigameBoardProps) {
           ? <ol>{ink.discard[team].map((text, i) => <DiscardSlip key={i} text={text} />).reverse()}</ol>
           : <p class="ink-discard__none">Nothing yet</p>}
       </aside>
-      // The code takes the foot of the Moon column, where its oldest slips fade out anyway.
       return team === 'moon' && join
         ? <div key="moon-side" class="ink-board__moon">{discard}<JoinCode small /></div>
         : discard

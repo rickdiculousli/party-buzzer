@@ -28,7 +28,6 @@ test('the line covers the answer and the guesses, with a margin', () => {
   const scale = lineScale([1700, 1200, 1500], 1665)
   assert.ok(scale.lo < 1200 && scale.hi > 1700)
   for (const g of [1700, 1200, 1500, 1665]) assert.equal(placeOn(scale, g).parked, undefined)
-  // The answer outside every guess is still on the line.
   const past = lineScale([10, 20], 100)
   assert.ok(past.hi > 100 && past.lo < 10)
 })
@@ -39,17 +38,13 @@ test('one wild guess is parked at the end rather than squashing the rest', () =>
   assert.deepEqual(placeOn(scale, 1000000), { at: 1, parked: 'high' })
   const low = lineScale([900000, 950000, 1000000, 10], 980000)
   assert.equal(placeOn(low, 10).parked, 'low')
-  // A guess that is merely far keeps its place.
   assert.equal(placeOn(lineScale([1500, 1200, 1700, 1800, 600], 1665), 600).parked, undefined)
-  // A dozen crowding the answer push a far one off the end, so they get the line.
   const piano = [88, 88, 88, 52, 76, 80, 85, 90, 96, 100, 120, 300]
   assert.equal(placeOn(lineScale(piano, 88), 300).parked, 'high')
-  // Two jokers at one end go together once the room is big enough to cap two.
   const room = Array.from({ length: 20 }, (_, i) => 5 + i)
   const both = lineScale([...room, 1e6, 2e6], 10)
   assert.ok(both.hi < 100)
   assert.equal(placeOn(both, 1e6).parked, 'high')
-  // Two guesses are not a crowd to protect.
   assert.equal(placeOn(lineScale([1500, 1000000], 1665), 1000000).parked, undefined)
 })
 

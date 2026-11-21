@@ -45,7 +45,6 @@ function shared(w: InkWorld): InkShared {
   }
 }
 
-/** Each team's part of the turn's step, one plain word per variant; the team whose turn it isn't waits. */
 export function inkTeamWord(step: InkStep, turn: InkTeamName, team: InkTeamName): string {
   switch (step.at) {
     case 'choosing': return 'choosing'
@@ -83,13 +82,11 @@ function personal(w: InkWorld, playerId: PlayerId): InkPrivate | null {
   }
 }
 
-/** Touches point at what the toucher is choosing between right now; anything else is dropped. */
 function touchable(w: InkWorld, playerId: PlayerId, target: string): boolean {
   const me = roleOf(w, playerId)
   if (!me) return false
   const [kind, ...rest] = target.split(':')
   const value = rest.join(':')
-  // The two writers choose the secret word between themselves.
   if (w.step.at === 'choosing') {
     return me.role === 'writer' && kind === 'word' && w.wordCard[Number(value)] !== undefined
   }
@@ -113,7 +110,6 @@ export function makeInk(load: () => InkCards | string, rand: () => number = Math
     },
     startable: lobbyStartable,
     create(_seed, participants, _options, lobby) {
-      // prepare() runs before every start, so the cards are loaded here.
       return { world: createInkWorld({ rand, cards: cards!, lobby, participants }) }
     },
     finished: inkFinished,
@@ -141,7 +137,6 @@ export function makeInk(load: () => InkCards | string, rand: () => number = Math
       const mine = personal(world, playerId)
       if (!mine) return null
       const view = shared(world)
-      // Writers know the secret word from the start.
       return { ...view, ...mine, secret: mine.me.role === 'writer' ? world.secret : view.secret }
     },
     results: inkResults,

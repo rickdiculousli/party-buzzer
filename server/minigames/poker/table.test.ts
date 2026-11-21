@@ -12,7 +12,6 @@ const run = (w: PokerWorld, ms: number) => { for (let i = 0; i < ms / STEP_MS; i
 const untilBet = (w: PokerWorld) => { for (let i = 0; i < 2_000 && w.phase.at !== 'bet'; i++) stepTable(w) }
 const until = (w: PokerWorld, phase: string) => { for (let i = 0; i < 2_000 && w.phase.at !== phase; i++) stepTable(w) }
 const chips = (w: PokerWorld) => w.seats.reduce((sum, seat) => sum + seat.stack + seat.bet + seat.contributed, 0)
-/** Deals chosen hole cards and a chosen board over whatever the shuffle gave. */
 function rig(w: PokerWorld, holes: Record<string, [string, string]>, board: string[]) {
   for (const [id, hole] of Object.entries(holes)) seatOf(w, id).hole = hole
   w.deck = [...board]
@@ -144,7 +143,6 @@ test('a second action after the turn passed is refused and changes nothing', () 
   assert.equal(JSON.stringify(w), before)
 })
 
-/** A bot that picks a random legal action. */
 function botMove(w: PokerWorld, rand: () => number) {
   const id = actorId(w)
   const options = legal(w, id)!
@@ -209,7 +207,6 @@ test('a level change applies at the next hand, not mid-hand', () => {
   assert.ok(w.feed.some((entry) => entry.kind === 'level' && entry.amount === 40))
 })
 
-/** Five seats; a and b bust together against c's aces while d and e fold. */
 function doubleBust(aStack: number, bStack: number) {
   const w = createTable(13, ['a', 'b', 'c', 'd', 'e'], OPTS)
   setStack(seatOf(w, 'a'), aStack)
@@ -270,7 +267,6 @@ test('a short all-in big blind wins only what it matched when everyone folds', (
   const w = createTable(16, ['a', 'b', 'c'], OPTS)
   const bbSeat = w.seats[w.bbSeat]
   const sbSeat = w.seats[w.sbSeat]
-  // Rebuild the blinds: the big blind posted all in for 5.
   sbSeat.stack = 990; sbSeat.bet = 10
   bbSeat.stack = 0; bbSeat.bet = 5
   untilBet(w)

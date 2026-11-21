@@ -80,13 +80,11 @@ test('the chat drops its oldest wrong guess past the cap and keeps every right o
   chat = pushChat(chat.lines, [miss(4)], 3)
   assert.deepEqual(chat.lines.map((l) => l.seq), [2, 3, 4])
   assert.deepEqual(chat.evicted.map((l) => l.seq), [1])
-  // 5 arrives: 3 is the oldest miss, so it goes and the right guess at 2 stays on top.
   chat = pushChat(chat.lines, [miss(5), got(6)], 3)
   assert.deepEqual(chat.lines.map((l) => l.seq), [2, 5, 6])
   assert.deepEqual(chat.evicted.map((l) => l.seq), [3, 4])
   chat = pushChat(chat.lines, [got(7)], 3)
   assert.deepEqual(chat.lines.map((l) => l.seq), [2, 6, 7])
-  // All right guesses: the oldest finally goes.
   chat = pushChat(chat.lines, [got(8)], 3)
   assert.deepEqual(chat.lines.map((l) => l.seq), [6, 7, 8])
 })
@@ -98,7 +96,6 @@ test('a chat slide started mid-slide ends about when the last one would, and nev
   assert.ok([0, 50, 150, 250, 400].every((left) => chatSlideMs(0, left) <= 260))
 })
 
-/** The stylesheet's --ease, cubic-bezier(0.2, 0.8, 0.3, 1), solved for y at time x. */
 function ease(x: number): number {
   const [x1, y1, x2, y2] = [0.2, 0.8, 0.3, 1]
   const at = (t: number, a: number, b: number) => 3 * a * t * (1 - t) ** 2 + 3 * b * t * t * (1 - t) + t ** 3
@@ -109,7 +106,6 @@ function ease(x: number): number {
 
 test('the chat moves like a train through random bursts: lines never touch, new ones join right behind, dropped ones are wiped before the next arrives', () => {
   const H = 36, GAP = 4, FOOT = 520, MAX = 10
-  // A slide as the browser runs it: from `start` px off its rest to rest, on --ease.
   type Slide = { rest: number; start: number; t0: number; ms: number }
   const offset = (s: Slide, t: number) => s.start * (1 - ease(Math.min(1, Math.max(0, (t - s.t0) / s.ms))))
   const restOf = (i: number, n: number) => FOOT - (n - i) * H - (n - 1 - i) * GAP
@@ -162,13 +158,11 @@ test('the chat moves like a train through random bursts: lines never touch, new 
     next.forEach((l, i) => {
       const start = starts.get(String(l.seq))!
       const was = slides.get(l.seq)
-      // A line with nothing to cover keeps the slide it is in, as the component leaves it.
       if (start === 0 && was) slides.set(l.seq, { ...was, rest: restOf(i, next.length) })
       else slides.set(l.seq, { rest: restOf(i, next.length), start, t0: t, ms })
     })
     lines = next
     assert.ok(lines.length <= MAX)
-    // Carriages, not stragglers: a new line starts right behind the one it follows.
     lines.forEach((l, i) => {
       if (i === 0 || !incoming.some((c) => c.seq === l.seq)) return
       const ahead = slides.get(lines[i - 1].seq)!, mine = slides.get(l.seq)!

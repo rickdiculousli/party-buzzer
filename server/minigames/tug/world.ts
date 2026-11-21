@@ -2,16 +2,11 @@ import type { MinigameResult, PlayerId, TugSide } from '../../../shared/protocol
 import type { MinigameRoom } from '../definition.ts'
 
 export const TUG_STEP_MS = 50
-/** A tap's fatigue fades over this long: a tap 300 ms after the last is nearly full value, and flat-out mashing tops out near seven a second. */
 export const FATIGUE_MS = 150
-/** Flag travel per unit of pull, per connected member of the side. */
 export const GAIN = 0.15
-/** The sag back toward the centre, per second, in proportion to how far the flag is out. */
 export const SPRING = 0.1
-/** How long the crossed or final flag holds the board before the results. */
 export const BEAT_MS = 1500
 
-/** Side colours for a side that is not exactly one team, in order of preference. */
 const PAINTS = [
   { name: 'Red', color: 'var(--id-2)' }, { name: 'Blue', color: 'var(--id-3)' }, { name: 'Green', color: 'var(--id-6)' },
   { name: 'Gold', color: 'var(--id-4)' }, { name: 'Pink', color: 'var(--id-5)' }, { name: 'Orange', color: 'var(--id-1)' },
@@ -28,21 +23,13 @@ export type TugWorld = {
   sides: [TugSide, TugSide]
   pullers: Record<PlayerId, Puller>
   connected: Set<PlayerId>
-  /** Pull taken this step, per side, before it moves the flag. */
   impulse: [number, number]
-  /** Pull rate per connected member, smoothed for the board; 1 is a flat-out masher. */
   effort: [number, number]
-  /** -1 is side 0's mark, 1 is side 1's. */
   flag: number
   winner?: 0 | 1 | null
   endedAtMs?: number
 }
 
-/**
- * Two sides. In a teams grouping each team stays whole: the biggest teams go
- * first, each to the side with fewer members. Otherwise, or when the teams
- * leave a side empty, players alternate down the standings, ties in join order.
- */
 export function splitSides(participants: PlayerId[], room: MinigameRoom): [TugSide, TugSide] {
   const joined = room.players.map((p) => p.id).filter((id) => participants.includes(id))
   for (const id of [...participants].sort()) if (!joined.includes(id)) joined.push(id)
@@ -64,7 +51,6 @@ export function splitSides(participants: PlayerId[], room: MinigameRoom): [TugSi
       const sides = halves.map((h, s) => ({
         name: team[s]?.name ?? '', color: team[s]?.color ?? '', members: joined.filter((id) => h.some((g) => g.ids.includes(id))),
       })) as [TugSide, TugSide]
-      // A side of several teams paints itself in a colour the other side is not using.
       for (const s of [0, 1] as const) {
         if (team[s]) continue
         const other = sides[1 - s].color
@@ -95,13 +81,6 @@ export function createTugWorld(input: { participants: PlayerId[]; room: Minigame
   }
 }
 
-/**
- * One tap. Each tap's worth is 1 / (1 + fatigue), and fatigue fades over
- * FATIGUE_MS; at a steady interval T a tap is worth 1 - e^(-T/150 ms). So
- * more taps always pull more, but the pull per second levels off near seven,
- * and for the same number of taps an even rhythm beats bursts.
- * Taps before the first step were sent during the countdown and do nothing.
- */
 export function pull(world: TugWorld, playerId: PlayerId): boolean {
   const puller = world.pullers[playerId]
   if (!puller || !world.connected.has(playerId) || world.tick === 0 || world.endedAtMs !== undefined) return false
@@ -114,15 +93,12 @@ export function pull(world: TugWorld, playerId: PlayerId): boolean {
   return true
 }
 
-/** Connected members of a side, at least one so an empty side pulls nothing rather than dividing by zero. */
 const present = (world: TugWorld, side: 0 | 1) => Math.max(1, world.sides[side].members.filter((id) => world.connected.has(id)).length)
 
 export function stepTug(world: TugWorld): void {
   world.tick++
   world.nowMs = world.tick * TUG_STEP_MS
   const dt = TUG_STEP_MS / 1000
-  // Each side pulls as the mean of its connected members, so an odd room or a
-  // dropped phone neither helps nor hurts a side by headcount.
   const per = [world.impulse[0] / present(world, 0), world.impulse[1] / present(world, 1)] as const
   world.impulse = [0, 0]
   const smooth = 1 - Math.exp(-TUG_STEP_MS / FATIGUE_MS)
@@ -147,7 +123,6 @@ export function tugPresence(world: TugWorld, connected: PlayerId[]): void {
   world.connected = new Set(connected)
 }
 
-/** Every member of the winning side gains `value`; a draw pays nobody. `shots` counts taps' worth, rounded. */
 export function tugResults(world: TugWorld): MinigameResult[] {
   const winner = world.winner !== undefined ? world.winner : aheadSide(world)
   return world.sides.flatMap((side, s) => side.members.map((id) => ({

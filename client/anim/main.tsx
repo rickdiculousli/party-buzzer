@@ -1,26 +1,4 @@
 /// <reference types="vite/client" />
-/**
- * The motion harness. A dev-only page for dialling in the anchor animations
- * against the real stylesheet.
- *
- *   npm run dev   →   http://localhost:5173/anim.html
- *
- * Three things make it useful, and all three are things a real round cannot
- * give you:
- *
- *   - **Retrigger on demand.** The board shows you a landing once a minute if
- *     you script it. Here it is a button, or a loop.
- *   - **Slow motion.** A 110ms stamp is eleven frames. At 0.1x it is a hundred
- *     and ten, which is the difference between judging a feeling and seeing
- *     where the light actually sits relative to the movement.
- *   - **Live dials on the real rules.** The values come from the `anim:tunables`
- *     block in style.css and are written straight back to it, so there is no
- *     transcription step where a number quietly changes on its way home.
- *
- * It is not in the production bundle: vite.config.ts leaves anim.html out of
- * the build inputs, so `npm run build` never emits it and the game ships
- * without it.
- */
 import { Fragment, render } from 'preact'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { SCENARIOS, applyMotion, commitMotion, committedMotion, dialKey, recipeDials, type Dial } from './scenarios.tsx'
@@ -30,46 +8,22 @@ import { Layers } from './Layers.tsx'
 import { SoundList, usePreview } from './SoundList.tsx'
 import type { Recipe } from '../synth.ts'
 
-/**
- * How long the lead-up frame is held before the moment happens.
- *
- * Not a blank screen: the board an instant earlier, with everything that was
- * already there sitting still and only the new thing missing. An entrance can
- * only be judged against the frame it actually interrupts, and on this board
- * that frame is never empty — the award lands on a stage that already has the
- * name and the timeline on it.
- */
 const LEAD_MS = 500
 
-/** Split "700ms" into 700, or "cubic-bezier(...)" into itself. */
 const num = (v: string) => parseFloat(v)
 
-/**
- * Where each dial starts. CSS dials read the stylesheet, recipe dials read the
- * committed table — both are "what is in the file", which is what an origin
- * marker has to mean for Reset to be honest.
- */
 function readDefaults(dials: Dial[]): Record<string, string> {
   const root = getComputedStyle(document.documentElement)
   const out: Record<string, string> = {}
   for (const d of dials) if ('var' in d) out[dialKey(d)] = root.getPropertyValue(d.var).trim()
   return out
 }
-/** Where each motion dial starts: what toss.ts holds. */
 function readMotion(dials: Dial[]): Record<string, string> {
   const out: Record<string, string> = {}
   for (const d of dials) if ('motion' in d) out[d.motion] = String(committedMotion(d.motion))
   return out
 }
 
-/**
- * A number with a label and a readout, and nothing else.
- *
- * Deliberately not a `Dial`: a dial carries an origin marker, a "was" readout
- * and a place in Save, because a dial edits a value committed to a file. The
- * trim on a download you have not kept yet is committed to nothing, so all of
- * that machinery would be describing a baseline that does not exist.
- */
 function Slider({
   label,
   value,
@@ -108,10 +62,6 @@ function Slider({
   )
 }
 
-/**
- * This tab's scenario and last save, kept across reloads: saving a motion
- * number rewrites toss.ts, and Vite reloads the page for it.
- */
 const kept = (key: string) => {
   try {
     return sessionStorage.getItem(key)
@@ -133,41 +83,13 @@ function Harness() {
   const [values, setValues] = useState<Record<string, string>>(() =>
     readDefaults(scenario.dials),
   )
-  /**
-   * Where each dial started, so a slider can show you how far you have moved it
-   * and Reset has something to go back to. "Started" means what is in
-   * style.css, so a successful save re-captures it: once a value is committed
-   * to the file it *is* the original, and a marker still pointing at the number
-   * you replaced would be showing you history rather than a baseline.
-   */
   const [origin, setOrigin] = useState<Record<string, string>>(() =>
     readDefaults(scenario.dials),
   )
-  /**
-   * The recipes as they are being edited, seeded from what is committed.
-   *
-   * A tree rather than flat `cue.index.field` override keys, because add and
-   * remove are structural: such a key names a layer by
-   * position, so removing layer 0 silently retargets every key naming layer 1.
-   * Stable per-layer ids would fix that at the cost of writing UI bookkeeping
-   * into committed data. Nothing here is written to disk until Save, which is
-   * what makes Reset able to bring a deleted layer back.
-   */
   const [draft, setDraft] = useState<Record<string, Recipe>>(() => structuredClone(RECIPES))
-  /** Motion dials, as `values` is for CSS ones: what is dialled, and what toss.ts held when this scenario opened or last saved. */
   const [motion, setMotion] = useState<Record<string, string>>(() => readMotion(scenario.dials))
   const [motionOrigin, setMotionOrigin] = useState<Record<string, string>>(() => readMotion(scenario.dials))
-  // The scene computes its throws as it renders, so the constants have to hold the dialled numbers by then.
   applyMotion(motion)
-  /**
-   * `lead` is the frame before the moment; clearing it is the moment.
-   *
-   * The scene is never remounted to fire a take — that is the whole trick. The
-   * context stays mounted across the change, so it has nothing to animate, and
-   * only the newly rendered subject does. Which is exactly how the board
-   * behaves: a mark stamps because it is new, and the three beside it do not
-   * because they are not.
-   */
   const [lead, setLead] = useState(true)
   const [speed, setSpeed] = useState(1)
   const [looping, setLooping] = useState(false)
@@ -179,28 +101,9 @@ function Harness() {
     if (saved) setTimeout(() => setSaved(''), 4000)
   }, [])
   const [muted, setMuted] = useState(false)
-  /**
-   * Whether the sample slows with the picture.
-   *
-   * On by default, because alignment is the thing you came here to judge and at
-   * 1× an attack and a stamp are the same instant to the ear. Off when you want
-   * to hear the sound as the room will actually hear it — at 0.1× a slowed
-   * sample is a subsonic groan and tells you nothing about how it sounds.
-   */
   const [follow, setFollow] = useState(true)
   const stage = useRef<HTMLDivElement>(null)
 
-  /**
-   * Back to the lead-up frame, hold it, then let the moment happen.
-   *
-   * The timer is owned here rather than by an effect watching `lead`, which
-   * wedges: such an effect only re-runs when `lead` changes, so any path that
-   * leaves it true without a re-run — a trigger arriving while it is already
-   * true, an effect flush that does not happen — leaves no timer pending and
-   * the harness sits in the lead-up frame forever, with nothing to fire and no
-   * way back. Setting it imperatively means every trigger schedules its own way
-   * out, whatever state it found.
-   */
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const trigger = () => {
     clearTimeout(timer.current)
@@ -209,8 +112,6 @@ function Harness() {
   }
   useEffect(() => () => clearTimeout(timer.current), [])
 
-  // A new scenario brings its own dials, so re-read their defaults from the
-  // stylesheet rather than carrying the previous scenario's numbers across.
   useEffect(() => {
     const fresh = readDefaults(scenario.dials)
     setValues(fresh)
@@ -227,80 +128,41 @@ function Harness() {
     return () => clearInterval(t)
   }, [looping, every])
 
-  /**
-   * Animations this effect has already dealt with.
-   *
-   * Rewinding is only ever right for an animation that has just been created.
-   * Doing it to one already in flight restarts it, which at 0.1x — where a
-   * 700ms bloom runs for seven seconds — silently re-fires the settled marks on
-   * every run of the effect and makes the context look like it is animating
-   * along with the subject.
-   */
   const handled = useRef(new WeakSet<Animation>())
 
-  // Runs before paint, so the context never shows a frame of movement on its
-  // way to being held still.
   useLayoutEffect(() => {
     if (!stage.current) return
     for (const a of stage.current.getAnimations({ subtree: true })) {
       if (handled.current.has(a)) {
-        // Already placed. A speed change still applies, but from where it is.
         a.playbackRate = speed
         continue
       }
       handled.current.add(a)
 
       const el = a.effect && 'target' in a.effect ? (a.effect.target as Element | null) : null
-      // Only matters when the whole scene mounts at once — switching scenario,
-      // or the first paint. Within a take the context is not remounted and has
-      // nothing to fire. Cancelling leaves it settled, which is where the board
-      // would have it by the time this moment happens anyway.
       if (!el || !(el.matches(scenario.subject) || el.closest(scenario.subject))) {
         a.cancel()
         continue
       }
-      // Slow motion. A new animation is already running by the time this sees
-      // it, so rewind before rescaling — otherwise the opening frames play at
-      // full speed and the slow part starts mid-gesture.
       a.currentTime = 0
       a.playbackRate = speed
     }
   }, [lead, speed, id])
 
-  // Every cue this scenario fires. The draft, not the committed table, is what
-  // the harness plays and draws — a sound tuned against the file while you
-  // watch the slider would be tuning nothing.
   const cues = [scenario.sound ?? [], scenario.tune ?? []].flat()
 
-  // Cues a component fires itself take no recipe argument; the draft is what
-  // they should sound like too, or the panel would tune one thing and play
-  // another.
   useEffect(() => setDialled(draft), [draft])
 
-  /**
-   * The cue, on the same edge as the animation.
-   *
-   * The dialled recipe is handed over directly rather than read from anywhere:
-   * a cue's sound is its recipe, so the draft *is* the tuning. There is no
-   * scope to pass, because no stylesheet holds a second copy of these numbers
-   * to be read from the wrong element.
-   */
   useEffect(() => {
     if (lead || muted || !scenario.sound) return
     for (const cue of [scenario.sound].flat())
       play(cue, { rateScale: follow ? speed : 1, recipe: draft[cue] })
   }, [lead])
 
-  // Decode before the first take rather than during it, so the opening trigger
-  // of a scenario is not the one that plays silently.
   useEffect(() => {
     if (scenario.sound && !muted) prime(...[scenario.sound].flat())
   }, [id, muted])
 
-  // `prime` above covers the *committed* recipe's files; this covers the live
-  // one, which is what the harness actually plays. Adopting a sound onto a
-  // layer changes the URL without changing the cue, so the decode has to follow
-  // the dialled values or the first take after an adopt is the silent one.
   useEffect(() => {
     for (const cue of [scenario.sound ?? []].flat())
       for (const l of draft[cue] ?? [])
@@ -314,14 +176,6 @@ function Harness() {
       .join('\n') +
     '\n}'
 
-  /**
-   * Whether anything is actually waiting to be written.
-   *
-   * Both halves, because Save writes both: a moved CSS dial, or any edit to the
-   * recipe tree — a dragged handle, an added layer, a removed one. Recipes are
-   * compared against the committed table wholesale rather than tracked as they
-   * change, which is the cheap way to be right about structural edits.
-   */
   const cssDirty = scenario.dials.some(
     (d) => 'var' in d && values[dialKey(d)] !== origin[dialKey(d)],
   )
@@ -335,20 +189,14 @@ function Harness() {
       const res = await fetch('/__anim/save', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        // Recipes only when one changed: the block is regenerated wholesale, so sending it unchanged would still reformat cues.ts.
         body: JSON.stringify({ css: values, recipes: recipesDirty ? draft : undefined, motion: movedMotion }),
       })
       const body = await res.json()
-      // Saved values are the new baseline — see the note on `origin`.
       if (res.ok) {
         setOrigin({ ...values })
         setMotionOrigin({ ...motion })
         commitMotion(movedMotion)
       }
-      // The recipe baseline re-seeds on reload rather than here: Save has just
-      // rewritten cues.ts, and the module's RECIPES in this page's memory is the
-      // pre-save one. Reset before a reload therefore goes back to what the file
-      // held when the page opened, which is the honest thing for it to mean.
       const message =
         res.ok
           ? `wrote ${body.written} ${body.written === 1 ? 'value' : 'values'} to style.css and ` +
@@ -371,35 +219,11 @@ function Harness() {
       .catch(() => {})
   }, [])
 
-  /**
-   * Audition a raw download through whatever is dialled in right now.
-   *
-   * Through the dials, not raw: the question you are asking a download is "does
-   * this work trimmed and pitched the way I need it", and a raw preview answers a
-   * different question.
-   */
   const preview = usePreview()
   const [selected, setSelected] = useState('')
-  /**
-   * The trim an audition plays through, and a cue sound bakes in.
-   *
-   * Plain state, and it lives beside the Library because it belongs to the
-   * Library. Not custom properties in `anim:tunables`: that would put its
-   * sliders up among the animation dials, a screen away from the list they act
-   * on, absent from any scenario without a sound and reading zero when you
-   * adopt from one of those. A scratch trim on a download you are deciding
-   * about is not a value anyone wants written back to a stylesheet.
-   */
   const [trim, setTrim] = useState({ head: 0, cut: 0, rate: 1 })
   const noTrim = trim.head === 0 && trim.cut === 0 && trim.rate === 1
 
-  /**
-   * The decoded raw file, kept so a second press starts instantly.
-   *
-   * A download is fetched and decoded once per session rather than per press.
-   * These are the biggest files in the panel and re-decoding one on every
-   * audition made comparing two of them a waiting game.
-   */
   const raw = useRef(new Map<string, AudioBuffer>())
 
   const audition = (name: string) => {
@@ -415,20 +239,10 @@ function Harness() {
         src.playbackRate.value = Math.max(0.05, trim.rate)
         src.connect(ac.destination)
         const head = trim.head / 1000
-        // Both ends against the same instant on the context clock. `stop` takes
-        // an absolute time, so a bare `stop(cut)` is always in the past by the
-        // time anyone clicks ▶ — which stops the source immediately, i.e.
-        // silence.
         const t0 = ac.currentTime
         src.start(t0, head)
-        // `cut` is wall-clock output length, the same convention `play()` gives
-        // it — not a length of the file, so a rate change does not change how
-        // long the audition runs.
         const cut = trim.cut / 1000
         if (cut > 0)
-          // ponytail: no release ramp here, unlike the bed's RELEASE_MS fade —
-          // this is a preview, not a baked file, and a hard stop is fine to
-          // judge a trim by.
           src.stop(t0 + cut)
         src.onended = done
       }
@@ -446,9 +260,6 @@ function Harness() {
           .catch(done)
 
       return () => {
-        // Covers the press that lands while the first decode is still in
-        // flight: there is no node to stop yet, and starting one afterwards
-        // would be a sound nobody asked for any more.
         cancelled = true
         try {
           src?.stop()
@@ -461,15 +272,6 @@ function Harness() {
   const [outName, setOutName] = useState('')
   const [role, setRole] = useState('')
 
-  /**
-   * The file a preset produces, whatever you typed.
-   *
-   * The two presets encode to different things — PCM for a one-shot, Opus for a
-   * bed — and ffmpeg picks its encoder from the extension, so a bed written to
-   * `.wav` is a container that cannot hold what is being put in it. Rather than
-   * refuse the name, correct it: the extension is a consequence of the button
-   * you pressed, not a decision anyone wants to make twice.
-   */
   const outFor = (preset: 'one-shot' | 'bed') =>
     outName.trim().replace(/\.(wav|ogg)$/i, '') + (preset === 'bed' ? '.ogg' : '.wav')
 
@@ -491,16 +293,12 @@ function Harness() {
       })
       const body = await res.json()
       setAdopting(res.ok ? body.command : `failed: ${body.error}`)
-      // The trim resets because what was dialled in is now baked into the file —
-      // the convention CREDITS.md already states.
       if (res.ok) setTrim({ head: 0, cut: 0, rate: 1 })
     } catch (err) {
       setAdopting(`failed: ${(err as Error).message}`)
     }
   }
 
-  // CSS dials come from the scenario; recipe dials come from the draft, so a
-  // layer added a moment ago has its dials without a reload.
   const dials = [...scenario.dials, ...cues.flatMap((c) => recipeDials(c, draft[c] ?? []))]
 
   return (
@@ -521,9 +319,6 @@ function Harness() {
 
         <p class="eyebrow">Trigger</p>
         <div class="harness__row">
-          {/* A real click, which is the only thing that can bring the audio
-              context up. Every later trigger — including the loop's — rides on
-              this one having happened. */}
           <button
             class="btn btn--go"
             onClick={() => {
@@ -609,12 +404,6 @@ function Harness() {
         {dials.map((d) => {
           const k = dialKey(d)
           const recipe = 'recipe' in d
-          // A layer added this session has no entry in the committed RECIPES —
-          // `getPath` returns undefined rather than a real number. Treating that
-          // as 0 would give every dial on a new layer a "was 0 — reset" button,
-          // and clicking it on `sustain` would zero out the whole-duration default
-          // `addLayer` set specifically to keep the layer audible. There is
-          // nothing committed to go back to, so the dial is simply not "moved".
           const committed = recipe ? getPath(RECIPES, d.recipe) : undefined
           const was = recipe ? (committed === undefined ? '' : String(committed)) : 'motion' in d ? motionOrigin[k] ?? '' : origin[k] ?? ''
           const now = recipe ? String(getPath(draft, d.recipe) ?? 0) : 'motion' in d ? motion[k] ?? '' : values[k] ?? ''
@@ -649,10 +438,6 @@ function Harness() {
             )
           }
 
-          // Where the original sits along this slider, 0–1. The track inset is
-          // half a thumb at each end, so the tick is placed the same way the
-          // browser places the thumb — otherwise it drifts at the extremes and
-          // reads as a wrong number rather than a misaligned one.
           const at = was === '' ? 0 : (num(was) - d.min) / (d.max - d.min)
 
           return (
@@ -695,10 +480,6 @@ function Harness() {
         })}
 
         <p class="eyebrow">Write back</p>
-        {/* Save writes two files, and a cue's sound lives in its recipe, so
-            cues.ts is the half carrying the audio. A label naming only the
-            stylesheet would send you looking in the wrong file for a change you
-            just made. */}
         <p class="harness__hint">
           {dirty
             ? 'Writes the moved dials into the anim:tunables block in style.css, every recipe into the cue:recipes block in cues.ts, and each moved motion number into its own line in toss.ts.'
@@ -738,9 +519,6 @@ function Harness() {
           onPreview={audition}
           empty="Nothing in sounds/raw/ yet. Drop a download in, or run npm run demo-sounds."
         />
-        {/* The trim and the keep controls only mean anything against a chosen
-            download, so they arrive with one rather than sitting there greyed
-            out asking to be understood in the abstract. */}
         {!selected && library.length > 0 && (
           <p class="harness__hint">Pick a sound above to trim it and keep it.</p>
         )}
@@ -821,8 +599,6 @@ function Harness() {
                 Keep as looping music
               </button>
             </div>
-            {/* The difference worth stating out loud: the trim is the whole point
-                of the sliders above, and the music preset throws it away. */}
             <p class="harness__hint">
               A <strong>cue sound</strong> fires once — a buzz, a stamp. The trim above
               is baked in, with a 40ms fade at the cut, and it is saved uncompressed
@@ -842,10 +618,6 @@ function Harness() {
 
       <div class="harness__stage" style={values}>
         <p class="harness__note">{scenario.note}</p>
-        {/* Keyed on the scenario, not on the take: a take must not remount
-            this, or the context would animate alongside the subject and the
-            whole point would be lost. Only the scenario's own markup changes
-            between the lead-up frame and the moment. */}
         <div class="harness__preview" key={id} ref={stage}>
           {scenario.render(lead)}
         </div>
@@ -856,7 +628,6 @@ function Harness() {
 
 render(<Harness />, document.getElementById('app')!)
 
-// The harness lasts as long as `npm run motion`: once the dev server is gone, close the tab it opened.
 import.meta.hot?.on('vite:ws:disconnect', () => {
   fetch(location.href, { method: 'HEAD' }).catch(() => window.close())
 })

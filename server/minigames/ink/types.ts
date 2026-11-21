@@ -11,7 +11,6 @@ export const TEAMS: InkTeamName[] = ['sun', 'moon']
 
 export type Outcome = InputOutcome
 
-/** The pad is serialized straight to the wire, so rows are the view type. */
 export type InkStroke = InkStrokeView
 export type InkRow = InkRowView
 
@@ -34,7 +33,6 @@ export type InkWorld = {
   cards: InkCards
   roster: InkRoster
   deck: number[]
-  /** Discarded prompts, by the team that threw them away. */
   discard: Record<InkTeamName, number[]>
   hands: Record<InkTeamName, number[]>
   asked: Record<InkTeamName, number[]>
@@ -47,13 +45,11 @@ export type InkWorld = {
   sentVersion: number
   nextPadTick: number
   turn: InkTeamName
-  /** The turn team's row for this turn. */
   row: number
   step: InkStep
   votes: InkVote[]
   voteSeq: number
   live: Record<PlayerId, InkPoint[]>
   undoable: { team: InkTeamName; row: number; player: PlayerId } | null
-  /** Stroke and undo inputs processed per player, accepted or not. Phones compare it with what they sent. */
   inkOps: Record<PlayerId, number>
 }

@@ -1,22 +1,6 @@
-/**
- * Motion as numbers, for a critic who cannot watch it.
- *
- *   node tools/qa/kinematics.ts            # every preset, 12 seeds each
- *   node tools/qa/kinematics.ts deal fold  # presets whose name contains a word
- *
- * Runs the real path generators in `client/toss.ts` with fixed seeds and
- * reports each move in card widths (cw), so numbers compare with a real table:
- * a poker card is 6.3cm wide, so 1 m/s is about 16 cw/s. It also flags shapes
- * that real objects do not make (see `violations`). A flag is a lead, not a
- * verdict: a hand may legitimately push, and a clamp may be intended.
- *
- * ponytail: presets cover Poker's moves only. Add a preset when another game
- * builds motion from frame lists.
- */
 import { mulberry32 } from '../../shared/random.ts'
 import { flop, pitch, receive, scatter, slide, street, sweep, toss, turnUp, type Frame, type Pose } from '../../client/toss.ts'
 
-/** The board's card at 1920 × 1080, as `PokerBoard` sizes it. */
 const CW = 88
 const DEALER = { x: 845, y: -CW * 1.6 }
 const SEAT_BOTTOM: Pose = { x: 845, y: 820, rot: 0 }
@@ -51,7 +35,6 @@ const stepsOf = (frames: Frame[]): Step[] => frames.slice(1).map((f, i) => {
   return { t: f.t, dt, v: Math.hypot(f.x - a.x, f.y - a.y) / dt, w: (f.rot - a.rot) / dt, lift: f.lift, turn: f.turn, z: f.z }
 })
 
-/** Shapes a thrown or pushed object does not make, each with when it happens. */
 export function violations(frames: Frame[], cw = CW): { t: number; kind: string; detail: string }[] {
   const out: { t: number; kind: string; detail: string }[] = []
   const steps = stepsOf(frames)
@@ -60,12 +43,9 @@ export function violations(frames: Frame[], cw = CW): { t: number; kind: string;
   for (let i = 0; i < steps.length; i++) {
     const s = steps[i], p = steps[i - 1]
     if (s.v < still) { peak = 0; continue }
-    // Speed that came back after falling a fifth from its peak, with no stop between: a second push from nowhere.
     if (p && s.v > p.v * 1.05 && p.v < peak * 0.8 && s.dt >= 8) out.push({ t: s.t, kind: 're-accelerates', detail: `${(p.v * 1000 / cw).toFixed(1)} → ${(s.v * 1000 / cw).toFixed(1)} cw/s after peaking at ${(peak * 1000 / cw).toFixed(1)}` })
-    // A step far faster than both neighbours: a jump, or a clamp landing the last frame.
     const n = steps[i + 1]
     if (p && s.v > 2.5 * Math.max(p.v, n?.v ?? 0, still) && s.v * s.dt > cw * 0.03) out.push({ t: s.t, kind: 'jump', detail: `${(s.v * s.dt / cw).toFixed(2)} cw in one ${s.dt.toFixed(0)}ms step (neighbours ${(p.v * 1000 / cw).toFixed(1)} / ${((n?.v ?? 0) * 1000 / cw).toFixed(1)} cw/s)` })
-    // Spin that grows while airborne: nothing is pushing it.
     if (p && s.lift > 0 && p.lift > 0 && Math.abs(s.w) > Math.abs(p.w) * 1.1 + 0.01) out.push({ t: s.t, kind: 'spins up in the air', detail: `${(p.w * 1000).toFixed(0)} → ${(s.w * 1000).toFixed(0)} °/s` })
     peak = Math.max(peak, s.v)
     if (Math.abs(s.w * s.dt) > 40) out.push({ t: s.t, kind: 'rotation jump', detail: `${(s.w * s.dt).toFixed(0)}° in one ${s.dt.toFixed(0)}ms step` })
@@ -74,7 +54,6 @@ export function violations(frames: Frame[], cw = CW): { t: number; kind: string;
   return out
 }
 
-/** One move's numbers, in card widths and seconds. */
 export function summary(frames: Frame[], cw = CW) {
   const steps = stepsOf(frames)
   const touchdown = frames.findIndex((f, i) => i > 0 && frames[i - 1].lift > 0 && f.lift <= 0)

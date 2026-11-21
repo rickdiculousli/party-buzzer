@@ -6,7 +6,6 @@ const buzz = (playerId: string, at: number, arrivedAt = at + 10): RawBuzz =>
   ({ playerId, at, arrivedAt })
 
 test('orders by corrected stamp, not arrival order', () => {
-  // Bea pressed first but her packet landed second.
   const out = resolveBuzzes(
     [buzz('amy', 1050, 1060), buzz('bea', 1020, 1080)],
     1000,
@@ -22,7 +21,6 @@ test('reports deltaMs relative to first place', () => {
 })
 
 test('clamps a stamp that predates arming', () => {
-  // Cheater claims to have buzzed before the question opened.
   const out = resolveBuzzes(
     [buzz('honest', 1010, 1020), buzz('cheat', -99999, 1015)],
     1000,
@@ -39,7 +37,6 @@ test('clamps a stamp later than its own arrival', () => {
 })
 
 test('an unsynced client falls back to arrival order without breaking', () => {
-  // offset never applied, so `at` equals the client's raw epoch: far in the past.
   const out = resolveBuzzes(
     [buzz('synced', 1020, 1030), buzz('unsynced', 0, 1005)],
     1000,

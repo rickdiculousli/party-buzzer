@@ -18,7 +18,6 @@ test('a duel: vote, seat, the seated only, exclusive rebound', async () => {
     ada.send({ t: 'act', act: 'duelVote', data: bo.playerId })
     cy.send({ t: 'act', act: 'duelVote', data: bo.playerId })
     bo.send({ t: 'act', act: 'duelVote', data: ada.playerId })
-    // The pool is room theater: phones see it too.
     await ada.until(
       (s) => (s.duel?.pool ?? []).reduce((n, e) => n + e.votes.length, 0) === 3,
       'all three votes on Ada’s phone',
@@ -33,8 +32,6 @@ test('a duel: vote, seat, the seated only, exclusive rebound', async () => {
     assert.deepEqual(host.last.round.buzzable, [bo.playerId, ada.playerId])
     await host.untilOpen()
 
-    // Cy is not in this round: the buzz is dropped, the window never opens.
-    // Had it opened one, Bo's buzz would share it and Cy would lead the order.
     cy.send({ t: 'buzz', at: performance.now() })
     bo.send({ t: 'buzz', at: performance.now() + bo.offset })
     await host.until((s) => s.round.phase === 'LOCKED', 'Bo’s buzz to lock the round')
@@ -42,7 +39,6 @@ test('a duel: vote, seat, the seated only, exclusive rebound', async () => {
     await host.request({ t: 'host', action: { a: 'wrong', neg: 0 } })
     assert.deepEqual(host.last.round.buzzable, [ada.playerId], 'the rebound is Ada’s alone')
 
-    // Bo’s thumb is dead now; Ada’s is not.
     await host.untilOpen()
     bo.send({ t: 'buzz', at: performance.now() + bo.offset })
     await ada.sync()

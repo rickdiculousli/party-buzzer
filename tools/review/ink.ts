@@ -12,11 +12,9 @@ const MATCH = 'review-ink'
 const TEAMS: Record<PlayerId, InkTeamName> = {
   ada: 'sun', bo: 'sun', cy: 'sun', di: 'moon', eve: 'moon', fay: 'moon',
 }
-/** Volunteers become writers, so the roster is the same in every capture. */
 const WRITERS: PlayerId[] = ['ada', 'di']
 const CLOCK: Clock = (ms) => ms
 
-/** A plausible letter: one arch drawn left to right inside the row. */
 const LETTER: InkPoint[] = [
   [0.12, 0.78], [0.14, 0.40], [0.20, 0.22], [0.28, 0.24], [0.32, 0.45], [0.33, 0.78],
 ]
@@ -30,7 +28,6 @@ export const INK_PLAYERS: Player[] = [
   { id: 'fay', name: 'Fay', connected: true },
 ]
 
-/** The same roster under long names, for the layouts a name can break. */
 export const INK_LONG_NAMES: Record<PlayerId, string> = {
   ada: 'Maximilian', bo: 'Alexandrina', cy: 'Bartholomew', di: 'Wolfgang Amadeus Mozart', eve: 'Evangelina', fay: 'Fitzgerald',
 }
@@ -44,7 +41,6 @@ export const inkSession = (phase: MinigameState['phase']): MinigameState => ({
   lobby: { teams: TEAMS, volunteers: WRITERS, ready: [] },
 })
 
-/** Deterministic so every capture of a scenario deals the same cards. */
 function mulberry32(seed: number): () => number {
   return () => {
     seed = (seed + 0x6d2b79f5) | 0
@@ -54,7 +50,6 @@ function mulberry32(seed: number): () => number {
   }
 }
 
-/** Drives the real ink rules to a state, so a preview cannot show an impossible one. */
 export class InkGame {
   private readonly def: MinigameDefinition<InkWorld>
   private readonly world: InkWorld
@@ -71,7 +66,6 @@ export class InkGame {
   writer(team: InkTeamName = this.turn): PlayerId { return this.world.roster[team].writer }
   guessers(team: InkTeamName = this.turn): PlayerId[] { return this.world.roster[team].guessers }
 
-  /** Refuse loudly: a fixture that silently dropped an input would show a lie. */
   play(playerId: PlayerId, input: InkInput): this {
     const outcome = this.def.apply(this.world, playerId, input)
     if (outcome.status !== 'accepted') {
@@ -80,13 +74,11 @@ export class InkGame {
     return this
   }
 
-  /** Types the first `count` letters of the secret word, all correct. */
   spell(count: number, who = this.guessers()[0]): this {
     for (const letter of this.wordOf().slice(0, count)) this.play(who, { kind: 'letter', value: letter, at: 0 })
     return this
   }
 
-  /** One letter the secret does not have in that position, which ends the turn. */
   missLetter(who = this.guessers()[0]): this {
     const want = this.wordOf()[this.padRow().letters.length]?.toUpperCase()
     return this.play(who, { kind: 'letter', value: want === 'Z' ? 'Q' : 'Z', at: 0 })
@@ -101,13 +93,11 @@ export class InkGame {
     return this.play(playerId, { kind: 'stroke', points, at: 0 })
   }
 
-  /** Both writers land on the same word, which starts the first turn. */
   chooseWord(index = 2): this {
     for (const id of WRITERS) this.play(id, { kind: 'pickWord', index, at: 0 })
     return this
   }
 
-  /** The turn team asks, and its guessers agree on two prompts to offer the writer. */
   offer(): this {
     this.leavePeek()
     this.vote('ask')
@@ -115,7 +105,6 @@ export class InkGame {
     return this.vote(`${first},${second}`)
   }
 
-  /** Through the offer to a kept prompt, with the row open for the clue. */
   ask(): this {
     this.offer()
     const step = this.world.step
@@ -123,7 +112,6 @@ export class InkGame {
     return this.play(this.writer(), { kind: 'keep', prompt: step.offered[0], at: 0 })
   }
 
-  /** A whole ask-and-draw turn, used to walk the pad down to a peek row. */
   clueTurn(): this {
     this.ask()
     const team = this.turn
@@ -132,7 +120,6 @@ export class InkGame {
     return this.play(this.writer(team), { kind: 'done', at: 0 })
   }
 
-  /** A peek row makes the turn team read someone else's clue before choosing. */
   leavePeek(): this {
     const step = this.view.step
     if (step.at !== 'peekPick') return this

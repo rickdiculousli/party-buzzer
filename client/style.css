@@ -1,9 +1,5 @@
 @import './tokens.css';
 
-/* ===================================================================
- * BASE
- * =================================================================== */
-
 * { box-sizing: border-box; }
 
 body {
@@ -16,12 +12,10 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Bow is intentionally geometric placeholder UI while mechanics are tested. */
 .bow-board, .bow-results { min-height: 100vh; background: var(--stage); color: var(--chalk); }
 .bow-board { height: 100dvh; display: grid; grid-template-rows: auto minmax(0, 1fr); padding: var(--s4); overflow: hidden; }
 .bow-board__header { display: flex; justify-content: space-between; font: 600 var(--t-lg)/1 var(--mono); }
 .bow-field { width: 100%; height: 100%; min-height: 0; }
-/* The join code stands in a column beside the field while it waits empty at ready. */
 .bow-board:has(> .board__qr) { grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s4); }
 .bow-board > .bow-board__header { grid-column: 1 / -1; }
 .bow-board > .board__qr { align-self: end; }
@@ -52,15 +46,12 @@ body {
 .bow-results { display: grid; place-content: center; padding: var(--s6); }
 .bow-results__list { min-width: min(80vw, 50rem); display: grid; gap: var(--s3); padding: 0; list-style: none; }
 .bow-results__list li { display: flex; justify-content: space-between; gap: var(--s6); font: 600 var(--t-xl)/1 var(--display); }
-/* Results with the join code in a column of its own, at the foot beside the list. */
-/* Bow's list is too wide to leave a margin for it, so list and code centre as a group. */
 .bow-results:has(> .board__qr) { grid-template-columns: auto auto; justify-content: center; column-gap: var(--s6); }
 .bow-results > :not(.board__qr) { grid-column: 1; }
 .bow-results > .board__qr { grid-column: 2; grid-row: 1 / span 2; align-self: end; }
-/* Tug's verdict keeps the centre; the code sits in the right margin, spanning eyebrow, verdict and lists. */
 .tug-results:has(> .board__qr) { grid-template-columns: 1fr auto 1fr; column-gap: var(--s6); }
 .tug-results > :not(.board__qr) { grid-column: 2; }
-.tug-results > .board__qr { grid-column: 3; grid-row: 1 / span 3; align-self: end; min-width: 6.5rem; /* a long side name must not starve the margin */ }
+.tug-results > .board__qr { grid-column: 3; grid-row: 1 / span 3; align-self: end; min-width: 6.5rem; }
 .bow-host__panel { max-width: 48rem; }
 .tug-board { height: 100dvh; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; padding: var(--s4) var(--s6); overflow: hidden; position: relative; background: var(--stage); color: var(--chalk); }
 .tug-board__header { display: flex; justify-content: space-between; align-items: flex-start; min-height: var(--t-mega); }
@@ -69,16 +60,13 @@ body {
 .tug-field { width: 100%; height: 100%; min-height: 0; overflow: visible; transition: opacity var(--base); }
 .tug-field__centre { stroke: var(--dim); stroke-width: 3; stroke-dasharray: 10 14; }
 .tug-field__mark { stroke: currentColor; stroke-width: 8; stroke-linecap: round; }
-/* Rope: a paper-pale cord with a graphite twist that travels with the flag. */
 .tug-field__rope { stroke: var(--paper); stroke-width: 16; }
 .tug-field__twist { fill: var(--graphite); opacity: 0.7; }
 .tug-field__count { fill: var(--chalk); text-anchor: middle; font: 800 220px var(--display); transform-box: fill-box; transform-origin: center; }
 .tug-flag__ribbon { fill: var(--chalk); }
 .tug-flag__knot { fill: var(--paper); stroke: var(--stage); stroke-width: 4; }
-/* The kit's fx-jitter shakes letters; the flag borrows its keyframes, in field units. */
 .tug-flag.is-tense { --_a: 4px; animation: fx-jitter var(--fx-jitter-dur) steps(1) infinite; }
 .tug-board.is-decided .tug-board__sides, .tug-board.is-decided .tug-field__mark { opacity: 0.2; transition: opacity var(--base); }
-/* The verdict sits above the rope, so the flag that decided it stays in view. */
 .tug-board__verdict { position: absolute; inset: 0 0 auto; height: 40%; display: grid; place-content: end center; text-align: center; pointer-events: none; }
 .tug-board__verdict h2 { margin: 0; font: 800 min(var(--t-hero), 22vh)/1 var(--display); }
 .tug-board__sides { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s6); transition: opacity var(--base); }
@@ -107,7 +95,6 @@ body {
 .tug-mini { position: relative; margin: 0 var(--s4); height: var(--s3); border-radius: var(--s3); background: linear-gradient(90deg, var(--tug-left) 50%, var(--tug-right) 50%); }
 .tug-mini__flag { position: absolute; top: calc(var(--s2) * -1); width: var(--s2); height: calc(var(--s3) + var(--s2) * 2); margin-left: calc(var(--s2) / -2); border-radius: var(--s1); background: var(--chalk); }
 
-/* Tank is geometric placeholder UI while mechanics are tested. */
 .tank-phone { position: relative; height: 100dvh; display: grid; grid-template-rows: auto auto minmax(0, 1fr); background: var(--stage); color: var(--chalk); touch-action: none; user-select: none; -webkit-user-select: none; }
 .tank-phone__roles { display: grid; grid-auto-rows: minmax(0, 1fr); min-height: 0; opacity: .5; }
 .tank-phone__roles.is-active { opacity: 1; }
@@ -158,12 +145,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   outline-offset: 2px;
 }
 
-/* ===================================================================
- * COMPONENTS
- * Every surface builds from these. See docs/design.md.
- * =================================================================== */
-
-/* --- Eyebrow: the structural label above a block --------------------- */
 .eyebrow {
   font-size: var(--t-xs);
   letter-spacing: var(--track-label);
@@ -181,7 +162,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   background: var(--rule);
 }
 
-/* --- Chip: a small piece of state, never a control -------------------- */
 .chip {
   display: inline-flex;
   align-items: center;
@@ -199,8 +179,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .chip--armed { border-color: var(--tungsten); color: var(--tungsten); }
 .chip--won { border-color: var(--brass); color: var(--brass); }
 .chip--barred { border-color: #4a2420; color: #b0705f; }
-/* Away: a phone that is not in the room. Everything waits out the 2s grace so a
-   phone that blinks mid-question does not flicker; coming back is immediate. */
 .chip--away { color: var(--dim); font-size: calc(var(--t-chip-board) * 0.8); animation: away-in .3s 2s backwards; }
 @keyframes away-in { from { opacity: 0; } }
 .board__standings .row.is-away, .dial__row.is-away, .arrival-board__player.is-away {
@@ -211,7 +189,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .board__standings .row { border-left-color: var(--id, var(--rule)); }
 .chip--data { border-color: #1f3b40; color: var(--cyan); }
 
-/* --- Lamp: a connection indicator ------------------------------------ */
 .lamp-dot {
   width: 0.5rem;
   height: 0.5rem;
@@ -222,8 +199,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .lamp-dot.is-on { background: var(--brass); box-shadow: 0 0 6px var(--brass); }
 .lamp-dot.is-off { background: #4a2420; }
 
-/* The dot with its word. A dot alone is ambiguous at a glance; the word says
-   the state out loud. Bare dots are only for repeating rows. */
 .lamp {
   display: inline-flex;
   align-items: center;
@@ -235,7 +210,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   white-space: nowrap;
 }
 
-/* --- Readout: any number that is data -------------------------------- */
 .readout {
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'zero' 1;
@@ -243,13 +217,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .readout--ms { color: var(--cyan); }
 
-/* --- Votes: a tally counted in heads ---------------------------------- */
-/* One silhouette per vote, sized off whatever type it sits beside, so the
-   same component is room-scale on the board and thumb-scale on the phone.
-   The palette has no colour for "a crowd" — warm is drama, cold is
-   measurement — so rather than mint one, the glyph is pulled into the warm
-   set with a filter and reads as brass under the tungsten. The tint sits on
-   the container because the flare animation owns `filter` on the figures. */
 .votes {
   display: inline-flex;
   flex-wrap: wrap;
@@ -259,7 +226,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .vote { font-size: 0.72em; }
 
-/* --- Button ----------------------------------------------------------- */
 .btn {
   font: inherit;
   font-weight: 600;
@@ -282,7 +248,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .btn--no { background: var(--tally); border-color: var(--tally); color: #2a0704; }
 .btn--ghost { background: transparent; }
 
-/* The two keys the host presses all night get the weight to match. */
 .btn--major {
   font-size: var(--t-lg);
   font-family: var(--display);
@@ -292,7 +257,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   border-radius: var(--r-md);
 }
 
-/* A keyboard hint riding inside a control. */
 .key {
   font-size: var(--t-xs);
   opacity: 0.55;
@@ -302,7 +266,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   margin-left: var(--s2);
 }
 
-/* --- Field ------------------------------------------------------------ */
 .field {
   display: flex;
   align-items: center;
@@ -326,11 +289,9 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .input--num { width: 5rem; text-align: right; font-variant-numeric: tabular-nums; }
 
-/* --- Stepper: a number you change far more often than you retype ------ */
 .stepper { display: flex; align-items: center; gap: var(--s1); }
 .stepper .btn { padding: var(--s1) var(--s2); min-width: 1.75rem; }
 
-/* --- Toggle: a checkbox drawn as a switch ----------------------------- */
 .toggle {
   appearance: none;
   margin: 0;
@@ -357,7 +318,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .toggle:checked::before { translate: 1rem 0; background: var(--brass); }
 .toggle:disabled { opacity: 0.3; cursor: default; }
 
-/* --- Row: one competitor, one line ------------------------------------ */
 .row {
   display: flex;
   align-items: center;
@@ -371,7 +331,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .row__score { font-variant-numeric: tabular-nums; font-weight: 600; }
 .row.is-lead { background: #241d0c; border-left-color: var(--brass); }
 
-/* --- Rank: an ordinal, medals for the podium --------------------------- */
 .rank { flex: none; color: var(--dim); }
 .rank--1 { color: var(--brass); }
 .rank--2 { color: var(--silver); }
@@ -379,25 +338,14 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 
 .stack { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--s1); }
 
-/* --- Panel ------------------------------------------------------------ */
 .panel { background: var(--panel); border: 1px solid var(--rule); border-radius: var(--r-md); padding: var(--s4); }
 
-/* ===================================================================
- * SIGNATURE — THE TIMELINE
- * The buzz order is a measurement, so the board shows it as one. Marks sit
- * at their real millisecond on a shared scale: the room sees the gap
- * instead of reading it. Cold colours only — this is instrumentation.
- * =================================================================== */
-
-/* Padded so the marks at 0% and 100%, which are centred on the rail ends, have
-   somewhere to hang without clipping. */
 .timeline { --lane-h: 2.6rem; width: min(64rem, 92%); padding: 0 var(--s7); }
 .timeline__rail {
   position: relative;
   height: 2px;
   background: linear-gradient(to right, var(--cyan), #1f3b40);
 }
-/* Minor ticks are drawn, not elements: the scale is decoration of the rail. */
 .timeline__rail::before {
   content: '';
   position: absolute;
@@ -420,13 +368,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   display: grid;
   justify-items: center;
   text-align: center;
-  /* Shallow marks paint over deep ones, so a label near the rail occludes the
-     long pins reaching past it to the rows below. */
   z-index: calc(10 - var(--lane, 0));
 }
-/* The connector runs the whole way from the rail to the name it belongs to, so
-   a mark three rows down is still unambiguously tied to its point on the scale.
-   The name's own background is what breaks the line around it. */
 .timeline__pin {
   width: 2px;
   height: calc(1.5rem + var(--lane, 0) * var(--lane-h));
@@ -440,8 +383,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   color: var(--chalk);
 }
 .timeline__ms { font-size: var(--t-sm); color: var(--cyan); font-variant-numeric: tabular-nums; }
-/* Opaque, so a pin passing behind a name breaks around it instead of striking
-   through. This is why the labels carry a background at all. */
 .timeline__name,
 .timeline__ms {
   background: var(--stage);
@@ -457,38 +398,21 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   margin-bottom: var(--s2);
 }
 
-/* Board tiers: read across a room, so viewport-relative like the chips. The
-   host desk's timeline keeps the fixed sizes above. A lane is one name over one
-   delta, so its pitch follows them. */
 .board__wall { --board-lane-h: calc(var(--t-xl) * 1.1 + var(--t-chip-board) * 1.2 * 1.3); }
 .board__wall .timeline { --lane-h: var(--board-lane-h); }
 .board__wall .timeline__name { font-size: var(--t-xl); }
 .board__wall .timeline__ms { font-size: calc(var(--t-chip-board) * 1.2); }
 .board__wall .timeline__scale { font-size: var(--t-chip-board); }
 
-/* ===================================================================
- * SURFACE — BOARD (the big screen, read from across the room)
- * =================================================================== */
-
 .board {
   display: grid;
   --side-w: clamp(17rem, 23vw, 26rem);
   grid-template-columns: 1fr var(--side-w);
-  /* The screen's height, never its content's: a taller wall would carry its foot, and the pills on it, off the screen. */
   grid-template-rows: 100%;
   height: 100dvh;
   overflow: hidden;
 }
 
-/*
- * Three bands. The middle row is sized to its content and the two 1fr rows
- * around it are equal by construction, which pins whatever is in the middle to
- * the exact centre of the stage — permanently, whatever mounts above or below
- * it. Otherwise the award, the timeline growing a lane and the lockout chips
- * each re-centre the name they belong to. Both outer rows are minmax(0,1fr)
- * so a tall timeline overflows into the padding rather than shoving the row
- * above it.
- */
 .board__wall {
   position: relative;
   isolation: isolate;
@@ -499,30 +423,15 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   text-align: center;
   min-width: 0;
 }
-/*
- * The middle band is one fixed lane, a hero line tall, whatever holds it. The
- * cue escalates through three sizes, a clue runs to several lines, and a
- * picture question adds an image; a band that sized itself to them moved the
- * band under it every time the stage changed hands. Taller
- * occupants grow upward out of the lane instead (flex-end overflows at the
- * start), and a shorter one sits in its middle on auto margins, which fall to
- * zero as soon as it no longer fits.
- */
 .board__mid {
-  height: calc(var(--t-hero) * 0.86); /* 0.86 is the hero's line-height. */
+  height: calc(var(--t-hero) * 0.86);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   align-items: center;
 }
-/* Two classes deep so it outranks each occupant's own `margin: 0`. */
 .board__wall .board__mid > * { margin-block: auto; flex: none; }
 
-/* The finale's drum roll: a brass spotlight comes up on the empty stage, the
-   screen flashes white once, and the winner pops in on the animation's end.
-   One element and one animation, painting its own background: the spotlight's
-   colour and size are registered properties, so the gradient animates without
-   a layer of its own. */
 @property --finale-spot {
   syntax: '<color>';
   inherits: false;
@@ -534,7 +443,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   initial-value: 20%;
 }
 .board__wall {
-  /* Inside a podium step: the name lands this long after the place, the score after the name. */
   --podium-name-delay: 260ms;
   --podium-score-delay: 480ms;
 }
@@ -558,16 +466,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   100% { --finale-spot: transparent; --finale-spot-r: 66%; background-color: transparent; }
 }
 
-/* The finale is a whole-screen scene: the wall spans both columns and the
-   sidebar sits over its right edge, off-screen for the build and the podium
-   (the standings, 1st on top, would spoil it) and the winner's first seconds.
-   Then the sidebar slides in and the scene moves left by half its width, back
-   to the centre of the wall. Both are translates, so the GPU does them and
-   nothing is laid out again mid-slide, and both are transitions, so the
-   standings leave the way they arrive when the build starts or Replay starts
-   it again. A board that mounts on the settled finale (a reload) starts in
-   place: a first style never transitions. Wide layout only; the narrow one
-   stacks the sidebar underneath. */
 @media (min-width: 40rem) {
   .board { --finale-side-dur: 700ms; }
   .board:has(.board__finale-flash, .board__finale-step, .board__finale) .board__wall { grid-area: 1 / 1 / 2 / -1; }
@@ -575,28 +473,19 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   .board__side, .board__above, .board__mid, .board__below { transition: translate var(--finale-side-dur) var(--ease); }
   .board:has(.board__finale-flash, .board__finale-step) .board__side { translate: 100% 0; }
   .board:has(.board__finale) { --finale-side-wait: 4s; }
-  /* The ceremony already played (an undo of Replay): no wait before the sidebar. */
   .board:has(.board__finale.is-settled) { --finale-side-wait: 0s; }
   .board:has(.board__finale) .board__side { translate: 0 0; transition-delay: var(--finale-side-wait); }
   .board:has(.board__finale) :is(.board__above, .board__mid, .board__below) {
     translate: calc(var(--side-w) / -2) 0;
     transition-delay: var(--finale-side-wait);
   }
-  /* Replay: the bands snap back rather than slide. A band mid-translate would
-     be the flash's containing block, and the lane is empty at that instant. */
   .board:has(.board__finale-flash) :is(.board__above, .board__mid, .board__below) { transition: none; }
 }
 
-/* The podium's lower steps: the place (a `.rank` medal, wall-sized) over the
-   name, the score under it. The place pops first; the name slams in with the
-   hero's glow a beat later, in the medal's colour; the score rises last. The
-   place and the score are out of flow, like the recap band, so the name keeps
-   the lane's line and the winner lands where it stood. */
 .board__finale-step { margin: 0; display: grid; justify-items: center; }
 .board__finale-step.rank--3 .board__hero { color: var(--bronze); --fx-color: var(--bronze); }
 .board__finale-step.rank--2 .board__hero { color: var(--silver); --fx-color: var(--silver); }
 .board__finale-step .board__hero-tone { display: block; }
-/* Two classes deep, so the delays outrank the kit's own `animation` shorthand. */
 .board__finale-step :is(.board__finale-name, .board__hero-tone) { animation-delay: var(--podium-name-delay); animation-fill-mode: both; }
 .board__finale-step .board__finale-score { animation-delay: var(--podium-score-delay); animation-fill-mode: both; }
 .board__finale-place,
@@ -611,9 +500,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .board__finale-place { bottom: calc(100% + var(--s3)); font-family: var(--display); font-weight: 800; font-size: var(--t-mega); text-transform: uppercase; }
 .board__finale-score { top: calc(100% + var(--s3)); font-size: var(--t-xl); font-weight: 600; color: var(--chalk); }
 
-/* The finale's name with the recap band hung under it. The band is out of
-   flow, so the name keeps the lane's centre and the band arriving moves
-   nothing. */
 .board__finale-stack { position: relative; display: flex; flex-direction: column; align-items: center; }
 .board__recap {
   position: absolute;
@@ -635,8 +521,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .board__recap-name { font-family: var(--display); font-weight: 800; font-size: var(--t-mega); line-height: 0.95; color: var(--chalk); }
 .board__recap-detail { color: var(--dim); font-size: var(--t-xl); }
 
-/* A zero-height line across the wall's middle, so each cannon fires from the
-   midpoint of its edge. */
 .board__cannons {
   position: absolute;
   left: 0;
@@ -649,8 +533,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   pointer-events: none;
 }
 
-/* Each band grows away from the middle: the one above stacks upward from its
-   bottom edge, the one below downward from its top. */
 .board__above {
   align-self: end;
   padding-bottom: var(--s5);
@@ -672,7 +554,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   display: flex;
   gap: var(--s2);
   flex-wrap: wrap;
-  /* Leaves the stakes chip's lane free: its width in chip type, plus the insets. */
   max-width: calc(100% - 7 * var(--t-chip-board) - 2 * var(--s6));
 }
 .board .chip { font-size: var(--t-chip-board); }
@@ -684,20 +565,13 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   line-height: 0.86;
   letter-spacing: var(--track-hero);
   margin: 0;
-  /* Tungsten while the judge is open: the name has buzzed, nothing is decided. */
   color: var(--tungsten);
   --fx-color: var(--tungsten);
   text-transform: uppercase;
   overflow-wrap: anywhere;
 }
-/* The tones `wallOf` names, mapped here because that module says content,
-   never appearance. Brass is only ever a result (an award); tally is a miss.
-   `--fx-color` is what the hero glow burns in. */
 .board__hero.is-awarded { color: var(--brass); --fx-color: var(--brass); }
 .board__hero.is-penalised { color: var(--tally); --fx-color: var(--tally); }
-/* The board's own hero splits the signature: the slam stays on the name, the
-   glow rides `.board__hero-tone`, which remounts on a verdict so the brass or
-   tally arrives lit. Plain `.board__hero` elsewhere keeps both. */
 .board__hero--toned { animation: fx-hero-slam var(--fx-dur, var(--slam-dur)) var(--slam); }
 .board__hero-tone { animation: fx-hero-glow var(--flare-dur) var(--flare-fall); }
 .board__call {
@@ -718,7 +592,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-/* Between questions: what is coming and what it is worth. */
 .board__next { text-align: center; }
 .board__next-label {
   font-family: var(--display);
@@ -736,19 +609,13 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   color: var(--tungsten);
   text-transform: uppercase;
 }
-/* The stakes during a question: in the corner, dim, never competing with it. */
 .board__stakes {
   position: absolute;
   top: var(--s5);
   right: var(--s6);
   opacity: 0.8;
 }
-/* A picture reveal's chip while a buzz pays more than the plain value: the
-   falling price is the reason to buzz, so it is not dimmed. */
 .board__stakes.is-lit { opacity: 1; }
-/* The milestone: one dim line under the stakes chip, in the same corner. The
-   chip is one line tall in chip type; this sits below it, right-aligned, and
-   never wider than the lane the setlist chips leave free. */
 .board__milestone {
   position: absolute;
   top: calc(var(--s5) + var(--t-chip-board) * 2.4);
@@ -772,15 +639,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   gap: var(--s2);
   justify-content: center;
 }
-/* The room's reactions: a layer over the lower band, never taking taps. The
-   board sets `--cols` (one column per pill up at once) and `--under` (how far
-   the lowest timeline readout sits above the wall's foot, measured). Each slot
-   is one column across the foot of the wall, above the lockout chips; the pill
-   inside rises into place (fx-rise) and the slot fades it out (fx-fade--out,
-   delayed), two effects on two elements as the interest kit asks. A pill rests
-   at most a gap under the readouts, and the rest glides when the rows change
-   under it. A pill is 1.6 of its type tall (line-height 1.2, 0.2em padding);
-   the board reads `--pill-high` and `--pill-low` to know which band it has. */
 @property --pill-high { syntax: '<length>'; inherits: false; initial-value: 0px; }
 @property --pill-low { syntax: '<length>'; inherits: false; initial-value: 0px; }
 .board__pills {
@@ -788,20 +646,14 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   inset: 0 var(--s6);
   pointer-events: none;
   z-index: 2;
-  /* One chip row (as the milestone counts it) and a gap above the lockout chips. */
   --pill-foot: calc(var(--s5) + var(--t-chip-board) * 2.4 + var(--s2));
-  /* Chip type and a half: six "Too slow" across the wall with room between them. */
   --pill-type: calc(var(--t-chip-board) * 1.5);
   font-size: var(--pill-type);
-  /* The band a full pill needs above the foot row, and a gap under the readouts. */
   --pill-high: calc(var(--pill-foot) + var(--pill-type) * 1.6 + var(--s2));
-  /* The band a pill at the timeline deltas' type needs in the foot row. */
   --pill-low: calc(var(--s3) + var(--t-chip-board) * 1.2 * 1.6 + var(--s2));
 }
 .board__pill-slot {
   position: absolute;
-  /* `--lift` scales the rest per column, so a batch sent in one instant does not
-     settle into one straight row; the readouts above cap it. */
   --rest: max(0px, min(var(--pill-rise-amp) * var(--lift, 1), var(--under, 100vh) - var(--s2) - 1.6em - var(--pill-foot)));
   bottom: calc(var(--pill-foot) + var(--rest));
   left: calc((var(--col) + 0.5) * var(--pill-span, 100%) / var(--cols, 6));
@@ -809,12 +661,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   transition: bottom var(--base) var(--ease);
   --fx-dur: var(--pill-fade-dur);
   --fx-delay: var(--pill-fade-at);
-  /* Symmetric, so the reversed fade reads as a fade and not an ease-in cut. */
   --fx-ease: var(--rate-even);
 }
-/* Born in a short band: the pill rests in the foot row, as large as the band
-   allows, a short rise up from the edge, and leaves the count chip's lane at
-   the right free. */
 .board__pill-slot.is-low {
   font-size: clamp(var(--t-chip-board) * 1.2, (var(--under) - var(--s2) - var(--s3)) / 1.6, var(--pill-type));
   --pill-span: calc(100% - var(--t-chip-board) * 4);
@@ -822,8 +670,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   bottom: var(--s3);
 }
 .board__pill-slot.is-low .board__pill { --fx-amp: 3vh; }
-/* The band shrank under a live pill: it fades early where it is. A filter, so
-   it never fights the slot's own fade for opacity. */
 .board__pill-slot.is-cleared {
   filter: opacity(0);
   transition: filter var(--pill-fade-dur) var(--rate-even);
@@ -831,10 +677,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .board__pill {
   display: inline-block;
   --fx-dur: var(--pill-rise-dur);
-  /* The travel is the rest height, never less than a short lift: under a
-     deeper timeline the pill still rises, from the chip row, where it is faint. */
   --fx-amp: max(var(--rest), 6vh);
-  /* An arrival: in fast, settling over the rest of the rise. */
   --fx-ease: var(--rate-glide);
   padding: 0.2em 0.8em;
   line-height: 1.2;
@@ -846,9 +689,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   text-transform: uppercase;
   white-space: nowrap;
 }
-/* The count of reactions past the columns, in the foot row with the lockout
-   chips, under the stakes. The chip arrives on the pills' own clock; its slot
-   fades it with the newest pill, the board setting the wait. */
 .board__pills-more-slot {
   position: absolute;
   bottom: var(--s5);
@@ -864,11 +704,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   --fx-delay: 0s;
   --fx-ease: var(--ease);
 }
-/* A frozen frame (the review workbench) holds every pill at rest: its fade
-   would otherwise run on the wall clock and leave the frame blind to them. */
 .board__pills.is-frozen :is(.board__pill-slot, .board__pill, .board__pills-more-slot, .board__pills-more) { animation: none; }
 
-/* Stamped, not printed: the moment the points are actually awarded. */
 .board__award {
   font-family: var(--display);
   font-size: var(--t-xl);
@@ -880,26 +717,12 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   color: #201a03;
   border-radius: var(--r-sm);
 }
-/* The penalty is the award's mirror: same stamp, tally-red. */
 .board__award.is-neg { background: var(--tally); color: #2a0704; }
-/* A choice question lifts the middle band: the question sits above centre and
-   the grid below gets the room. The split holds from the arm, so nothing moves
-   when the choices land. */
 .board__wall.is-choice { grid-template-rows: minmax(0, 0.55fr) auto minmax(0, 1.45fr); }
-/* The lane is hero-tall for a name; a choice question never has one, and on a
-   short screen that height is what pushed the grid off the bottom. */
 .board__wall.is-choice .board__mid { height: auto; }
-/* The grid: two columns, three rows at most. Options are a step below the
-   question, in the same display face, and clamp to two lines so a long one
-   cannot push the band. The reveal keeps the same cells and only changes
-   their weight. */
 .board__choices { display: grid; gap: var(--s4); justify-items: center; width: min(100%, 56rem); margin-top: var(--s4); }
 .board__grid { list-style: none; margin: 0; padding: 0; width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4) var(--s3); }
-/* The cell is the box; the li around it is its stacking context, so the dots
-   behind the cell stay behind it even while the reveal animates the li. */
 .board__choice { --_dot: 0.625rem; position: relative; transition: opacity 300ms; }
-/* One option's box, on the board and on the phone alike: a raised panel with
-   the letter in a badge. Each surface sets only the size. */
 .choice__cell {
   position: relative;
   display: flex;
@@ -931,16 +754,13 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .board__choice .choice__cell {
   z-index: 1;
   padding: min(var(--s3), 1.5vh) var(--s5) min(var(--s3), 1.5vh) min(var(--s3), 1.5vh);
-  /* Height-bound too: a short screen shrinks the grid rather than cropping it. */
   font-size: min(calc(var(--t-xl) * 0.72), 4.5vh);
 }
 .board__choice.is-right .choice__cell { border-color: var(--brass); color: var(--brass); }
 .board__choice.is-right .choice__letter { background: var(--brass); color: #201a03; }
 .board__choice.is-dim { opacity: 0.35; }
 .board__dot { display: block; width: var(--_dot); height: var(--_dot); border-radius: 50%; background: var(--id); }
-/* Reveal: an answer's picks peek three quarters above its top edge. */
 .board__who { position: absolute; top: calc(var(--_dot) * -0.75); left: var(--s5); display: flex; gap: 3px; }
-/* Picking: above the grid, the slot bar and the countdown side by side. */
 .board__status-row { --_dot: 0.625rem; display: flex; align-items: center; justify-content: center; }
 .board__status-row.is-gone { visibility: hidden; }
 .board__slots {
@@ -954,15 +774,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   border-radius: 999px;
 }
 .board__slot { width: var(--_dot); height: var(--_dot); border-radius: 50%; box-shadow: inset 0 0 0 1px var(--dim); }
-/* Everyone is in: the bar warms for a beat before the answer lands. */
 .board__slots { transition: background 200ms, border-color 200ms; }
 .board__slots.is-closed { background: color-mix(in srgb, var(--brass) 30%, var(--panel)); border-color: var(--brass); --fx-color: var(--brass); }
-/* A closest question: the slot bar while the room guesses, then the line the
-   guesses drop onto. Labels stack in lanes above the line; the answer hangs
-   below it, so the two never meet. The line is a scale, so it is cold.
-   The reveal is one render: every step after the first landing is a delay set
-   inline from `closestTimes` (shared/closest.ts), the schedule the phones and
-   the reader keep too. */
 .closest { --_dot: 0.625rem; display: grid; gap: var(--s4); justify-items: center; width: min(100%, 72rem); margin-top: var(--s4); overflow-x: clip; }
 .closest__line {
   --_label: clamp(0.85rem, min(1.8vw, 3.2vh), 2.25rem);
@@ -973,7 +786,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   position: relative;
   width: calc(100% - 2 * var(--s5));
   height: calc(var(--_stem) + var(--_lane) * var(--lanes, 3) + var(--_mark) * 2 + var(--t-xl) * 1.3);
-  /* The rule itself, under the lanes. */
   --_y: calc(var(--_stem) + var(--_lane) * var(--lanes, 3));
   background: linear-gradient(var(--cyan), var(--cyan)) 0 var(--_y) / 100% 2px no-repeat;
 }
@@ -998,7 +810,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   background: var(--id);
   box-shadow: 0 0 0 2px var(--stage);
 }
-/* A stem up to the label's lane: never shorter than `--_stem`, so even the lowest label is tied to its dot. */
 .closest__mark::before {
   content: '';
   position: absolute;
@@ -1010,7 +821,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   opacity: 0.6;
   animation: fx-fade var(--fx-fade-dur) var(--ease) var(--land-at) both;
 }
-/* Centred on the dot, sliding to stay on the line near its ends (`--shift`, from ClosestLine). */
 .closest__label {
   position: absolute;
   bottom: calc(var(--_stem) + var(--lane) * var(--_lane));
@@ -1020,7 +830,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   font-size: var(--_label);
   line-height: 1;
   white-space: nowrap;
-  /* Over every stem, so a neighbour's stem passes behind a label, not through it. */
   z-index: 1;
   animation: fx-fade var(--fx-fade-dur) var(--ease) var(--land-at) both;
 }
@@ -1036,8 +845,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .closest__name { color: var(--id); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; font-size: 0.85em; }
 .closest__guess { font-weight: 700; font-variant-numeric: tabular-nums; }
 .closest__arrow { width: 0.5em; height: 0.5em; margin-inline: 0.15em; vertical-align: 0.1em; }
-/* Out of the flow until it lights, so a paid label is centred like the rest
-   through the hold and gives nothing away; then a chip of the same fill beside the box. */
 .closest__guess { position: relative; }
 .closest__paid {
   position: absolute;
@@ -1051,22 +858,15 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .closest__mark.is-won .closest__paid { background: var(--brass); }
 .closest__mark.is-second .closest__paid { background: var(--silver); }
-/* A label held to an end of the line ends at its dot, not a padding's width short of it. */
 .closest__mark.is-start .closest__face { padding-left: 0; }
 .closest__mark.is-end .closest__face { padding-right: 0; }
-/* …and at the right-hand end the points hang off the left, staying on the line. */
 .closest__mark.is-end .closest__paid { left: auto; right: calc(100% + 0.55em); }
-/* Lit, once the answer is in: the nearest fills brass and tadas, a half-paying
-   second fills silver, the rest step back. Each waits at its old look until
-   `--light-at` (fill-mode backwards); the kit has no delayed, held change of
-   colour, which is all these two keyframes are. */
 .closest__mark:is(.is-won, .is-second) .closest__face {
   color: #201a03;
   animation: closest-lit var(--fx-fade-dur) var(--ease) var(--light-at) backwards;
 }
 .closest__mark.is-won .closest__face { background: var(--brass); }
 .closest__mark.is-second .closest__face { background: var(--silver); }
-/* The name keeps its player's colour as an underline once its box is filled. */
 .closest__mark:is(.is-won, .is-second) .closest__name {
   color: inherit;
   box-shadow: inset 0 -0.15em var(--id);
@@ -1074,11 +874,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .closest__mark:is(.is-won, .is-second) .closest__name { --_from: var(--id); }
 @keyframes closest-lit { from { background-color: var(--stage); color: var(--_from, var(--chalk)); box-shadow: none; } }
-/* The rest step back only as far as a red or pink name still reads from the sofa; the dot stays a solid dot. */
 .closest__mark.is-dim .closest__face { animation: closest-dim var(--fx-fade-dur) var(--ease) var(--light-at) forwards; }
 @keyframes closest-dim { to { opacity: 0.75; } }
-/* The answer: a tick through the line and the number under it, run in from
-   the right-hand end, and always from far enough to be seen arriving. */
 .closest__line .closest__truth {
   --fx-amp: calc(max(1 - var(--at), 0.3) * 100cqw);
   position: absolute;
@@ -1090,11 +887,10 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .closest__tick { position: absolute; left: -1.5px; width: 3px; height: calc(var(--_mark) * 1.6); background: var(--chalk); }
 .closest__value { position: absolute; top: calc(var(--_mark) * 1.6); left: 0; translate: calc(var(--shift) * -100%) 0; font-family: var(--display); font-weight: 800; font-size: var(--t-xl); line-height: 1.1; color: var(--chalk); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .closest__unit { font-weight: 500; color: var(--dim); font-size: 0.6em; }
-/* The countdown, behind everything on the wall: centred, huge, and faded. */
 .board__countdown {
   position: absolute;
   inset: 0;
-  z-index: -1; /* under every stage child; the wall isolates, so not under the wall */
+  z-index: -1;
   display: grid;
   place-items: center;
   margin: 0;
@@ -1107,15 +903,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   pointer-events: none;
   user-select: none;
 }
-/*
- * The judge's transcript. Dim while it is still typing — it is being read, not
- * yet judged, which is exactly what --dim is for — and brass or tally-red once
- * the verdict lands. The turn is the moment, so it eases rather than snapping.
- *
- * On the stage, in stage type: everything around it is --display and scales
- * with the viewport, and a fixed body-face size here reads across a room as a
- * footnote to the question it just replaced.
- */
 .board__spoken {
   margin: 0 0 var(--s2);
   font-family: var(--display);
@@ -1127,7 +914,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .board__spoken.is-hit { color: var(--brass); }
 .board__spoken.is-miss { color: var(--tally); }
-/* A picture question's image, above its text. */
 .board__image {
   display: block;
   max-width: min(64rem, 90vw);
@@ -1135,8 +921,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   margin: 0 auto var(--s4);
   object-fit: contain;
 }
-/* A picture reveal's canvas: its box is the picture's, from the first frame,
-   inside the same limits as `.board__image`. */
 .board__reveal {
   width: min(64rem, 90vw, calc(50vh * var(--ratio)));
   height: auto;
@@ -1149,7 +933,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   margin: 0 auto;
   object-fit: contain;
 }
-/* The question assembling on the wall, spoken fragment by spoken fragment. */
 .board__question {
   font-family: var(--display);
   font-size: var(--t-xl);
@@ -1161,18 +944,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   text-align: center;
   color: var(--tungsten);
 }
-/*
- * The part the voice has not reached. Hidden, not absent — it holds its space,
- * which is what fixes every line break and every word's position for the whole
- * question. Text that was added rather than revealed rewrapped the paragraph on
- * each clause and slid the words already up sideways to make room.
- *
- * `visibility`, not `opacity: 0` or a transparent colour: those still hand the
- * text to a screen reader and to Select All, and this is a question the room is
- * about to be asked.
- */
 .board__unsaid { visibility: hidden; }
-/* The answer, named once the points are on the board. */
 .board__answer {
   font-family: var(--display);
   font-size: var(--t-lg);
@@ -1181,37 +953,21 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   color: var(--brass);
 }
 
-/* The face-off frame and the nomination pool: one line each, room-scale. */
 .board__faceoff {
   display: flex;
   align-items: baseline;
   justify-content: center;
   gap: var(--s3);
 }
-/* A charging name is a slide, not a slam: `.fx-slide` comes later in this
-   file, so it wins over `.board__hero`'s animation at equal specificity. */
 .board__charger { --fx-dur: var(--faceoff-slide-dur); --fx-amp: 40vw; }
 .board__charger > .fx-burst { --fx-dur: initial; --fx-amp: var(--faceoff-dust-amp); }
 .board__vs { animation-delay: var(--faceoff-slide-dur); }
 
-/*
- * The nomination pool, at the size the rest of the stage is read at.
- *
- * This was one dim line of names joined by interpuncts, which is a legible
- * sentence on a laptop and nothing at all from the far side of a room — and
- * this is the one screen in the game the room is supposed to be watching while
- * they decide. It is a list now, ranked, with the standings' own row
- * vocabulary: brass left rail on the pair that would be seated.
- */
 .board__noms {
   position: relative;
   width: 100%;
-  /* Up off the middle, heading and lists together, so the lists have the room. */
   translate: 0 -14vh;
 }
-/* "Who plays?" is the only thing in the lane, pinned to its top, so it never
-   moves; the lists hang below it however many names there are. Two classes
-   deep to outrank the lane's auto margins. */
 .board__wall .board__mid > .board__noms { margin-block: 0 auto; }
 .board__noms > .board__pool,
 .board__noms > .board__sides {
@@ -1232,14 +988,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   margin-inline: auto;
 }
 
-/* Two sides, side by side. Equal columns whatever each holds, so neither team
-   looks more considered than the other for having nominated more people. */
-/* The stage centres its bands by shrink-to-fit, which leaves a percentage
-   width with nothing to measure against: the columns collapsed onto their own
-   content, ellipsised the names, and then auto-fit decided only one track fit.
-   So the width is stated in viewport units, which do not care what the
-   containing block turned out to be. 68vw keeps it inside the stage once the
-   standings rail has taken its share. */
 .board__sides {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
@@ -1248,8 +996,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .board__sidepool { min-width: 0; }
 .board__sidepool .board__pool { width: 100%; }
-/* The column head carries the team's colour, so the rule beside it does too —
-   it is the only thing naming which side this column is. */
 .board__sidepool .eyebrow { font-size: var(--t-sm); }
 .board__sidepool .eyebrow::after { background: currentColor; opacity: 0.4; }
 
@@ -1272,10 +1018,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   text-align: left;
 }
 .nom__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Same brass rail the standings give first place. Only ever on the pair a
-   close would actually seat — under a volunteer rule the draw has no leader,
-   so nothing is lit, which is the honest picture of a coin about to be
-   flipped. */
 .nom.is-lead { background: #241d0c; border-left-color: var(--brass); color: var(--brass); }
 
 .board__side {
@@ -1287,18 +1029,12 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   gap: var(--s5);
   min-height: 0;
 }
-/* Natural height, shrinking only after the QR has given up its share. */
 .board__standings { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; }
 .board__side .stack { align-content: start; overflow: hidden; gap: var(--s2); }
 .board__side .row { font-size: var(--t-lg); background: var(--raise); }
 .board__side .rank { width: 3ch; font-size: var(--t-sm); align-self: center; }
 
-/* The QR earns full size only while people are still arriving. */
-/* Full size takes the height the standings leave: it gives way far more
-   readily than the list (the shrink weight), and the image keeps its square
-   inside whatever is left, so a long lobby roster is never cut off behind the
-   code. The SVG paints its own white, so a letterboxed image shows no bars. */
-.board__qr { text-align: center; transition: max-width var(--base) var(--ease); display: flex; flex-direction: column; align-items: stretch; flex: 0 100 auto; margin-top: auto; min-height: 16rem; /* the small code plus its captions and address: the floor it shrinks to */ }
+.board__qr { text-align: center; transition: max-width var(--base) var(--ease); display: flex; flex-direction: column; align-items: stretch; flex: 0 100 auto; margin-top: auto; min-height: 16rem; }
 .board__qr img { flex: 1 1 auto; min-height: 0; width: 100%; aspect-ratio: 1; object-fit: contain; border-radius: var(--r-md); display: block; }
 .board__qr p { color: var(--dim); margin: var(--s2) 0 0; font-size: calc(var(--t-chip-board) * 0.65); letter-spacing: var(--track-label); text-transform: uppercase; }
 .board__qr .board__addr { margin: var(--s2) 0 0; font-family: var(--mono); font-size: var(--t-chip-board); color: var(--chalk); letter-spacing: 0; text-transform: none; line-height: 1.2; }
@@ -1308,10 +1044,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .board__qr.is-small .board__addr, .board__qr.is-small .board__addr-hint { display: none; }
 .board__qr.is-small { max-width: 6.5rem; margin-left: auto; margin-right: auto; flex: none; min-height: 0; }
 .board__qr.is-small p { font-size: var(--t-xs); }
-
-/* ===================================================================
- * SURFACE — HOST (a control desk, driven by keyboard)
- * =================================================================== */
 
 .host {
   max-width: 64rem;
@@ -1330,7 +1062,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .host__spacer { flex: 1; }
 
-/* The play strip: position, above the fold, never competing with the controls. */
 .host__setlist {
   display: flex;
   align-items: center;
@@ -1338,8 +1069,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   margin-bottom: var(--s3);
 }
 
-/* Who Correct and Wrong will land on. Dim until judging opens, so a lit name
-   means the keys are live. */
 .host__up {
   display: flex;
   align-items: baseline;
@@ -1363,14 +1092,12 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .host__up.is-judging { color: var(--chalk); background: #241d0c; }
 .host__note { margin: var(--s2) 0 0; line-height: 1.3; }
-/* Always two notes tall, margins included, so the keys under it never move. */
 .host__notes { display: flex; flex-direction: column; min-height: calc(2 * (var(--s2) + 1.3 * var(--t-sm))); }
 
 .host__controls { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: stretch; }
 .host__controls .btn--major { flex: 1 1 12rem; }
 .host__minor { display: flex; gap: var(--s2); flex-wrap: wrap; }
 
-/* The judge's transcript: brass when it scored, tally-red when it did not. */
 .host__spoken {
   margin: var(--s3) 0 0;
   color: var(--dim);
@@ -1387,9 +1114,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .setlist__io .input { flex: 1 1 10rem; min-width: 0; }
 .setlist__io .btn { flex: none; }
 
-/* What the setlist asks for, against the pack that has to supply it. Tungsten
-   rather than tally: a short pack is something to notice before the night
-   starts, not something wrong with the room right now. */
 .setlist__tally {
   flex-basis: 100%;
   color: var(--dim);
@@ -1397,17 +1121,12 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .setlist__tally.is-short { color: var(--tungsten); }
 
-/* The one choice that decides what the rest of setup may show. Two buttons
-   rather than a checkbox: neither is the default, and the pressed one is the
-   answer to a question the panel just asked. */
 .host__pick {
   display: flex;
   gap: var(--s3);
   margin-bottom: var(--s2);
 }
 
-/* A block is a row, and rows on this surface sit on --panel behind a coloured
-   left rule. Without the fill the fields read as loose form controls. */
 .setlist__block {
   display: flex;
   align-items: center;
@@ -1419,12 +1138,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   margin-bottom: var(--s2);
 }
 
-/* Reorder and remove are one cluster, not three equidistant buttons. `auto`
-   rather than a spacer element: a spacer only pushes right while it shares a
-   line, so a block with few fields left its buttons hanging at the left. */
 .setlist__acts { display: flex; gap: var(--s1); flex: none; margin-left: auto; }
 
-/* Where the room actually is, in the same brass the board rails a leader with. */
 .setlist__block.is-here {
   border-left-color: var(--brass);
   background: #241d0c;
@@ -1448,7 +1163,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .host__order { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s1); }
 .host__match { margin-bottom: var(--s3); }
 .host__crew { display: flex; flex-wrap: wrap; gap: var(--s3); }
-/* One player in a match row: their identity colour, their lamp, their name. */
 .host__who { display: inline-flex; align-items: center; gap: var(--s2); padding-left: var(--s2); border-left: 3px solid var(--rule); }
 .host__standings {
   list-style: none;
@@ -1464,8 +1178,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .host__scores { display: grid; gap: var(--s1); }
 .host__score-row { display: flex; align-items: center; gap: var(--s3); padding: var(--s2) var(--s3); background: var(--panel); border-left: 3px solid var(--rule); }
 
-/* The panel spaces its own blocks, the way .host does, so no child carries a
-   margin of its own. */
 .host__manage[open] { display: grid; gap: var(--s5); }
 .host__manage summary {
   cursor: pointer;
@@ -1476,9 +1188,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   padding: var(--s2) 0;
 }
 .host__manage summary:hover { color: var(--chalk); }
-/* The tabs: three pages, the current one railed in brass like the setlist's
-   current block. Labels ride the eyebrow treatment, not the button one — these
-   are where the host is, not something the host does to the room. */
 .host__tabs { display: flex; gap: var(--s4); border-bottom: 1px solid var(--rule); }
 .host__tab {
   font: inherit;
@@ -1495,25 +1204,16 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .host__tab:hover { color: var(--chalk); }
 .host__tab[aria-current] { color: var(--chalk); border-bottom-color: var(--brass); }
 
-/* One game per fold on the Games tab, sitting on --panel like a setlist block. */
 .host__game { background: var(--panel); border-left: 3px solid var(--rule); padding: 0 var(--s3); }
 .host__game[open] { border-left-color: var(--brass); padding-bottom: var(--s3); }
-/* Chromium wraps a details' children in ::details-content, so the fold's own
-   grid gap stops at that box; the sections inside get the same rhythm here. */
 .host__manage::details-content { display: grid; gap: var(--s5); }
 
-/* The desk grammar inside a fold: one row per control. The label is a sentence
-   in chalk, the control sits in one column for every fold, and the reason (or
-   the unit) is a dim line beneath, so the label says what and the hint says
-   why. The section spaces its rows; the eyebrow gives up its own margin. */
 .host__game section { display: grid; gap: var(--s3); }
 .host__game section > .eyebrow { margin-bottom: 0; }
 .host__game section > .btn { justify-self: start; }
 .host__game .field {
   display: grid;
   grid-template-columns: 16rem 1fr;
-  /* The control row is a stepper tall whether it holds a stepper or a toggle,
-     so the rows keep one rhythm. */
   grid-template-rows: 1.75rem;
   column-gap: var(--s3);
   row-gap: var(--s1);
@@ -1527,7 +1227,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .host__game .field__label { grid-column: 1; grid-row: 1; }
 .host__game .field > :is(.input, .stepper, .toggle) { grid-column: 2; grid-row: 1; justify-self: start; }
 .host__game .field__hint { grid-column: 1 / -1; grid-row: 2; font-size: var(--t-xs); color: var(--dim); }
-/* A setlist block is one line; the option's reason lives on its fold. */
 .setlist__block .field__hint { display: none; }
 
 .host__side { align-items: center; margin-bottom: var(--s1); }
@@ -1536,16 +1235,10 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .host__player { display: flex; align-items: center; gap: var(--s2); padding: var(--s1) 0; }
 .host__player .input { flex: 1; }
 
-/* Room toggles: one column so the two checkboxes land on the same edge instead
-   of each sitting wherever its label ends. */
 .host__toggles { display: grid; gap: var(--s3); max-width: 26rem; margin-bottom: var(--s3); }
 .host__toggles .field { justify-content: space-between; }
 
 .muted { color: var(--dim); font-size: var(--t-sm); }
-
-/* ===================================================================
- * SURFACE — PHONE (one object, held in the hand)
- * =================================================================== */
 
 .join {
   display: flex;
@@ -1557,7 +1250,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   justify-content: center;
   text-align: center;
 }
-/* One wave as the screen opens, not a loop under the name field. */
 .join__mark .fx-wave .fx-word > span { animation-iteration-count: 1; }
 .join__mark {
   font-family: var(--display);
@@ -1604,7 +1296,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   border: 2px solid var(--rule);
   border-radius: var(--r-buzzer);
   font-family: var(--display);
-  /* Height-bound too: on a short phone the word shrinks with the button. */
   font-size: min(clamp(3rem, 16vw, 6rem), 10vh);
   font-weight: 900;
   letter-spacing: 0.04em;
@@ -1617,7 +1308,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   user-select: none;
   display: grid;
   place-content: center;
-  /* The no-mic slab is a div, which doesn't centre its text the way a button does. */
   text-align: center;
   gap: var(--s2);
   transition: background var(--fast) var(--ease), color var(--fast) var(--ease);
@@ -1632,10 +1322,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   opacity: 0.75;
 }
 
-/* The six moods `phoneOf` returns, one selector each. `waiting` is the resting
-   slab `.buzzer` already paints, so it restates nothing — it is named so that
-   every mood has somewhere to land and a seventh would be visibly missing. */
-.buzzer.is-waiting { /* the base */ }
 .buzzer.is-open { background: var(--tally); border-color: var(--tally); color: var(--hot); }
 .buzzer.is-open:active { background: #ff6a5f; }
 .buzzer.is-first { background: var(--brass); border-color: var(--brass); color: #201a03; }
@@ -1643,39 +1329,24 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .buzzer.is-barred { background: #1c1210; border-color: #3a221e; color: #9c6a5c; }
 .buzzer:is(.is-waiting, .is-barred) .buzzer__sub { opacity: 1; }
 .buzzer.is-barred .buzzer__sub { color: var(--dim); }
-/* Someone else's verdict on the resting slab: the name in the tone the wall's
-   hero takes, so phone and wall say it in one colour. Identity stays off the
-   letters and the edge, both of which mean a state here (an identity red would
-   read as a miss); the dial's stripe carries it. A name is the one label that
-   can be long: it shrinks by its length, like the pad's digits, and breaks
-   only past that. */
 .buzzer.is-verdict { container-type: inline-size; grid-template-columns: 100%; overflow-wrap: anywhere; }
 .buzzer__name { font-size: min(1em, calc(150cqw / var(--len))); }
 .buzzer.is-verdict.is-awarded { color: var(--brass); }
 .buzzer.is-verdict.is-penalised { color: var(--tally); }
 .buzzer.is-verdict .buzzer__sub { opacity: 1; color: var(--chalk); }
 
-/* The reaction row under the card: four house buttons for a phone that cannot
-   buzz, disabled (so dimmed) for the cooldown after a tap. */
 .react-row { display: flex; gap: var(--s2); }
 .react-row .btn { flex: 1; padding: var(--s3) var(--s2); white-space: nowrap; }
 
-/* The push-to-talk zone: the buzzer, re-purposed while the judge listens.
-   `.buzzer` already carries the 2px --rule border, so the swap never shifts.
-   touch-action: none — a page scroll claiming the gesture mid-hold fires
-   pointercancel, and pointercancel must never read as release (= send). */
 .buzzer--talk { touch-action: none; }
 .buzzer--talk.is-talking { border-color: var(--brass); }
 .buzzer--talk.is-cancelling { border-color: var(--tally); color: var(--dim); }
 
-/* No mic on this phone: the same slab, but nothing to press. Dashed, because a
-   solid border on an inert surface reads as a button that stopped working. */
 .buzzer--say {
   border-style: dashed;
   color: var(--dim);
   cursor: default;
 }
-/* The answer window's seconds, big enough to read with the phone at arm's length. */
 .talk__count { display: inline-block; font-family: var(--display); font-size: var(--t-lg); letter-spacing: 0; border-radius: 999px; padding: 0 var(--s2); }
 
 
@@ -1688,14 +1359,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   margin-top: var(--s4);
 }
 
-/* Same vertical rhythm as the other player blocks: a flex column so the
-   eyebrow, buttons and hint stack on the design system's spacing rather
-   than a browser default <p> margin.
-
-   It is a lit panel rather than loose text because for these few seconds it
-   is the only thing on the phone that does anything — the buzzer below it
-   still says "Wait", and a floating row of buttons under a dead button is
-   easy to scroll straight past. */
 .player__duel {
   display: flex;
   flex-direction: column;
@@ -1710,7 +1373,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .player__duel .eyebrow { margin-bottom: 0; }
 .player__duel .muted { margin: 0; text-align: center; }
 
-/* The seated pair, at the weight the moment deserves on a phone. */
 .player__faceoff {
   margin: 0;
   text-align: center;
@@ -1723,9 +1385,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .player__faceoff .muted { display: inline; font-size: var(--t-sm); }
 
-/* One nominee, one full-width target. Names go left, their crowd goes right,
-   so the tallies line up in a column you can compare down rather than hunt
-   through a wrapped row of pills. */
 .nom-btn {
   display: flex;
   align-items: center;
@@ -1733,41 +1392,21 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   width: 100%;
   font-size: var(--t-md);
   text-align: left;
-  /* The identity rail. An inset shadow rather than a border-left, because
-     `is-mine` recolours the border and the rail has to survive that — who
-     someone is does not change when you vote for them. */
   box-shadow: inset 3px 0 0 var(--id, transparent);
   padding-left: var(--s3);
 }
 .nom-btn__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Your own vote: outlined, not filled. A tungsten fill would put the crowd
-   on top of the crowd's colour, and the figures are the part that has to
-   stay countable. */
 .nom-btn.is-mine { border-color: var(--tungsten); color: var(--tungsten); background: #241703; }
 
-/* --- Dial: the standings on the phone, behind glass -------------------- */
-/* Three rows through a clear window, the rest of the field a scroll away.
-   Rows tilt around a shared horizontal axis as they leave the centre (JS
-   sets the angle from scroll position), which is what makes it a dial and
-   not a list. */
-/* Blank through the podium: the places are the wall's to call. The glass stays, so nothing moves. */
 .dial.is-held .dial__list { visibility: hidden; }
 .dial {
-  /* Shorter rows on a short phone, so the buzzer keeps its share. */
   --dial-row: min(2.75rem, 6vh);
   position: relative;
   flex: none;
   height: calc(var(--dial-row) * 5);
   border-radius: var(--r-md);
   overflow: hidden;
-  /* A well, not a panel: sunk below the stage, the depth carried by the
-     shadow overlay rather than by a lighter fill. The outer highlight is
-     the ledge — light catching the lip of the surface the hole is cut into,
-     which is what separates outside from inside. */
   background: #060504;
-  /* The ledge: a lit rim around the opening, thrown as a glow rather than a
-     border so it dissolves into the stage instead of ending on a hard line.
-     Solid at the cut edge, gone a few pixels out. */
   box-shadow:
     inset 0 0 0 1px #000,
     0 0 4px 1px rgba(33, 28, 22, 0.95),
@@ -1775,9 +1414,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
     0 0 24px 9px rgba(33, 28, 22, 0.24),
     0 2px 6px rgba(0, 0, 0, 0.55);
 }
-/* The depth cue. Inset shadow on the element itself would paint under the
-   rows — leaving the identity rails unshaded was what sold "flat" — so it
-   lives on an overlay above the list, wrapping all four sides. */
 .dial::after {
   content: '';
   position: absolute;
@@ -1787,12 +1423,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   box-shadow:
     inset 0 10px 18px rgba(0, 0, 0, 0.55),
     inset 0 -6px 14px rgba(0, 0, 0, 0.35),
-    /* The left wall reads hardest: near-black right at the cut, gone within
-       the rail's width, so the gradient runs visibly across it. */
     inset 7px 0 8px -1px rgba(0, 0, 0, 0.95),
     inset -10px 0 14px rgba(0, 0, 0, 0.5),
-    /* The far wall of the well, lit from above, and a hard black rim so the
-       cut edge is a line rather than a fade. */
     inset 0 -1px 0 rgba(245, 240, 230, 0.07),
     inset 0 0 0 1px rgba(0, 0, 0, 0.75);
 }
@@ -1816,13 +1448,9 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   gap: var(--s3);
   padding: 0 var(--s4);
   scroll-snap-align: center;
-  /* Thicker than a list row's rail: the well's side shadow falls across it,
-     and it needs enough width for that gradient to read. */
   border-left: 8px solid var(--id, var(--rule));
   position: relative;
 }
-/* A hairline between rows, held in from the edges so it reads as etched on
-   the drum, not as a box edge. */
 .dial__row + .dial__row::before {
   content: '';
   position: absolute;
@@ -1847,8 +1475,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .dial__score { font-weight: 600; }
 .dial__rank { width: 2.5ch; font-size: var(--t-sm); }
-/* Frosted at the edges, clear in the middle: the blur is masked away over
-   the centre row, and the dark gradient is the glass curving under. */
 .dial__glass {
   position: absolute;
   inset: 0;
@@ -1860,26 +1486,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   -webkit-mask-image: linear-gradient(to bottom, #000, transparent 15%, transparent 85%, #000);
 }
 
-/* ===================================================================
- * FX: Signature — the hand-tuned moments, first family of the kit
- * Everything here is a one-shot on an event the round already produces:
- * an element mounting, or a class arriving on one that was already there.
- * Both fire a CSS animation on their own, which is why none of this needs
- * a timer, a key, or a line of JS. Reduced motion is handled in tokens.css.
- *
- * Each rule also carries an `fx-` class so any element can wear the same
- * motion. The tunables are hand-tuned: change a tunable, not a curve.
- *
- * The numbers live in the block below rather than in the rules, so the
- * harness at /anim.html can drive these exact rules instead of a copy of
- * them and write the result back here. Do not inline a value into a
- * keyframe — a number the harness cannot reach is one nobody will tune.
- * =================================================================== */
-
-/* anim:tunables — rewritten in place by the harness. Edit freely; keep the
-   markers and one `--name: value;` per line. */
+/* anim:tunables */
 :root {
-  /* A mark landing on the timeline */
   --stamp-dur: 110ms;
   --stamp-scale: 1.45;
   --bloom-dur: 700ms;
@@ -1890,17 +1498,12 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   --bloom-halo-spread: 16px;
   --bloom-name-core: 16px;
   --bloom-name-halo: 52px;
-  /* Gap between marks that arrive in the same broadcast. Drives the picture and
-     the sound from one place — two staggers would drift apart on the first
-     tweak, and a run you can see but not hear is worse than neither. */
   --mark-stagger: 100ms;
 
-  /* The award */
   --strike-dur: 260ms;
   --strike-scale: 1.8;
   --strike-recoil: 0.94;
 
-  /* The leader's name */
   --slam-dur: 220ms;
   --slam-scale: 1.25;
   --flare-dur: 940ms;
@@ -1909,44 +1512,24 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   --flare-body: 36px;
   --flare-throw: 50px;
 
-  /* The buzzers opening, and your press registering */
   --punch-dur: 90ms;
   --punch-scale: 1.12;
   --land-dur: 240ms;
 
-  /* A vote landing in the pool */
   --cast-dur: 220ms;
   --cast-scale: 2.2;
   --cast-rise: 0.5em;
   --cast-flare-dur: 620ms;
   --cast-glow: 14px;
 
-  /* The spoken verdict typing itself out. Read by Spoken.tsx from JS, like
-     `--mark-stagger` is by sound.ts — the reveal is a timer, not a keyframe,
-     but its pace is a tunable all the same. */
   --type-chunk: 120ms;
-  /* The beat between the last chunk landing and the verdict — the colour on
-     the line, the stamp above it and its thud, all on one instant. Long
-     enough that the room finishes reading before it is told. */
   --verdict-hold: 500ms;
-  /* How long a penalty stamp stays on the stage before it retires and gives the
-     question back. A payoff has no equivalent: it sits until the next arm,
-     because nothing is running behind it. */
   --penalty-dwell: 2200ms;
-  /* How far a missed name shakes. Hero type is huge, so the kit's default
-     reads as a lurch rather than a shudder. */
   --hero-shake-amp: 0.04em;
-  /* A standings row sliding to its new rank. */
   --rank-slide-dur: 480ms;
-  /* The face-off: each name charging in, and the dust where they stop. */
   --faceoff-slide-dur: 520ms;
   --faceoff-dust-amp: 6em;
 
-  /* Interest kit — each effect's defaults (FX section below; design.md §4).
-     Tune one element with --fx-dur / --fx-amp / --fx-color instead. */
-  /* The effect palette's shared knobs (the hues are in tokens.css): one
-     lightness and one low chroma keep it matte, and the tint pulls every hue
-     toward tungsten so it sits under the same lamp as the set. */
   --fx-light: 0.68;
   --fx-chroma: 0.13;
   --fx-tint: 10%;
@@ -2009,7 +1592,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   --fx-burst-dur: 800ms;
   --fx-burst-amp: 4em;
 
-  /* Poker cards' shadow under the lamp, in card widths */
   --card-shadow-rest: 0.055;
   --card-shadow-contact: 0.45;
   --card-shadow-drop: 0.12;
@@ -2018,77 +1600,20 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   --card-shadow-ambient: 0.12;
   --card-turn-shade: 0.5;
 
-  /* A reaction pill rising from the foot of the wall: rise, hold, fade. Fade
-     start plus fade length is PILL_MS in client/reactions.ts, which unmounts
-     the pill as its fade ends. */
   --pill-rise-dur: 700ms;
   --pill-rise-amp: 12vh;
   --pill-fade-at: 1800ms;
   --pill-fade-dur: 600ms;
 
-  /* No cue's sound lives here any more. A cue's gain, offset and envelope are
-     fields on its layers in client/cues.ts, and the one cue still on the sample
-     path keeps its four numbers in client/sound.ts beside the code that loops
-     it. They were here while a cue was one sample with a head and a cut, on the
-     argument that aligning a sound to a movement is the same act as tuning the
-     movement — but a layer already carried `gain` and `delay`, so the argument
-     was buying two homes for one number.
-
-     `--mark-stagger` above stays, and is the test the rest failed: the marks
-     animate against it and sound.ts spaces cues by it, so it genuinely belongs
-     to both and would have to be duplicated to live anywhere else. */
 }
 /* /anim:tunables */
 
-/* --- 1. A mark lands on the timeline ---------------------------------
-   Marks mount one at a time as packets arrive through the collection
-   window, so this fires per player rather than per round: the staircase
-   assembles itself in front of the room at the speed people actually
-   pressed. Overscaled and hard-landed — it is a stamp coming down, and
-   the pin carries the aftershock so the label does not wobble with it. */
-/*
- * A batch of marks lands in a run, not a pile.
- *
- * Landing four marks on one frame throws the whole staircase down as a single
- * event and loses the count — four names appear and the room reads "several".
- * `--enter` is how long this mark waits its turn, scheduled by the board so no
- * two ever land closer than `--mark-stagger`, whether they arrived in one
- * broadcast or four. The rail still plots each buzz at its true millisecond;
- * only the telling is queued.
- *
- * `backwards` matters: without it a delayed mark sits fully drawn until its
- * turn, which is worse than no stagger at all.
- */
 .fx-pin-flash-drop,
 .timeline__mark { animation: fx-pin-drop var(--fx-dur, var(--stamp-dur)) var(--slam) var(--enter, 0ms) backwards; }
 @keyframes fx-pin-drop {
   from { opacity: 0; transform: translateX(-50%) scale(var(--stamp-scale)); }
   to { opacity: 1; transform: translateX(-50%) scale(1); }
 }
-/*
- * The bloom and the stamp are one gesture, so they run as one: no delay, no
- * separate start. Two earlier attempts got this wrong in opposite directions —
- * a glow already burning during the travel washed the movement out, and a glow
- * that switched on at full power after it read as a second, unrelated event.
- * A hard edge anywhere in the light is what makes it feel bolted on.
- *
- * The current shape is a rise: the light starts at nothing, is held near
- * nothing through the fall by an ease-in steep enough to stay dark, then climbs
- * to full power around the frame the mark touches down — 16% of 700ms, the
- * stamp's own 110ms — and decays from there. This is still being dialled in;
- * these numbers are a position, not a conclusion. Use the harness.
- *
- * Two layers, a tight core inside a wide halo: a single ring reads as a border
- * switching on rather than light spilling.
- *
- * ponytail: the 16% peak is a literal because a keyframe offset cannot be a
- * custom property — CSS has no var() in a selector position. So the peak's
- * absolute time is 16% of --bloom-dur, and --bloom-rise is what actually moves
- * where the light reads as arriving. If that coupling ever gets in the way, the
- * upgrade is to split the glow across two nested elements and multiply their
- * opacities: the rise becomes one element's duration, the decay the other's
- * delay, and both become dials.
- */
 .timeline__pin { animation: fx-pin-flash var(--bloom-dur) var(--ease) var(--enter, 0ms) backwards; }
 @keyframes fx-pin-flash {
   0% {
@@ -2102,7 +1627,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   }
   100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; }
 }
-/* The name blooms with its pin, in the player's own colour. */
 .timeline__name { animation: fx-pin-flash-name var(--bloom-dur) var(--ease) var(--enter, 0ms) backwards; }
 @keyframes fx-pin-flash-name {
   0% {
@@ -2117,19 +1641,11 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   100% { text-shadow: 0 0 0 transparent, 0 0 0 transparent; }
 }
 
-/* --- 2. The award ------------------------------------------------------
-   The heaviest stamp on any surface, because it is the only moment where
-   the score actually changes. Past the mark and back: the recoil is what
-   makes it read as struck rather than faded up. */
 .fx-rubber-stamp,
 .board__award { animation: fx-rubber-stamp var(--fx-dur, var(--strike-dur)) var(--slam); }
-/* A closest reveal's stamp waits, unseen, for the nearest to light; its delay is set inline from `closestTimes`. */
 .board__award.is-closest { animation-fill-mode: backwards; }
 .board__award.is-closest > .fx-burst > i { animation-delay: calc(var(--delay) + var(--stamp-at) + var(--strike-dur) * 0.55); }
-/* The dust comes off the stamp's bottom edge on the frame it lands: the
-   overshoot peaks at 55% of the strike. */
 .board__award > .fx-burst > i { animation-delay: calc(var(--delay) + var(--strike-dur) * 0.55); }
-/* Shake and wobble need a box to move. */
 .board__hero-hit, .buzzer__hit { display: inline-block; }
 .board__hero-hit { --fx-amp: var(--hero-shake-amp); }
 @keyframes fx-rubber-stamp {
@@ -2138,23 +1654,12 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   to { transform: scale(1); }
 }
 
-/* --- 3. The leader's name ---------------------------------------------
-   Mounts when the round resolves. Slower and larger than a mark — it owns
-   the stage — with one flare in its tone that decays and leaves the name lit. */
-/* Lit at frame one and cooling from there, so the flare is the appearance
-   rather than something that happens to the name shortly after it. A glow that
-   ramps up reads as a second event however tight the timing; one already at
-   full power when the letters land reads as the same event. */
 .fx-hero-slam-glow,
 .board__hero { animation: fx-hero-slam var(--fx-dur, var(--slam-dur)) var(--slam), fx-hero-glow var(--flare-dur) var(--flare-fall); }
 @keyframes fx-hero-slam {
   from { opacity: 0; transform: scale(var(--slam-scale)); }
   to { opacity: 1; transform: scale(1); }
 }
-/* Three layers, because a lamp coming up to power does not glow evenly: a
-   white-hot core inside a body (the tone's colour) inside a wide throw that reaches well past
-   the letters. The long tail is the filament cooling, which is the slowest and
-   most visible part of it from across the room. */
 @keyframes fx-hero-glow {
   from {
     text-shadow:
@@ -2165,9 +1670,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   to { text-shadow: 0 0 0 transparent, 0 0 0 transparent, 0 0 0 transparent; }
 }
 
-/* --- 4. The buzzers open ----------------------------------------------
-   The loudest instant of the round, and the only one every surface shares.
-   Short and hard on purpose: a slow open would undersell it. */
 .fx-buzz-snap,
 .board__call,
 .buzzer.is-open { animation: fx-buzz-snap var(--fx-dur, var(--punch-dur)) var(--slam); }
@@ -2176,60 +1678,24 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   to { transform: scale(1); }
 }
 
-/* --- 5. Your press registers ------------------------------------------
-   A full second passes between the press and the result. This is the
-   receipt for it: the button flashes white-hot and settles into whichever
-   mood the press earned, so the wait is never dead air. */
 .fx-press-flash,
 .buzzer.is-placed,
 .buzzer.is-first { animation: fx-press-flash var(--fx-dur, var(--land-dur)) var(--ease); }
 @keyframes fx-press-flash {
-  /* No `to` — the resting frame is the mood class's own colours, whatever
-     they turn out to be, so this stays correct if those change. */
   from { background: var(--hot); color: var(--stage); }
 }
 
-/* --- 6. A vote lands in the pool --------------------------------------
-   The only moment on this board that nobody is being timed for, and the
-   one the room drives itself. It drops in from above rather than punching
-   out from nothing: a vote is cast, and the figure arrives where it was
-   thrown. The glow is the same cooling filament as the leader's flare,
-   scaled down to the size of one decision. */
 .fx-vote-drop-glow,
 .vote { animation: fx-vote-drop var(--fx-dur, var(--cast-dur)) var(--slam), fx-vote-glow var(--cast-flare-dur) var(--flare-fall); }
 @keyframes fx-vote-drop {
   from { opacity: 0; transform: translateY(calc(var(--cast-rise) * -1)) scale(var(--cast-scale)); }
   to { opacity: 1; transform: none; }
 }
-/* drop-shadow, not text-shadow: an emoji is a bitmap glyph, and text-shadow
-   paints behind a box it does not have. The tint lives on the parent so this
-   keyframe can own `filter` outright without cancelling it. */
 @keyframes fx-vote-glow {
   from { filter: drop-shadow(0 0 var(--cast-glow) var(--hot)); }
   to { filter: drop-shadow(0 0 0 transparent); }
 }
 
-/* ===================================================================
- * FX — the interest kit
- *
- * Effects any element can wear: entrances, exits, idle loops, hits, text
- * effects and particles. The rules for using them, and a table of every class
- * and what its amount means, are in docs/design.md §4 "Interest kit". Each one
- * has a scenario in the motion harness (`npm run motion`).
- *
- * Every rule resolves `--_d` (duration), `--_a` (amount) and `--_c` (colour)
- * from the caller's `--fx-dur` / `--fx-amp` / `--fx-color`, falling back to the
- * effect's default in anim:tunables. One effect per element: each owns
- * `animation` and `transform`, so nest a wrapper to combine two.
- *
- * ponytail: the `--fx-*` overrides inherit, so one set on an element also
- * reaches any effect nested inside it. Registering them with
- * `@property … { syntax: '*'; inherits: false }` is the fix if that bites.
- * =================================================================== */
-
-/* --- Entrances and exits (once) --------------------------------------
-   An exit leaves the element invisible but in place; unmount it on
-   `animationend`. */
 .fx-fade { --_d: var(--fx-dur, var(--fx-fade-dur)); animation: fx-fade var(--_d) var(--fx-ease, var(--ease)) var(--fx-delay, 0s) both; }
 .fx-fade--out { animation-direction: reverse; }
 @keyframes fx-fade { from { opacity: 0; } }
@@ -2245,7 +1711,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   to { opacity: 1; transform: none; }
 }
 
-/* Squashes on the floor it lands on, so the origin is the bottom edge. */
 .fx-drop {
   --_d: var(--fx-dur, var(--fx-drop-dur));
   --_a: var(--fx-amp, var(--fx-drop-amp));
@@ -2266,8 +1731,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 @keyframes fx-rise { from { opacity: 0; transform: translateY(var(--_a)); } }
 
-/* `--fx-from`: -1 slides in from the left, 1 from the right. `--fx-ease`
-   picks the rate; the modifiers name the three in tokens.css. */
 .fx-slide {
   --_d: var(--fx-dur, var(--fx-slide-dur));
   --_a: var(--fx-amp, var(--fx-slide-amp));
@@ -2294,12 +1757,9 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .fx-shrink { --_d: var(--fx-dur, var(--fx-shrink-dur)); animation: fx-shrink var(--_d) var(--ease) forwards; }
 @keyframes fx-shrink { to { opacity: 0; transform: scale(0.3); } }
 
-/* Pair with <Burst kind="dust"> in a positioned parent. */
 .fx-poof { --_d: var(--fx-dur, var(--fx-poof-dur)); animation: fx-poof var(--_d) cubic-bezier(0.5, 0, 1, 1) forwards; }
 @keyframes fx-poof { to { opacity: 0; transform: scale(0.2); filter: blur(0.2em); } }
 
-/* --- Idle loops ------------------------------------------------------
-   Keyframes name only the moves; the rest pose is the element's own. */
 .fx-bob {
   --_d: var(--fx-dur, var(--fx-bob-dur));
   --_a: var(--fx-amp, var(--fx-bob-amp));
@@ -2366,9 +1826,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .fx-spin { --_d: var(--fx-dur, var(--fx-spin-dur)); animation: fx-spin var(--_d) linear infinite; }
 @keyframes fx-spin { to { transform: rotate(1turn); } }
 
-/* --- Hits (once, on an event) ----------------------------------------
-   A hit replays when its class is removed and re-added, or when the element
-   remounts with a new key. */
 .fx-shake {
   --_d: var(--fx-dur, var(--fx-shake-dur));
   --_a: var(--fx-amp, var(--fx-shake-amp));
@@ -2393,12 +1850,9 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 
 .fx-flash { --_d: var(--fx-dur, var(--fx-flash-dur)); animation: fx-flash var(--_d) var(--ease); }
 @keyframes fx-flash { from { filter: brightness(2.5); } }
-/* The flash in a colour as well: `--fx-color` on the text. */
 .fx-flash--tint { --_c: var(--fx-color, var(--tungsten)); animation-name: fx-flash-tint; }
 @keyframes fx-flash-tint { from { filter: brightness(1.6); color: var(--_c); } }
 
-/* Draws on ::after, so it leaves the element's own transform alone and can
-   sit beside another effect. It positions the element to anchor the ring. */
 .fx-ripple {
   --_d: var(--fx-dur, var(--fx-ripple-dur));
   --_a: var(--fx-amp, var(--fx-ripple-amp));
@@ -2447,9 +1901,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   40%, 60%, 80% { transform: scale(var(--_a)) rotate(-3deg); }
 }
 
-/* --- Text -------------------------------------------------------------
-   Per-letter effects go on <Letters class="…"> from fx.tsx, which gives each
-   letter `--i`. The rest go on any element holding text. */
 .fx-letters .fx-word { display: inline-block; white-space: nowrap; }
 .fx-letters .fx-word > span { display: inline-block; }
 .fx-sr {
@@ -2470,9 +1921,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   40% { transform: none; }
 }
 
-/* Each letter one palette step (an eighth of the cycle) behind the last, so
-   neighbours never share a colour. Negative, so every letter is coloured on
-   the first frame. */
 .fx-rainbow { --_d: var(--fx-dur, var(--fx-rainbow-dur)); }
 .fx-rainbow .fx-word > span {
   animation: fx-rainbow var(--_d) linear calc(var(--i) * var(--_d) / -8) infinite;
@@ -2494,7 +1942,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 @keyframes fx-cascade { from { opacity: 0; transform: translateY(0.4em) scale(0.6); } }
 
-/* A prime-ish offset per letter, so neighbours never twitch together. */
 .fx-jitter { --_d: var(--fx-dur, var(--fx-jitter-dur)); --_a: var(--fx-amp, var(--fx-jitter-amp)); }
 .fx-jitter .fx-word > span {
   animation: fx-jitter var(--_d) steps(1) calc(var(--i) * -137ms) infinite;
@@ -2506,17 +1953,12 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   75% { transform: translate(calc(var(--_a) * -1), calc(var(--_a) * -1)); }
 }
 
-/* `--fx-dur` here is the time per letter. */
 .fx-type { --_d: var(--fx-dur, var(--fx-type-dur)); }
 .fx-type .fx-word > span {
   animation: fx-type 1ms steps(1) calc(var(--i) * var(--_d)) backwards;
 }
 @keyframes fx-type { from { opacity: 0; } to { opacity: 0; } }
 
-/* The fill goes transparent but `color` stays, so the band sweeps across the
-   element's own colour. The rest of the text is held a little below full so a
-   white-hot band still reads on chalk. Not for emoji: a bitmap glyph has no
-   fill to clip. */
 .fx-shine {
   --_d: var(--fx-dur, var(--fx-shine-dur));
   --_c: var(--fx-color, var(--hot));
@@ -2529,25 +1971,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 @keyframes fx-shine { 60%, 100% { background-position: 0 0; } }
 
-/* <Glitch text> from fx.tsx: the text torn into its colour channels.
-   Pure cyan, magenta and yellow on purpose, overriding the effect palette and
-   the no-cyan rule: a glitch reads as a signal splitting into its channels,
-   and only the printer's primaries say that. Display-P3 where the screen has
-   it, which is past what sRGB can reach.
-
-   It comes in hits: 1–3 passes of a burst (`--fx-glitch-dur`) that keeps
-   stuttering the whole way through, then a breather (`--fx-glitch-rest`, varied ±20% by
-   <Glitch>), then the next. The breather is not quiet: one to four single
-   flashes (`is-flash`, `--fx-glitch-flash` long) land in it, bunched near
-   both ends, so the glitch wanes out of a hit and waxes into the next. The burst runs while
-   `is-live` is on; <Glitch> turns it off at the end and back on after the rest.
-
-   Each channel is a copy of the text that flickers on through a quadrant-ish
-   window, shoved sideways, several times inside one burst. The channels keep
-   their own irregular timing, so they never move as one. A band of the text
-   itself tears: the base loses the band and a copy of it slides across. Every
-   burst, <Glitch> redraws the windows, shoves, band, and which repeats show at
-   all (glitchCut in fx.ts); the values below are the first burst's. */
 .fx-glitch {
   --_d: var(--fx-dur, var(--fx-glitch-dur));
   --_a: var(--fx-amp, var(--fx-glitch-amp));
@@ -2586,10 +2009,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   }
 }
 .fx-glitch__base { display: inline-block; }
-/* A hit runs the burst 1–3 times over (`--g-reps`, drawn per hit), so hits
-   come long and short while the stutter keeps its pace. Alternate passes run
-   the stutters backwards, and <Glitch> recuts on every pass, so no pass
-   repeats the one before in timing or place. */
 .fx-glitch.is-live > .fx-glitch__base { animation: fx-glitch-hole var(--_d) steps(1) var(--g-reps, 1) alternate; }
 .fx-glitch__layer {
   position: absolute;
@@ -2613,16 +2032,12 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   color: var(--_yellow);
 }
 .fx-glitch.is-live > .fx-glitch__y { animation: fx-glitch-c var(--_d) steps(1) var(--g-reps, 1) alternate; }
-/* The torn band: the text's own colour, no blend, shoved further than the
-   channels so it reads as the letters themselves breaking. */
 .fx-glitch__t {
   mix-blend-mode: normal;
   clip-path: inset(var(--gt-top) -20% calc(100% - var(--gt-bot)) -20%);
 }
 .fx-glitch.is-live > .fx-glitch__t { animation: fx-glitch-tear var(--_d) steps(1) var(--g-reps, 1) alternate; }
 
-/* A single flash in a breather: whichever channels this cut switched on
-   (`--o2`) show for one beat through their first window. */
 .fx-glitch.is-flash > .fx-glitch__c,
 .fx-glitch.is-flash > .fx-glitch__m,
 .fx-glitch.is-flash > .fx-glitch__y { animation: fx-glitch-flash var(--fx-glitch-flash) steps(1); }
@@ -2630,9 +2045,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   from, to { opacity: var(--o2); clip-path: var(--k1); transform: translateX(calc(var(--_a) * var(--x1))); }
 }
 
-/* Three different stutters across the whole burst, so something is always
-   happening until it ends. `--o2` and `--o3` switch repeats on or off per
-   burst. */
 @keyframes fx-glitch-a {
   0% { opacity: 1; clip-path: var(--k1); transform: translateX(calc(var(--_a) * var(--x1))); }
   12% { opacity: 0; }
@@ -2667,8 +2079,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   66% { opacity: 1; transform: translateX(calc(var(--_a) * var(--gt-x) * -1)); }
   76% { opacity: 0; }
 }
-/* The base loses the torn band while its copy is shoved aside: a polygon of
-   the box with the band cut out, joined down the left edge. */
 @keyframes fx-glitch-hole {
   20%, 66% {
     clip-path: polygon(-20% -20%, 120% -20%, 120% var(--gt-top), -20% var(--gt-top), -20% var(--gt-bot), 120% var(--gt-bot), 120% 120%, -20% 120%);
@@ -2676,7 +2086,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   34%, 76% { clip-path: none; }
 }
 
-/* Flickers on once, then holds the glow. */
 .fx-neon {
   --_d: var(--fx-dur, var(--fx-neon-dur));
   --_c: var(--fx-color, var(--tungsten));
@@ -2692,14 +2101,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 
 .fx-count { font-variant-numeric: tabular-nums; }
 
-/* --- Particles: <Burst> from fx.tsx ----------------------------------
-   The layer fills its nearest positioned ancestor (`fx-anchor` makes one)
-   and bursts from its centre. Put it inside the element it celebrates: the
-   layer's em is 0.3 of that element's font size, so a burst on a hero name
-   is hero-sized and one on a chip is chip-sized. Each particle carries --x/--y (end offset, as a
-   fraction of the amount), --rot, --delay and --size from `particles()` in
-   fx.ts. Confetti and embers run longer than the base duration: confetti is a
-   celebration, and embers read as embers only while drifting. */
 .fx-anchor { position: relative; }
 .fx-burst {
   --_d: var(--fx-dur, var(--fx-burst-dur));
@@ -2711,8 +2112,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .fx-burst > i {
   position: absolute;
-  /* The start point: the centre, or a spot on the outline (`--sx`/`--sy`,
-     −1…1 of the half-box). Percentages, so it fits any box. */
   left: calc(50% + var(--sx, 0) * 50%);
   top: calc(50% + var(--sy, 0) * 50%);
   translate: -50% -50%;
@@ -2744,13 +2143,11 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   animation: fx-ember calc(var(--_d) * 1.5) ease-out var(--delay) both;
 }
 
-/* Stars and emoji: out from the centre, spinning, fading. */
 @keyframes fx-fling {
   from { opacity: 1; transform: scale(0); }
   25% { opacity: 1; transform: translate(calc(var(--x) * var(--_a) * 0.4), calc(var(--y) * var(--_a) * 0.4)) scale(var(--size)); }
   to { opacity: 0; transform: translate(calc(var(--x) * var(--_a)), calc(var(--y) * var(--_a))) rotate(var(--rot)) scale(calc(var(--size) * 0.6)); }
 }
-/* In place: each sparkle appears where it is, turns, and goes out. */
 @keyframes fx-twinkle {
   from { opacity: 0; transform: translate(calc(var(--x) * var(--_a)), calc(var(--y) * var(--_a))) scale(0); }
   50% { opacity: 1; transform: translate(calc(var(--x) * var(--_a)), calc(var(--y) * var(--_a))) scale(var(--size)) rotate(45deg); }
@@ -2760,7 +2157,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   from { opacity: 0.7; transform: scale(calc(var(--size) * 0.4)); }
   to { opacity: 0; transform: translate(calc(var(--x) * var(--_a)), calc(var(--y) * var(--_a))) scale(calc(var(--size) * 1.8)); }
 }
-/* Thrown up and out, then falling past where it started. */
 @keyframes fx-confetti {
   from { opacity: 1; transform: scale(var(--size)); animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1); }
   40% { opacity: 1; transform: translate(calc(var(--x) * var(--_a)), calc(var(--y) * var(--_a))) rotate(calc(var(--rot) * 0.4)) scale(var(--size)); animation-timing-function: cubic-bezier(0.5, 0, 1, 1); }
@@ -2777,8 +2173,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   .board__qr { max-width: 7rem; }
 }
 
-/* The phone as a second screen: readable at arm's length without stealing the
-   buzzer's room. It scrolls rather than pushing the button off the screen. */
 .player__question {
   margin: 0 0 var(--s3);
   max-height: 34vh;
@@ -2787,17 +2181,12 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   line-height: 1.4;
   color: var(--chalk);
 }
-/* A choice question's options, one tap each; the pick is final. */
-/* The options take the buzzer's slot: they share whatever height the phone
-   has left and shrink with it, so the page never scrolls. */
 .player__choices { flex: 1; min-height: 0; display: grid; grid-auto-rows: minmax(0, 1fr); gap: var(--s2); }
 .player__choice { min-height: 0; padding: 0 var(--s3); font-size: clamp(0.875rem, 3.4vh, var(--t-xl)); cursor: pointer; }
 .player__choice:active { border-color: var(--tungsten); }
 .player__choice .choice__letter { height: min(1.7em, calc(100% - 2 * var(--s1))); }
-/* The seconds left to pick, above the options. */
 .player__countdown { flex: none; margin: 0; text-align: center; font-family: var(--display); font-weight: 800; font-size: var(--t-xl); line-height: 1; color: var(--dim); }
 
-/* --- the harness waveform editor -------------------------------------- */
 .layers {
   margin-block: var(--s3);
 }
@@ -2840,9 +2229,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   stroke-width: 2;
   pointer-events: none;
 }
-/* The clip's left edge. Faint until the pointer is inside its hit zone, then
-   lit — the six pixels where a press slides the audio instead of moving the
-   layer are otherwise indistinguishable from the rest of the track. */
 .track__grip {
   stroke: var(--dim);
   stroke-width: 1;
@@ -2858,15 +2244,12 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   fill: var(--cyan);
   cursor: ew-resize;
 }
-/* The one handle that travels in both axes — decay across, level up. */
 .track__handle--free {
   cursor: move;
 }
 .track__handle:hover {
   fill: #fff;
 }
-/* Always present, empty when nothing is hovered, so the stack below does not
-   jump as the pointer crosses it. */
 .track__hint {
   min-height: 1.1em;
   margin: 0;
@@ -2887,18 +2270,9 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .track__remove:hover {
   color: #fff;
 }
-/* --- the sound list --------------------------------------------------
-   The Library and the layer picker are the same list, so they are one
-   component and one rule. Built on `.row` so the harness reads as the same
-   product as the board — including the left border, which carries selection
-   here exactly as it carries the lead in the standings. */
 .sndlist {
   gap: 2px;
   margin-block: var(--s2);
-  /* `.stack` is a grid, and a grid item's `min-width` is `auto` — it refuses to
-     shrink below its content, so one long filename widened the whole panel and
-     gave it a horizontal scrollbar. Pinning the column to the container is what
-     lets the name below actually ellipsise. */
   grid-template-columns: minmax(0, 1fr);
 }
 .sndlist__row {
@@ -2910,7 +2284,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   border-left-color: var(--tungsten);
   background: var(--raise);
 }
-/* Transport first, because hearing it comes before choosing it. */
 .sndlist__play {
   flex: none;
   width: 2rem;
@@ -2930,8 +2303,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .sndlist__play.is-playing {
   color: var(--tungsten);
 }
-/* The name is the row: it takes the space, and clicking anywhere along the
-   line selects, so the target is the line rather than the word. */
 .sndlist__pick {
   flex: 1;
   min-width: 0;
@@ -2955,8 +2326,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   text-transform: uppercase;
   color: var(--dim);
 }
-/* The measurement, held apart from the name in size and colour so the eye can
-   run down the column of them without reading the names. */
 .sndlist__meta {
   flex: none;
   font-size: var(--t-xs);
@@ -2970,8 +2339,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   padding-block: var(--s2);
 }
 
-/* Phantom Ink: its own table, in the house's parts. Each team's page is a
-   screen; on the board the screen sits in a set angled toward the room. */
 .ink-board, .ink-phone { min-height: 100dvh; background: var(--stage); color: var(--chalk); padding: var(--s4); display: grid; gap: var(--s4); align-content: start; }
 .ink-phone { gap: var(--s3); }
 .ink-board { height: 100dvh; grid-template-rows: auto minmax(0, 1fr); align-content: stretch; padding: var(--s4) var(--s5); overflow: hidden; }
@@ -2983,20 +2350,13 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .ink-team-chip { color: var(--team); border-color: color-mix(in srgb, var(--team) 45%, var(--rule)); }
 .ink-icon { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; vertical-align: -0.125em; }
 
-/* The board's top line: where the setlist is, whose turn, and the call. */
 .ink-board__bar { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
 .ink-board__call { margin: 0 0 0 var(--s3); font: 700 var(--t-xl)/1 var(--display); text-transform: uppercase; color: var(--team, var(--chalk)); }
-/* The word found is the hero, a step down so the sets keep the room. */
 .ink-board__word { margin-left: auto; font-size: var(--t-mega); line-height: 0.9; }
-/* Each team's discarded prompts, stacked on its set's outer side, newest on
-   top. Older ones fade out at the bottom instead of pushing anything. */
 .ink-discard { flex: 0 0 var(--aside); min-width: 0; min-height: 0; display: grid; align-content: start; gap: var(--s3); overflow: hidden; mask-image: linear-gradient(to bottom, black 70%, transparent); }
 .ink-discard--sun, .ink-discard--sun ol { justify-items: end; text-align: right; }
 .ink-discard--moon, .ink-discard--moon ol { justify-items: start; }
 .ink-discard ol { list-style: none; margin: 0; padding: 0.4rem 0.5rem 0; display: grid; gap: var(--s3); }
-/* A discard is a slip torn off a pad, typed, and scribbled out in pencil
-   (DiscardSlip), so a newcomer never reads it as the prompt a team chose.
-   Older slips sit further back in the dark. */
 .ink-slip { max-width: 100%; transform: rotate(var(--tilt)); filter: drop-shadow(0 0.35rem 0.45rem rgb(0 0 0 / 0.65)); }
 .ink-slip:not(:first-child) { filter: drop-shadow(0 0.35rem 0.45rem rgb(0 0 0 / 0.65)) brightness(0.7); }
 .ink-slip__paper {
@@ -3008,7 +2368,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .ink-slip__scribble { position: absolute; inset: 10% 3% 14%; width: 94%; height: 76%; overflow: visible; fill: none; stroke: var(--graphite); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; opacity: 0.9; }
 .ink-slip__scribble path { vector-effect: non-scaling-stroke; }
 .ink-discard__none { margin: 0; color: var(--dim); }
-/* The join code: a third column beside the lobby's teams, and in play the foot of the Moon column. */
 .ink-board:has(> .ink-lobby) { grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s4); }
 .ink-board:has(> .ink-lobby) > .ink-board__bar { grid-column: 1 / -1; }
 .ink-board > .board__qr { align-self: end; }
@@ -3023,27 +2382,22 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .ink-board .ink-lobby__team .ink-team-name { font-size: var(--t-xl); }
 .ink-lobby__star { margin-left: var(--s2); font-size: 0.7em; }
 .ink-lobby__seat { border-bottom: 1px dashed var(--rule); opacity: 0.5; }
-/* One set width for Join and Leave, so the pair never resizes with its label or panel. */
 .ink-lobby__team > .btn { justify-self: center; width: min(100%, 8rem); white-space: nowrap; }
 .ink-lobby__count.is-over { color: var(--tally); }
 .ink-lobby__team:has(.is-over) { box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--tally) 12%, transparent); border-color: var(--tally); }
 .ink-lobby__volunteer { grid-column: 1 / -1; }
 
-/* anim:tunables — the screen */
 .ink-board, .ink-phone {
-  --scan-alpha: 0.32;   /* scanline darkness */
-  --snow-alpha: 0.09;   /* how loud the snow is where there is no signal yet */
-  --snow-floor: 0.6;    /* what is left of it under rows on air, as a share of that */
-  --phosphor: color-mix(in srgb, var(--chalk) 45%, transparent); /* glow around ink */
+  --scan-alpha: 0.32;
+  --snow-alpha: 0.09;
+  --snow-floor: 0.6;
+  --phosphor: color-mix(in srgb, var(--chalk) 45%, transparent);
   --screen: radial-gradient(ellipse 90% 80% at 50% 45%, color-mix(in oklab, var(--panel), black 15%), color-mix(in oklab, var(--stage), black 45%));
   --snow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.96 0 0 0 0 0.94 0 0 0 0 0.9 3 0 0 0 -1.35'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 .ink-pad { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); }
 .ink-phone .ink-pad { grid-template-columns: 1fr; }
-/* A phone is one screen that never scrolls: everything else keeps its height,
-   and the page being watched takes what is left, its rows sized to fit it,
-   up to the height its width allows. */
 .ink-phone:not(.ink-phone--write) { height: 100dvh; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .ink-phone:not(.ink-phone--write) > * { flex: none; }
 .ink-phone > .ink-screen {
@@ -3055,9 +2409,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .ink-phone > .ink-screen .ink-row { min-height: 0; }
 .ink-phone > .ink-screen .ink-row__svg { width: auto; max-width: 100%; height: min(calc(100cqh / 8 - 2 * var(--s1)), var(--row-by-width)); }
 
-/* The screen: dark curved glass, rows as lines of signal, scanlines and a
-   sheen laid over everything on it. The sheen is an overhead light, centred,
-   so it lifts the whole width evenly. */
 .ink-screen, .ink-phone__row {
   position: relative; isolation: isolate;
   background: var(--screen);
@@ -3075,12 +2426,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 
 .ink-row { display: grid; grid-template-columns: 2.5rem 1fr; align-items: center; gap: var(--s2); padding: var(--s1) var(--s2); }
 .ink-phone__row { grid-template-columns: 4.5rem 1fr; border-radius: var(--r-lg); padding: var(--s2) var(--s3); }
-/* The live row: the tube glows brighter across it and a soft refresh band rolls
-   down through it, while a typed guess blinks a block cursor. The layer covers
-   the row as it reads, which is not its box: from the baseline above down to
-   its own baseline (the rule, 80% down the ink), so the band fades out at the
-   line. Its box is that shifted down by 20% of the ink plus most of the padding.
-   Across, it runs out through the screen's padding to the glass. */
 .ink-row.is-current::after {
   --pad: var(--s1);
   --glass: var(--s4);
@@ -3094,7 +2439,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
     linear-gradient(to bottom, transparent, rgb(255 246 232 / 0.06) 40%, rgb(255 246 232 / 0.07) 60%, transparent);
   animation: ink-refresh 5.2s linear infinite;
 }
-/* A lone phone row is its own glass, so the layer stops at its edges. */
 .ink-phone__row.is-current::after { --pad: var(--s2); --glass: 0px; }
 @keyframes ink-refresh { to { background-position: 0 300%, 0 0; } }
 .ink-cursor { fill: var(--tungsten); animation: ink-blink 1.06s steps(1) infinite; }
@@ -3106,22 +2450,15 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .ink-row__svg { overflow: hidden; width: 100%; aspect-ratio: 5; display: block; filter: drop-shadow(0 0 3px var(--phosphor)); }
 .ink-row__rule { stroke: var(--rule); stroke-width: 1; }
 .ink-stroke { fill: none; stroke: var(--chalk); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
-/* A peek letter is written in the page's team colour, so it stands apart from the clue. */
 .ink-stroke.is-peek { stroke: var(--team, var(--chalk)); }
 .ink-stroke.is-live { stroke: var(--tungsten); }
 .ink-stroke.is-struck { opacity: 0.45; }
 .ink-strike { stroke: var(--tally); stroke-width: 4; }
 .ink-period { fill: var(--chalk); }
-/* Monospaced: every letter takes the same width, so a typed guess is evenly spelled.
-   The condensed display face left a hole beside an I and crowded an M. The
-   screen's pixel grid (#ink-px) renders it as the set's own lettering. */
 .ink-letter { fill: var(--chalk); font: 700 58px/1 var(--mono); letter-spacing: 6px; }
 .ink-letter.is-won { fill: var(--brass); }
 .ink-letter .is-wrong { fill: var(--tally); text-decoration: line-through; }
 
-/* No signal yet: snow, until ink arrives. The current row is tuned in. */
-/* One layer of snow across the whole tube, faint where the page is on air and
-   full below it, fading over half a row. A lone phone row carries its own. */
 .ink-screen::after {
   content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1; border-radius: inherit;
   background: var(--snow) 0 0 / 192px; image-rendering: pixelated; opacity: var(--snow-alpha);
@@ -3134,7 +2471,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   animation: ink-snow 480ms steps(6) infinite;
 }
 @keyframes ink-snow { to { background-position: 96px -192px; } }
-/* A row's signal arriving: the CRT line opens and settles with a slip. */
 .ink-row:not(.is-blank) .ink-row__svg { animation: ink-tune 420ms var(--ease) both; }
 @keyframes ink-tune {
   0% { opacity: 0; transform: scaleY(0.06); }
@@ -3147,9 +2483,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   .ink-row.is-current::after { display: none; }
 }
 
-/* The board's sets: rows are sized from the height the table leaves, so all
-   eight fit and the set is as wide as its rows. Angled in toward the room. */
-/* --aside is the discard column beside each set; the sets take what is left. */
 .ink-pad--sets { --aside: clamp(10rem, 17vw, 17rem); display: flex; justify-content: center; gap: var(--s6); perspective: 1600px; container-type: size; min-height: 0; }
 .ink-set {
   margin: 0; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: var(--s2);
@@ -3162,12 +2495,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .ink-set--moon { transform: rotateY(-6deg); }
 .ink-set .ink-screen { grid-template-rows: repeat(8, minmax(0, 1fr)); }
 .ink-set .ink-row { grid-template-columns: 3rem auto; }
-/* Eight rows down, or two sets and two asides across, whichever runs out first. */
 .ink-set .ink-row__svg { width: auto; height: min(calc((100cqh - 7.5rem) / 8), calc(((100cqw - 2 * var(--aside) - 3 * var(--s6)) / 2 - 7rem) / 5)); }
 .ink-set .ink-row__num { font-size: var(--t-md); }
-/* The set is as wide as its screen; the chin never widens it (contain), so a
-   long name shortens instead. The writer keeps up to half the line, and the
-   guessers take what is left. */
 .ink-set__chin { contain: inline-size; min-width: 0; display: flex; align-items: center; gap: var(--s3); padding: 0 var(--s2); }
 .ink-set__chin .ink-team-name { flex: none; }
 .ink-set__roster { flex: 1; display: flex; align-items: baseline; gap: var(--s3); min-width: 0; font: 600 var(--t-lg)/1 var(--display); text-transform: uppercase; letter-spacing: 0.03em; color: var(--dim); white-space: nowrap; }
@@ -3179,7 +2508,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .ink-set__pilot { flex: none; width: 0.75rem; height: 0.75rem; border-radius: 50%; background: var(--rule); }
 .ink-set__pilot.is-on { background: var(--tungsten); box-shadow: 0 0 10px var(--tungsten); }
 
-/* Typing the guess: one letter, sent the moment it lands. */
 .ink-letters { display: grid; justify-items: center; gap: var(--s2); }
 .ink-letters__input {
   width: 5rem; min-height: 5rem; padding: var(--s2); text-align: center; text-transform: uppercase;
@@ -3213,7 +2541,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .ink-peek__option { display: grid; grid-template-columns: 1fr auto auto; gap: var(--s2); align-items: center; }
 .ink-stop { width: 100%; min-height: 6rem; font-size: var(--t-xl); }
 
-/* Reusable: a phase you only wait out, with no words to read. */
 .pending { display: grid; gap: var(--s1); margin: var(--s2) 0; }
 .pending__label { color: var(--dim); font-size: var(--t-sm); }
 .pending__track { height: 3px; border-radius: 999px; background: var(--rule); overflow: hidden; }
@@ -3230,20 +2557,15 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 
 .ink-touchable { position: relative; }
-/* A view held in speaker-left landscape, whatever the screen's own orientation. */
 .sideways--cw, .sideways--ccw { position: fixed; top: 50%; left: 50%; width: 100dvh; height: 100dvw; min-height: 0; }
 .sideways--cw { transform: translate(-50%, -50%) rotate(90deg); }
 .sideways--ccw { transform: translate(-50%, -50%) rotate(-90deg); }
 .sideways--half { transform: rotate(180deg); }
-/* The writing view has to fit the phone's short side without scrolling. */
 .ink-phone--write { gap: var(--s2); padding: var(--s3) var(--s4); }
 .ink-phone--write .ink-phone__kept { font-size: var(--t-md); }
-/* The writer knows who and what they are: the bar keeps the name and the word. */
 .ink-phone--write .ink-phone__role, .ink-phone--write .player__bar .lamp { display: none; }
 .ink-phone--write .ink-write { display: grid; gap: var(--s2); }
-/* The margin around the row where a stroke may start or wander. */
 .ink-canvas-area { padding: var(--s4) var(--s6); touch-action: none; }
-/* Taps and long presses point at things; they never select text or open the callout. */
 .ink-phone, .ink-board { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
 .ink-ring { position: absolute; width: 2.5rem; height: 2.5rem; margin: -1.25rem 0 0 -1.25rem; border-radius: 50%; border: 3px solid var(--ring-color, var(--chalk)); pointer-events: none; }
 .fx-touch-ring, .ink-ring { animation: fx-touch-ring var(--fx-dur, var(--touch-ms)) linear forwards; }
@@ -3252,7 +2574,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   from { opacity: 1; transform: scale(1); }
   to { opacity: 0; transform: scale(1.4); }
 }
-/* The ring still has to go away; it just does not swell on the way out. */
 @keyframes fx-touch-ring-still {
   from { opacity: 1; }
   to { opacity: 0; }
@@ -3263,8 +2584,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .ink-ring__name { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); font: 600 var(--t-xs)/1 var(--mono); white-space: nowrap; color: var(--ring-color, var(--chalk)); }
 
-/* Prompts to pick from: one row each, the text small, and the pips and a
-   small Vote on the right, so a whole hand fits a phone. */
 .ink-hand { display: grid; gap: var(--s1); }
 .ink-hand .ink-card { display: flex; align-items: center; gap: var(--s2); padding: var(--s1) var(--s2) var(--s1) var(--s3); }
 .ink-hand .ink-card > span:first-child { flex: 1; font-size: var(--t-sm); line-height: 1.3; }
@@ -3278,7 +2597,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .ink-pip { width: 0.6rem; height: 0.6rem; border-radius: 50%; }
 .ink-force { background-image: linear-gradient(var(--tungsten), var(--tungsten)); background-repeat: no-repeat; background-size: 0 100%; }
 .ink-force.is-holding { background-size: 100% 100%; transition: background-size var(--force-ms) linear; color: var(--stage); }
-/* One column as wide as the longest word, so every choice lines up. */
 .ink-words { list-style: none; padding: 0; display: grid; grid-template-columns: min(100%, max-content); gap: var(--s2); }
 .ink-word { display: flex; align-items: center; gap: var(--s2); }
 .ink-word > .btn { flex: 1; display: flex; justify-content: space-between; align-items: center; gap: var(--s2); text-align: left; }
@@ -3286,13 +2604,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   .ink-pad { grid-template-columns: 1fr; }
 }
 
-/* Sketch: the quiz's board and phone, with the drawing as the stage.
-   Everything reuses .board, .board__side, .row, .player, .player__bar and the
-   award and hero; these rules only place the drawing, the word and the chat. */
 .sketch-name { color: var(--id, var(--chalk)); text-transform: uppercase; }
 
-/* The wall keeps its padding and centring; its bands become the top line,
-   the word, and the drawing. */
 .board__wall.sketch-wall {
   grid-template-rows: auto auto minmax(0, 1fr);
   grid-template-areas: "top" "head" "stage";
@@ -3303,17 +2616,10 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .sketch-who { margin: 0 0 0 var(--s3); font: 600 var(--t-xl)/1 var(--display); color: var(--dim); }
 .sketch-who .sketch-name { font-weight: 800; }
 .sketch-head { grid-area: head; display: grid; justify-items: center; gap: var(--s3); }
-/* The reveal's word is the hero, one step down so a long word still fits
-   above the drawing it names. */
 .sketch-wall .board__hero { font-size: var(--t-mega); line-height: 0.9; }
 .sketch-rules { margin: 0; max-width: 40rem; font: 500 var(--t-xl)/1.2 var(--display); color: var(--dim); }
 
-/* The drawing keeps its 4:3 and takes whatever the stage gives it. */
 .sketch-stage { grid-area: stage; min-height: 0; width: 100%; display: grid; place-items: center; container-type: size; }
-/* On the board the drawing and the guesses share the stage side by side: the
-   drawing takes what the feed column leaves, and the pair stays centred. The
-   word above keeps the feed's width free on its right, so it centres on the
-   drawing rather than on the pair. */
 .sketch-wall { --chat-w: clamp(14rem, 18vw, 22rem); --chat-gap: var(--s4); }
 .sketch-wall .sketch-head { padding-right: calc(var(--chat-w) + var(--chat-gap)); }
 .sketch-frame {
@@ -3331,9 +2637,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   border-radius: var(--r-md);
 }
 .sketch-frame > .sketch-ink { grid-area: 1 / 1; width: 100%; }
-/* While drawing, the wall's countdown sits on the drawing, centred on it and
-   sized to fit even three digits, over its fill: the fill is opaque, and the
-   seconds should loom through the picture. */
 .sketch-frame > .board__countdown {
   grid-area: 1 / 1;
   place-self: center;
@@ -3342,12 +2645,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   z-index: 1;
   font-size: min(70vh, var(--ink-w) * 0.68);
 }
-.sketch-frame > .sketch-chat { grid-area: 1 / 2; contain: size; } /* the drawing sets the row, never the feed */
+.sketch-frame > .sketch-chat { grid-area: 1 / 2; contain: size; }
 
-/* The guesses as a stream's chat, in their own column beside the drawing, as
-   tall as it. One bottom-anchored list of at most ten one-line entries
-   (SketchChat), each on its own translucent backing. The type steps down with
-   a short drawing so ten still fit. */
 .sketch-chat {
   position: relative;
   min-width: 0;
@@ -3372,19 +2671,14 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   text-overflow: ellipsis;
 }
 .sketch-chat__line.is-got { color: var(--brass); }
-/* A line the chat has let go of: out of the flow, still sliding out as it is wiped away. */
 .sketch-chat__line.is-gone { position: absolute; left: 0; }
 .sketch-chat .sketch-name { font-weight: 800; }
 .sketch-chat .readout { font: 600 0.7em/1 var(--mono); }
 
-/* One slot per hidden letter. Monospaced, so every slot is the same width. */
 .sketch-blanks { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s2); margin: 0; font: 700 var(--t-xl)/1 var(--mono); }
 .sketch-blanks__slot { min-width: 1ch; height: 1.15em; text-align: center; border-bottom: 3px solid var(--dim); }
 .sketch-blanks__gap { width: 1ch; }
 
-/* The phone keeps the quiz phone's blocking: bar, a centred line where the
-   countdown sits, one card filling the middle like the buzzer, and what you
-   act with under it. One gutter, one centre line. */
 .sketch-phone { overflow: hidden; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
 .sketch-phone__line { flex: none; min-height: var(--t-xl); display: grid; place-items: center; text-align: center; }
 .sketch-card {
@@ -3402,8 +2696,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   text-align: center;
 }
 .sketch-card > .pending { align-self: stretch; text-align: left; }
-/* The drawing sits straight on the card, not in a box of its own, and stays
-   with its word as one centred block. */
 .sketch-card .sketch-stage { flex: 0 1 auto; container-type: inline-size; }
 .sketch-card .sketch-ink { width: 100%; max-height: 100%; border: 0; background: none; }
 .sketch-card__title { margin: 0; font: 800 var(--t-mega)/0.9 var(--display); color: var(--tungsten); text-transform: uppercase; }
@@ -3413,13 +2705,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .sketch-card__word { margin: 0; font: 800 var(--t-xl)/1 var(--display); color: var(--brass); text-transform: uppercase; overflow-wrap: anywhere; }
 .sketch-card .sketch-blanks { font-size: var(--t-lg); }
 .sketch-phone__foot { flex: none; display: grid; gap: var(--s2); text-align: center; }
-/* Around the drawing (guessing, got it, the reveal): the card holds only the
-   drawing and the word, and what follows sits right under it, near the
-   phone's middle. The keyboard opens below the field instead of over it, and
-   the result lands in the same place the field was. The space under the
-   foot is the keyboard's. */
 .sketch-phone--tight .sketch-card { flex: 0 1 auto; padding-block: var(--s3); gap: var(--s3); }
-/* A phone that shrinks the page for its keyboard shrinks the drawing, not the field. */
 .sketch-phone--tight .sketch-stage { min-height: 0; }
 .sketch-phone--tight::after { content: ''; flex: 1; }
 .sketch-phone__foot > .pending { text-align: left; }
@@ -3434,8 +2720,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .sketch-guess__field { font-size: var(--t-lg); padding: var(--s3); border-radius: var(--r-md); background: var(--raise); }
 .sketch-guess__send { min-height: 3rem; }
 
-/* Drawing, sideways (see .sideways--*): the drawing takes the full height on
-   the left, and the name, the word, the clock and the tools stack on the right. */
 .sketch-phone--draw {
   display: grid;
   grid-template-columns: minmax(0, 1fr) clamp(10rem, 28%, 14rem);
@@ -3454,11 +2738,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .sketch-tools { grid-area: tools; display: grid; gap: var(--s2); }
 .sketch-tools .btn { min-height: 3rem; padding-inline: var(--s2); }
 
-/*
- * Poker: the late room. Felt runs to every edge under one lamp and falls into
- * the dark; words are printed into the cloth; cards, chips and the dealer
- * puck are physical props. All colours come from the prop tokens in tokens.css.
- */
 .felt {
   position: relative;
   isolation: isolate;
@@ -3472,7 +2751,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
     radial-gradient(ellipse 70% 65% at 46% 44%, var(--felt), var(--felt-deep) 65%, var(--felt-rim));
   background-color: var(--felt-rim);
 }
-/* Under everything on the table, in or out of flow, blending only with the cloth. */
 .felt::before { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: var(--felt-lit) 0 0 / 200px 200px; mix-blend-mode: soft-light; opacity: 0.35; }
 .felt__lamp { position: absolute; pointer-events: none; }
 .felt__lamp--centre { inset: 0; background: radial-gradient(ellipse 48% 44% at 44% 45%, rgb(255 196 120 / 0.1), transparent 72%); }
@@ -3491,13 +2769,10 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .poker-phone--turn .felt__lamp--phone { opacity: 1; }
 
-/* Printed into the cloth: an impression, and thin ink over it with the grain showing through. */
 .felt-mark { display: inline-grid; font-family: var(--display); text-transform: uppercase; letter-spacing: 0.14em; line-height: 1; }
 .felt-mark > * { grid-area: 1 / 1; }
-/* Painted onto the pile: gold that took on most fibres and missed some, seated by the pile around it. */
 .felt-mark__press { color: var(--felt-press); translate: 0 1px; filter: blur(1px); }
 .felt-mark__ink {
-  /* The felt's own grain and nap over the paint, at the felt's scale, so painted pile reads as the same cloth. */
   background:
     var(--felt-streaks) 0 0 / 160px 160px,
     var(--felt-grain) 0 0 / 220px 220px,
@@ -3524,8 +2799,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .felt-line__shade { stroke: var(--felt-press); stroke-width: 4; filter: blur(1px); }
 .felt-line__sheen { stroke: var(--felt-ink); stroke-width: 4; opacity: 0.7; }
 
-/* A poker-size card, 63 × 88 mm, with a face and a back to turn between. */
-/* Resting prop geometry and the phone's small pickup lift. Traveling Pieces animate transforms, shadows and turn shading directly, so these inherited lighting inputs stay fixed. */
 @property --piece-x { syntax: '<number>'; inherits: true; initial-value: 0; }
 @property --piece-y { syntax: '<number>'; inherits: true; initial-value: 0; }
 @property --piece-lift { syntax: '<number>'; inherits: true; initial-value: 0; }
@@ -3540,13 +2813,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   perspective: calc(var(--w) * 8);
   isolation: isolate;
   vertical-align: middle;
-  /* One lamp hangs over the table at (--lamp-x, --lamp-y), so every shadow
-     falls away from it: barely at all under the lamp, longer toward the rail.
-     A card at rest casts it past one or two edges; the higher a card is
-     carried, the further off and softer it falls, spreading all round. The
-     fall is turned back against the card's own rotation, so a spinning card's
-     shadow keeps to the lamp. With no lamp set (a phone), it hangs far above
-     the top of the screen. */
   --h: calc(max(0, var(--piece-lift)) * 20);
   --dx: calc(var(--piece-x) - var(--lamp-x, var(--piece-x)));
   --dy: calc(var(--piece-y) - var(--lamp-y, calc(var(--piece-y) - 1000)));
@@ -3557,14 +2823,11 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   --sx: calc(var(--wx) * cos(var(--piece-rot) * 1deg) + var(--wy) * sin(var(--piece-rot) * 1deg));
   --sy: calc(var(--wy) * cos(var(--piece-rot) * 1deg) - var(--wx) * sin(var(--piece-rot) * 1deg));
   --fall: calc(var(--w) * var(--far) * (var(--card-shadow-rest) + var(--card-shadow-drop) * var(--h)));
-  /* How far a card turning over stands up off the felt: 0 lying flat, 1 on its edge. */
   --side: max(sin(var(--piece-turn) * 1deg), -1 * sin(var(--piece-turn) * 1deg));
 }
 .poker-card__turn { position: absolute; inset: 0; transform-style: preserve-3d; transform: rotateY(180deg); transition: transform 360ms cubic-bezier(0.2, 0.7, 0.2, 1); }
 .poker-card--up .poker-card__turn { transform: rotateY(0deg); }
-/* A hinged card is turned over by its Piece, rocking on the hinge rather than spinning in place. */
 .poker-card--hinged .poker-card__turn { transform-origin: calc(var(--hinge) * 100%) 50%; transform: rotateY(calc(var(--piece-turn) * 1deg)); transition: none; }
-/* The lamp is overhead, so a card tipped up on its edge catches less of it: its face (or back) darkens as it stands. A flat layer rather than a shadow, so a turn costs no blur. */
 .poker-card__shade {
   position: absolute;
   inset: 0;
@@ -3585,7 +2848,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
     inset 0 1px 0 rgb(255 255 255 / 0.8),
     calc(var(--sx) * var(--far) * 1px) calc(var(--sy) * var(--far) * 1px) 0 var(--card-edge);
 }
-/* Separate silhouettes keep the card print and blur cached during motion. */
 .poker-card__shadow { position: absolute; inset: 0; z-index: -1; border-radius: calc(var(--w) * 0.056); background: #000; pointer-events: none; }
 .poker-card__shadow--contact { opacity: var(--card-shadow-contact); filter: blur(calc(var(--w) * 0.006)); transform: translate(calc(var(--sx) * var(--fall)), calc(var(--sy) * var(--fall))); }
 .poker-card__shadow--ambient { opacity: var(--card-shadow-ambient); filter: blur(calc(var(--w) * 0.06)); transform: translate(calc(var(--sx) * var(--fall) * 2), calc(var(--sy) * var(--fall) * 2)); }
@@ -3633,12 +2895,10 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .poker-card--win .poker-card__face { box-shadow: inset 0 0 0 1px rgb(70 52 30 / 0.2), 0 0 0 2px var(--brass), 0 0 calc(var(--w) * 0.3) rgb(201 162 39 / 0.45), 0 calc(var(--w) * 0.12) calc(var(--w) * 0.3) rgb(0 0 0 / 0.45); }
 .poker-card--dim { filter: brightness(0.42) saturate(0.6); }
 
-/* Nearly round tops over thin striped edges: cheap upright stacks on flat felt.
-   Only the stack casts a blurred shadow, using the same centre lamp as cards. */
 .poker-stack {
   --diameter: calc(var(--card-w, 72px) * 0.64);
-  --face-height: calc(var(--diameter) * 0.9); /* CHIP_FACE in toss.ts */
-  --step: calc(var(--diameter) * 0.05); /* CHIP_STEP in toss.ts */
+  --face-height: calc(var(--diameter) * 0.9);
+  --step: calc(var(--diameter) * 0.05);
   --dx: calc(var(--piece-x) - var(--lamp-x, var(--piece-x)));
   --dy: calc(var(--piece-y) - var(--lamp-y, calc(var(--piece-y) - 1000)));
   --reach: var(--lamp-reach, 1000);
@@ -3650,9 +2910,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   display: inline-block;
   isolation: isolate;
   width: var(--diameter);
-  /* Clay inks run rich under the lamp. */
   filter: saturate(1.3);
-  /* Only the bottom chip's footprint: a taller stack rises above its spot, never sinks below it. */
   height: calc(var(--face-height) + var(--step));
 }
 .poker-stack::before {
@@ -3670,7 +2928,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
     var(--cast-x) var(--cast-y) calc(var(--diameter) * 0.055) rgb(0 0 0 / 0.5);
   pointer-events: none;
 }
-/* A stack landing on another, a stack drawn over its shadow, or one with nothing there yet: no shadow of its own. */
 .poker-stack--unshaded::before { content: none; }
 .poker-chip {
   --c: var(--chip-1);
@@ -3691,7 +2948,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .poker-chip::before {
   translate: 0 var(--step);
   background:
-    /* Away from the lamp is 90deg: the whole far quarter either side of it stays near black before easing to the lit side. */
     conic-gradient(from calc(var(--light-angle) + 90deg),
       rgb(0 0 0 / 0.3), rgb(0 0 0 / 0.86) 45deg, rgb(0 0 0 / 0.9) 90deg, rgb(0 0 0 / 0.86) 135deg,
       rgb(0 0 0 / 0.3) 180deg, rgb(255 255 255 / 0.14) 270deg,
@@ -3700,7 +2956,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   box-shadow: inset 0 -1px 0 rgb(0 0 0 / 0.4);
 }
 .poker-chip::after {
-  /* A matte top's diffuse hotspot: faint and slow to fall off, on the side facing the lamp, fading the further the stack stands from it. */
   --far: min(1, calc(hypot(var(--dx), var(--dy)) / var(--reach)));
   background:
     radial-gradient(ellipse 75% 75% at calc(50% - var(--dx) / var(--reach) * 40%) calc(50% - var(--dy) / var(--reach) * 40%),
@@ -3710,8 +2965,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
     repeating-conic-gradient(from 8deg, var(--chip-spot) 0 12deg, var(--c) 12deg 45deg);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3), inset 0 -1px 0 rgb(0 0 0 / 0.25);
 }
-/* Taller neighbours' shadows across a top chip, clipped to its face. Each starts as the caster's column, a chip-sized
-   disc centred where the caster stands, and runs `--len` away from the lamp. */
 .poker-chip__shades { position: absolute; inset: 0; z-index: 1; border-radius: 50%; overflow: hidden; pointer-events: none; }
 .poker-chip__shade {
   position: absolute;
@@ -3740,16 +2993,13 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 }
 .poker-puck__word { font-family: var(--display); font-weight: 800; font-size: calc(var(--card-w, 72px) * 0.13); letter-spacing: 0.12em; text-transform: uppercase; color: var(--card-ink); }
 
-/* The board: felt to every edge, a HUD in the dark top-left, the log in the dark right. */
 .poker-room { display: block; position: relative; padding: 0; }
 .felt--board { position: absolute; inset: 0; }
-/* Its own layer: pieces order among themselves (a dealt card over chips) but never rise above seats, floats or banners. */
 .poker-layer { position: absolute; inset: 0; isolation: isolate; }
 .poker-piece { position: absolute; left: 0; top: 0; }
 .poker-fold { display: block; }
 .poker-piece--glide { transition: transform 640ms cubic-bezier(0.16, 1, 0.3, 1); }
 .poker-piece--dealt { z-index: 2; }
-/* A corral is a point: its stacks stand around it. */
 .poker-corral { position: relative; display: block; width: 0; height: 0; }
 .poker-corral__stack { position: absolute; left: 0; top: 0; }
 .poker-logo { position: absolute; left: 0; top: 0; display: grid; justify-items: center; gap: var(--s2); pointer-events: none; }
@@ -3767,7 +3017,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .poker-seat__ring { position: absolute; top: 0.1em; right: -1.9rem; width: 1.5rem; height: 1.5rem; }
 .poker-seat__said { font-family: var(--display); font-size: clamp(0.75rem, 0.95vw, 1.05rem); letter-spacing: 0.1em; text-transform: uppercase; color: rgb(245 240 230 / 0.78); text-shadow: 0 1px 6px rgb(0 0 0 / 0.9); }
 .poker-allin { padding: 0.15em 0.55em; border-radius: 3px; background: var(--tally); color: var(--hot); font-family: var(--display); font-weight: 800; font-size: clamp(0.8rem, 1vw, 1.1rem); letter-spacing: 0.1em; text-transform: uppercase; box-shadow: 0 3px 10px rgb(0 0 0 / 0.5); }
-/* A rubber stamp on the felt: a boxed word in thin ink, unevenly taken, across the lower edge of the name. */
 .poker-seat__out {
   position: absolute;
   left: 50%;
@@ -3798,7 +3047,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .poker-pot__side { font-family: var(--display); font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--felt-ink); }
 .poker-handname { position: absolute; left: 0; top: 0; font-family: var(--display); font-weight: 800; font-size: clamp(1.3rem, 2.4vw, 2.8rem); text-transform: uppercase; letter-spacing: 0.06em; color: var(--brass); text-shadow: 0 2px 14px rgb(0 0 0 / 0.85); white-space: nowrap; pointer-events: none; }
 .poker-float { position: absolute; translate: -50% -100%; margin: 0; padding: 0.2em 0.7em; border-radius: 999px; background: rgb(12 10 8 / 0.72); color: var(--id, var(--chalk)); font-family: var(--display); font-weight: 700; font-size: clamp(1rem, 1.3vw, 1.5rem); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; pointer-events: none; }
-/* A dark oval under the banner, so it reads over whatever the table is doing. */
 .poker-banner {
   position: absolute; left: 44%; top: 22%; translate: -50% -50%;
   display: grid; place-items: center;
@@ -3814,7 +3062,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .poker-hud__num { font-variant-numeric: tabular-nums; }
 .poker-hud__next, .poker-hud__hand { font-size: var(--t-md); color: var(--dim); }
 .poker-log { position: absolute; right: var(--s5); bottom: var(--s5); z-index: 1; width: min(21rem, 18vw); }
-/* The join code in the dark top-right, clear of the seats' oval (centred at 0.44) and the log below. */
 .felt--board > .board__qr { position: absolute; top: var(--s4); right: var(--s5); z-index: 1; margin: 0; }
 .poker-log ol { display: grid; gap: var(--s2); margin: 0; padding: 0; list-style: none; }
 .poker-log li { font-size: clamp(0.8rem, 0.9vw, 1rem); line-height: 1.35; color: rgb(245 240 230 / 0.82); text-shadow: 0 1px 4px rgb(0 0 0 / 0.9); }
@@ -3830,7 +3077,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .poker-rules { margin: 0; max-width: 46ch; color: rgb(245 240 230 / 0.72); }
 .poker-patch { position: relative; border-radius: var(--r-lg); }
 
-/* The phone: its own patch of felt, a lamp that brightens on your turn, and a leather rail. */
 .poker-phone { position: relative; padding: 0; gap: 0; overflow: hidden; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
 .poker-phone__top { position: relative; z-index: 1; display: flex; align-items: center; gap: var(--s3); padding: var(--s4) var(--s4) 0; }
 .poker-phone__name { margin: 0; font-family: var(--display); font-weight: 800; font-size: var(--t-lg); text-transform: uppercase; letter-spacing: 0.04em; }
@@ -3840,31 +3086,21 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .poker-phone__table { position: relative; z-index: 1; flex: 1; min-height: 0; display: grid; grid-template-rows: auto 1fr auto; align-items: center; padding: var(--s2) var(--s3); touch-action: none; }
 .poker-phone__spot { position: relative; display: grid; place-items: center; min-height: 0; }
 .poker-hole { --card-w: min(58vw, 16rem); position: relative; display: flex; transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease; }
-/* Where peeking begins, painted on the felt like the board's betting line, dashed. Placed from script. */
 .poker-peek-line { z-index: 0; position: absolute; left: 6%; width: 88%; height: 6px; margin-top: -3px; overflow: visible; pointer-events: none; -webkit-mask: var(--paint-fibre) 0 0 / 48px 48px; mask: var(--paint-fibre) 0 0 / 48px 48px; }
 .poker-peek-line line { stroke-dasharray: 10 8; vector-effect: non-scaling-stroke; stroke-width: 2.5; }
 .poker-hole__card { display: block; position: relative; border-radius: calc(var(--card-w) * 0.056); }
-/* Ready to peek: one quick ring of lamplight round each card, out and gone. */
 .poker-hole__card.fx-ripple { --fx-dur: 800ms; --fx-amp: 1.06; }
 .poker-hole__card.fx-ripple::after { box-shadow: 0 0 calc(var(--card-w) * 0.1) calc(var(--card-w) * 0.02) var(--_c); }
-/* Native prints remain measurable and own all motion outside the peek. */
 .poker-hole__card > .poker-card { display: block; }
-/* The pair turns over as one at showdown; its cards never turn on their own. */
 .poker-hole__card .poker-card__turn { transition: none; }
 .poker-hole { align-items: flex-start; z-index: 1; }
-/* On the phone the pair lies close to the cloth: barely a shadow, until a finger picks it up (`--piece-lift`, set from script). */
 .poker-hole { --card-shadow-rest: 0.02; --card-shadow-contact: 0.22; --card-shadow-ambient: 0.04; transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease, --piece-lift 140ms ease; }
-/* The second card lies turned across the first (its tilt is set from script), its centre down and to
-   the right. Turned, it reaches past its box to the right and below; the margins centre what shows. */
 .poker-hole__card + .poker-hole__card { margin-left: calc(var(--card-w) * -0.85); margin-top: calc(var(--card-w) * 0.145); }
 .poker-hole { margin: 0 calc(var(--card-w) * 0.15) calc(var(--card-w) * 0.14) 0; }
-/* Turned over at showdown the pair lies mirrored: the cards swap sides and the one that was underneath is on top. */
 .poker-hole--turned { flex-direction: row-reverse; }
 .poker-hole--turned .poker-hole__card + .poker-hole__card { margin-left: 0; margin-right: calc(var(--card-w) * -0.85); }
 .poker-hole--turned { margin: 0 0 calc(var(--card-w) * 0.14) calc(var(--card-w) * 0.15); }
 .poker-hole--turned .poker-hole__card:first-child { z-index: 1; }
-/* Squared up for the showdown, the pair lies side by side in a slight fan (tilts set from script), slid
-   into place before it turns over; turned, it lands mirrored at once. */
 .poker-hole--square, .poker-hole--square.poker-hole--turned { margin: 0; }
 .poker-hole--square .poker-hole__card + .poker-hole__card { margin-top: 0; margin-left: calc(var(--card-w) * -0.72); }
 .poker-hole--square.poker-hole--turned .poker-hole__card + .poker-hole__card { margin-left: 0; margin-right: calc(var(--card-w) * -0.72); }
@@ -3873,10 +3109,8 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .poker-phone__still { position: relative; z-index: 1; flex: 1; display: grid; place-content: center; justify-items: center; gap: var(--s3); text-align: center; }
 .poker-phone__big { font-size: var(--t-mega); }
 .poker-phone__small { font-size: var(--t-lg); }
-/* Out of the hand: the street's cards and the pot, as the board shows them, and one line saying why and until when. */
 .poker-phone__street { display: grid; justify-items: center; gap: var(--s4); }
 .poker-phone__street .felt-mark, .poker-phone__out { font-weight: 700; }
-/* Five slots always laid out, as on the board: a new street never moves the cards already down, nor the pot. */
 .poker-phone__board { --card-w: min(16vw, 4.5rem); display: grid; grid-template-columns: repeat(5, var(--card-w)); gap: calc(var(--card-w) * 0.1); min-height: calc(var(--card-w) * 1.4); }
 .poker-phone__slot { grid-row: 1; }
 .poker-phone__out { display: grid; width: fit-content; margin-inline: auto; padding-bottom: var(--s3); font-size: var(--t-lg); line-height: 1.2; text-align: center; white-space: pre-line; }
@@ -3930,14 +3164,10 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .poker-plaque--go { background: linear-gradient(180deg, #dcb84c, #a8841c); color: #1a1206; border-color: #6d5410; }
 .poker-plaque--quiet { background: transparent; box-shadow: none; border-color: rgb(236 223 196 / 0.25); }
 .poker-plaque:focus-visible, .poker-token:focus-visible { outline: 2px solid var(--tungsten); outline-offset: 2px; }
-/* Fixed rows: a fraction glyph the display face lacks comes from a fallback font with taller lines, which would nudge the slider. */
 .poker-sheet__amount { display: grid; grid-template-rows: 1.3em auto; justify-items: center; line-height: 1.1; margin: 0; font-family: var(--display); font-size: var(--t-lg); letter-spacing: 0.1em; text-transform: uppercase; text-align: center; color: var(--brass); }
 .poker-sheet__amount b { font-family: var(--mono); font-weight: 400; font-size: calc(var(--t-mega) * 1.25); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; line-height: 1; color: #f6ead0; text-shadow: 0 2px 10px rgb(0 0 0 / 0.5); }
-/* What a step changed bumps once: up a size, then settles. */
 .poker-bump { display: inline-block; animation: poker-bump 220ms cubic-bezier(0.16, 1, 0.3, 1); }
 @keyframes poker-bump { from { transform: scale(1.18); filter: brightness(1.35); } }
-/* A bet as thick bars, name and number printed inside. The print is laid twice; the inverse copy is
-   clipped to `--cover`, the share the fill covers, so the words flip colour exactly at the fill's edge. */
 .poker-meter { --edge: 1.75rem; width: calc(100% - 2 * var(--edge)); justify-self: center; transition: opacity 200ms ease; }
 .poker-meter__bar { position: relative; display: block; height: 1.9rem; border-radius: 0.55rem; background: rgb(0 0 0 / 0.4); box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.55); }
 .poker-meter__print { position: absolute; inset: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 0.4rem; font-family: var(--display); font-weight: 800; font-size: var(--t-md); letter-spacing: 0.06em; text-transform: uppercase; color: #f6ead0; }
@@ -3948,34 +3178,25 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .poker-meter__bar i + i { transform: translateX(calc(var(--one) * 100%)) scaleX(0); background: #e2614f; }
 .poker-meter__bar.is-over i:first-child { border-radius: 0.55rem 0 0 0.55rem; }
 .poker-meter__bar.is-over i + i { transform: translateX(calc(var(--one) * 100%)) scaleX(calc(1 - var(--one))); border-radius: 0 0.55rem 0.55rem 0; }
-/* With each peak of the glow, one soft ring leaves the overbet and fades. */
 .poker-meter__bar.is-over i + i::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: rgb(226 97 79 / 0.5); filter: blur(0.3rem); opacity: 0; animation: poker-overbet-ring 1.38s ease-out -0.69s infinite; }
 @keyframes poker-overbet-ring { from { opacity: 1; transform: scale(1, 1); } to { opacity: 0; transform: scale(1.03, 2.1); } }
-/* The one-pot mark, where the overbet begins. */
 .poker-meter__bar.is-over::before { content: ''; position: absolute; z-index: 1; left: calc(var(--one) * 100% - 1px); top: -0.25rem; bottom: -0.25rem; width: 2px; border-radius: 1px; background: #f0a24a; }
 .poker-meter__bar.is-over i + i::before { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: 0 0 0.6rem rgb(226 97 79 / 0.75); animation: poker-overbet 0.69s ease-in-out infinite alternate; }
 @keyframes poker-overbet { from { opacity: 0; } to { opacity: 1; } }
-/* A bigger share of the stack warms toward red. */
 .poker-meter--stack .poker-meter__bar i { background: color-mix(in oklab, #e2614f calc(var(--fill) * 100%), var(--brass)); }
-/* Over each notch its stop's name, on the slider's own spacing: `--i` of `--stops`, inset half a thumb. */
 .poker-sheet__stops { --thumb: 2.4rem; position: relative; height: 1.4rem; margin: 0 0 -0.5rem; padding: 0; list-style: none; }
 .poker-sheet__stops li { position: absolute; bottom: 0; left: calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--i) / var(--stops)); transform: translateX(-50%); padding: 0 0.1rem; font-family: var(--display); font-size: var(--t-sm); letter-spacing: 0.04em; white-space: nowrap; text-transform: uppercase; color: var(--felt-ink); transition: color 120ms ease, transform 120ms ease; }
 .poker-sheet__stops li.is-on { color: var(--brass); transform: translateX(-50%) scale(1.15); }
-/* The slider and its stops keep clear of the screen's sides, where an edge swipe changes apps. */
 .poker-sheet__stops, .poker-sheet__slider { --edge: 1.75rem; width: calc(100% - 2 * var(--edge)); justify-self: center; }
-/* The raise sheet rises over the rail rather than replacing it, so the table above never moves. */
 .poker-rail--sheet { position: absolute; z-index: 3; left: 0; right: 0; bottom: 0; }
-/* The raise slider: a groove cut in the leather, brass filled up to a chip that clicks stop to stop over pip notches. */
 .poker-sheet__slider { --thumb: 2.4rem; --groove: 0.6rem; height: 2.8rem; margin: 0; -webkit-appearance: none; appearance: none; background: transparent; touch-action: none; }
 .poker-sheet__slider::-webkit-slider-runnable-track { --at: calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--pos)); --pip: radial-gradient(circle at 0.2rem 50%, rgb(246 234 208 / 0.4) 0 0.12rem, transparent 0.15rem); height: 100%; background:
-  /* Landmark dots on the 1/2 pot and pot notches (`--half`, `--whole`: their stop numbers, or off the rail when absent). */
   radial-gradient(circle at calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--half) / var(--stops)) 50%, #f6ead0 0 0.24rem, transparent 0.28rem),
   radial-gradient(circle at calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--whole) / var(--stops)) 50%, #f6ead0 0 0.24rem, transparent 0.28rem),
   var(--pip) calc(var(--thumb) / 2 - 0.2rem) center / calc((100% - var(--thumb)) / var(--stops)) 0.4rem repeat-x,
   linear-gradient(90deg, #8a6a32, var(--brass)) calc(var(--thumb) / 2 - var(--groove) / 2) center / calc(var(--at) - var(--thumb) / 2 + var(--groove) / 2) var(--groove) no-repeat,
   linear-gradient(rgb(0 0 0 / 0.5), rgb(0 0 0 / 0.25)) calc(var(--thumb) / 2 - var(--groove) / 2) center / calc(100% - var(--thumb) + var(--groove)) var(--groove) no-repeat;
   border-radius: 99px; }
-/* The thumb is a chip: a red body, a cream inlay, and the edge spots chips have. */
 .poker-sheet__slider::-webkit-slider-thumb { -webkit-appearance: none; width: var(--thumb); height: var(--thumb); margin-top: calc((2.8rem - var(--thumb)) / 2); border-radius: 50%; background:
   radial-gradient(circle, #b8322c 0 38%, #f2e6c9 39% 44%, #b8322c 45% 66%, transparent 67%),
   repeating-conic-gradient(#f2e6c9 0 12deg, #b8322c 12deg 45deg);
@@ -3983,18 +3204,12 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .poker-sheet__slider:active::-webkit-slider-thumb { transform: scale(1.1); }
 .poker-sheet__slider::-moz-range-thumb { width: var(--thumb); height: var(--thumb); border: 0; border-radius: 50%; background: #b8322c; }
 
-/* Facing a bet, the call is painted on the felt above the tap line, in the felt's own ink: what it
-   costs, what it wins, and the same two bars as raising, side by side and drawn as paint. Its room is
-   always kept, so the cards sit clear of it and never move when it comes and goes. */
 .poker-call { display: grid; gap: 0.3rem; justify-items: stretch; padding: 0 var(--s3); pointer-events: none; color: var(--felt-ink); -webkit-mask: var(--paint-fibre) 0 0 / 48px 48px; mask: var(--paint-fibre) 0 0 / 48px 48px; transition: opacity 240ms ease; }
 .poker-call.is-off { opacity: 0; }
-/* The headline stands clear below the turned card's low tip. */
 .poker-call { margin-top: 1.25rem; }
 .poker-call__arc { max-width: 22rem; margin-bottom: -0.4rem; }
 .poker-call__arc text { font-size: 24px; }
 .poker-call__meters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s4); width: min(100%, 24rem); justify-self: center; }
-/* On the felt the bars are painted: an inked outline filled with the same ink, the overbet in red
-   paint, and the words where the fill covers them left bare, the baize showing through. */
 .poker-call .poker-meter { width: auto; justify-self: stretch; }
 .poker-call .poker-meter__bar { background: transparent; box-shadow: inset 0 0 0 1.5px rgb(from var(--felt-ink) r g b / 0.55), 0 1.2px 1px var(--felt-press); }
 .poker-call .poker-meter__bar i { background: var(--felt-ink); opacity: 0.9; }
@@ -4002,18 +3217,14 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .poker-call .poker-meter--stack .poker-meter__bar i { background: color-mix(in oklab, #d9574a calc(var(--fill) * 100%), var(--felt-ink)); }
 .poker-call .poker-meter__print { color: var(--felt-ink); text-shadow: 0 1.2px 1px var(--felt-press); }
 .poker-call .poker-meter__print.is-inv { color: var(--felt); text-shadow: none; }
-/* The table words at the foot of the felt and the call between them sit low, into the table's bottom padding. */
 .poker-phone__foot { transform: translateY(0.6rem); }
-/* The tap line keeps a little air under the call's bars. */
 .poker-phone__foot > .felt-arc { transform: translateY(0.4rem); }
 
-/* Peek owns the whole pair in one GPU surface, preserving the native cards' hit boxes. */
 .poker-peek-canvas { position: absolute; visibility: hidden; pointer-events: none; z-index: 5; }
 .poker-hole--gpu-peek > .poker-peek-canvas { visibility: visible; }
 .poker-hole--gpu-peek > .poker-hole__card > .poker-card { visibility: hidden; }
 .poker-hole--peek-fallback .poker-card__turn { transform: rotateY(0deg); }
 
-/* The shared Ready control on every minigame phone while the match waits. */
 .minigame-ready {
   position: fixed;
   left: 0;
@@ -4023,11 +3234,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   padding: var(--s3) var(--s3) calc(var(--s3) + env(safe-area-inset-bottom));
   background: var(--panel);
 }
-/*
- * While the bar shows, the stage is the screen minus the bar: the game surface
- * fills what is left and scrolls inside it, so Volunteer, a foot or a stick
- * never sits under the button. The bar is one button tall plus its padding.
- */
 .minigame-stage { display: contents; }
 .minigame-stage--ready {
   display: block;
@@ -4039,9 +3245,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .minigame-ready__btn { width: 100%; min-height: 3.5rem; }
 .minigame-ready__btn.is-on { border-color: var(--brass); color: var(--brass); }
 
-/* ============================================================
- * RECAP: the keepsake page a phone opens from the finale's code
- * =================================================================== */
 .recap {
   min-height: 100dvh;
   padding: var(--s5) var(--s4);
@@ -4058,7 +3261,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .recap__title { font-size: var(--t-sm); letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); }
 .recap__name { font-family: var(--display); font-weight: 800; font-size: var(--t-xl); }
 .recap__detail { color: var(--dim); }
-/* --- the closest question's pad: the typed number large, then the keys ---- */
 .pad { flex: 1; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--s2); }
 .pad__top { display: flex; gap: var(--s2); min-width: 0; }
 .pad__value {
@@ -4081,7 +3283,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   white-space: nowrap;
 }
 .pad__value.is-empty { color: var(--dim); }
-/* Sized against the box it sits in, by how many characters it holds. */
 .pad__digits { font-size: min(1em, calc(190cqw / var(--len))); }
 .pad__unit { font-weight: 500; font-size: 0.45em; color: var(--dim); }
 .pad__keys { min-height: 0; display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: minmax(2.25rem, 1fr); gap: var(--s2); }

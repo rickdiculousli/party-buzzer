@@ -1,12 +1,3 @@
-/**
- * What the night's ledger says, derived: the one-line milestones shown while
- * play goes on, and the cards the finale cycles. Pure, like `shared/wall.ts`:
- * facts in, words out, with no clock and no DOM, so the board, the `/recap`
- * page and the file written at the finale all read the night the same way.
- *
- * Only positive or neutral facts become cards. There is deliberately no slowest,
- * most wrong or fewest points: a recap that embarrasses a guest is not a keepsake.
- */
 import type { Night, NightFact, ScoreKey, State } from './protocol.ts'
 
 type Roster = Pick<State, 'players' | 'teams' | 'grouping' | 'scores'>
@@ -22,16 +13,11 @@ export type Milestone = {
 
 export type RecapCard = { id: string; title: string; name: string; detail?: string }
 
-/** Every block of the setlist has been played (the `idle:finale` condition). */
 export function setlistSpent(s: Pick<State, 'setlist'>): boolean {
   const setlist = s.setlist
   return !!setlist && setlist.blocks.length > 0 && setlist.at >= setlist.blocks.length
 }
 
-/**
- * A team's name in a teams grouping, otherwise the player's. A player who has
- * left the room is still named: the facts carry the name they played under.
- */
 export function labelFor(roster: Pick<Roster, 'players' | 'teams' | 'grouping'>, key: ScoreKey, night?: Night): string {
   if (roster.grouping === 'teams') {
     const team = roster.teams.find((t) => t.id === key)
@@ -42,7 +28,6 @@ export function labelFor(roster: Pick<Roster, 'players' | 'teams' | 'grouping'>,
 
 const labelOf = labelFor
 
-/** The last name the ledger saw a player under, when the key is a player's own. */
 function rememberedName(night: Night | undefined, key: ScoreKey): string | undefined {
   if (!night) return undefined
   for (let i = night.facts.length - 1; i >= 0; i--) {
@@ -56,7 +41,6 @@ function rememberedName(night: Night | undefined, key: ScoreKey): string | undef
   return undefined
 }
 
-/** When the night began: its first fact, if it has one. */
 export function nightStart(night: Night | undefined): number | undefined {
   return night?.facts[0]?.at
 }
@@ -72,7 +56,6 @@ const join = (labels: string[]) => [...new Set(labels)].join(' & ')
 const verdicts = (night: Night): Verdict[] =>
   night.facts.filter((f): f is Verdict => f.kind === 'verdict')
 
-/** The key holding first place outright, or null while two share it. */
 function uniqueTop(f: Standings): ScoreKey | null {
   const [a, b] = f.order
   return a && (!b || b.score !== a.score) ? a.key : null
@@ -80,13 +63,6 @@ function uniqueTop(f: Standings): ScoreKey | null {
 
 type Run = { key: ScoreKey; length: number; questionId: string; at: number }
 
-/**
- * Each key's runs of consecutive questions it got right. A question counts for
- * a key when any hit fact of it carries that key, so a question answered by
- * someone else, or by nobody, ends the run. Minigames, items and standings
- * facts sit between questions without touching a run. Returns every length a
- * run reached (one entry per step), in ledger order.
- */
 function runSteps(night: Night): Run[] {
   const questions = new Map<string, { hits: Map<ScoreKey, number> }>()
   const keys = new Set<ScoreKey>()
@@ -116,16 +92,9 @@ function runSteps(night: Night): Run[] {
 
 type Comeback = { key: ScoreKey; worst: number; now: number; best: number; at: number; fact: Standings }
 
-/** Competition rank, zero-based: how many keys score strictly more. Everyone on 0 is first, nobody is last. */
 const rankOf = (order: Standings['order'], i: number): number =>
   order.filter((o) => o.score > order[i]!.score).length
 
-/**
- * A key reaching the podium from the bottom half, once per key; needs a field
- * of four or more. The podium stops short of the bottom half, so in a field of
- * four it is the top two: "3rd to 3rd" is not a climb. `now` is the rank at the
- * climb (the milestone), `best` the best rank held from then on (the card).
- */
 function comebacks(night: Night): Comeback[] {
   const out: Comeback[] = []
   const worst = new Map<ScoreKey, number>()
@@ -181,19 +150,12 @@ function ranked(night: Night, roster: Roster): { at: number; m: Milestone }[] {
   return out.sort((a, b) => a.at - b.at)
 }
 
-/** One-line recognitions in ledger order. */
 export function milestones(night: Night, roster: Roster): Milestone[] {
   return ranked(night, roster).map((r) => r.m)
 }
 
-/**
- * The first correct answer of the night makes its scorer the first outright
- * leader in the same breath, so it outranks that; after it, a change at the top
- * beats a climb beats a run.
- */
 const RANK: Record<Milestone['kind'], number> = { 'first-correct': 4, leader: 3, comeback: 2, streak: 1 }
 
-/** The single line worth saying at this question or match, if any. */
 export function milestoneFor(
   night: Night,
   roster: Roster,
@@ -208,13 +170,11 @@ export function milestoneFor(
   return best?.text ?? null
 }
 
-/** The keys that currently score, best first; ties keep roster order. */
 function currentOrder(roster: Roster): { key: ScoreKey; score: number }[] {
   const keys = roster.grouping === 'teams' ? roster.teams.map((t) => t.id) : roster.players.map((p) => p.id)
   return keys.map((key) => ({ key, score: roster.scores[key] ?? 0 })).sort((a, b) => b.score - a.score)
 }
 
-/** Keys with the best value under `pick` (smaller wins when `low`), at most their labels joined. */
 function bestKeys<T>(items: [ScoreKey, T][], value: (t: T) => number, low: boolean): { keys: ScoreKey[]; value: number } | null {
   let best: number | null = null
   for (const [, t] of items) {
@@ -286,7 +246,6 @@ export function recapCards(night: Night, roster: Roster): RecapCard[] {
     })
   }
 
-  // Not when nobody scored, which is also what a scoreless mode looks like.
   const order = currentOrder(roster)
   if (order.length >= 2 && order[0]!.score !== 0) {
     const [a, b] = order as [typeof order[0], typeof order[0]]
@@ -297,7 +256,6 @@ export function recapCards(night: Night, roster: Roster): RecapCard[] {
   return cards
 }
 
-/** The JSON behind `nights/<date>.json` and `/recap.json`. */
 export function nightKeepsake(state: State, date: string) {
   return {
     version: 1 as const,

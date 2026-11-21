@@ -17,7 +17,6 @@ function stateWithSetlist(blocks: SetlistBlock[]): State {
   return state
 }
 
-/** Records what the setlist asked for rather than applying it. */
 function recorder(): { seen: HostAction[]; apply: (a: HostAction) => void } {
   const seen: HostAction[] = []
   return { seen, apply: (a) => void seen.push(a) }
@@ -46,10 +45,10 @@ test('a spent setlist sits at its end rather than wrapping', () => {
 test('the mode is applied once per block, not once per question', () => {
   const state = stateWithSetlist([block({ count: 3 }), block({ game: 'quizbowl' })])
   const { seen, apply } = recorder()
-  advanceSetlist(state, apply, 0) // 1 of 3
-  advanceSetlist(state, apply, 0) // 2 of 3
+  advanceSetlist(state, apply, 0)
+  advanceSetlist(state, apply, 0)
   assert.equal(seen.filter((a) => a.a === 'setMode').length, 0)
-  advanceSetlist(state, apply, 0) // rolls into quizbowl
+  advanceSetlist(state, apply, 0)
   assert.deepEqual(seen.filter((a) => a.a === 'setMode'), [
     { a: 'setMode', id: 'quizbowl', options: {}, keepScores: true },
   ])
@@ -98,9 +97,9 @@ test('a duel block opens a duel every question; a plain block opens none', () =>
 test('the value is stamped on entry, not re-stamped by every question within the block', () => {
   const state = stateWithSetlist([block({ count: 3, value: 400 })])
   const { seen, apply } = recorder()
-  enterBlock(state, apply, true, 0) // the initial, fresh entry — as the setlist's own setup would do
-  advanceSetlist(state, apply, 0) // still inside the block: not fresh
-  advanceSetlist(state, apply, 0) // still inside the block: not fresh
+  enterBlock(state, apply, true, 0)
+  advanceSetlist(state, apply, 0)
+  advanceSetlist(state, apply, 0)
   assert.equal(
     seen.filter((a) => a.a === 'setValue').length,
     1,

@@ -17,13 +17,10 @@ export function InkPlayer({ state, playerId, connected = true, frame, now, send,
   const seq = useRef(1)
   const [picked, setPicked] = useState<number[]>([])
   const stepAt = ink?.step.at ?? null
-  // Cleared whenever the step leaves 'offer', so a stale pair from a finished
-  // vote never carries into the next one.
   useEffect(() => { if (stepAt !== 'offer') setPicked([]) }, [stepAt])
   const rotation = useSideways()
 
   const nameOf = (id: string) => playerName(state, id)
-  // The quiz phone's identity bar, so you can tell whose phone you picked up.
   const bar = (extra?: ComponentChildren) => <PlayerBar state={state} playerId={playerId} connected={connected}>{extra}</PlayerBar>
 
   if (session.phase === 'ready') return <main class="ink-phone">{bar()}<InkLobby state={state} playerId={playerId} send={send} /></main>
@@ -53,7 +50,6 @@ export function InkPlayer({ state, playerId, connected = true, frame, now, send,
 
   const writerFocus = (): ComponentChildren => {
     if (s.at === 'choosing') {
-      // Each writer's pick is a pip, the same way a team's votes read elsewhere.
       const picks = Object.entries(ink.picks).map(([team, index]) => ({
         player: ink.roster[team as InkTeamName].writer,
         choice: String(index),
@@ -90,11 +86,9 @@ export function InkPlayer({ state, playerId, connected = true, frame, now, send,
     if (s.at === 'clue') {
       return <>
         {kept}
-        {/* Always laid out, so Stop never moves the canvas under a writing finger. */}
         <p class={s.stopped ? 'ink-phone__alert' : 'ink-phone__alert is-hidden'} aria-hidden={!s.stopped}>Stop — finish your letter</p>
         {canvas(ink.turn, ink.row, <>
           <button class="btn" onClick={() => input({ kind: 'endClue' })}>End clue</button>
-          {/* Done waits on a guesser's Stop, and says so while it waits. */}
           <button class={s.stopped ? 'btn btn--major btn--primary' : 'btn'} disabled={!s.stopped} onClick={() => input({ kind: 'done' })}>{s.stopped ? 'Done' : 'Done after Stop'}</button>
         </>)}
       </>
@@ -178,14 +172,12 @@ export function InkPlayer({ state, playerId, connected = true, frame, now, send,
   }
 
   const focus = writer ? writerFocus() : guesserFocus()
-  // Nothing to press: say who this phone is waiting on before what the room is doing.
   const idle = !focus && s.at !== 'choosing' && s.at !== 'over'
   const header = <>
     <InkDefs />
     {bar(writer && s.at !== 'over' && ink.secret && <span class="ink-phone__secret">{ink.secret}</span>)}
     <div class="ink-phone__role">
       <span class={`chip ink-team-chip ink-team-chip--${ink.me.team}`}>{TEAM_LABEL[ink.me.team]} · {writer ? 'Writer' : 'Guesser'}</span>
-      {/* Over, the result card says it. */}
       {idle
         ? <PendingBar label={waitLine(s, ink.turn, ink.me.team)} />
         : s.at !== 'over' && <p class="ink-phone__status">{stepLine(ink, nameOf)}</p>}
@@ -194,14 +186,12 @@ export function InkPlayer({ state, playerId, connected = true, frame, now, send,
   const writing =
     (writer && ours && s.at === 'clue') ||
     (s.at === 'peekWrite' && ink.roster[s.team].writer === playerId)
-  // Writing is always sideways with the phone's left edge down, following autorotation.
   if (writing) {
     return <main class={`ink-phone ink-phone--${ink.me.team} ink-phone--write ${sidewaysClass(rotation)}`}>
       {header}
       {focus}
     </main>
   }
-  // A phone with nothing to press watches the page in play, its current row lit.
   const watching = !focus && s.at !== 'over'
     ? <InkScreen state={state} frame={ink} pad={pad} touches={touches} peekRows={INK_PEEK_ROWS} team={ink.turn} />
     : null

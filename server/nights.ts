@@ -5,7 +5,6 @@ import type { State } from '../shared/protocol.ts'
 
 const queued = new Map<string, { timer: NodeJS.Timeout; json: string }>()
 
-/** The local calendar date the night began on (its first fact), so a party running past midnight keeps one file. */
 export function nightDate(state: State, now = new Date()): string {
   const d = new Date(nightStart(state.night) ?? now.getTime())
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -25,9 +24,7 @@ function write(path: string, dir: string): void {
   }
 }
 
-/** The finale's keepsake, coalesced like `saveState`: a burst of changes writes once, with the latest. */
 export function saveNight(dir: string, state: State, now = new Date()): void {
-  // A cleared night has nothing to keep, and must not blank the file the finale wrote.
   if (!state.night?.facts.length) return
   const date = nightDate(state, now)
   const path = join(dir, `${date}.json`)
@@ -42,7 +39,6 @@ export function saveNight(dir: string, state: State, now = new Date()): void {
   queued.set(path, { timer, json })
 }
 
-/** Write anything outstanding right now; sync so shutdown cannot wait on it. */
 export function flushNights(): void {
   for (const path of [...queued.keys()]) write(path, dirname(path))
 }

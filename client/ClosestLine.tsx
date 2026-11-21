@@ -3,18 +3,10 @@ import type { ClosestMark, ClosestWall } from '../shared/wall.ts'
 import { CLOSEST_REVEAL, closestTimes, formatNumber } from '../shared/closest.ts'
 import type { Round } from '../shared/protocol.ts'
 
-/** A label's width along the line: a margin plus this much per character. Labels scale with the board's width, so the share holds. */
 const LABEL_BASE = 0.02
 const LABEL_CHAR = 0.014
-/** Past this many lanes the line would push the band off a short wall; a crowd that big shares lanes. */
 const MAX_LANES = 4
 
-/**
- * True while a settled closest question's reveal is still playing on the
- * board: phones keep their "Locked" and the standings keep the old scores
- * until it is done, so nobody learns the result before the wall shows it.
- * A browser clock, so it lives here and not in `wallOf`.
- */
 export function useClosestHold(round: Round | undefined, active: boolean): boolean {
   const key = active && round?.kind === 'closest' && round.truth !== undefined ? round.questionId : ''
   const [doneFor, setDoneFor] = useState('')
@@ -27,7 +19,6 @@ export function useClosestHold(round: Round | undefined, active: boolean): boole
   return !!key && doneFor !== key
 }
 
-/** The stamp above the line once the nearest is lit: "Ed +200 · 15 off". */
 export function closestStamp(c: ClosestWall): string {
   const w = c.winners ?? []
   if (!w.length) return 'Nobody'
@@ -36,23 +27,10 @@ export function closestStamp(c: ClosestWall): string {
   return `${who} +${w[0].paid}${w.length > 1 ? ' each' : ''} · ${off}`
 }
 
-/** Guesses of the same number share one label: two names, one number. */
 type Group = { marks: ClosestMark[]; at: number; shift: number; span: number; lane: number; start: number }
 
-/**
- * How far a label sits left of its dot, as a share of its own width: centred,
- * except near the ends of the line, where it slides to stay on the line.
- */
 const shiftAt = (at: number) => Math.min(at / 0.15, 1) * 0.5 + Math.max(0, (at - 0.85) / 0.15) * 0.5
 
-/**
- * Lanes above the line, lowest first, so labels near each other stack rather
- * than overprint. A label sits over every stem, so where it can it also keeps
- * clear of the dot of any label stacked above it, and of any lower label
- * sitting over its own dot: either way a stem would vanish behind a box and
- * leave its label looking like a neighbour's. Overprinting is never chosen
- * while a lane is free of it; past that, the least crowded lane.
- */
 function groups(marks: ClosestMark[]): Group[] {
   const out: Group[] = []
   for (const m of marks) {
@@ -65,7 +43,6 @@ function groups(marks: ClosestMark[]): Group[] {
   for (const g of out) {
     const chars = Math.max(g.marks.map((m) => m.name).join(' · ').length * 0.85, g.marks[0].text.length + 2)
     const face = LABEL_BASE + chars * LABEL_CHAR
-    // A paid label's "+N" chip sits beside the face: right of it, or left at the line's right-hand end.
     const chip = g.marks[0].place ? LABEL_BASE + (String(g.marks[0].paid).length + 2) * LABEL_CHAR : 0
     g.span = face + chip
     g.start = g.at - g.shift * face - (g.shift === 1 ? chip : 0)
@@ -84,14 +61,6 @@ function groups(marks: ClosestMark[]): Group[] {
   return out
 }
 
-/**
- * A closest question in the band below the clue. While the room guesses, a
- * slot per player fills in their colour, never their number, over an empty
- * line. At the reveal the guesses drop onto the line one after another, it
- * holds, the answer runs in from the right, the nearest lights, then the
- * stamp. Those are CSS delays set here from `closestTimes`, the one schedule
- * the phones and the reader also keep, so the board needs no clock for them.
- */
 export function ClosestLine({ c, closed, colorOf }: { c: ClosestWall; closed: boolean; colorOf: (id: string) => string }) {
   const revealed = c.truth !== undefined
   const marks = c.marks ?? []
@@ -106,7 +75,6 @@ export function ClosestLine({ c, closed, colorOf }: { c: ClosestWall; closed: bo
       data-review-id="board:closest"
       style={{ '--lanes': Math.max(3, ...lined.map((g) => g.lane + 1)), '--light-at': ms(t.lightAt) }}
     >
-      {/* Everyone in, or time up: the bar warms for the beat before the answer, as a choice question's does. */}
       <div class={revealed ? 'board__status-row is-gone' : 'board__status-row'}>
         <ol class={closed ? 'board__slots is-closed fx-ripple' : 'board__slots'} data-review-id="board:guessers">
           {c.guessers.map((g, k) => (
@@ -180,7 +148,6 @@ export function ClosestLine({ c, closed, colorOf }: { c: ClosestWall; closed: bo
   )
 }
 
-/** A parked guess's pointer off the end of the line. Drawn, because the display face has no arrows. */
 function Arrow({ flip = false }: { flip?: boolean }) {
   return (
     <svg class="closest__arrow" viewBox="0 0 10 10" aria-hidden="true" style={flip ? { transform: 'scaleX(-1)' } : undefined}>
@@ -189,7 +156,6 @@ function Arrow({ flip = false }: { flip?: boolean }) {
   )
 }
 
-/** The stamp's delay: after the nearest has lit and begun its tada. */
 export function closestStampDelay(c: ClosestWall): string {
   return `${closestTimes(c.marks?.length ?? 0).stampAt}ms`
 }

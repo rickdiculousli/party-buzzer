@@ -4,19 +4,10 @@ import { refuses } from '../shared/legality.ts'
 import type { HostAction, State } from '../shared/protocol.ts'
 import { REFUSAL_TEXT } from './ui.ts'
 
-/**
- * Why the host's Read control must be dead right now, or null. The parent
- * disables Read with this text; the server enforces the same rule.
- */
 export function readBlockedReason(state: State): string | null {
   return arrivalBlocksPlay(state) ? REFUSAL_TEXT['introduction-active'] : null
 }
 
-/**
- * The Play desk's arrival block: Open lobby in a quiet room, the tested count
- * and Close lobby while one is open, Continue while an introduction is up.
- * Informational only; nothing here gates play on readiness.
- */
 export function ArrivalHost({ state, act }: { state: State; act: (action: HostAction) => void }) {
   const arrival = state.arrival
 

@@ -1,20 +1,3 @@
-/**
- * Synthetic self-play for the bow minigame. Fills the room with bots that draw,
- * aim and release like people, so you can watch the board through real matches:
- * crowded targets, arrows glancing off stuck shafts, and mid-air collisions.
- *
- * Like `sim.ts` it is an ordinary client over real sockets. Bots aim by
- * rebuilding the seeded world from projected state (the same seed and
- * participants the server used), solving a shot to a target, then adding
- * their own aim error.
- *
- *   npm run sim-bow                        endless 40-second matches
- *   npm run sim-bow -- 3                   stop after three matches
- *   npm run sim-bow -- 3 20                three 20-second matches
- *   npm run sim-bow -- 3 20 http://box:8080
- *
- * Ctrl-C cancels the match and removes the bots, so your real game is left clean.
- */
 import { setTimeout as sleep } from 'node:timers/promises'
 import { connect, reachable, type Conn } from './conn.ts'
 import { link } from '../server/net.ts'
@@ -28,23 +11,20 @@ const URL = await reachable(argUrl)
 
 type Bot = {
   name: string
-  /** Aim error, one standard deviation, in normalized aim units (1 = 65°). */
   wobble: number
-  /** How long they take to pull the string back, in ms. */
   drawMs: number
-  /** Their breather between shots on top of the reload, in ms. */
   pauseMs: number
   conn?: Conn
   seq: number
 }
 
 const ROSTER: Omit<Bot, 'seq'>[] = [
-  { name: 'Nia', wobble: 0.01, drawMs: 450, pauseMs: 250 }, // sharpshooter
+  { name: 'Nia', wobble: 0.01, drawMs: 450, pauseMs: 250 },
   { name: 'Owen', wobble: 0.03, drawMs: 500, pauseMs: 300 },
-  { name: 'Priya', wobble: 0.02, drawMs: 800, pauseMs: 600 }, // slow and careful
-  { name: 'Sam', wobble: 0.07, drawMs: 250, pauseMs: 60 }, // sprays arrows
+  { name: 'Priya', wobble: 0.02, drawMs: 800, pauseMs: 600 },
+  { name: 'Sam', wobble: 0.07, drawMs: 250, pauseMs: 60 },
   { name: 'Tess', wobble: 0.03, drawMs: 600, pauseMs: 400 },
-  { name: 'Wes', wobble: 0.09, drawMs: 700, pauseMs: 900 }, // here for the snacks
+  { name: 'Wes', wobble: 0.09, drawMs: 700, pauseMs: 900 },
 ]
 
 const gauss = () => {
@@ -54,11 +34,8 @@ const gauss = () => {
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n))
 const log = (s = '') => console.log(s)
 
-// --- aiming -----------------------------------------------------------------
-
 const physics = createBowWorld({ seed: 0, playerIds: [], targets: [] }).config
 
-/** Closest the unobstructed flight gets to `center`, mirroring the server's launch and step. */
 function miss(origin: Vec2, angle: number, tension: number, center: Vec2): number {
   const fromUp = angle * 65 * Math.PI / 180
   const speed = physics.minSpeed + (physics.maxSpeed - physics.minSpeed) * tension
@@ -76,7 +53,6 @@ function miss(origin: Vec2, angle: number, tension: number, center: Vec2): numbe
   return best
 }
 
-/** Grid search for the aim whose flight passes closest to the target's center. */
 function solve(origin: Vec2, center: Vec2) {
   let best = { angle: 0, tension: 1, miss: Infinity }
   for (let angle = -1; angle <= 1; angle += 0.02) {
@@ -88,8 +64,6 @@ function solve(origin: Vec2, center: Vec2) {
   return best
 }
 
-// --- the match --------------------------------------------------------------
-
 async function play(bot: Bot, matchId: string, startsAt: number, endsAt: number, reloadMs: number, shots: ReturnType<typeof solve>[]) {
   const conn = bot.conn!
   const send = (input: { kind: 'aim'; angle: number; tension: number } | { kind: 'release'; at: number }) =>
@@ -99,7 +73,6 @@ async function play(bot: Bot, matchId: string, startsAt: number, endsAt: number,
     const shot = shots[Math.floor(Math.random() * shots.length)]
     const angle = clamp(shot.angle + gauss() * bot.wobble, -1, 1)
     const tension = clamp(shot.tension + gauss() * bot.wobble, 0, 1)
-    // Pull back in steps like a finger would, so the board's aim preview moves.
     const steps = Math.max(1, Math.round(bot.drawMs / 33))
     for (let i = 1; i <= steps; i++) {
       send({ kind: 'aim', angle, tension: tension * i / steps })
@@ -117,8 +90,6 @@ async function main() {
   const host = await connect(URL, 'host')
   const bots: Bot[] = []
   for (const spec of ROSTER) {
-    // Sequence numbers only need to be unique per player per match; a clock start
-    // keeps a rerun from colliding with dispositions the server still remembers.
     const bot: Bot = { ...spec, seq: Date.now() }
     bot.conn = await connect(URL, 'player', bot.name)
     bots.push(bot)
@@ -129,7 +100,6 @@ async function main() {
   const cleanup = () => {
     host.send({ t: 'host', action: { a: 'cancelMinigame' } })
     host.send({ t: 'host', action: { a: 'closeMinigame' } })
-    // Back to Ready: whatever the round held before the match does not come back up.
     host.send({ t: 'host', action: { a: 'next' } })
     for (const bot of bots) host.send({ t: 'host', action: { a: 'kick', playerId: bot.conn!.playerId } })
     log('\n  match closed, bots removed.\n')
@@ -137,7 +107,6 @@ async function main() {
   }
   process.on('SIGINT', cleanup)
 
-  // Bow can only be prepared from an idle round.
   if (host.state()?.round.phase !== 'IDLE') {
     host.send({ t: 'host', action: { a: 'next' } })
     await host.waitFor((s) => s.round.phase === 'IDLE')
@@ -154,7 +123,6 @@ async function main() {
     host.send({ t: 'host', action: { a: 'startMinigame' } })
     const session = (await host.waitFor((s) => s.minigame?.phase === 'countdown')).minigame!
 
-    // Same seed and participants as the server, so the same targets and bow origins.
     const world = createBowWorld({ seed: session.options.seed, playerIds: session.participants })
     log('')
     log(`  ── Match ${m}  ·  ${session.participants.length} players  ·  seed ${session.options.seed}`)

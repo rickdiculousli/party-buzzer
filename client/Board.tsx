@@ -27,33 +27,13 @@ import { RevealPicture, RevealStakes } from './RevealPicture.tsx'
 
 type Mark = BuzzEntry & { lane: number }
 
-/**
- * The name owning the stage. `fx-hero-slam-glow` is a mount animation, so the
- * arrival is the DOM node's lifetime — which makes "a different hero is a
- * different element" a rule, not a call site's discretion — and "the same
- * person, judged" a recolour rather than a second arrival. It lives here, on
- * the only thing that renders one, rather than as a `key` every caller has to
- * remember: a rebound taking the stage from the miss it answers is an arrival,
- * and it looked like a text swap for as long as the key was optional.
- *
- * `wallOf` names the tone; the stylesheet is where it becomes a colour.
- */
 function Hero({ name, tone }: NonNullable<Wall['hero']>) {
   return (
     <p
       data-review-id="board:hero"
-      // Keyed on who, not on how. A name replacing a name is an arrival; the
-      // same name going red is that person being judged, and the letters should
-      // stay put while the colour tells you what happened.
       key={name}
-      // Tungsten while answering, brass once awarded (brass is what a payoff
-      // looks like), tally-red on a miss, like the stamp above it.
       class={`board__hero board__hero--toned fx-anchor${tone === 'answering' ? '' : ` is-${tone}`}`}
     >
-      {/* The glow rides an inner span keyed on the tone, so a verdict relights
-          the name in its new colour instead of dimming it to brass unlit; the
-          slam stays on the outer element and plays once per name. The shake
-          mounts with the recolour too, so it plays when the name is judged. */}
       <span key={tone} class="board__hero-tone">
         {tone === 'penalised' ? <span class="board__hero-hit fx-shake">{name}</span> : name}
       </span>
@@ -61,19 +41,8 @@ function Hero({ name, tone }: NonNullable<Wall['hero']>) {
   )
 }
 
-/**
- * The end of the setlist: a brass spotlight comes up on the empty stage, a
- * white flash, then 3rd and 2nd take the stage in turn, then the winner. The
- * step comes from the server's stamp (`useFinale`), so every surface calls
- * each place together; the caller keys this on the stamp, so a Replay mounts
- * the ceremony afresh.
- */
 export function Finale({ tiers, step, elapsedMs, cards = [] }: { tiers: Tier[]; step: FinaleStep; elapsedMs: number; cards?: RecapCard[] }) {
-  // Mounted after the ceremony (a reload, a restart from disk): the settled
-  // winner, with nothing replayed.
   const [settled] = useState(step === 1)
-  // A board that mounts mid-build joins the flash where the schedule is, so the
-  // flash and the step change end together whatever this clock's skew.
   const [delay] = useState(-elapsedMs)
   if (step === 'build') return <span class="board__finale-flash" aria-hidden="true" style={{ animationDelay: `${delay}ms` }} />
   const tier = tiers.find((t) => t.place === step)
@@ -81,11 +50,6 @@ export function Finale({ tiers, step, elapsedMs, cards = [] }: { tiers: Tier[]; 
   return <FinaleShow names={tier?.names ?? []} cards={cards} settled={settled} />
 }
 
-/**
- * 3rd, then 2nd, each in its medal: the place is called first, then the name
- * slams in with the hero's glow, then the score. The place and the score hang
- * out of flow, so the name keeps the lane's line and the winner lands on it.
- */
 function Podium({ tier }: { tier: Tier }) {
   return (
     <p class={`board__finale-step rank--${tier.place} fx-anchor`} data-review-id="board:podium">
@@ -98,16 +62,9 @@ function Podium({ tier }: { tier: Tier }) {
   )
 }
 
-/** The recap band starts this long after the name appears: after the second volley has landed. */
 const RECAP_START_MS = 2500
-/** Each recap card holds the band this long before the next replaces it. */
 const RECAP_CARD_MS = 4000
 
-/**
- * The night's recap cards, one at a time, looping. Keyed by card id so each
- * change mounts afresh and rises in; the index is taken modulo the length so
- * a card list that shrinks mid-cycle cannot point past its end.
- */
 function RecapBand({ cards, settled }: { cards: RecapCard[]; settled: boolean }) {
   const [started, setStarted] = useState(settled)
   const [i, setI] = useState(0)
@@ -134,16 +91,8 @@ function RecapBand({ cards, settled }: { cards: RecapCard[]; settled: boolean })
   )
 }
 
-/**
- * The winner in the effect palette, with confetti on arrival and once more a
- * beat later, from the name and from both edges. Ties share the stage.
- * `settled` is the ceremony having already played: no confetti, and the recap
- * band and the sidebar (`.is-settled` in the stylesheet) skip their waits.
- */
 function FinaleShow({ names, cards, settled }: { names: string[]; cards: RecapCard[]; settled: boolean }) {
   const [again, setAgain] = useState(false)
-  // The cannons go on the wall itself: the stage moves over for the sidebar,
-  // and a moving box would take the cannons' edges with it.
   const name = useRef<HTMLParagraphElement>(null)
   const [wall, setWall] = useState<Element | null>(null)
   useEffect(() => {
@@ -165,7 +114,6 @@ function FinaleShow({ names, cards, settled }: { names: string[]; cards: RecapCa
   )
 }
 
-/** Confetti cannons at the wall's left and right edges, fired up and inward. */
 function Cannons() {
   const [again, setAgain] = useState(false)
   useEffect(() => {
@@ -186,10 +134,6 @@ function Cannons() {
   )
 }
 
-/**
- * The duel's pair charging in from each side, slow then fast, and dust where
- * each one stops: two weights meeting in the middle.
- */
 export function FaceOff({ pair }: { pair: [string, string] }) {
   return (
     <p class="board__faceoff">
@@ -206,7 +150,6 @@ function Charger({ name, from }: { name: string; from: number }) {
     <span
       class="board__hero board__charger fx-slide fx-slide--charge fx-anchor"
       style={{ '--fx-from': from }}
-      // Only the slide's own end; the dust's particles bubble theirs up here.
       onAnimationEnd={(e) => e.target === e.currentTarget && setLanded(true)}
     >
       {name}
@@ -215,10 +158,6 @@ function Charger({ name, from }: { name: string; from: number }) {
   )
 }
 
-/**
- * Said text in the pieces it arrived in, each fading in where it already
- * stood. A shorter text is a new question and starts the pieces over.
- */
 function Said({ text }: { text: string }) {
   const cuts = useRef<number[]>([])
   if (text.length < (cuts.current[cuts.current.length - 1] ?? 0)) cuts.current = []
@@ -235,36 +174,21 @@ function Said({ text }: { text: string }) {
   )
 }
 
-/** A lane's space, kept with nothing in it: the element's own box, unseen. */
 function Held({ class: cls }: { class: string }) {
   return <p class={cls} style={{ visibility: 'hidden' }} aria-hidden="true">{'\u00a0'}</p>
 }
 
-/** The middle band when nobody owns it: what the room is being told to do. */
 const CALL_TEXT: Record<NonNullable<Wall['call']>, string> = {
   buzz: 'Buzz',
   ready: 'Ready',
   dead: 'Both missed — waiting for the host',
 }
 
-/**
- * How much rail a mark's labels need, as a percentage of the rail.
- *
- * ponytail: assumes the rail is at its 58rem maximum rather than measuring it.
- * On a narrower board this under-estimates and marks pack a little tighter than
- * they should. Measure with a ResizeObserver if that ever actually bites.
- */
 function labelWidth(name: string): number {
-  // The board's labels are ~2.2x the old fixed sizes (style.css, .board__wall .timeline).
   const rem = Math.max(5.5, name.length * 1.5)
   return (rem / 58) * 100
 }
 
-/**
- * Lay the marks into rows. A mark drops to the next row down whenever it would
- * collide with whatever is already sitting beside it, so a cluster becomes a
- * staircase instead of a pile of overlapping names.
- */
 function lay(entries: BuzzEntry[], width: number): Mark[] {
   const rowEnd: number[] = []
   return entries
@@ -280,19 +204,8 @@ function lay(entries: BuzzEntry[], width: number): Mark[] {
     })
 }
 
-/**
- * `enter` is how long each mark waits before it lands, by player id — assigned
- * once when the mark is first seen and never recomputed, so a re-render cannot
- * move a landing that has already been scheduled.
- */
-/** How many rows the marks need. */
 const rowsOf = (order: BuzzEntry[]) => Math.max(0, ...lay(order, COLLECT_MS).map((m) => m.lane)) + 1
 
-/**
- * How far the lowest timeline readout sits above the wall's foot, in layout
- * pixels (a landing mark's transform does not count), or null with no
- * timeline up.
- */
 function roomUnder(wall: HTMLElement): number | null {
   let low: number | null = null
   for (const m of wall.querySelectorAll<HTMLElement>('.timeline__mark')) {
@@ -303,25 +216,6 @@ function roomUnder(wall: HTMLElement): number | null {
   return low === null ? null : wall.clientHeight - low
 }
 
-/**
- * The room's voice over the lower band: each reaction rises from above the
- * lockout chips in its sender's colour, holds under the timeline and fades.
- * Never stage content and never a layout. A receipt's fate, a pill or a
- * count, is decided the first time it is seen: where the band under the
- * timeline cannot hold a pill it counts, and a change in the rows must never
- * birth or cut a pill mid-life. The count chip mounts once per wave and fades
- * with the newest pill, so it never stands alone over an empty band.
- *
- * The band is measured, not modelled: the layer stays mounted and reads the
- * lowest readout after each layout, so a pill never rests over a name or a
- * delta at any board size. A band too short for a pill above the foot row
- * (`--pill-high`) puts smaller pills in the foot row while no lockout chip is
- * there (`--pill-low`, `is-low`); shorter still, every receipt counts.
- * A pill keeps the lane it was born in: a high one follows the band as the
- * rows change, a low one stays put, and one whose band has since shrunk below
- * its lane fades early where it is rather than land on a readout.
- */
-/** Where a pill was born: its band's mode and the band's height, which a high pill keeps following. */
 type Placed = { mode: 'high' | 'low'; under: number | null; cleared?: true }
 const RANK = { none: 0, low: 1, high: 2 }
 
@@ -358,7 +252,6 @@ function Reactions({ state, reacted, rows, lockouts, now, frozen }: {
     chipAt.current = undefined
     return empty
   }
-  // Unmeasured, the band is unknown: nothing is decided until the layout effect has read it.
   if (!room) return empty
   for (const p of reacted.pills) {
     if (!fate.current.has(p.seq)) fate.current.set(p.seq, room.mode === 'none' ? 'count' : { mode: room.mode, under: room.under })
@@ -376,7 +269,6 @@ function Reactions({ state, reacted, rows, lockouts, now, frozen }: {
   if (more === 0) chipAt.current = undefined
   const newest = Math.max(...reacted.pills.map((p) => p.at))
   const fadeIn = Math.max(0, newest + PILL_MS - PILL_FADE_MS - (chipAt.current ?? now))
-  // With no pill up the chip is the whole voice: it carries the latest word.
   const latest = reacted.pills[reacted.pills.length - 1]
   return (
     <div
@@ -386,7 +278,6 @@ function Reactions({ state, reacted, rows, lockouts, now, frozen }: {
       style={{ '--cols': PILL_CAP }}
     >
       {pills.map((p) => (
-        // Under a deeper timeline the band is too shallow for a scatter: one clean row.
         <span
           key={p.seq}
           class={`board__pill-slot fx-fade fx-fade--out${p.f.mode === 'low' ? ' is-low' : ''}${p.f.cleared ? ' is-cleared' : ''}`}
@@ -413,18 +304,11 @@ function Timeline({
   round: State['round']
   enter: Map<string, number>
 }) {
-  // Fixed scale, not autoranged. Collection always runs exactly one second, so
-  // the rail always means the same thing: a tight finish reads as a tight
-  // finish instead of being stretched across the wall, and two questions can be
-  // compared by eye.
   const marks = lay(round.order, COLLECT_MS)
   const lanes = rowsOf(round.order)
 
   return (
     <div class="timeline" data-review-id="board:timeline">
-      {/* Scale above the rail, marks below it. The last mark always lands at
-          full scale, so a scale printed underneath collides with it and
-          repeats its number. */}
       <div class="timeline__scale">
         <span>0 ms</span>
         <span>{COLLECT_MS} ms</span>
@@ -444,8 +328,6 @@ function Timeline({
           >
             <span class="timeline__pin" />
             <span class="timeline__name">{b.name}</span>
-            {/* First place is the datum the others are measured from; the axis
-                already says 0, so "+0" would only add noise. */}
             <span class="timeline__ms readout">
               {b.deltaMs === 0 ? '' : `+${b.deltaMs}`}
             </span>
@@ -456,14 +338,6 @@ function Timeline({
   )
 }
 
-/**
- * A ranked column of nominations.
- *
- * Ranked for display; lit by the same prediction the host desk runs, which is
- * not the same as the top two. In a teams grouping a same-team runner-up gets
- * skipped, and marking them anyway promises the room a face-off the close will
- * not produce.
- */
 function NomList({
   state,
   entries,
@@ -473,11 +347,8 @@ function NomList({
   entries: NonNullable<State['duel']>['pool']
   seating: string[] | null
 }) {
-  // A vote reorders the pool; the names slide to their new places like the standings.
   const list = useRef<HTMLOListElement>(null)
   useFlip(list)
-  // Ranked with flex `order`, not by moving nodes: a moved node restarts the
-  // animations inside it, and every head in the row would drop in again.
   const rank = entries
     .slice()
     .sort((a, b) => b.votes.length - a.votes.length)
@@ -502,22 +373,11 @@ function NomList({
   )
 }
 
-/**
- * A choice question's options, in the band below the clue. The same grid
- * stays up for the reveal: the right cell lights, the rest dim with their
- * counts, and the room's winners sit under it.
- */
 function Choices({ c, now, colorOf }: { c: ChoiceWall; now: () => number; colorOf: (id: string) => string }) {
   const revealed = c.correct !== undefined
-  // Picking is over but the answer is not up yet: the bar goes brass for that beat.
   const closed = !revealed && (c.pickers.every((p) => p.picked) || (c.closesAt !== undefined && now() >= c.closesAt))
-  // The block mounts when the choices go up, so its rise plays once, there.
   return (
     <div class="board__choices fx-rise" data-review-id="board:choices">
-      {/* While picking, above the grid: a slot per player, filling in their
-          colour as they pick, so the room can see who is still out without
-          seeing what anyone chose. The row keeps its space at the reveal, so
-          the grid does not move. */}
       <div class={revealed ? 'board__status-row is-gone' : 'board__status-row'}>
         <ol class={closed ? 'board__slots is-closed fx-ripple' : 'board__slots'} data-review-id="board:pickers">
           {c.pickers.map((p, i) => (
@@ -533,7 +393,6 @@ function Choices({ c, now, colorOf }: { c: ChoiceWall; now: () => number; colorO
               key={i}
               class={!revealed ? 'board__choice' : i === c.correct ? 'board__choice is-right fx-tada' : 'board__choice is-dim'}
             >
-              {/* At the reveal each pick lands on the edge of its answer. */}
               {revealed && !!c.by?.[i]?.length && (
                 <span class="board__who" data-overlap>
                   {c.by[i].map((id) => (
@@ -552,21 +411,6 @@ function Choices({ c, now, colorOf }: { c: ChoiceWall; now: () => number; colorO
   )
 }
 
-/**
- * The question on the wall, laid out whole from the first frame.
- *
- * The board is given the entire question at the arm and renders all of it; only
- * the part the voice has not reached is invisible. That is the difference
- * between a line that assembles and one that jumps — with the words absent, the
- * paragraph rewrapped on every clause, and every word already up moved
- * sideways to make room. Invisible text still takes its space, so each word
- * lands where it was always going to be and simply appears there.
- *
- * `shown` is a prefix of `whole` by construction — both are the same fragments
- * joined the same way — so it can be sliced by length rather than matched.
- * Without `whole` (a host reading by hand, an older snapshot) it degrades to
- * printing what has been said.
- */
 function Question({ whole, shown, image, reveal, now }: { whole?: string; shown: string; image?: string; reveal: RevealWall | null; now: () => number }) {
   const text = !whole ? (
     <p class="board__question" data-review-id="board:question"><Said text={shown} /></p>
@@ -587,25 +431,14 @@ function Question({ whole, shown, image, reveal, now }: { whole?: string; shown:
 
 export type BoardPreview = {
   socket: SocketFixture
-  /** The frozen clock the fixture's practice pulses and reactions are read against. */
   practiceNow?: number
   open: boolean
   settled: boolean
   retired: boolean
 }
 
-/** How long the board shows the night as it stood before a match, once the match hands the board back. */
 const MATCH_HOLD_MS = 1000
 
-/**
- * The scores the standings show: `shown`, except for a beat after a match
- * closes, when they show what they last showed before it. A match pays the
- * night while the board shows only the minigame, so the standings would come
- * back already holding the change; held for a beat, it counts up and slides
- * in front of the room. Several matches ("Play again") count from before the
- * first. A board that never saw the standings before the match holds nothing.
- * A browser clock, like `useClosestHold`.
- */
 function useMatchHold(state: State | null, shown: State['scores'], active: boolean): State['scores'] {
   const seen = useRef<State['scores']>()
   const held = useRef<{ match: string; scores: State['scores'] }>()
@@ -622,10 +455,7 @@ function useMatchHold(state: State | null, shown: State['scores'], active: boole
   return scores
 }
 
-/** The board's standings rows. `list` carries `useFlip`, which outlives the list while a match has the board. */
 export function Standings({ rows, list }: { rows: Standing[]; list: RefObject<HTMLOListElement> }) {
-  // A re-sort moves rows in the DOM, which restarts their animation: a row that
-  // has popped in once loses `fx-pop`, so an overtaken row does not blink.
   const popped = useRef(new Set<string>())
   return (
     <ol class="stack" ref={list}>
@@ -638,8 +468,6 @@ export function Standings({ rows, list }: { rows: Standing[]; list: RefObject<HT
           style={{ '--id': r.color }}
           onAnimationEnd={(e) => { if (e.target === e.currentTarget && e.animationName === 'fx-pop') popped.current.add(r.key) }}
         >
-          {/* Medals for the podium only, but the space is kept either
-              way so every name lines up. */}
           <span class={i < 3 ? `rank rank--${i + 1}` : 'rank'}>
             {i < 3 ? ['1st', '2nd', '3rd'][i] : ''}
           </span>
@@ -655,25 +483,12 @@ export function Standings({ rows, list }: { rows: Standing[]; list: RefObject<HT
 export function Board({ preview }: { preview?: BoardPreview } = {}) {
   const { state, now, connected, minigameFrame, minigameTouches, practice, reactions } = useSocket('board', preview?.socket)
   const pulseNow = usePracticeTime(practice, practiceLobbyId(state), preview?.practiceNow)
-  // Pills tick on the same local clock as pulses, only while one is up.
   const pillNow = useLitTime(freshReactions(reactions, preview?.practiceNow ?? performance.now()).length > 0, preview?.practiceNow)
   const reacted = shownPills(reactions, state?.round.questionId, pillNow)
-  // The big screen is what the room watches, so it must not light up before
-  // the phones do. Same countdown to armedAt as every other surface.
   const opening = useOpen(state?.round, now, undefined, !preview)
   const open = preview?.open ?? opening.open
 
-  /**
-   * The board is the only surface with a speaker the whole room can hear, and
-   * browsers will not let it use one until somebody clicks. One click anywhere
-   * is enough for the night; until then the chip below says so, because silence
-   * with no explanation is the kind of thing you discover mid-game.
-   */
   const [audible, setAudible] = useState(!!preview)
-  // The anchor cues are recipes, but recipes over real files, so their bytes
-  // still have to be decoded — on the click, because that is the first moment
-  // there is a context to decode into. The welcome bed decodes itself when the
-  // lobby asks for it.
   useEffect(() => {
     if (preview) return
     const go = () => {
@@ -685,15 +500,6 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
     return () => document.removeEventListener('pointerdown', go)
   }, [preview])
 
-  /**
-   * The welcome screen: the board is up, no minigame is open, nobody has buzzed,
-   * and no question has been scored all night. The bed runs under it and fades
-   * out for good when the host arms the first question or opens a minigame.
-   *
-   * Deliberately not "the round is idle" — that is also true between every pair
-   * of questions, and music swelling back up for four seconds each time the host
-   * reaches for the next card would be unbearable by round three.
-   */
   const welcoming =
     !!state &&
     !state.minigame &&
@@ -707,21 +513,6 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
     else stopBed()
   }, [welcoming, audible, preview])
 
-  /**
-   * When each mark is allowed to land, so no two ever crowd each other.
-   *
-   * Batching alone was not enough. The hub holds the first 150ms back and
-   * publishes it in one packet, but everything after that arrives in its own —
-   * so two people pressing 30ms apart late in the window produced two marks
-   * 30ms apart, which is one thump and one blur however the batch was spaced.
-   * Packets are an implementation detail of the wire; what the room can take in
-   * is not.
-   *
-   * So marks queue: each takes the later of now and the next free slot, and
-   * claims the gap after it. A mark arriving on a quiet board waits for nothing.
-   * The rail still plots every buzz at its true millisecond — this delays the
-   * telling, never the measurement.
-   */
   const enter = useRef(new Map<string, number>())
   const nextSlot = useRef(0)
   const round0 = useRef('')
@@ -730,13 +521,8 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
   const buzzes = order.length
   if (state && state.round.attemptId !== round0.current) {
     round0.current = state.round.attemptId
-    // Only the assignments. `nextSlot` carries over: a slot already claimed is
-    // claimed whatever round it belonged to, and one long past costs nothing.
     enter.current = new Map()
   }
-  // Assigned during render because the marks are rendered now, and only for
-  // ids not already scheduled — which makes a second render of the same state
-  // a no-op rather than a reshuffle.
   const nowMs = performance.now()
   const gap = markGap()
   for (const b of order) {
@@ -755,21 +541,14 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
     const was = seen.current
     seen.current = buzzes
     if (buzzes <= was) return
-    // Spaced on the audio clock rather than by the delay its mark got. The two
-    // queues agree on the gap but not on the instant, because they cannot: this
-    // effect runs some unknown time after the render that placed the marks.
     for (let i = was; i < buzzes; i++)
       playSpaced(i === 0 ? 'leader' : 'stamp')
   }, [buzzes, preview])
 
-  // Two clocks the room reads on but `State` knows nothing about: how long a
-  // transcript takes to type and how long a penalty sits. `wallOf` wants the
-  // answers, not the apparatus.
   const reveal = useReveal(state?.round, !preview)
   const settled = preview?.settled ?? reveal.settled
   const retired = preview?.retired ?? reveal.retired
   const onSettled = preview ? undefined : reveal.onSettled
-  // The standings wait out a closest reveal, so they do not call the winner before the line does.
   const holding = useClosestHold(state?.round, !preview)
   const scoresShown = useMatchHold(state, state ? (holding ? scoresBeforeClosest(state) : state.scores) : {}, !preview)
   const finale = useFinale(state, now, !preview)
@@ -781,23 +560,12 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
   }
 
   const { round } = state
-  /**
-   * What the wall shows, decided once in `shared/wall.ts` rather than by six
-   * overlapping booleans across three JSX blocks. The board keeps only the
-   * three clocks the module is not allowed to read: the countdown to `armedAt`,
-   * the transcript having settled, and the penalty dwell having elapsed.
-   */
   const w = wallOf(state, { open, settled, retired })
   const leader = round.order[0]
   const armed = round.phase === 'ARMED' || round.phase === 'COLLECTING'
   const here = state.players.filter((p) => p.connected).length
   const total = state.players.length
   const barred = lockedNames(state)
-  // `buzzable` is only stamped at the arm, so between the host seating a pair and
-  // opening the buzzers there is a gap with nothing in it — the room would watch
-  // the two names disappear a second after they were announced. The seated pair
-  // carries the board across that gap; once the arm stamps buzzable, that is the
-  // truer source, because a wrong answer narrows it.
   const seating = willSeat(state)
   const setlistLabel = setlistPosition(state)
   const qrBig = state.players.length === 0 || state.arrival?.kind === 'lobby' || state.arrival?.kind === 'introduction'
@@ -817,8 +585,6 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
           <span class="chip">
             {here === total ? here : `${here} of ${total}`} {(here === total ? here : total) === 1 ? 'player' : 'players'}
           </span>
-          {/* Position, not drama. The stage belongs to the question; a setlist that
-              pulls the eye during a buzz has failed at its job. */}
           {setlistLabel && (
             <span key={state.setlist?.at} class="chip chip--setlist fx-flip" data-review-id="board:setlist">
               {setlistLabel}
@@ -827,26 +593,12 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
           {!audible && <span class="chip">Click for sound</span>}
         </div>
 
-        {/*
-          Three bands, not a stack. The middle one holds whatever the room is
-          actually reading and sits at the exact centre of the stage no matter
-          what is in the other two, so the award arriving above it and the
-          timeline filling in below it never move it. A name that drifted up the
-          screen as its own timeline assembled would undo the point of stamping
-          the marks down in the first place.
-        */}
         {w.arrival ? (
           <ArrivalBoard state={state} arrival={w.arrival} feedback={practice} pulseNow={pulseNow} />
         ) : (<>
         <div class="board__above">
-          {/* Three lanes — what was said, the stamp, the answer — each held open
-              by an invisible stand-in while the others are up, so one arriving
-              never pushes another along. */}
           {(w.transcript || w.award) ? (
             <>
-              {/* What was said, as the judge heard it — the award's evidence
-                  while the points are up, and the whole story while a rebound
-                  runs. */}
               {w.transcript ? (
                 <Spoken
                   prefix="board"
@@ -858,11 +610,6 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
               ) : (
                 <Held class="board__spoken" />
               )}
-              {/* The payoff — or its mirror, a penalty stamped negative. Stays
-                  up until the next question is armed, because the room looks
-                  at the board after the host scores it, not before. A
-                  penalty's leader is already gone to the rebound, so this
-                  gates on the award. */}
               {w.award ? (
                 <p data-review-id="board:award" class={isPenalty(w.award) ? 'board__award fx-anchor is-neg' : 'board__award fx-anchor'}>
                   {w.award.scoreless
@@ -880,7 +627,6 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
               )}
             </>
           ) : w.unanswered ? (
-            // Nobody took it: the same stamp a choice reveal uses, then the answer.
             <>
               <p data-review-id="board:award" class="board__award fx-anchor">Nobody</p>
               {w.unanswered.answer ? (
@@ -890,14 +636,11 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
               )}
             </>
           ) : w.choices?.correct !== undefined ? (
-            // A choice question pays the room, not a hero: the stamp says how
-            // many, and the grid below says who and what.
             <p data-review-id="board:award" class="board__award fx-anchor">
               {w.choices.winners?.length ? `+${w.choices.points} · ${w.choices.winners.length} right` : 'Nobody'}
               {!!w.choices.winners?.length && <Burst kind="dust" from={['left', 'bottom', 'right']} />}
             </p>
           ) : w.closest?.truth ? (
-            // The same stamp, held until the nearest lights: what it paid and how near it was.
             <p
               data-review-id="board:award"
               class="board__award is-closest fx-anchor"
@@ -909,8 +652,6 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
           ) : null}
         </div>
 
-        {/* One fixed lane: taller occupants grow upward out of it, so the
-            band below never moves (style.css, .board__mid). */}
         <div class="board__mid">
           {w.hero && <Hero {...w.hero} />}
           {w.finale && (
@@ -919,7 +660,6 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
           {w.next !== null && (
             <div class="board__next fx-rise" data-review-id="board:next">
               {lastUp(state) ? (
-                // After the rise, so the two transforms do not fight.
                 <div class="fx-tada" style={{ animationDelay: 'var(--fx-rise-dur)' }}>
                   <p class="board__next-label">Last question</p>
                   <p class="board__next-value">{w.next} points</p>
@@ -936,13 +676,6 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
             <div class="board__noms">
               <p class="board__idle">Who plays?</p>
               {w.nominations === 'teams' ? (
-                // A column per side, because that is the shape of the decision:
-                // two rooms picking one name each, and the seat takes the top of
-                // each column. One merged list makes the close look like it is
-                // reaching past the runner-up for no reason — split, the
-                // runner-up is visibly in the wrong column. An empty column
-                // stays up, so the room can see which side has not made up its
-                // mind.
                 <div class="board__sides">
                   {state.teams.map((team) => (
                     <div key={team.id} class="board__sidepool">
@@ -966,8 +699,6 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
             </div>
           )}
           {w.clue && <Question {...w.clue} reveal={w.reveal} now={now} />}
-          {/* The face-off yields the stage to the question text while the
-              reader is speaking, and to the leader the moment someone buzzes. */}
           {w.faceoff && <FaceOff pair={w.faceoff} />}
           {w.call && (
             <p data-review-id="board:call" class={w.call === 'buzz' ? 'board__call' : 'board__idle'}>{CALL_TEXT[w.call]}</p>
@@ -975,9 +706,6 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
         </div>
 
         <div class="board__below">
-          {/* `seen` still holds the previous count during render — the effect
-              that advances it runs after. That is exactly the number a mark
-              needs to know whether it arrived alone or in a crowd. */}
           {w.choices && <Choices c={w.choices} now={now} colorOf={(id) => colorForPlayer(state, id)} />}
           {w.closest && (
             <ClosestLine
@@ -991,22 +719,16 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
         </div>
         </>)}
 
-        {/* The stakes, dim in the corner for the whole question: the card
-            between questions said it large, and the stage is the question's now. */}
         {w.value !== null && (w.reveal ? (
           <RevealStakes value={w.value} reveal={w.reveal} now={now} />
         ) : (
           <span class="chip board__stakes" data-review-id="board:stakes">{w.value} pts</span>
         ))}
 
-        {/* One dim line under the stakes chip, in the same corner; it never
-            enters the middle band, so the hero keeps the stage to itself. */}
         {w.milestone && (
           <span key={w.milestone} class="board__milestone fx-rise" data-review-id="board:milestone">{w.milestone}</span>
         )}
 
-        {/* Status, not stage content — parked at the foot of the stage so a
-            rebound's lockout chips never move the timeline above them. */}
         {!w.arrival && barred.length > 0 && (
           <div class="board__barred" data-review-id="board:lockouts">
             {barred.map((n) => (
@@ -1026,11 +748,8 @@ export function Board({ preview }: { preview?: BoardPreview } = {}) {
           <Standings list={standingsList} rows={standings({ ...state, scores: scoresShown })} />
         </div>
 
-        {/* Full size while the room is arriving (no players yet, the lobby, a
-            first-block introduction), then out of the way once play starts. */}
         <JoinCode small={!qrBig} finale={!!w.finale} />
 
-        {/* The room never needs this, but the host glancing at the wall does. */}
         <span class="lamp">
           <span class={connected ? 'lamp-dot is-on' : 'lamp-dot is-off'} />
           {connected ? 'Connected' : 'Disconnected'}

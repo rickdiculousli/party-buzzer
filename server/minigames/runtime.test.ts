@@ -291,7 +291,6 @@ test('cancel keeps the lobby and close removes it', () => {
   })
 })
 
-// Compile-time exhaustiveness helper: these are the runtime-owned actions.
 const _actions: HostAction[] = [
   { a: 'prepareMinigame', id: 'bow', options: {} },
   { a: 'startMinigame' },

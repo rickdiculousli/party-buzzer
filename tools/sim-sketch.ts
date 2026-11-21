@@ -1,16 +1,3 @@
-/**
- * Synthetic self-play for Sketch. Eight bots join and play one match: a drawer
- * picks a word and scribbles; guessers send wrong guesses, the odd close one,
- * and the right answer once their skill allows. Phones already in the room play
- * along. The log names each drawer and word.
- *
- *   npm run sim-sketch
- *   npm run sim-sketch -- 400                  one bot action every 0.4 s
- *   npm run sim-sketch -- 400 http://box:8080
- *
- * The match ends on its own; Ctrl-C ends it early. Either way the minigame
- * closes and the bots leave.
- */
 import { setTimeout as sleep } from 'node:timers/promises'
 import { connect, reachable } from './conn.ts'
 import type { SketchInput } from '../shared/protocol.ts'
@@ -37,8 +24,6 @@ const host = await connect(URL, 'host')
 const bots: { conn: Awaited<ReturnType<typeof connect>>; name: string; seq: number; skill: number }[] = []
 for (const [i, name] of NAMES.entries()) {
   const conn = await connect(URL, 'player', name, `sim-sketch-${name}`)
-  // Sequence numbers start from the clock so a rerun never reuses remembered ones.
-  // Skill is how many of this bot's actions into a drawing it can get the word.
   bots.push({ conn, name, seq: Date.now(), skill: 4 + i * 2 })
 }
 
@@ -63,7 +48,6 @@ host.send({ t: 'host', action: { a: 'startMinigame' } })
 await host.waitFor((s) => s.minigame?.phase === 'playing', 10_000)
 const matchId = host.state()!.minigame!.matchId
 
-/** The sim cheats: a drawer bot's frame carries the word, so guessers can get it. */
 const wordNow = () => {
   for (const bot of bots) {
     const frame = bot.conn.frame()

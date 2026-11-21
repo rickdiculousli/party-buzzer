@@ -65,10 +65,6 @@ test('an unreadable setlist file is an empty setlist, not a crash', () => {
   })
 })
 
-// The setlists shipped in the repository are recipes a host can play as they
-// are, so every block has to be runnable by this build and fed by a pack that
-// is big enough for the whole night: a pack keeps its place across blocks, so
-// the counts that name it add up.
 const shipped = join(import.meta.dirname, '..', 'setlists')
 const packDir = join(import.meta.dirname, '..', 'packs')
 

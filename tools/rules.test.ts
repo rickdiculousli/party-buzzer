@@ -21,14 +21,11 @@ test('whenever flags a frame where must fails', () => {
 })
 
 test('neverFollows flags an adjacent moment pair', () => {
-  // buzz:open immediately followed by idle:ready is a legal-shape pair for
-  // the factory test — the real moment pairs live in the RULES table.
   const rule = neverFollows('no ready after open', 'buzz:open', 'idle:ready')
   const frames = [
     frame(0, 'host:arm', 'ARMED'),
     frame(1, 'host:resetRound', 'IDLE'),
   ]
-  // ARMED with armedAt in the past is buzz:open; IDLE with armedAt set is idle:ready.
   const v = check(frames, [rule], {})
   assert.equal(v.length, 1)
   assert.equal(v[0].seq, 1)
@@ -78,8 +75,6 @@ test('cueWindows: order growth is leader then stamps, one window per new entry',
   assert.equal(w.length, 2)
   assert.deepEqual(w[0], { kind: 'cue', cue: 'leader', start: frames[1].t, end: frames[1].t + span(RECIPES.leader!) })
   assert.deepEqual(w[1], { kind: 'cue', cue: 'stamp', start: frames[2].t, end: frames[2].t + span(RECIPES.stamp!) })
-  // markGap spaces marks within one render's batch; each frame here is its own
-  // broadcast, so the stagger never appears between frames — pin the constant.
   assert.equal(TUNE['--mark-stagger'], 100)
 })
 
@@ -97,7 +92,7 @@ test('noOverlap flags intersecting windows of the two kinds', () => {
   const rule = noOverlap('voice over room', 'say', 'cue')
   const frames = [
     frame(0, 'host:arm', 'ARMED'),
-    frame(1, 'buzz', 'COLLECTING', [{ playerId: 'a' }]), // leader cue at t=1100
+    frame(1, 'buzz', 'COLLECTING', [{ playerId: 'a' }]),
   ]
   const overlapping: Window[] = [{ kind: 'say', start: 1000, end: 1200 }]
   const clear: Window[] = [{ kind: 'say', start: 0, end: 900 }]
@@ -135,7 +130,7 @@ test('RULES: order is ordered allows ties, flags inversions', () => {
 test('RULES: voice ends at the buzz — a say window outliving it fires', () => {
   const frames = [
     frame(0, 'host:arm', 'ARMED'),
-    frame(1, 'buzz', 'COLLECTING', [{ playerId: 'a' }]), // t = 1100
+    frame(1, 'buzz', 'COLLECTING', [{ playerId: 'a' }]),
   ]
   const speech = [{ kind: 'say', start: 500, end: 1300 }]
   assert.equal(check(frames, [ruleNamed('voice ends at the buzz')], { speech }).length, 1)
@@ -152,7 +147,6 @@ import { join } from 'node:path'
 
 const STEP_MS = 5
 
-/** Advances timers and `Date.now()` together, in small steps that let promises settle between them. */
 async function sleep(ms: number) {
   for (let left = ms; left > 0; left -= STEP_MS) {
     mock.timers.tick(Math.min(STEP_MS, left))
@@ -160,7 +154,6 @@ async function sleep(ms: number) {
   }
 }
 
-/** A test that runs on a mock clock, so its waits cost no wall time. */
 function mockClockTest(name: string, fn: (t: TestContext) => Promise<void>) {
   test(name, async (t) => {
     mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] })
@@ -192,10 +185,10 @@ mockClockTest('integration: photo finish, correct, next — zero violations', as
   const { hub, frames, player, host } = drive()
   const ada = player('Ada', 'p1'), bo = player('Bo', 'p2')
   hub.handle(host, { t: 'host', action: { a: 'arm' } })
-  await sleep(350) // past ARM_DELAY_MS
+  await sleep(350)
   hub.handle(ada, { t: 'buzz', at: Date.now() })
   hub.handle(bo, { t: 'buzz', at: Date.now() + 40 })
-  await sleep(1100) // past COLLECT_MS — settle lands
+  await sleep(1100)
   hub.handle(host, { t: 'host', action: { a: 'correct' } })
   hub.handle(host, { t: 'host', action: { a: 'next' } })
   assert.deepEqual(check(frames, RULES, {}), [])
@@ -209,7 +202,7 @@ mockClockTest('integration: wrong answer then rebound — zero violations', asyn
   hub.handle(ada, { t: 'buzz', at: Date.now() })
   await sleep(1100)
   hub.handle(host, { t: 'host', action: { a: 'wrong', neg: 50 } })
-  await sleep(350) // the rebound is a scheduled arm like any other
+  await sleep(350)
   hub.handle(bo, { t: 'buzz', at: Date.now() })
   await sleep(1100)
   hub.handle(host, { t: 'host', action: { a: 'correct' } })
@@ -261,14 +254,12 @@ mockClockTest('integration: a buzz cuts the voice, so say and cue never overlap'
   const ada: Conn = { id: 'p', role: 'player', playerId: 'p1', send: () => {} }
   hub.handle(ada, { t: 'hello', role: 'player', name: 'Ada', playerId: 'p1' })
   await sleep(350)
-  // Trace and stop run synchronously in this dispatch. A real millisecond
-  // boundary between them is not an asynchronous audio overlap.
   const instant = Date.now()
   const clock = t.mock.method(Date, 'now', () => instant)
   hub.handle(ada, { t: 'buzz', at: Date.now() })
   clock.mock.restore()
   assert.equal(open, undefined, 'the clip stops before dispatch returns')
-  await sleep(1100) // settle, then judge
+  await sleep(1100)
   hub.handle({ id: 'h', role: 'host', send: () => {} }, { t: 'host', action: { a: 'correct' } })
   await sleep(20)
   reader.stop()

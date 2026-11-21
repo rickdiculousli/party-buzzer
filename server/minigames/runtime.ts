@@ -89,7 +89,6 @@ export class MinigameRuntime {
       session.matchId = randomUUID()
       session.phase = 'countdown'
       session.participants = participants
-      // A cancel back to ready asks for a fresh Ready from everyone.
       lobby.ready = []
       session.startsAt = startsAt
       session.endsAt = definition.untimed ? undefined : startsAt + session.options.durationSec * 1_000
@@ -233,7 +232,6 @@ export class MinigameRuntime {
     return true
   }
 
-  /** Team picks during ready. Returns whether the lobby changed. */
   lobby(playerId: string, change: LobbyChange): boolean {
     const session = this.state.minigame
     if (!session?.lobby || session.phase !== 'ready') return false
@@ -241,7 +239,6 @@ export class MinigameRuntime {
     return applyLobby(session.lobby, playerId, change)
   }
 
-  /** Validates a touch and names who should see it. */
   touch(playerId: string, msg: { matchId: string; target: string; x: number; y: number }): TouchAudience | null {
     const session = this.state.minigame
     const definition = this.definition()
@@ -255,7 +252,6 @@ export class MinigameRuntime {
 
   stop(): void { this.resetTransient() }
 
-  /** Stores a new checkpoint or changed host lines, which persists them. */
   private saveProgress(definition: MinigameDefinition<unknown>): void {
     const session = this.state.minigame!
     const saved = definition.checkpoint?.(this.world)

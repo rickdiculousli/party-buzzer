@@ -1,4 +1,3 @@
-/** The read half of the trace: diff the frames, print what moved. */
 import { readFileSync } from 'node:fs'
 import { momentOf, type Moment } from '../shared/wall.ts'
 import type { Frame } from '../server/trace.ts'
@@ -34,11 +33,6 @@ export function diffStates(a: State, b: State): Change[] {
   return out
 }
 
-/**
- * `settled` and `retired` are the board's animation clocks — the trace cannot
- * know them, so the moment shown is the pre-dwell one. Dwell-timing bugs
- * belong to the motion harness, not here.
- */
 export function momentOfFrame(f: Frame): Moment {
   const armedAt = f.state.round.armedAt
   return momentOf(f.state, { open: armedAt != null && f.t >= armedAt, settled: false, retired: false })
@@ -75,11 +69,6 @@ export function filterFrames(frames: Frame[], opts: FilterOpts): Frame[] {
   })
 }
 
-/**
- * ponytail: built from causes, not a state walk — a cause string change in
- * hub.ts silently degrades this view, and the roundLines tests are the
- * tripwire.
- */
 export function roundLines(frames: Frame[]): string[] {
   const lines: string[] = []
   let cur: { value: number; order: { name: string; deltaMs: number }[]; verdicts: string[]; buzzed: boolean } | undefined
@@ -106,7 +95,6 @@ export function roundLines(frames: Frame[]): string[] {
   return lines
 }
 
-// CLI entry — guarded so the test can import the engine without running it.
 if (process.argv[1]?.endsWith('tools/trace.ts')) {
   const args = process.argv.slice(2)
   const flag = (name: string) => {

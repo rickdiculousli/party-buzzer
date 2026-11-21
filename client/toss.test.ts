@@ -151,15 +151,12 @@ test('the player collects the pair after the second card is down, then taps it s
   }
   const last = frames[frames.length - 1]
   assert.deepEqual({ x: last.x, y: last.y, rot: last.rot, lift: last.lift }, { ...neat, lift: 0 })
-  // Two taps, each a press down into the cloth: the pair dips, then comes back up.
   const after = frames.filter((f) => f.t > collectAt)
   const presses = after.filter((f) => f.lift < 0)
   assert.equal(presses.length, 2, 'expected two taps')
-  // A tap from above never shoves the cards sideways: during the taps they only close on their place.
   const tapping = after.filter((f) => f.t >= presses[0].t - RECEIVE.tapMs[1])
   const gap = tapping.map((f) => Math.hypot(f.x - neat.x, f.y - neat.y))
   for (let i = 1; i < gap.length; i++) assert.ok(gap[i] <= gap[i - 1] + 1e-9, 'a tap moved the cards away')
-  // Each tap straightens them further.
   const off = (f: Frame) => Math.abs(f.rot - neat.rot)
   assert.ok(off(presses[1]) < off(presses[0]))
 })
@@ -259,7 +256,6 @@ test('the two cards of a fold part ways a little, not stuck together', () => {
 const DEALER = { x: 500, y: -60 }
 const CARD_W = 60
 const slotsAt = (y = 400): Pose[] => [0, 1, 2].map((i) => ({ x: 380 + i * 68, y: y + (i - 1) * 2, rot: i - 1 }))
-/** When a card's frames stop changing after `from`: the end of the move that follows. */
 const settledAt = (frames: Frame[], from: number) => {
   const end = frames[frames.length - 1]
   const moving = frames.filter((f) => f.t >= from && (f.x !== end.x || f.y !== end.y || f.rot !== end.rot))
@@ -283,7 +279,6 @@ test('every flop card comes to rest exactly on its slot', () => {
 test('the flop flies as one stack, each card of it showing', () => {
   for (let seed = 1; seed < 20; seed++) {
     const { frames } = flop(DEALER, slotsAt(), CARD_W, mulberry32(seed))
-    // Face down, the first card dealt is on top: each card sits on the one after it.
     for (const k of [0, 1]) {
       const [below, card] = [frames[k + 1], frames[k]]
       const gap = (i: number) => ({ x: card[i].x - below[i].x, y: card[i].y - below[i].y, rot: card[i].rot - below[i].rot })
@@ -309,7 +304,6 @@ test('as the stack skids, each card rides further on the one under it, then it a
     const len = Math.hypot(travel.x, travel.y)
     for (const k of [0, 1]) {
       const [below, card] = [frames[k + 1], frames[k]]
-      // How far this card is ahead of the one under it, along the way the stack was thrown.
       const ahead = (i: number) => ((card[i].x - below[i].x) * travel.x + (card[i].y - below[i].y) * travel.y) / len
       let last = ahead(down)
       for (let i = down + 1; below[i].t <= turnAt + REVEAL.turnMs; i++) {
@@ -368,7 +362,6 @@ test('a turn or river card lands off its slot, turns over, then is pushed into l
   }
 })
 
-/** Checks a card's turn: face down (±180) until `turnAt`, face up (0) once the turn is done, only ever turning one way between, and sampled finely enough to see. */
 const turnsOnce = (frames: Frame[], turnAt: number, down: number) => {
   assert.ok(frames.every((f) => f.turn !== undefined), 'a frame has no turn')
   for (const f of frames) {
@@ -394,9 +387,7 @@ test('the flop turns over as one on a hinge by its left edge, toward the spread'
 test('a turn or river card turns over toward the board, on a hinge by its right edge, lifting its left side', () => {
   for (let seed = 1; seed < 20; seed++) {
     const { frames, turnAt, hinge } = street(DEALER, { x: 600, y: 400, rot: 1 }, CARD_W, mulberry32(seed))
-    // Face down it lies out past the board's end, clear of the card beside it.
     assert.equal(hinge, REVEAL.hinge)
-    // rotateY lifts the side left of a right-hand hinge for a positive turn.
     turnsOnce(frames, turnAt, 180)
   }
 })
@@ -425,20 +416,16 @@ test('a player shows their pair by turning it over as one, toward the middle, fr
     const across = { x: Math.cos(a), y: Math.sin(a) }
     const pivots = shown.map((card, k) => {
       const r = (card.rest.rot * Math.PI) / 180
-      // Face down, a hinged card lies the hinge's swing from its pose; that has to be where it already was.
       const swing = (2 * card.hinge - 1) * CARD_W
       assert.ok(Math.hypot(card.rest.x + Math.cos(r) * swing - pair[k].x, card.rest.y + Math.sin(r) * swing - pair[k].y) < 1e-6, `card ${k} jumped when it started turning`)
-      // A card can only come down across its own width, so it goes whichever way along that is nearer the middle; a pair square to the middle may go either.
       const toMiddle = { x: middle.x - pair[k].x, y: middle.y - pair[k].y }
       const square = Math.abs(toMiddle.x * across.x + toMiddle.y * across.y) < 0.3 * Math.hypot(toMiddle.x, toMiddle.y)
       if (!square) assert.ok((card.rest.x - pair[k].x) * toMiddle.x + (card.rest.y - pair[k].y) * toMiddle.y > 0, `card ${k} turned away from the middle`)
       turnsOnce(card.frames, 0, card.hinge > 0.5 ? 180 : -180)
-      // Where it turns about: halfway between where it lay and where it comes down.
       return ((card.rest.x + pair[k].x) / 2) * across.x + ((card.rest.y + pair[k].y) / 2) * across.y
     })
     assert.ok(Math.abs(pivots[0] - pivots[1]) < 1.5, `the two cards turn about lines ${(pivots[0] - pivots[1]).toFixed(1)}px apart`)
     assert.deepEqual(shown[0].frames.map((f) => [f.t, f.turn]), shown[1].frames.map((f) => [f.t, f.turn]), 'the two cards turn at different times')
-    // Face down the second card is on top; turned over as one, the first is.
     shown[0].frames.forEach((f, i) => {
       const [z0, z1] = [f.z!, shown[1].frames[i].z!]
       assert.ok(Math.abs(f.turn!) > 90 ? z1 > z0 : z0 > z1, `wrong card on top at ${f.t}ms`)

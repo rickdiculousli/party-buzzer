@@ -3,7 +3,6 @@ import type { State } from '../shared/protocol.ts'
 import { ScoreChange } from './fx.tsx'
 import { colorForPlayer, playerName } from './ui.ts'
 
-/** The phone's status bar: whose phone, whether it is connected, and the score when the game keeps one. */
 export function PlayerBar({ state, playerId, connected, score, children }: {
   state: State
   playerId: string | null

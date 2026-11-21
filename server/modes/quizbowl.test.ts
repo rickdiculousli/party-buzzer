@@ -19,7 +19,6 @@ function quizbowlState(options: Record<string, unknown> = {}): State {
   return state
 }
 
-/** Drive a round to LOCKED with p1 leading at `at`. */
 function locked(state: State, at: number): void {
   state.round.phase = 'LOCKED'
   state.round.order = [{ playerId: 'p1', name: 'Ada', at, deltaMs: 0 }]
@@ -53,7 +52,7 @@ test('a buzz before the power cutoff scores value + bonus', () => {
   const mod = moduleFor('quizbowl')
   state.round.phase = 'ARMED'
   state.round.armedAt = 1000
-  mod.onAct!(state, 'powerEnds') // powerEndsAt = now, after the buzz below
+  mod.onAct!(state, 'powerEnds')
   ;(state.game.moduleState as { powerEndsAt: number }).powerEndsAt = 1500
   locked(state, 1200)
   applyHostAction(state, { a: 'correct' })

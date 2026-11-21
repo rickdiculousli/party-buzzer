@@ -1,17 +1,3 @@
-/**
- * Synthetic self-play for the tug of war minigame. Fills the room with bots that
- * tap at personal rhythms (steady, masher, bursty, lazy), so you can watch the
- * rope on the board through real matches.
- *
- * Like `sim.ts` it is an ordinary client over real sockets.
- *
- *   npm run sim-tug                        endless 30-second matches
- *   npm run sim-tug -- 3                   stop after three matches
- *   npm run sim-tug -- 3 20                three 20-second matches
- *   npm run sim-tug -- 3 20 http://box:8080
- *
- * Ctrl-C cancels the match and removes the bots, so your real game is left clean.
- */
 import { setTimeout as sleep } from 'node:timers/promises'
 import { connect, reachable, type Conn } from './conn.ts'
 import { link } from '../server/net.ts'
@@ -23,19 +9,17 @@ const URL = await reachable(argUrl)
 
 type Bot = {
   name: string
-  /** Taps a second while pulling. */
   rate: number
-  /** Bursty bots tap in bursts of this many ms with this many ms of rest between. */
   burst?: { onMs: number; offMs: number }
   conn?: Conn
   seq: number
 }
 
 const ROSTER: Omit<Bot, 'seq'>[] = [
-  { name: 'Nia', rate: 3 }, // steady
-  { name: 'Owen', rate: 9 }, // masher
-  { name: 'Priya', rate: 6, burst: { onMs: 1500, offMs: 1500 } }, // bursty
-  { name: 'Sam', rate: 1.5 }, // lazy
+  { name: 'Nia', rate: 3 },
+  { name: 'Owen', rate: 9 },
+  { name: 'Priya', rate: 6, burst: { onMs: 1500, offMs: 1500 } },
+  { name: 'Sam', rate: 1.5 },
   { name: 'Tess', rate: 3 },
   { name: 'Wes', rate: 8, burst: { onMs: 800, offMs: 2200 } },
 ]
