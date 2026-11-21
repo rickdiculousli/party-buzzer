@@ -7,5 +7,6 @@ The motion itself (air then cloth, hands not keyframes) is described in docs/des
 - A turn is sampled finely, since a frame list otherwise has only the ends of a hold.
 - `simplifyFrames` measures error at the original timestamps so browser linear interpolation keeps the pace, and keeps contacts, pauses, taps, turn endpoints and stacking changes exact, because cues are scheduled from those contacts.
 - A fold's reach is capped as `(reach - keepClear) / (1 + wobble)`: along any heading within a right angle of the aim, stopping `keepClear` short keeps that distance, and the bow gets its own margin.
+- Units of the motion dials, which their names do not carry: times (`*Ms`, `skidTau`, `tapGap`, `spreadLag`) are ms; angles (`*Rot`, `stackTwist`, `heading`, `bend`) are degrees, `bend` at a full sideways flick; spins (`spin`, `spinQuiet`, `spinWild`) are deg/ms, signed, and `spinFriction` deg/ms²; `skidFriction` is px/ms²; `tapDepth` is a share of the card's size.
 
 Where: `client/toss.ts` (`Frame`, `simplifyFrames`, `turnedOver`, `flop`, `turnUp`, `street`, `toss`, `REVEAL`)

@@ -1448,7 +1448,7 @@ client/synth.ts:133	decision	Continuation of head-not-rate-scaled	docs/adr/0106-
 client/synth.ts:134	decision	Continuation of head-not-rate-scaled	docs/adr/0106-cue-rate-resamples.md
 client/synth.ts:139	excuse	ponytail: onset measured to envelope peak; slow swells read late	#33
 client/synth.ts:154	decision	WebAudio half below decides nothing; logic belongs in schedule	docs/adr/0107-synth-schedule-render-split.md
-client/synth.ts:161	excuse	ponytail note: white noise only	
+client/synth.ts:161	excuse	ponytail note: white noise only	no issue: a YAGNI note, nothing is broken
 client/synth.ts:185	decision	Missing file layer skipped; stop handle exists for harness previews	docs/adr/0103-sound-fails-silent.md
 client/synth.ts:213	decision	File layers resample with the cue's rate, like oscillators	docs/adr/0106-cue-rate-resamples.md
 client/synth.ts:214	decision	Continuation of file-layer resampling	docs/adr/0106-cue-rate-resamples.md
@@ -1521,12 +1521,12 @@ client/toss.ts:23	decision	Simplify by time-matched error, keep contacts and sta
 client/toss.ts:62	tautology	Tunable description; usage shows it	
 client/toss.ts:64	tautology	Tunable description; usage shows it	
 client/toss.ts:66	tautology	Tunable description; usage shows it	
-client/toss.ts:68	tautology	Tunable unit description	
-client/toss.ts:70	tautology	Tunable unit description	
+client/toss.ts:68	decision	Unit of a motion dial; the name does not carry it	docs/adr/0067-toss-frame-conventions.md
+client/toss.ts:70	decision	Unit of a motion dial; the name does not carry it	docs/adr/0067-toss-frame-conventions.md
 client/toss.ts:72	tautology	Tunable description; usage shows it	
 client/toss.ts:74	decision	Spin dies before the slide; already in the design guide	docs/design.md#poker--the-late-room-felt-poker-card-poker-rail
-client/toss.ts:76	tautology	Tunable unit description	
-client/toss.ts:78	tautology	Tunable unit description	
+client/toss.ts:76	decision	Unit of a motion dial; the name does not carry it	docs/adr/0067-toss-frame-conventions.md
+client/toss.ts:78	decision	Unit of a motion dial; the name does not carry it	docs/adr/0067-toss-frame-conventions.md
 client/toss.ts:80	tautology	Tunable description; usage shows it	
 client/toss.ts:82	tautology	Tunable description; usage shows it	
 client/toss.ts:85	tautology	Restates what minMs is for	
@@ -1541,29 +1541,29 @@ client/toss.ts:180	tautology	Restates the design guide's pitch description
 client/toss.ts:182	tautology	Restates the randomised options below it	
 client/toss.ts:192	tautology	Tunable group label	
 client/toss.ts:194	tautology	Tunable description; design guide gives the values' intent	
-client/toss.ts:196	tautology	Tunable unit description	
+client/toss.ts:196	decision	Unit of a motion dial; the name does not carry it	docs/adr/0067-toss-frame-conventions.md
 client/toss.ts:198	tautology	Tunable description; design guide gives the values' intent	
-client/toss.ts:200	tautology	Tunable unit description	
-client/toss.ts:202	tautology	Tunable unit description	
-client/toss.ts:204	tautology	Tunable unit description	
-client/toss.ts:206	tautology	Tunable unit description	
+client/toss.ts:200	decision	Unit of a motion dial; the name does not carry it	docs/adr/0067-toss-frame-conventions.md
+client/toss.ts:202	decision	Unit of a motion dial; the name does not carry it	docs/adr/0067-toss-frame-conventions.md
+client/toss.ts:204	decision	Unit of a motion dial; the name does not carry it	docs/adr/0067-toss-frame-conventions.md
+client/toss.ts:206	decision	Unit of a motion dial; the name does not carry it	docs/adr/0067-toss-frame-conventions.md
 client/toss.ts:210	tautology	Paraphrases scatter	
 client/toss.ts:217	decision	Receive choreography, already in the design guide	docs/design.md#poker--the-late-room-felt-poker-card-poker-rail
 client/toss.ts:232	tautology	Restates the tap loop	
 client/toss.ts:249	decision	Human deal rhythm, already in the design guide	docs/design.md#poker--the-late-room-felt-poker-card-poker-rail
 client/toss.ts:261	tautology	Tunable group label	
-client/toss.ts:263	tautology	Tunable unit description	
-client/toss.ts:265	tautology	Tunable unit description	
+client/toss.ts:263	decision	Unit of a motion dial; the name does not carry it	docs/adr/0067-toss-frame-conventions.md
+client/toss.ts:265	decision	Unit of a motion dial; the name does not carry it	docs/adr/0067-toss-frame-conventions.md
 client/toss.ts:267	decision	Hinge model: a card rocks on the edge it is not lifted by	docs/adr/0067-toss-frame-conventions.md
-client/toss.ts:273	tautology	Tunable unit description	
+client/toss.ts:273	decision	Unit of a motion dial; the name does not carry it	docs/adr/0067-toss-frame-conventions.md
 client/toss.ts:275	tautology	Tunable description	
-client/toss.ts:277	tautology	Tunable unit description	
+client/toss.ts:277	decision	Unit of a motion dial; the name does not carry it	docs/adr/0067-toss-frame-conventions.md
 client/toss.ts:279	tautology	Tunable description	
 client/toss.ts:281	tautology	Tunable description	
-client/toss.ts:283	tautology	Tunable unit description	
+client/toss.ts:283	decision	Unit of a motion dial; the name does not carry it	docs/adr/0067-toss-frame-conventions.md
 client/toss.ts:285	tautology	Tunable description	
-client/toss.ts:287	tautology	Tunable unit description	
-client/toss.ts:289	tautology	Tunable unit description	
+client/toss.ts:287	decision	Unit of a motion dial; the name does not carry it	docs/adr/0067-toss-frame-conventions.md
+client/toss.ts:289	decision	Unit of a motion dial; the name does not carry it	docs/adr/0067-toss-frame-conventions.md
 client/toss.ts:293	tautology	Paraphrases nudge	
 client/toss.ts:297	tautology	Paraphrases turnOver	
 client/toss.ts:303	tautology	Paraphrases poseAt	
@@ -1584,10 +1584,10 @@ client/toss.ts:425	tautology	Tunable description
 client/toss.ts:427	tautology	Tunable description	
 client/toss.ts:429	tautology	Tunable description	
 client/toss.ts:431	tautology	Tunable description	
-client/toss.ts:433	tautology	Tunable unit description	
-client/toss.ts:435	tautology	Tunable unit description	
-client/toss.ts:437	tautology	Tunable unit description	
-client/toss.ts:439	tautology	Tunable unit description	
+client/toss.ts:433	decision	Unit of a motion dial; the name does not carry it	docs/adr/0067-toss-frame-conventions.md
+client/toss.ts:435	decision	Unit of a motion dial; the name does not carry it	docs/adr/0067-toss-frame-conventions.md
+client/toss.ts:437	decision	Unit of a motion dial; the name does not carry it	docs/adr/0067-toss-frame-conventions.md
+client/toss.ts:439	decision	Unit of a motion dial; the name does not carry it	docs/adr/0067-toss-frame-conventions.md
 client/toss.ts:443	decision	Fold toss and KEEP_CLEAR, already in the design guide	docs/design.md#poker--the-late-room-felt-poker-card-poker-rail
 client/toss.ts:455	tautology	Restates the per-card heading randomisation	
 client/toss.ts:462	decision	Why the keepClear room formula holds for any heading	docs/adr/0067-toss-frame-conventions.md

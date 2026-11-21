@@ -1,6 +1,6 @@
 import ts from 'typescript'
 import { execFileSync } from 'node:child_process'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 
 export type Comment = { start: number; end: number; line: number; text: string }
 
@@ -23,7 +23,7 @@ function tsComments(file: string, src: string): Comment[] {
     const empty = node.kind === ts.SyntaxKind.CloseBraceToken && parent && ts.isJsxExpression(parent) && !parent.expression
     for (const r of [...(ts.getTrailingCommentRanges(src, node.pos) ?? []), ...(ts.getLeadingCommentRanges(src, node.pos) ?? [])]) {
       const [start, end] = empty ? [parent.getStart(sf), parent.end] : [r.pos, r.end]
-      found.set(r.pos, { start, end, line: lineOf(src, r.pos), text: src.slice(r.pos, r.end) })
+      found.set(start, { start, end, line: lineOf(src, r.pos), text: src.slice(r.pos, r.end) })
     }
   }
   visit(sf, undefined)
@@ -60,7 +60,8 @@ export function strip(file: string, src: string): string {
   for (const c of comments(file, src).filter((c) => !isPragma(c.text)).reverse()) {
     let start = c.start
     while (start > 0 && (out[start - 1] === ' ' || out[start - 1] === '\t')) start--
-    out = out.slice(0, start) + '\u0000' + out.slice(c.end)
+    const joins = /[\w$]/.test(out[start - 1] ?? '') && /[\w$]/.test(out[c.end] ?? '')
+    out = out.slice(0, start) + (joins ? ' ' : '\u0000') + out.slice(c.end)
   }
   const lines = out.split('\n')
   const kept: string[] = []
@@ -77,7 +78,7 @@ export function strip(file: string, src: string): string {
 
 export function files(): string[] {
   const out = execFileSync('git', ['ls-files', '-co', '--exclude-standard', ...EXTENSIONS.map((e) => `*.${e}`)], { encoding: 'utf8' })
-  return out.split('\n').filter((f) => f && !f.startsWith('node_modules/'))
+  return out.split('\n').filter((f) => f && !f.startsWith('node_modules/') && existsSync(f))
 }
 
 export function counts(list = files()): Record<string, number> {
@@ -124,7 +125,9 @@ if (import.meta.main) {
     }
     console.log(`${total} comments in ${list.length} files; stripping them all sheds ${shed} of ${lines} lines (${((100 * shed) / lines).toFixed(1)}%).`)
   } else if (cmd === 'baseline') {
-    writeFileSync(BASELINE, JSON.stringify(counts(), null, 2) + '\n')
+    const base = existsSync(BASELINE) ? readBaseline() : null
+    const tighter = Object.fromEntries(Object.entries(counts()).map(([f, n]) => [f, Math.min(n, base ? base[f] ?? 0 : n)]).filter(([, n]) => n))
+    writeFileSync(BASELINE, JSON.stringify(tighter, null, 2) + '\n')
   } else {
     const problems = ratchet()
     for (const p of problems) console.error(p)

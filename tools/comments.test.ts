@@ -19,6 +19,11 @@ test('comments are found in code, after code and in JSX, never in strings or JSX
   assert.equal(strip('x.tsx', src), 'const a = <div>\n  <a href="//x">// text</a>\n</div>\nconst b = 1\ntry { x() } catch { }\nconst s = "// not"\n')
 })
 
+test('strip never cuts code or joins tokens', () => {
+  assert.equal(strip('x.tsx', '<div>{/* a */ /* b */}<span/>KEEP</div>\n'), '<div><span/>KEEP</div>\n')
+  assert.equal(strip('x.ts', 'a /* c */b\n'), 'a b\n')
+})
+
 test('strip leaves no doubled blank line and no blank line opening a block', () => {
   assert.equal(strip('x.ts', 'a\n\n// one\n// two\n\nb\n'), 'a\n\nb\n')
   assert.equal(strip('x.ts', 'f() {\n  // why\n\n  b\n}\n'), 'f() {\n  b\n}\n')
