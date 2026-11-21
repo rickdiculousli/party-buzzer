@@ -392,6 +392,8 @@ npm run qa:film -- poker-flop   # motion-harness scenario as a contact sheet in 
 npm run dev            # Vite HMR; see proxy limitation below
 ```
 
+Each tool's manual is [tools/README.md](tools/README.md). Decisions behind the code are in [docs/adr/](docs/adr/README.md); the code carries no comments, and `npm test` holds the count to `tools/comments.baseline.json`.
+
 The `qa:*` commands are the evidence for the `adversarial-qa` skill
 (`.agents/skills/adversarial-qa/`), which sends critic agents at motion, visual
 and sound changes before they are called done.

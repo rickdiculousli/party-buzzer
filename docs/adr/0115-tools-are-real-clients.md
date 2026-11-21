@@ -1,0 +1,16 @@
+# Tools and simulation bots are real clients over real sockets
+
+Tools and the `tools/sim*.ts` bots talk to the server over the real WebSocket protocol, exactly as a browser does, never through a shortcut in the HTTP layer: a tool that bypassed the game's path would stop being evidence about the game, and a sim's board shows what a real room would produce. `conn.ts` holds the shared socket, clock sync and state cache. Usage for each lives in `README.md` (Development and each minigame section).
+
+- `URLS` are the loopback spellings of the names the phones use (`127-0-0-1.local-ip.sh`, `127-0-0-1.my.local-ip.co`), which the served wildcard certificates cover, so https works without disabling verification; they follow the server's provider order, and plain http last matches the server's fallback.
+- Tool clock sync keeps the lowest-round-trip ping sample, a simpler estimate than the browser's median of the fastest half.
+- Ink frames carry the full pad only when it changed, so a connection carries the last pad forward onto later frames of the same match.
+- Tool players reuse stable ids (`resumeId`, as a returning phone does): probe's are `probe-<name>`, fakes' `fake-01` to `fake-99`. Re-running a tool resumes the same players instead of piling up copies, and cleanup removes only those prefixes, never a real player.
+- Bots that aim (Bow) rebuild the seeded world from the session's seed and participants rather than reading hidden state. Bots that need a secret (the Ink word, the Sketch word) read it from a writer or drawer bot's own private frame; the sim deliberately cheats so play is watchable. Tank bots read the shared field through a board connection, as the TV does.
+- Input sequence numbers start from `Date.now()`, so a rerun never reuses numbers the server still remembers for that player.
+- Before preparing a minigame, a sim cancels and closes any session left from an earlier run, which would otherwise refuse the prepare. On Ctrl-C it cancels and closes the minigame, sends `next` so the round from before the match does not come back up, and kicks the bots it created.
+- The buzzer sim's roster is deliberately uneven in skill, reflex, jitter and lag, and question difficulty is spread, because an even room makes the timeline look the same every time. Network lag is applied to the send while the press time on the wire stays the bot's own, like a real phone, so the server's clamp has something real to correct. The reaction spread runs well past the 150 ms provisional reveal so hesitant buzzes visibly trickle in.
+- `PACE` scales only the viewing beats, never buzz timing. The sim sends `next` after scoring and `setValue` at the start of the next question, so the next-question card shows the new stakes.
+- A Tank gunner bot sends an absolute world heading with `turretAim`; the server holds that target while the hull turns. Cover only shrinks, so a stale cover grid just steers wider.
+
+Where: `tools/conn.ts` (`URLS`, `reachable`, `connect`), `tools/fakes.ts` (`fid`, `PREFIX`), `tools/probe.ts` (`idFor`), `tools/sim.ts` (`ROSTER`, `attempt`, `beat`), `tools/sim-bow.ts` (`main`), `tools/sim-ink.ts`, `tools/sim-sketch.ts` (`secret`), `tools/sim-tank.ts` (`crewLoop`), `tools/sim-tug.ts`

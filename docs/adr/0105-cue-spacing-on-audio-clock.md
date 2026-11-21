@@ -1,0 +1,5 @@
+# Spaced cues are slotted by when they are heard, on the audio clock
+
+`playSpaced` keeps one `nextFree` instant on the `AudioContext` clock and never resets it: the board's render queue runs on `performance.now()`, but cues are scheduled later from effects, so only the audio clock knows when something actually last played. Slots are spaced by when a cue is heard: a cue with an onset starts that much before its slot so its attack lands on it, while a layer's `delay` stays a separate, intentional offset. An onset longer than the lead available clamps to now (late, never in the past), a file cue with zero onset lands exactly on its slot, and several cues given together are one moment sharing one slot and one gap. `playSpaced` returns nothing to align visuals against; each surface times its picture on its own clock and only the gap is shared. `onset` is derived from the recipe, never dialled.
+
+Where: `client/sound.ts` (`spacedPlan`, `playSpaced`, `nextFree`), `client/synth.ts` (`onset`), `client/sound.test.ts`

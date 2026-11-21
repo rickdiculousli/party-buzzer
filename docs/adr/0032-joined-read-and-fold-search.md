@@ -1,0 +1,18 @@
+# The reader speaks a whole question in one breath and reveals it at measured folds
+
+A fragment spoken on its own gets sentence-final intonation even when it ends mid-sentence, so a fragment-at-a-time read sounds chopped. When an aligner is supplied the reader renders the whole question (or its `S:` script) as one clip and reveals it clause by clause at fold times found in the audio; without one it falls back to one clip per fragment.
+
+Finding the folds is verification, not recognition, because the source text is known: cut the clip at t, transcribe, count how many source words came back whole. That count is monotonic (a word appears only once essentially finished), so bisection over t finds every boundary. `align.ts` is the pure half; transcription is injected (`Transcriber`, sessions in `server/stt.ts`; `ReaderOpts.align` in the reader) so both are testable against fakes. Uncertainty resolves late: a late fold costs a beat of lag, an early one shows unheard words.
+
+- Fragments rejoin with a single space into exactly the prose the author typed, with no synthesiser markers, which would be spoken or would change the prosody.
+- Folds are fragment starts, clause breaks (punctuation followed by a space, so `1,200` is not one) and the close of the question, which needs its own fold because the last clause has no successor to reveal it. Clauses, not words: word-level folds are worse to watch, since the line grows under the reader's eye.
+- Each slice is transcribed from its own start, since cost is linear in slice length, and the search runs level by level so a whole level transcribes in parallel; latency is the search depth, not the call count.
+- Each slice starts `RUNUP_MS` early so it opens on a whole word; the count is read from each plausible starting word (up to `RUNUP_WORDS` back) and the best kept, which cannot credit unheard audio. Each count is clamped into its bracket, since endpointing makes the oracle only approximately monotonic.
+- Words the search cannot separate (within `epsMs` of the run's start) are spread evenly across the gap since the last trusted time, because left alone they land in one lump at the last word's end.
+- A fold fires when the voice begins the clause it reveals (`done[prevK]`), not when it finishes it: the room can read a clause slightly ahead of hearing it, but never past the clause in progress.
+- Reveal timers start when playback actually produces sound (`Playback.started`), not when the process spawns. `REVEAL_LAG_MS` is negative on purpose because every estimate feeding the folds rounds late; toward zero holds the board back to the voice, more negative has the line waiting when the clause begins.
+- If alignment fails the question is still read in full and its text lands when the clip ends: a board that lags is acceptable, one that runs ahead is not.
+- The whole joined text is published (`whole`) before any of it is revealed, so lines already on the board do not move; the hub strips it from players. Crossing into a new fragment publishes a new `fragment` entry and later text in it is an `extend`; `fragmentEnded` fires once per completed fragment even when one fold crosses several.
+- After an interruption, playback resumes at the last fold before the stop point, a point the room has both heard and seen; the reveal never rewinds. Without a seeking player the question restarts and the reveal catches up. In per-fragment mode an interruption replays the fragment from its start.
+
+Where: `server/align.ts` (`join`, `candidates`, `locate`, `RUNUP_MS`, `EPS_MS`), `server/reader.ts` (`ReaderOpts.align`, `REVEAL_LAG_MS`, `textsFor`, `drain`, `speakQuestion`, `speakWhole`, `speak`)
