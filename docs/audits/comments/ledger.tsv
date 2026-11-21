@@ -4259,3 +4259,4 @@ tools/sim-tug.ts:38	tautology	Character label for a roster entry
 tools/sim.ts:61	tautology	Character label for a roster entry	
 tools/sim.ts:62	tautology	Character label for a roster entry	
 tools/sim.ts:64	tautology	Character label for a roster entry	
+client/style.css:3032	tautology	Label for the screen tunables; no tool reads this second marker	
